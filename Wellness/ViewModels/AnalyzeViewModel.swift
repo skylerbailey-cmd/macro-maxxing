@@ -17,6 +17,12 @@ import SwiftData
     var state:        State = .idle
     var selectedDate: Date
 
+    /// True if Log Meals has already been run today (real calendar today).
+    var hasRunToday: Bool {
+        guard let t = UserDefaults.standard.object(forKey: "lastLogMealsDate") as? Double else { return false }
+        return Calendar.current.isDateInToday(Date(timeIntervalSince1970: t))
+    }
+
     private let modelContext: ModelContext
     private let service = ClaudeAnalysisService()
 
@@ -60,6 +66,8 @@ import SwiftData
 
         do {
             let result = try await service.analyze(input)
+            // Mark today as used
+            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastLogMealsDate")
             state = .result(result)
         } catch {
             state = .error(error.localizedDescription)

@@ -144,7 +144,9 @@ struct FoodLogView: View {
         .padding(.vertical, 32)
     }
 
-    // MARK: - Analyze section
+    // MARK: - Log Meals (AI Nutrition Coach) section
+
+    @State private var showLogMealsConfirm = false
 
     private var analyzeSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -161,15 +163,25 @@ struct FoodLogView: View {
             // Description / result
             switch analyzeVM.state {
             case .idle:
-                Text("Tap Analyze to get personalized meal swap and snack suggestions based on what you've logged today.")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.50))
-                    .lineSpacing(2)
+                if analyzeVM.hasRunToday {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green.opacity(0.75))
+                        Text("Already logged today. Come back tomorrow for a fresh suggestion.")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.50))
+                    }
+                } else {
+                    Text("Tap Log Meals to get a personalised one-meal swap suggestion based on what you've logged today. Can only be run once per day.")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.50))
+                        .lineSpacing(2)
+                }
 
             case .analyzing:
                 HStack(spacing: 10) {
                     ProgressView().tint(Color.purpleHi)
-                    Text("Analyzing your nutrition…")
+                    Text("Logging your meals…")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.50))
                 }
@@ -184,22 +196,26 @@ struct FoodLogView: View {
                 }
             }
 
-            // Buttons
-            HStack(spacing: 10) {
-                Button {
-                    Task { await analyzeVM.analyze() }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "wand.and.stars")
-                        Text(analyzeVM.state == .idle ? "Analyze" : "Re-Analyze")
-                    }
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
+            // Button
+            Button {
+                showLogMealsConfirm = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: analyzeVM.hasRunToday ? "checkmark.circle.fill" : "wand.and.stars")
+                    Text(analyzeVM.hasRunToday ? "Logged Today" : "Log Meals")
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.purpleHi)
-                .disabled(analyzeVM.state == .analyzing)
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(analyzeVM.hasRunToday ? .gray : Color.purpleHi)
+            .disabled(analyzeVM.state == .analyzing || analyzeVM.hasRunToday)
+            .alert("Log Meals?", isPresented: $showLogMealsConfirm) {
+                Button("Run It", role: .none) { Task { await analyzeVM.analyze() } }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will analyse everything you've logged today and give you one personalised meal suggestion. You can only run this once per day.")
             }
         }
         .padding(16)
