@@ -115,6 +115,21 @@ enum AnalysisState: Equatable {
         loadTodayEntries()
     }
 
+    func updateEntry(_ entry: FoodEntry,
+                     foodName: String,
+                     calories: Double,
+                     protein: Double,
+                     carbs: Double,
+                     fat: Double) {
+        entry.foodName = foodName.isEmpty ? "Unknown Food" : foodName
+        entry.calories = calories
+        entry.protein  = protein
+        entry.carbs    = carbs
+        entry.fat      = fat
+        try? modelContext.save()
+        loadTodayEntries()
+    }
+
     func discardEntry() {
         resetFields()
     }

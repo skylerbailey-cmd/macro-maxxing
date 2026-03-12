@@ -21,6 +21,7 @@ struct FoodLogView: View {
     @State private var viewModel: FoodLogViewModel
     @Binding var selectedDate: Date
     @State private var showingAnalysisSheet = false
+    @State private var editingEntry: FoodEntry? = nil
 
     init(modelContext: ModelContext, selectedDate: Binding<Date>) {
         _viewModel    = State(wrappedValue: FoodLogViewModel(
@@ -45,9 +46,9 @@ struct FoodLogView: View {
                     ScrollView {
                         LazyVStack(spacing: 10) {
                             ForEach(viewModel.todayEntries) { entry in
-                                FoodEntryRow(entry: entry) {
-                                    viewModel.deleteEntry(entry)
-                                }
+                                FoodEntryRow(entry: entry,
+                                             onEdit: { editingEntry = entry },
+                                             onDelete: { viewModel.deleteEntry(entry) })
                             }
                         }
                         .padding(.horizontal, 16)
@@ -93,6 +94,14 @@ struct FoodLogView: View {
         }
         .sheet(isPresented: $viewModel.showingPhotoLibrary) {
             ImagePickerView(sourceType: .photoLibrary, selectedImage: $viewModel.selectedImage)
+        }
+        .sheet(item: $editingEntry) { entry in
+            EditEntrySheet(entry: entry) { name, cal, pro, carb, fat in
+                viewModel.updateEntry(entry, foodName: name,
+                                      calories: cal, protein: pro,
+                                      carbs: carb, fat: fat)
+            }
+            .presentationDetents([.medium])
         }
         .sheet(isPresented: $showingAnalysisSheet, onDismiss: {
             viewModel.discardEntry()
@@ -250,6 +259,7 @@ private struct AnalysisSheet: View {
 
 private struct FoodEntryRow: View {
     let entry: FoodEntry
+    let onEdit:   () -> Void
     let onDelete: () -> Void
 
     var body: some View {
@@ -300,6 +310,109 @@ private struct FoodEntryRow: View {
         .padding(12)
         .background(Color.cardBg)
         .cornerRadius(14)
+        .contentShape(Rectangle())
+        .onTapGesture { onEdit() }
+    }
+}
+
+// MARK: - Edit Entry Sheet
+
+private struct EditEntrySheet: View {
+    let entry: FoodEntry
+    let onSave: (String, Double, Double, Double, Double) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var focus: Field?
+
+    @State private var foodName:     String
+    @State private var caloriesText: String
+    @State private var proteinText:  String
+    @State private var carbsText:    String
+    @State private var fatText:      String
+
+    private enum Field: Hashable { case name, calories, protein, carbs, fat }
+
+    init(entry: FoodEntry, onSave: @escaping (String, Double, Double, Double, Double) -> Void) {
+        self.entry  = entry
+        self.onSave = onSave
+        _foodName     = State(initialValue: entry.foodName)
+        _caloriesText = State(initialValue: String(format: "%.0f", entry.calories))
+        _proteinText  = State(initialValue: String(format: "%.1f", entry.protein))
+        _carbsText    = State(initialValue: String(format: "%.1f", entry.carbs))
+        _fatText      = State(initialValue: String(format: "%.1f", entry.fat))
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Food") {
+                    HStack {
+                        Text("Name")
+                        Spacer()
+                        TextField("Food name", text: $foodName)
+                            .multilineTextAlignment(.trailing)
+                            .focused($focus, equals: .name)
+                            .submitLabel(.next)
+                            .onSubmit { focus = .calories }
+                    }
+                }
+                Section("Macros") {
+                    macroRow("Calories", unit: "kcal", text: $caloriesText, field: .calories, next: .protein)
+                    macroRow("Protein",  unit: "g",    text: $proteinText,  field: .protein,  next: .carbs)
+                    macroRow("Carbs",    unit: "g",    text: $carbsText,    field: .carbs,    next: .fat)
+                    macroRow("Fat",      unit: "g",    text: $fatText,      field: .fat,      next: nil)
+                }
+            }
+            .navigationTitle("Edit Entry")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { save() }
+                        .disabled(!isValid)
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { focus = nil }
+                        .fontWeight(.semibold)
+                }
+            }
+        }
+    }
+
+    private var isValid: Bool {
+        Double(caloriesText) != nil &&
+        Double(proteinText)  != nil &&
+        Double(carbsText)    != nil &&
+        Double(fatText)      != nil
+    }
+
+    private func save() {
+        guard let cal = Double(caloriesText),
+              let pro = Double(proteinText),
+              let carb = Double(carbsText),
+              let fat = Double(fatText) else { return }
+        onSave(foodName, cal, pro, carb, fat)
+        dismiss()
+    }
+
+    @ViewBuilder
+    private func macroRow(_ label: String, unit: String,
+                           text: Binding<String>,
+                           field: Field, next: Field?) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            TextField("0", text: text)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 80)
+                .focused($focus, equals: field)
+                .submitLabel(next == nil ? .done : .next)
+                .onSubmit { focus = next }
+            Text(unit).foregroundStyle(.secondary)
+        }
     }
 }
 
