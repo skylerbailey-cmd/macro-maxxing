@@ -138,8 +138,12 @@ struct HomeView: View {
         }
         .overlay {
             if showCelebration {
-                CelebrationView { showCelebration = false }
-                    .transition(.opacity)
+                CelebrationView(
+                    macroGoalsMet: viewModel.macroGoalsMet,
+                    userName:      viewModel.userSettings.name,
+                    onDismiss:     { showCelebration = false }
+                )
+                .transition(.opacity)
             }
         }
         .sheet(isPresented: $showingWindowPicker) {

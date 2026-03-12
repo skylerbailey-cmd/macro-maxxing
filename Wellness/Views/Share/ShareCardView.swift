@@ -25,6 +25,7 @@ struct ShareCardData {
     let streak:  Int
     let date:    Date
     let name:    String
+    let meme:    GymMeme?       // shown instead of trophy when allMet
 
     var allMet: Bool { calMet && proMet && carbMet && fatMet }
 }
@@ -144,11 +145,19 @@ struct ShareCardView: View {
     // MARK: Celebration
 
     private var celebration: some View {
-        VStack(spacing: 6) {
-            Text("🏆")
+        let m = data.meme ?? GymMeme(
+            emoji: "🏆",
+            headline: data.name.isEmpty
+                ? "All Goals Crushed!"
+                : "\(data.name.components(separatedBy: " ").first ?? data.name) Crushed It!",
+            sub: "every macro goal met today 🔥"
+        )
+        return VStack(spacing: 6) {
+            Text(m.emoji)
                 .font(.system(size: 50))
+                .shadow(color: gold.opacity(0.7), radius: 16)
 
-            Text(data.name.isEmpty ? "All Goals Crushed!" : "\(data.name.components(separatedBy: " ").first ?? data.name) Crushed It!")
+            Text(m.headline)
                 .font(.system(size: 24, weight: .black, design: .rounded))
                 .foregroundStyle(
                     LinearGradient(
@@ -159,7 +168,7 @@ struct ShareCardView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
 
-            Text("Every macro goal met today 🔥")
+            Text(m.sub)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.white.opacity(0.55))
         }

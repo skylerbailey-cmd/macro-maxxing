@@ -162,7 +162,8 @@ struct ShareView: View {
             fatMet:  met.indices.contains(3) ? met[3] : false,
             streak:  viewModel.macroStreak,
             date:    viewModel.selectedDate,
-            name:    viewModel.userSettings.name
+            name:    viewModel.userSettings.name,
+            meme:    viewModel.macroGoalsMet.allSatisfy({ $0 }) ? GymMeme.random() : nil
         ))
 
         let renderer   = ImageRenderer(content: card)
