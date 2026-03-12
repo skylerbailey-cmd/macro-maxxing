@@ -135,7 +135,8 @@ struct AuraPopupView: View {
             totalCarbs:    0, goalCarbs:    0,
             totalFat:      0, goalFat:      0
         )
-        post.isCustomPost = false   // show as achievement-style post
+        post.isCustomPost    = false
+        post.authorAuraLevel = userSettings.auraLevel
         modelContext.insert(post)
         withAnimation { postedToFeed = true }
     }

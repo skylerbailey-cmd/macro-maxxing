@@ -38,7 +38,7 @@ struct SocialView: View {
             } else {
                 List {
                     ForEach(posts) { post in
-                        PostCard(post: post)
+                        PostCard(post: post, userID: userSettings.userID)
                             .contentShape(Rectangle())
                             .onTapGesture { selectedPost = post }
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -108,7 +108,8 @@ struct SocialView: View {
 // MARK: - Post card
 
 struct PostCard: View {
-    let post: SocialPost
+    @Bindable var post: SocialPost
+    let userID: String
 
     private let colCal  = Color(red: 1.00, green: 0.55, blue: 0.15)
     private let colPro  = Color(red: 0.35, green: 0.75, blue: 1.00)
@@ -125,9 +126,35 @@ struct PostCard: View {
                 achievementBody
             }
 
-            // Comment count
-            HStack {
+            // Reps + comments
+            HStack(spacing: 16) {
+                // 💪 Rep button
+                Button {
+                    post.toggleRep(userID: userID)
+                } label: {
+                    HStack(spacing: 5) {
+                        Text("💪")
+                            .font(.system(size: 14))
+                        Text("\(post.repsCount)")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(
+                                post.hasRepped(userID: userID)
+                                    ? Color(red: 1.0, green: 0.75, blue: 0.2)
+                                    : .white.opacity(0.35)
+                            )
+                        Text("Reps")
+                            .font(.caption)
+                            .foregroundStyle(
+                                post.hasRepped(userID: userID)
+                                    ? Color(red: 1.0, green: 0.75, blue: 0.2)
+                                    : .white.opacity(0.35)
+                            )
+                    }
+                }
+                .buttonStyle(.plain)
+
                 Spacer()
+
                 HStack(spacing: 4) {
                     Image(systemName: "bubble.left")
                         .font(.system(size: 12))
@@ -153,8 +180,15 @@ struct PostCard: View {
                         .foregroundStyle(Color.purpleHi)
                 }
             VStack(alignment: .leading, spacing: 2) {
-                Text(post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName)
-                    .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                HStack(spacing: 6) {
+                    Text(post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName)
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                    if post.authorAuraLevel > 0 {
+                        Text("⭐ Lv \(post.authorAuraLevel)")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+                    }
+                }
                 Text("@\(post.authorUsername)  ·  \(post.postedAt, style: .relative)")
                     .font(.caption2).foregroundStyle(.white.opacity(0.35))
             }

@@ -81,8 +81,15 @@ struct PostDetailView: View {
                             .foregroundStyle(purpl)
                     }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName)
-                        .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                    HStack(spacing: 6) {
+                        Text(post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName)
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                        if post.authorAuraLevel > 0 {
+                            Text("⭐ Lv \(post.authorAuraLevel)")
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+                        }
+                    }
                     Text("@\(post.authorUsername)  ·  \(post.macroDate, style: .date)")
                         .font(.caption2).foregroundStyle(.white.opacity(0.35))
                 }
@@ -192,7 +199,10 @@ struct PostDetailView: View {
                     .padding(.bottom, 14)
             } else {
                 // List inside card for swipe-to-delete
-                let sorted = post.comments.sorted(by: { $0.postedAt < $1.postedAt })
+                // Sort by most reps first, then by date for ties
+                let sorted = post.comments.sorted {
+                    $0.repsCount != $1.repsCount ? $0.repsCount > $1.repsCount : $0.postedAt < $1.postedAt
+                }
                 List {
                     ForEach(sorted) { comment in
                         commentRow(comment)
@@ -230,7 +240,7 @@ struct PostDetailView: View {
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(purpl)
                 }
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(comment.authorDisplayName.isEmpty ? comment.authorUsername : comment.authorDisplayName)
                         .font(.caption.weight(.semibold)).foregroundStyle(.white)
@@ -239,6 +249,24 @@ struct PostDetailView: View {
                 }
                 Text(comment.text)
                     .font(.subheadline).foregroundStyle(.white.opacity(0.85))
+
+                // 💪 Rep button on comment
+                Button {
+                    comment.toggleRep(userID: userSettings.userID)
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("💪")
+                            .font(.system(size: 12))
+                        Text("\(comment.repsCount) Reps")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(
+                                comment.hasRepped(userID: userSettings.userID)
+                                    ? Color(red: 1.0, green: 0.75, blue: 0.2)
+                                    : .white.opacity(0.35)
+                            )
+                    }
+                }
+                .buttonStyle(.plain)
             }
             Spacer()
         }

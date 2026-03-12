@@ -136,8 +136,9 @@ struct NewPostView: View {
             totalCarbs:    0, goalCarbs:    0,
             totalFat:      0, goalFat:      0
         )
-        post.isCustomPost = true
-        post.imageData    = image?.jpegData(compressionQuality: 0.8)
+        post.isCustomPost    = true
+        post.authorAuraLevel = userSettings.auraLevel
+        post.imageData       = image?.jpegData(compressionQuality: 0.8)
         modelContext.insert(post)
         dismiss()
     }
