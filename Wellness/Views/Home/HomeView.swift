@@ -112,6 +112,9 @@ struct HomeView: View {
         .onChange(of: viewModel.userSettings.goalWeight) { _, newVal in
             if newVal > 0 { viewModel.recalculateMacrosFromGoalWeight() }
         }
+        .onChange(of: viewModel.userSettings.proteinPerLb) { _, _ in
+            viewModel.recalculateMacrosFromGoalWeight()
+        }
         .sheet(isPresented: $showingWindowPicker) {
             WindowPickerSheet(
                 windowStartDate: windowStartDate,
@@ -126,7 +129,8 @@ struct HomeView: View {
         .sheet(isPresented: $showingGoalSheet) {
             GoalWeightSheet(
                 currentWeight: $settings.currentWeight,
-                goalWeight: $settings.goalWeight
+                goalWeight: $settings.goalWeight,
+                proteinPerLb: viewModel.userSettings.proteinPerLb
             )
             .presentationDetents([.medium, .large])
         }
@@ -549,6 +553,7 @@ private struct WindowPickerSheet: View {
 private struct GoalWeightSheet: View {
     @Binding var currentWeight: Double
     @Binding var goalWeight: Double
+    let proteinPerLb: Double
     @Environment(\.dismiss) private var dismiss
     @State private var currentText = ""
     @State private var goalText    = ""
@@ -558,7 +563,7 @@ private struct GoalWeightSheet: View {
         return v
     }
     private var previewCalories: Double { previewGoal.map { max($0 * 14, 1200) } ?? 0 }
-    private var previewProtein:  Double { previewGoal.map { max($0 * 0.9, 50) } ?? 0 }
+    private var previewProtein:  Double { previewGoal.map { max($0 * proteinPerLb, 50) } ?? 0 }
     private var previewFat:      Double { previewGoal != nil ? max((previewCalories * 0.25) / 9, 30) : 0 }
     private var previewCarbs:    Double {
         previewGoal != nil ? max((previewCalories - previewProtein * 4 - previewFat * 9) / 4, 50) : 0
@@ -588,7 +593,7 @@ private struct GoalWeightSheet: View {
                         HStack { Text("Carbs");    Spacer(); Text(String(format: "%.0f g",    previewCarbs)).foregroundStyle(.secondary) }
                         HStack { Text("Fat");      Spacer(); Text(String(format: "%.0f g",    previewFat)).foregroundStyle(.secondary) }
                     } header: { Text("Estimated Daily Macro Goals") }
-                      footer: { Text("~14 kcal/lb · 0.9g protein/lb · 25% fat · remainder carbs. Saving updates your macro goals.") }
+                      footer: { Text("~14 kcal/lb · \(String(format: "%.2f", proteinPerLb))g protein/lb · 25% fat · remainder carbs. Saving updates your macro goals.") }
                 }
             }
             .onAppear {

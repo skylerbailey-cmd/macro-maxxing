@@ -134,7 +134,7 @@ import SwiftData
         let gw = userSettings.goalWeight
         guard gw > 0 else { return }
         let cals    = gw * 14.0
-        let protein = gw * 0.9
+        let protein = gw * userSettings.proteinPerLb
         let fat     = (cals * 0.25) / 9.0
         let carbs   = (cals - protein * 4.0 - fat * 9.0) / 4.0
 

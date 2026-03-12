@@ -7,14 +7,13 @@ import SwiftUI
 
 struct SettingsView: View {
     @Bindable var userSettings: UserSettings
-    @FocusState private var focus: Field?
+    @FocusState private var nameFocused: Bool
 
-    private enum Field: Hashable { case name, currentWeight, goalWeight }
-
-    // Local text state — avoids re-rendering the whole app on every keystroke
-    @State private var nameText          = ""
-    @State private var currentWeightText = ""
-    @State private var goalWeightText    = ""
+    // Local state — only writes to userSettings on commit, preventing re-renders on every input
+    @State private var nameText:         String = ""
+    @State private var currentWeightVal: Double = 160
+    @State private var goalWeightVal:    Double = 160
+    @State private var proteinPerLbVal:  Double = 0.9
 
     var body: some View {
         Form {
@@ -25,34 +24,57 @@ struct SettingsView: View {
                     Spacer()
                     TextField("Your name", text: $nameText)
                         .multilineTextAlignment(.trailing)
-                        .focused($focus, equals: .name)
+                        .focused($nameFocused)
                         .submitLabel(.done)
-                        .onSubmit { commitAll(); focus = nil }
+                        .onSubmit { commitAll(); nameFocused = false }
                 }
             }
 
             // MARK: Body
             Section("Body") {
-                HStack {
-                    Text("Current Weight")
-                    Spacer()
-                    TextField("0", text: $currentWeightText)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 80)
-                        .focused($focus, equals: .currentWeight)
-                    Text("lbs").foregroundStyle(.secondary)
+                sliderRow(
+                    label: "Current Weight",
+                    value: $currentWeightVal,
+                    range: 100...300,
+                    step: 1,
+                    display: "\(Int(currentWeightVal)) lbs"
+                ) { editing in
+                    if !editing { userSettings.currentWeight = currentWeightVal }
+                }
+
+                sliderRow(
+                    label: "Goal Weight",
+                    value: $goalWeightVal,
+                    range: 100...300,
+                    step: 1,
+                    display: "\(Int(goalWeightVal)) lbs"
+                ) { editing in
+                    if !editing { userSettings.goalWeight = goalWeightVal }
+                }
+            }
+
+            // MARK: Nutrition
+            Section {
+                sliderRow(
+                    label: "Protein per lb",
+                    value: $proteinPerLbVal,
+                    range: 0.7...1.0,
+                    step: 0.05,
+                    display: String(format: "%.2f g/lb", proteinPerLbVal)
+                ) { editing in
+                    if !editing { userSettings.proteinPerLb = proteinPerLbVal }
                 }
                 HStack {
-                    Text("Goal Weight")
+                    Text("0.7").font(.caption2).foregroundStyle(.secondary)
                     Spacer()
-                    TextField("0", text: $goalWeightText)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 80)
-                        .focused($focus, equals: .goalWeight)
-                    Text("lbs").foregroundStyle(.secondary)
+                    Text("1.0").font(.caption2).foregroundStyle(.secondary)
                 }
+                .listRowSeparator(.hidden)
+                .padding(.top, -8)
+            } header: {
+                Text("Nutrition")
+            } footer: {
+                Text("Grams of protein per pound of goal body weight. General fitness: 0.7–0.8 g/lb. Strength training: 0.8–1.0 g/lb.")
             }
 
             // MARK: Intermittent Fasting
@@ -67,13 +89,11 @@ struct SettingsView: View {
             }
         }
         .onAppear {
-            nameText          = userSettings.name
-            currentWeightText = userSettings.currentWeight > 0
-                ? String(format: "%.1f", userSettings.currentWeight) : ""
-            goalWeightText    = userSettings.goalWeight > 0
-                ? String(format: "%.0f", userSettings.goalWeight) : ""
+            nameText         = userSettings.name
+            currentWeightVal = userSettings.currentWeight > 0 ? userSettings.currentWeight : 160
+            goalWeightVal    = userSettings.goalWeight    > 0 ? userSettings.goalWeight    : 160
+            proteinPerLbVal  = userSettings.proteinPerLb
         }
-        // Commit when navigating away without tapping Done
         .onDisappear { commitAll() }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
@@ -81,21 +101,42 @@ struct SettingsView: View {
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("Done") {
-                    commitAll()
-                    focus = nil
-                }
-                .fontWeight(.semibold)
+                Button("Done") { commitAll(); nameFocused = false }
+                    .fontWeight(.semibold)
             }
         }
     }
 
-    private func commitAll() {
-        let trimmedName = nameText.trimmingCharacters(in: .whitespaces)
-        userSettings.name = trimmedName
+    // MARK: - Helpers
 
-        if let cw = Double(currentWeightText), cw > 0 { userSettings.currentWeight = cw }
-        if let gw = Double(goalWeightText),    gw > 0 { userSettings.goalWeight    = gw }
+    @ViewBuilder
+    private func sliderRow(
+        label: String,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        step: Double,
+        display: String,
+        onEditingChanged: @escaping (Bool) -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(label)
+                Spacer()
+                Text(display)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            Slider(value: value, in: range, step: step, onEditingChanged: onEditingChanged)
+                .tint(Color(red: 0.65, green: 0.45, blue: 1.0))
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func commitAll() {
+        userSettings.name          = nameText.trimmingCharacters(in: .whitespaces)
+        userSettings.currentWeight = currentWeightVal
+        userSettings.goalWeight    = goalWeightVal
+        userSettings.proteinPerLb  = proteinPerLbVal
     }
 }
 
