@@ -15,6 +15,24 @@ struct SplashView: View {
     @State private var titleOpacity: Double  = 0
     @State private var loadProgress: Double  = 0
 
+    private static let welcomeLines = [
+        "the grind doesn't start itself.",
+        "time to mog the timeline.",
+        "rise and maxx, bro.",
+        "sigma fuel loading…",
+        "your jawline awaits.",
+        "built different. always.",
+        "no days off. no cap.",
+        "aura charging… ⚡",
+        "the looksmaxx era starts now.",
+        "every meal is a power move fr.",
+        "NPC diet? not today.",
+        "roman emperor nutrition unlocked.",
+        "macros don't lie. neither do you.",
+        "get in. we're hitting goals today.",
+    ]
+    private let welcomeLine = welcomeLines.randomElement()!
+
     var body: some View {
         ZStack {
             RadialGradient(
@@ -43,14 +61,19 @@ struct SplashView: View {
 
                 Spacer().frame(height: 28)
 
-                // App name
+                // App name + random welcome line
                 VStack(spacing: 6) {
                     Text("Macro Maxxing")
                         .font(.system(size: 34, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
-                    Text("Track your journey")
+                    Text("log the mog.")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.40))
+                    Text(welcomeLine)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.28))
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 4)
                 }
                 .opacity(titleOpacity)
             }

@@ -63,10 +63,7 @@ struct AuraPopupView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 8)
 
-                Text("tap to dismiss")
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.25))
-                    .padding(.top, 4)
+                // intentionally empty — X button handles dismiss
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 30)
@@ -84,6 +81,14 @@ struct AuraPopupView: View {
                     .stroke(Color(red: 1.0, green: 0.75, blue: 0.2).opacity(0.40), lineWidth: 1.5)
             )
             .padding(.horizontal, 28)
+            .overlay(alignment: .topTrailing) {
+                Button(action: animatedDismiss) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 26))
+                        .foregroundStyle(.white.opacity(0.50))
+                        .padding(14)
+                }
+            }
             .scaleEffect(scale)
             .opacity(opacity)
         }
@@ -91,10 +96,6 @@ struct AuraPopupView: View {
             withAnimation(.easeOut(duration: 0.15)) { bgOpacity = 1 }
             withAnimation(.spring(duration: 0.50, bounce: 0.40).delay(0.05)) {
                 scale = 1.0; opacity = 1.0
-            }
-            Task {
-                try? await Task.sleep(for: .seconds(3.5))
-                animatedDismiss()
             }
         }
     }
