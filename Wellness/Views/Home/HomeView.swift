@@ -143,10 +143,9 @@ struct HomeView: View {
         .sheet(isPresented: $showingGoalSheet) {
             GoalWeightSheet(
                 currentWeight: $settings.currentWeight,
-                goalWeight: $settings.goalWeight,
-                proteinPerLb: viewModel.userSettings.proteinPerLb
+                goalWeight: $settings.goalWeight
             )
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.medium])
         }
     }
 
@@ -567,66 +566,56 @@ private struct WindowPickerSheet: View {
 private struct GoalWeightSheet: View {
     @Binding var currentWeight: Double
     @Binding var goalWeight: Double
-    let proteinPerLb: Double
     @Environment(\.dismiss) private var dismiss
-    @State private var currentText = ""
-    @State private var goalText    = ""
 
-    private var previewGoal: Double? {
-        guard let v = Double(goalText), v > 0 else { return nil }
-        return v
-    }
-    private var previewCalories: Double { previewGoal.map { max($0 * 14, 1200) } ?? 0 }
-    private var previewProtein:  Double { previewGoal.map { max($0 * proteinPerLb, 50) } ?? 0 }
-    private var previewFat:      Double { previewGoal != nil ? max((previewCalories * 0.25) / 9, 30) : 0 }
-    private var previewCarbs:    Double {
-        previewGoal != nil ? max((previewCalories - previewProtein * 4 - previewFat * 9) / 4, 50) : 0
-    }
+    @State private var currentVal: Double = 160
+    @State private var goalVal:    Double = 160
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Your Weight") {
-                    HStack {
-                        Text("Current"); Spacer()
-                        TextField("0", text: $currentText).keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing).frame(width: 80)
-                        Text("lbs").foregroundStyle(.secondary)
+                    sliderRow("Current Weight", value: $currentVal) { editing in
+                        if !editing { currentWeight = currentVal }
                     }
-                    HStack {
-                        Text("Goal"); Spacer()
-                        TextField("0", text: $goalText).keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing).frame(width: 80)
-                        Text("lbs").foregroundStyle(.secondary)
+                    sliderRow("Goal Weight", value: $goalVal) { editing in
+                        if !editing { goalWeight = goalVal }
                     }
-                }
-                if previewGoal != nil {
-                    Section {
-                        HStack { Text("Calories"); Spacer(); Text(String(format: "%.0f kcal", previewCalories)).foregroundStyle(.secondary) }
-                        HStack { Text("Protein");  Spacer(); Text(String(format: "%.0f g",    previewProtein)).foregroundStyle(.secondary) }
-                        HStack { Text("Carbs");    Spacer(); Text(String(format: "%.0f g",    previewCarbs)).foregroundStyle(.secondary) }
-                        HStack { Text("Fat");      Spacer(); Text(String(format: "%.0f g",    previewFat)).foregroundStyle(.secondary) }
-                    } header: { Text("Estimated Daily Macro Goals") }
-                      footer: { Text("~14 kcal/lb · \(String(format: "%.2f", proteinPerLb))g protein/lb · 25% fat · remainder carbs. Saving updates your macro goals.") }
                 }
             }
             .onAppear {
-                currentText = currentWeight > 0 ? String(format: "%.1f", currentWeight) : ""
-                goalText    = goalWeight    > 0 ? String(format: "%.0f", goalWeight)    : ""
+                currentVal = currentWeight > 0 ? currentWeight : 160
+                goalVal    = goalWeight    > 0 ? goalWeight    : 160
             }
-            .navigationTitle("Weight & Goals")
+            .navigationTitle("Weight")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        if let cw = Double(currentText), cw > 0 { currentWeight = cw }
-                        if let gw = Double(goalText),    gw > 0 { goalWeight    = gw }
+                    Button("Done") {
+                        currentWeight = currentVal
+                        goalWeight    = goalVal
                         dismiss()
                     }
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func sliderRow(_ label: String, value: Binding<Double>,
+                            onEditingChanged: @escaping (Bool) -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(label)
+                Spacer()
+                Text("\(Int(value.wrappedValue)) lbs")
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            Slider(value: value, in: 100...300, step: 1, onEditingChanged: onEditingChanged)
+                .tint(Color(red: 0.65, green: 0.45, blue: 1.0))
+        }
+        .padding(.vertical, 4)
     }
 }
 
