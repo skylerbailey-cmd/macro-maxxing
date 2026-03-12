@@ -36,6 +36,8 @@ struct FoodLogView: View {
         _selectedDate = selectedDate
     }
 
+    private var isToday: Bool { Calendar.current.isDateInToday(selectedDate) }
+
     var body: some View {
         ZStack {
             Color.pageBg.ignoresSafeArea()
@@ -53,9 +55,22 @@ struct FoodLogView: View {
                         } else {
                             ForEach(viewModel.todayEntries) { entry in
                                 FoodEntryRow(entry: entry,
-                                             onEdit: { editingEntry = entry },
-                                             onDelete: { viewModel.deleteEntry(entry) })
+                                             onEdit:   isToday ? { editingEntry = entry } : {},
+                                             onDelete: { viewModel.deleteEntry(entry) },
+                                             canEdit:  isToday)
                             }
+                        }
+
+                        // Past-date read-only notice
+                        if !isToday {
+                            HStack(spacing: 6) {
+                                Image(systemName: "lock.fill")
+                                    .font(.caption)
+                                Text("Past dates are view-only. Navigate to today to log or edit.")
+                                    .font(.caption)
+                            }
+                            .foregroundStyle(.white.opacity(0.30))
+                            .padding(.vertical, 4)
                         }
 
                         // AI Coach section — always visible below the list
@@ -68,24 +83,26 @@ struct FoodLogView: View {
                 }
             }
 
-            // FABs — photo library bottom-left, camera bottom-right
-            VStack {
-                Spacer()
-                HStack {
-                    CircleFAB(icon: "photo.on.rectangle", color: .macroBlue) {
-                        viewModel.showingPhotoLibrary = true
-                    }
+            // FABs — only shown for today
+            if isToday {
+                VStack {
                     Spacer()
-                    CircleFAB(
-                        icon: "camera.fill",
-                        color: .purpleHi,
-                        disabled: !UIImagePickerController.isSourceTypeAvailable(.camera)
-                    ) {
-                        viewModel.showingCamera = true
+                    HStack {
+                        CircleFAB(icon: "photo.on.rectangle", color: .macroBlue) {
+                            viewModel.showingPhotoLibrary = true
+                        }
+                        Spacer()
+                        CircleFAB(
+                            icon: "camera.fill",
+                            color: .purpleHi,
+                            disabled: !UIImagePickerController.isSourceTypeAvailable(.camera)
+                        ) {
+                            viewModel.showingCamera = true
+                        }
                     }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 16)
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 16)
             }
         }
         .preferredColorScheme(.dark)
@@ -393,9 +410,10 @@ private struct AnalysisSheet: View {
 // MARK: - Food Entry Row
 
 private struct FoodEntryRow: View {
-    let entry: FoodEntry
+    let entry:    FoodEntry
     let onEdit:   () -> Void
     let onDelete: () -> Void
+    var canEdit:  Bool = true
 
     var body: some View {
         HStack(spacing: 12) {
@@ -432,12 +450,14 @@ private struct FoodEntryRow: View {
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.30))
 
-                Button(role: .destructive) {
-                    onDelete()
-                } label: {
-                    Image(systemName: "trash")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.red.opacity(0.65))
+                if canEdit {
+                    Button(role: .destructive) {
+                        onDelete()
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.red.opacity(0.65))
+                    }
                 }
                 .buttonStyle(.plain)
             }
