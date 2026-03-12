@@ -30,16 +30,12 @@ struct WellnessApp: App {
                     .opacity(showSplash ? 0 : 1)
 
                 if showSplash {
-                    SplashView()
+                    SplashView(onComplete: { showSplash = false })
                         .transition(.opacity)
                         .zIndex(1)
                 }
             }
             .animation(.easeInOut(duration: 0.5), value: showSplash)
-            .task {
-                try? await Task.sleep(for: .seconds(0.8))
-                showSplash = false
-            }
         }
     }
 }
