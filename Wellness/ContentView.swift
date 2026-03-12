@@ -27,12 +27,6 @@ struct ContentView: View {
             .tabItem { Label("Food Log", systemImage: "fork.knife") }
 
             NavigationStack {
-                AnalyzeView(modelContext: modelContext, selectedDate: $selectedDate)
-                    .navigationTitle("Analyze")
-            }
-            .tabItem { Label("Analyze", systemImage: "wand.and.stars") }
-
-            NavigationStack {
                 SettingsView(userSettings: userSettings)
             }
             .tabItem { Label("Settings", systemImage: "gear") }

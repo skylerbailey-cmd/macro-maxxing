@@ -18,13 +18,18 @@ private extension Color {
 // MARK: - FoodLogView
 
 struct FoodLogView: View {
-    @State private var viewModel: FoodLogViewModel
+    @State private var viewModel:    FoodLogViewModel
+    @State private var analyzeVM:    AnalyzeViewModel
     @Binding var selectedDate: Date
     @State private var showingAnalysisSheet = false
     @State private var editingEntry: FoodEntry? = nil
 
     init(modelContext: ModelContext, selectedDate: Binding<Date>) {
-        _viewModel    = State(wrappedValue: FoodLogViewModel(
+        _viewModel  = State(wrappedValue: FoodLogViewModel(
+            modelContext: modelContext,
+            selectedDate: selectedDate.wrappedValue
+        ))
+        _analyzeVM  = State(wrappedValue: AnalyzeViewModel(
             modelContext: modelContext,
             selectedDate: selectedDate.wrappedValue
         ))
@@ -40,21 +45,26 @@ struct FoodLogView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
 
-                if viewModel.todayEntries.isEmpty {
-                    emptyState
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 10) {
+                ScrollView {
+                    LazyVStack(spacing: 10) {
+                        // Food entries or compact empty state
+                        if viewModel.todayEntries.isEmpty {
+                            emptyState
+                        } else {
                             ForEach(viewModel.todayEntries) { entry in
                                 FoodEntryRow(entry: entry,
                                              onEdit: { editingEntry = entry },
                                              onDelete: { viewModel.deleteEntry(entry) })
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 4)
-                        .padding(.bottom, 100)
+
+                        // AI Coach section — always visible below the list
+                        analyzeSection
+                            .padding(.top, 8)
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .padding(.bottom, 100)
                 }
             }
 
@@ -84,7 +94,9 @@ struct FoodLogView: View {
             Task { viewModel.loadTodayEntries() }
         }
         .onChange(of: selectedDate) { _, newDate in
-            viewModel.selectedDate = newDate
+            viewModel.selectedDate   = newDate
+            analyzeVM.selectedDate   = newDate
+            analyzeVM.reset()
         }
         .onChange(of: viewModel.selectedImage) { _, newValue in
             if newValue != nil { showingAnalysisSheet = true }
@@ -113,22 +125,108 @@ struct FoodLogView: View {
         }
     }
 
-    // MARK: - Empty state
+    // MARK: - Empty state (compact, inline in scroll)
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             Image(systemName: "fork.knife.circle")
-                .font(.system(size: 52))
+                .font(.system(size: 40))
                 .foregroundStyle(.white.opacity(0.15))
             Text("No food logged")
                 .font(.headline)
                 .foregroundStyle(.white.opacity(0.35))
-            Text("Tap the camera or photo button below\nto log a meal.")
+            Text("Tap the camera or photo button below to log a meal.")
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.22))
                 .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+    }
+
+    // MARK: - Analyze section
+
+    private var analyzeSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header
+            HStack(spacing: 8) {
+                Image(systemName: "wand.and.stars")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.purpleHi)
+                Text("AI Nutrition Coach")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+            }
+
+            // Description / result
+            switch analyzeVM.state {
+            case .idle:
+                Text("Tap Analyze to get personalized meal swap and snack suggestions based on what you've logged today.")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.50))
+                    .lineSpacing(2)
+
+            case .analyzing:
+                HStack(spacing: 10) {
+                    ProgressView().tint(Color.purpleHi)
+                    Text("Analyzing your nutrition…")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.50))
+                }
+
+            case .result(let text):
+                resultText(text)
+
+            case .error(let msg):
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Text(msg).font(.caption).foregroundStyle(.white.opacity(0.65))
+                }
+            }
+
+            // Buttons
+            HStack(spacing: 10) {
+                Button {
+                    Task { await analyzeVM.analyze() }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "wand.and.stars")
+                        Text(analyzeVM.state == .idle ? "Analyze" : "Re-Analyze")
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.purpleHi)
+                .disabled(analyzeVM.state == .analyzing)
+            }
+        }
+        .padding(16)
+        .background(Color.cardBg)
+        .cornerRadius(16)
+    }
+
+    @ViewBuilder
+    private func resultText(_ text: String) -> some View {
+        if let attr = try? AttributedString(
+            markdown: text,
+            options: AttributedString.MarkdownParsingOptions(
+                interpretedSyntax: .inlineOnlyPreservingWhitespace
+            )
+        ) {
+            Text(attr)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.80))
+                .lineSpacing(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.80))
+                .lineSpacing(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 
