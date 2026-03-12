@@ -302,29 +302,27 @@ struct HomeView: View {
                                goal: viewModel.goalProtein,  unit: "g",
                                format: "%.0f", color: .macroBlue,
                                action: { selectedMacro = .protein },
-                               rangeText: minRange(viewModel.goalProtein, unit: "g"))
+                               rangeText: minRange(viewModel.goalProtein))
                 MacroGaugeCard(label: "Carbs",    value: viewModel.totalCarbs,
                                goal: viewModel.goalCarbs,    unit: "g",
                                format: "%.0f", color: .macroMint,
                                action: { selectedMacro = .carbs },
-                               rangeText: minRange(viewModel.goalCarbs, unit: "g"))
+                               rangeText: minRange(viewModel.goalCarbs))
                 MacroGaugeCard(label: "Fat",      value: viewModel.totalFat,
                                goal: viewModel.goalFat,      unit: "g",
                                format: "%.0f", color: .macroRose,
                                action: { selectedMacro = .fat },
-                               rangeText: minRange(viewModel.goalFat, unit: "g"))
+                               rangeText: minRange(viewModel.goalFat))
             }
         }
     }
 
-    // Range helpers matching macroGoalsMet logic
+    // Range helpers — displayed as "lo – hi" under each macro goal
     private var caloriesRange: String {
-        let lo = Int(viewModel.goalCalories * 0.85)
-        let hi = Int(viewModel.goalCalories * 1.15)
-        return "\(lo) – \(hi) kcal"
+        "\(Int(viewModel.goalCalories * 0.85)) – \(Int(viewModel.goalCalories * 1.15))"
     }
-    private func minRange(_ goal: Double, unit: String) -> String {
-        "min \(Int(goal * 0.85))\(unit)"
+    private func minRange(_ goal: Double) -> String {
+        "\(Int(goal * 0.85)) – \(Int(goal * 1.15))"
     }
 
     private func goalForMacro(_ macro: MacroType) -> Double {
