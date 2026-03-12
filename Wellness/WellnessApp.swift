@@ -10,6 +10,8 @@ import SwiftData
 
 @main
 struct WellnessApp: App {
+    @State private var showSplash = true
+
     let modelContainer: ModelContainer = {
         let schema = Schema([FoodEntry.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
@@ -22,8 +24,22 @@ struct WellnessApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ZStack {
+                ContentView()
+                    .modelContainer(modelContainer)
+                    .opacity(showSplash ? 0 : 1)
+
+                if showSplash {
+                    SplashView()
+                        .transition(.opacity)
+                        .zIndex(1)
+                }
+            }
+            .animation(.easeInOut(duration: 0.5), value: showSplash)
+            .task {
+                try? await Task.sleep(for: .seconds(1.8))
+                showSplash = false
+            }
         }
-        .modelContainer(modelContainer)
     }
 }

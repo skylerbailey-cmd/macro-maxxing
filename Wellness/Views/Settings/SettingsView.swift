@@ -7,7 +7,9 @@ import SwiftUI
 
 struct SettingsView: View {
     @Bindable var userSettings: UserSettings
-    @FocusState private var focusedField: Bool
+    @FocusState private var focus: Field?
+
+    private enum Field: Hashable { case name, currentWeight, goalWeight }
 
     var body: some View {
         Form {
@@ -18,7 +20,9 @@ struct SettingsView: View {
                     Spacer()
                     TextField("Your name", text: $userSettings.name)
                         .multilineTextAlignment(.trailing)
-                        .foregroundStyle(.primary)
+                        .focused($focus, equals: .name)
+                        .submitLabel(.done)
+                        .onSubmit { focus = nil }
                 }
             }
 
@@ -31,6 +35,7 @@ struct SettingsView: View {
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 80)
+                        .focused($focus, equals: .currentWeight)
                     Text("lbs").foregroundStyle(.secondary)
                 }
                 HStack {
@@ -40,6 +45,7 @@ struct SettingsView: View {
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 80)
+                        .focused($focus, equals: .goalWeight)
                     Text("lbs").foregroundStyle(.secondary)
                 }
             }
@@ -61,7 +67,7 @@ struct SettingsView: View {
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("Done") { focusedField = false }
+                Button("Done") { focus = nil }
                     .fontWeight(.semibold)
             }
         }
