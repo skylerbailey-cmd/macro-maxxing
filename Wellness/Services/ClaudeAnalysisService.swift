@@ -123,24 +123,38 @@ final class ClaudeAnalysisService {
         let remCarb = max(input.goalCarbs    - input.totalCarbs,    0)
         let remFat  = max(input.goalFat      - input.totalFat,      0)
 
+        // Percentage of each goal completed so far
+        func pct(_ logged: Double, _ goal: Double) -> Int {
+            guard goal > 0 else { return 0 }
+            return Int((logged / goal) * 100)
+        }
+        let calPct  = pct(input.totalCalories, input.goalCalories)
+        let proPct  = pct(input.totalProtein,  input.goalProtein)
+        let carbPct = pct(input.totalCarbs,    input.goalCarbs)
+        let fatPct  = pct(input.totalFat,      input.goalFat)
+
         let prompt = """
         You are a gym bro looksmaxxing nutrition oracle. You speak in gym bro / \
         looksmaxxing slang throughout — "fr", "no cap", "built different", "sigma grind", \
-        "mog", "maxxing", "natty gains", "the grind never stops", etc. \
-        You give precise, specific, accurate nutrition advice while keeping the hype energy \
-        at max capacity. A user needs to crush their remaining macro budget for today. \
-        Give them exactly ONE specific meal or snack that holistically closes all the gaps at once.
+        "mog", "maxxing", "natty gains", etc. \
+        You give precise, accurate nutrition advice with max hype energy.
 
-        **Remaining macros to lock in:**
-        - Calories: \(Int(remCal)) kcal  (logged \(Int(input.totalCalories)) / \(Int(input.goalCalories)))
-        - Protein:  \(Int(remPro))g       (logged \(Int(input.totalProtein))g / \(Int(input.goalProtein))g)
-        - Carbs:    \(Int(remCarb))g      (logged \(Int(input.totalCarbs))g / \(Int(input.goalCarbs))g)
-        - Fat:      \(Int(remFat))g       (logged \(Int(input.totalFat))g / \(Int(input.goalFat))g)
+        A user is mid-day and wants to know what to eat NEXT based on how their macros \
+        are distributed RIGHT NOW — not simply what's left. Look at which macros are \
+        lagging behind relative to the others and prioritise those.
 
-        Give ONE meal suggestion only — a specific combination that hits all remaining macros \
-        at once (e.g. "200g Greek yoghurt + 30g granola + 1 tbsp peanut butter"). \
-        Use **bold** for food names. No bullet list, no intro sentence — \
-        just the one suggestion with a brief why. Stay in character.
+        **Current macro progress (% of daily goal hit so far):**
+        - Calories: \(calPct)%  (\(Int(input.totalCalories)) / \(Int(input.goalCalories)) kcal)
+        - Protein:  \(proPct)%  (\(Int(input.totalProtein))g / \(Int(input.goalProtein))g)
+        - Carbs:    \(carbPct)% (\(Int(input.totalCarbs))g / \(Int(input.goalCarbs))g)
+        - Fat:      \(fatPct)%  (\(Int(input.totalFat))g / \(Int(input.goalFat))g)
+
+        Identify which macro(s) are most under-represented relative to the others \
+        and suggest ONE specific meal or snack that addresses that imbalance \
+        (e.g. if protein and fat are at 70% but carbs are at 20%, go carb-heavy). \
+        Be very specific (e.g. "**2 cups white rice + 100g chicken breast**" not just "rice"). \
+        No bullet list, no intro sentence — one suggestion + one sentence on why it fits \
+        the current distribution. Stay in character the whole time.
         """
 
         let body = RequestBody(
