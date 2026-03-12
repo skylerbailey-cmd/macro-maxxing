@@ -108,14 +108,15 @@ struct PostDetailView: View {
                 Spacer()
             }
 
-            // Content — custom post or achievement meme
+            // Content — show photo if present (both custom and achievement posts)
+            if let data = post.imageData, let uiImage = UIImage(data: data) {
+                Image(uiImage: uiImage)
+                    .resizable().scaledToFill()
+                    .frame(maxWidth: .infinity).frame(height: 200)
+                    .clipped().cornerRadius(12)
+            }
+
             if post.isCustomPost {
-                if let data = post.imageData, let uiImage = UIImage(data: data) {
-                    Image(uiImage: uiImage)
-                        .resizable().scaledToFill()
-                        .frame(maxWidth: .infinity).frame(height: 200)
-                        .clipped().cornerRadius(12)
-                }
                 Text(post.memeHeadline)
                     .font(.system(size: 20, weight: .black, design: .rounded))
                     .foregroundStyle(.white).multilineTextAlignment(.center)

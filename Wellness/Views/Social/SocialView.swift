@@ -296,9 +296,18 @@ struct PostCard: View {
         }
     }
 
-    // Achievement post: meme + macro rings
+    // Achievement post: optional photo + meme + macro rings
     @ViewBuilder
     private var achievementBody: some View {
+        if let data = post.imageData, let uiImage = UIImage(data: data) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: 180)
+                .clipped()
+                .cornerRadius(10)
+        }
         Text(post.memeHeadline.replacingOccurrences(of: "\n", with: " "))
             .font(.system(size: 15, weight: .black, design: .rounded))
             .foregroundStyle(.white)

@@ -47,11 +47,15 @@ struct ProfileView: View {
         profileDisplayName.isEmpty ? profileUsername : profileDisplayName
     }
 
-    private var avatarImageData: Data? {
+    /// Resolved UIImage for the avatar — uses UIImage directly to avoid JPEG round-trips.
+    private var resolvedAvatarImage: UIImage? {
         if isOwnProfile {
-            return newProfileImage?.jpegData(compressionQuality: 0.8) ?? ownUserSettings?.profileImageData
+            if let img = newProfileImage { return img }
+            if let data = ownUserSettings?.profileImageData { return UIImage(data: data) }
+            return nil
         }
-        return profileImageData
+        if let data = profileImageData { return UIImage(data: data) }
+        return nil
     }
 
     private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
@@ -204,7 +208,7 @@ struct ProfileView: View {
 
     @ViewBuilder
     func avatarView(size: CGFloat) -> some View {
-        if let data = avatarImageData, let uiImg = UIImage(data: data) {
+        if let uiImg = resolvedAvatarImage {
             Image(uiImage: uiImg)
                 .resizable()
                 .scaledToFill()
