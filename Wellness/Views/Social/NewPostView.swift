@@ -138,6 +138,7 @@ struct NewPostView: View {
         )
         post.isCustomPost    = true
         post.authorAuraLevel = userSettings.auraLevel
+        post.authorAuraPoints = userSettings.auraPoints
         post.imageData       = image?.jpegData(compressionQuality: 0.8)
         modelContext.insert(post)
         dismiss()

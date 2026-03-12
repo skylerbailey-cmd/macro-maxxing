@@ -153,8 +153,6 @@ struct PostCard: View {
                 }
                 .buttonStyle(.plain)
 
-                Spacer()
-
                 HStack(spacing: 4) {
                     Image(systemName: "bubble.left")
                         .font(.system(size: 12))
@@ -162,6 +160,8 @@ struct PostCard: View {
                         .font(.caption)
                 }
                 .foregroundStyle(.white.opacity(0.35))
+
+                Spacer()
             }
         }
         .padding(14)
@@ -183,8 +183,8 @@ struct PostCard: View {
                 HStack(spacing: 6) {
                     Text(post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName)
                         .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
-                    if post.authorAuraLevel > 0 {
-                        Text("⭐ Lv \(post.authorAuraLevel)")
+                    if post.authorAuraPoints > 0 {
+                        Text("⭐ Lv \(post.authorAuraLevel) · \(post.authorAuraPoints) pts")
                             .font(.system(size: 10, weight: .bold, design: .rounded))
                             .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
                     }

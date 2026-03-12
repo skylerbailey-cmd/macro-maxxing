@@ -137,6 +137,7 @@ struct AuraPopupView: View {
         )
         post.isCustomPost    = false
         post.authorAuraLevel = userSettings.auraLevel
+        post.authorAuraPoints = userSettings.auraPoints
         modelContext.insert(post)
         withAnimation { postedToFeed = true }
     }

@@ -156,7 +156,7 @@ struct HomeView: View {
                 .font(.title2.bold())
                 .foregroundStyle(.white)
 
-            if viewModel.userSettings.auraLevel > 0 {
+            if viewModel.userSettings.auraPoints > 0 {
                 auraBadge
             }
         }

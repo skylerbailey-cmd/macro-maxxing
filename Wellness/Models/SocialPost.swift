@@ -23,8 +23,9 @@ import SwiftData
     var isCustomPost:  Bool   = false
     @Attribute(.externalStorage) var imageData: Data?
 
-    // Author aura level at time of posting
-    var authorAuraLevel: Int = 0
+    // Author aura at time of posting
+    var authorAuraLevel:  Int = 0
+    var authorAuraPoints: Int = 0
 
     // 💪 Reps (likes)
     var repsCount:    Int    = 0

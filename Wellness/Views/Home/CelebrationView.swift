@@ -238,6 +238,7 @@ struct CelebrationView: View {
             totalFat:          postData.totalFat,      goalFat:      postData.goalFat
         )
         post.authorAuraLevel = userSettings.auraLevel
+        post.authorAuraPoints = userSettings.auraPoints
         modelContext.insert(post)
         withAnimation { postedToFeed = true }
         userSettings.awardAura(
