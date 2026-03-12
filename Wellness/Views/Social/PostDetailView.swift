@@ -89,16 +89,31 @@ struct PostDetailView: View {
                 Spacer()
             }
 
-            // Meme
-            Text(post.memeEmoji).font(.system(size: 56))
-            Text(post.memeHeadline)
-                .font(.system(size: 22, weight: .black, design: .rounded))
-                .foregroundStyle(.white)
-                .multilineTextAlignment(.center)
-            Text(post.memeSub)
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.55))
-                .multilineTextAlignment(.center)
+            // Content — custom post or achievement meme
+            if post.isCustomPost {
+                if let data = post.imageData, let uiImage = UIImage(data: data) {
+                    Image(uiImage: uiImage)
+                        .resizable().scaledToFill()
+                        .frame(maxWidth: .infinity).frame(height: 200)
+                        .clipped().cornerRadius(12)
+                }
+                Text(post.memeHeadline)
+                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .foregroundStyle(.white).multilineTextAlignment(.center)
+                if !post.memeSub.isEmpty {
+                    Text(post.memeSub)
+                        .font(.subheadline).foregroundStyle(.white.opacity(0.65))
+                        .multilineTextAlignment(.center)
+                }
+            } else {
+                Text(post.memeEmoji).font(.system(size: 56))
+                Text(post.memeHeadline)
+                    .font(.system(size: 22, weight: .black, design: .rounded))
+                    .foregroundStyle(.white).multilineTextAlignment(.center)
+                Text(post.memeSub)
+                    .font(.subheadline).foregroundStyle(.white.opacity(0.55))
+                    .multilineTextAlignment(.center)
+            }
         }
         .padding(16)
         .frame(maxWidth: .infinity)
@@ -163,22 +178,43 @@ struct PostDetailView: View {
     // MARK: Comments
 
     private var commentsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("Comments (\(post.comments.count))")
                 .font(.headline).foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.top, 14)
 
             if post.comments.isEmpty {
                 Text("No comments yet. Be the first!")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.30))
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 14)
             } else {
-                ForEach(post.comments.sorted(by: { $0.postedAt < $1.postedAt })) { comment in
-                    commentRow(comment)
+                // List inside card for swipe-to-delete
+                let sorted = post.comments.sorted(by: { $0.postedAt < $1.postedAt })
+                List {
+                    ForEach(sorted) { comment in
+                        commentRow(comment)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    post.comments.removeAll { $0.id == comment.id }
+                                    modelContext.delete(comment)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 4, trailing: 14))
+                    }
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .frame(height: CGFloat(sorted.count) * 70)
+                .padding(.bottom, 8)
             }
         }
-        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(cardBg)
         .cornerRadius(16)

@@ -26,6 +26,10 @@ import SwiftData
     var totalFat:      Double = 0
     var goalFat:       Double = 0
 
+    // Custom post fields (nil / false for achievement posts)
+    var isCustomPost: Bool = false
+    @Attribute(.externalStorage) var imageData: Data?
+
     @Relationship(deleteRule: .cascade)
     var comments: [SocialComment] = []
 
