@@ -25,12 +25,27 @@ struct HomeView: View {
     @State private var showingWindowPicker = false
     @State private var showingGoalSheet    = false
 
-    init(modelContext: ModelContext, selectedDate: Binding<Date>) {
+    init(modelContext: ModelContext, selectedDate: Binding<Date>, userSettings: UserSettings) {
         _viewModel    = State(wrappedValue: HomeViewModel(
             modelContext: modelContext,
-            selectedDate: selectedDate.wrappedValue
+            selectedDate: selectedDate.wrappedValue,
+            userSettings: userSettings
         ))
         _selectedDate = selectedDate
+    }
+
+    // MARK: - Greeting
+
+    private var greetingText: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        let name = viewModel.userSettings.name.trimmingCharacters(in: .whitespaces)
+        let timeGreeting: String
+        switch hour {
+        case 5..<12: timeGreeting = "Good Morning"
+        case 12..<17: timeGreeting = "Good Afternoon"
+        default: timeGreeting = "Good Evening"
+        }
+        return name.isEmpty ? timeGreeting : "\(timeGreeting), \(name)"
     }
 
     private var windowStartDate: Binding<Date> {
@@ -59,15 +74,24 @@ struct HomeView: View {
     }
 
     var body: some View {
-        @Bindable var bvm = viewModel
+        @Bindable var bvm      = viewModel
+        @Bindable var settings = viewModel.userSettings
         ZStack {
             Color.pageBg.ignoresSafeArea()
             ScrollView {
                 VStack(spacing: 20) {
+                    // Greeting
+                    Text(greetingText)
+                        .font(.title2.bold())
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
                     DateNavigatorView(selectedDate: $selectedDate)
 
                     goalsSection
-                    eatingWindowCard
+                    if viewModel.userSettings.fastingEnabled {
+                        eatingWindowCard
+                    }
                     macrosSection
                 }
                 .padding(.horizontal, 16)
@@ -80,6 +104,9 @@ struct HomeView: View {
         .onChange(of: selectedDate) { _, newDate in
             viewModel.selectedDate = newDate
         }
+        .onChange(of: viewModel.userSettings.goalWeight) { _, newVal in
+            if newVal > 0 { viewModel.recalculateMacrosFromGoalWeight() }
+        }
         .sheet(isPresented: $showingWindowPicker) {
             WindowPickerSheet(
                 windowStartDate: windowStartDate,
@@ -89,8 +116,8 @@ struct HomeView: View {
         }
         .sheet(isPresented: $showingGoalSheet) {
             GoalWeightSheet(
-                currentWeight: $bvm.currentWeight,
-                goalWeight: $bvm.goalWeight
+                currentWeight: $settings.currentWeight,
+                goalWeight: $settings.goalWeight
             )
             .presentationDetents([.medium, .large])
         }
@@ -105,20 +132,21 @@ struct HomeView: View {
                 .foregroundStyle(.white)
 
             HStack(spacing: 10) {
+                // Weight — tappable
                 GoalKPICard(
                     title: "WEIGHT",
                     icon: "scalemass.fill",
                     iconColor: .purpleHi,
                     action: { showingGoalSheet = true }
                 ) {
-                    if viewModel.goalWeight > 0 {
+                    if viewModel.userSettings.goalWeight > 0 {
                         VStack(alignment: .leading, spacing: 2) {
                             HStack(alignment: .lastTextBaseline, spacing: 3) {
-                                Text(String(format: "%.1f", viewModel.currentWeight))
+                                Text(String(format: "%.1f", viewModel.userSettings.currentWeight))
                                     .font(.title3.bold()).foregroundStyle(.white)
                                 Text("lbs").font(.caption).foregroundStyle(.white.opacity(0.45))
                             }
-                            Text("Goal \(String(format: "%.0f", viewModel.goalWeight)) lbs")
+                            Text("Goal \(String(format: "%.0f", viewModel.userSettings.goalWeight)) lbs")
                                 .font(.caption2).foregroundStyle(.white.opacity(0.35))
                         }
                     } else {
@@ -128,6 +156,7 @@ struct HomeView: View {
                     }
                 }
 
+                // Streak — consecutive days with food logged
                 GoalKPICard(title: "STREAK", icon: "flame.fill", iconColor: .orange) {
                     HStack(alignment: .lastTextBaseline, spacing: 3) {
                         Text("\(viewModel.macroStreak)")
@@ -136,25 +165,37 @@ struct HomeView: View {
                     }
                 }
 
-                GoalKPICard(title: "LOGGED", icon: "calendar.badge.checkmark", iconColor: .macroMint) {
+                // Macros met today
+                GoalKPICard(
+                    title: "MACROS",
+                    icon: "checkmark.seal.fill",
+                    iconColor: macrosKPIColor
+                ) {
                     VStack(alignment: .leading, spacing: 5) {
                         HStack(alignment: .lastTextBaseline, spacing: 3) {
-                            Text("\(viewModel.daysLoggedThisWeek)")
+                            Text("\(viewModel.macrosMetToday)")
                                 .font(.title3.bold()).foregroundStyle(.white)
-                            Text("/ 7").font(.caption).foregroundStyle(.white.opacity(0.45))
+                            Text("/ 4").font(.caption).foregroundStyle(.white.opacity(0.45))
                         }
-                        HStack(spacing: 3) {
-                            ForEach(0..<7, id: \.self) { i in
+                        HStack(spacing: 5) {
+                            ForEach(Array(viewModel.macroGoalsMet.enumerated()), id: \.offset) { _, met in
                                 Circle()
-                                    .fill(i < viewModel.daysLoggedThisWeek
-                                          ? Color.macroMint
-                                          : Color.white.opacity(0.12))
-                                    .frame(width: 5, height: 5)
+                                    .fill(met ? macrosKPIColor : Color.white.opacity(0.12))
+                                    .frame(width: 7, height: 7)
                             }
                         }
                     }
                 }
             }
+        }
+    }
+
+    private var macrosKPIColor: Color {
+        switch viewModel.macrosMetToday {
+        case 4:    return .macroMint
+        case 3:    return .macroBlue
+        case 1, 2: return .orange
+        default:   return .white.opacity(0.35)
         }
     }
 
@@ -199,15 +240,12 @@ struct HomeView: View {
                 MacroGaugeCard(label: "Calories", value: viewModel.totalCalories,
                                goal: viewModel.goalCalories, unit: "kcal",
                                format: "%.0f", color: .orange)
-
                 MacroGaugeCard(label: "Protein",  value: viewModel.totalProtein,
                                goal: viewModel.goalProtein,  unit: "g",
                                format: "%.0f", color: .macroBlue)
-
                 MacroGaugeCard(label: "Carbs",    value: viewModel.totalCarbs,
                                goal: viewModel.goalCarbs,    unit: "g",
                                format: "%.0f", color: .macroMint)
-
                 MacroGaugeCard(label: "Fat",      value: viewModel.totalFat,
                                goal: viewModel.goalFat,      unit: "g",
                                format: "%.0f", color: .macroRose)
@@ -224,21 +262,17 @@ struct DateNavigatorView: View {
 
     private let calendar = Calendar.current
 
-    private var isToday: Bool {
-        calendar.isDateInToday(selectedDate)
-    }
+    private var isToday: Bool { calendar.isDateInToday(selectedDate) }
 
     private var displayText: String {
         if isToday { return "Today" }
         if calendar.isDateInYesterday(selectedDate) { return "Yesterday" }
-        let f = DateFormatter()
-        f.dateFormat = "EEE, MMM d"
+        let f = DateFormatter(); f.dateFormat = "EEE, MMM d"
         return f.string(from: selectedDate)
     }
 
     var body: some View {
         HStack(spacing: 0) {
-            // Back
             Button {
                 guard let prev = calendar.date(byAdding: .day, value: -1, to: selectedDate) else { return }
                 selectedDate = calendar.startOfDay(for: prev)
@@ -249,7 +283,6 @@ struct DateNavigatorView: View {
                     .frame(width: 44, height: 38)
             }
 
-            // Date label — tappable to pick any date
             Button { showingPicker = true } label: {
                 Text(displayText)
                     .font(.headline)
@@ -257,7 +290,6 @@ struct DateNavigatorView: View {
                     .frame(maxWidth: .infinity)
             }
 
-            // Forward (disabled on today)
             Button {
                 guard !isToday,
                       let next = calendar.date(byAdding: .day, value: 1, to: selectedDate) else { return }
@@ -270,7 +302,6 @@ struct DateNavigatorView: View {
             }
             .disabled(isToday)
 
-            // "Today" shortcut — only visible on past dates
             if !isToday {
                 Button("Today") {
                     selectedDate = calendar.startOfDay(for: Date())
@@ -301,24 +332,17 @@ private struct DatePickerSheet: View {
 
     var body: some View {
         NavigationStack {
-            DatePicker(
-                "Select Date",
-                selection: $selectedDate,
-                in: ...Date(),
-                displayedComponents: .date
-            )
-            .datePickerStyle(.graphical)
-            .padding(.horizontal)
-            .navigationTitle("Select Date")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+            DatePicker("Select Date", selection: $selectedDate, in: ...Date(), displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .padding(.horizontal)
+                .navigationTitle("Select Date")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
                 }
-            }
-            .onChange(of: selectedDate) { _, newDate in
-                selectedDate = Calendar.current.startOfDay(for: newDate)
-            }
+                .onChange(of: selectedDate) { _, newDate in
+                    selectedDate = Calendar.current.startOfDay(for: newDate)
+                }
         }
     }
 }
@@ -335,8 +359,7 @@ private struct GoalKPICard<Content: View>: View {
     var body: some View {
         Group {
             if let action {
-                Button(action: action) { cardBody }
-                    .buttonStyle(.plain)
+                Button(action: action) { cardBody }.buttonStyle(.plain)
             } else {
                 cardBody
             }
@@ -361,8 +384,7 @@ private struct GoalKPICard<Content: View>: View {
                         .foregroundStyle(.white.opacity(0.28))
                 }
             }
-            content()
-                .frame(maxWidth: .infinity, alignment: .leading)
+            content().frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(12)
         .frame(maxWidth: .infinity)
@@ -385,7 +407,6 @@ private struct MacroGaugeCard: View {
         guard goal > 0 else { return 0 }
         return min(value / goal, 1.0)
     }
-
     private let trackFraction: Double = 0.75
     private let lineWidth: CGFloat   = 11
 
@@ -394,26 +415,19 @@ private struct MacroGaugeCard: View {
             ZStack {
                 Circle()
                     .trim(from: 0, to: trackFraction)
-                    .stroke(color.opacity(0.13),
-                            style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .stroke(color.opacity(0.13), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(135))
-
                 Circle()
                     .trim(from: 0, to: progress * trackFraction)
                     .stroke(
                         LinearGradient(
-                            stops: [
-                                .init(color: color.opacity(0.55), location: 0),
-                                .init(color: color,               location: 1)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                            stops: [.init(color: color.opacity(0.55), location: 0), .init(color: color, location: 1)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
                         ),
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                     )
                     .rotationEffect(.degrees(135))
                     .animation(.easeOut(duration: 0.55), value: progress)
-
                 VStack(spacing: 2) {
                     Text(String(format: format, value))
                         .font(.system(size: 18, weight: .bold, design: .rounded))
@@ -425,14 +439,10 @@ private struct MacroGaugeCard: View {
             }
             .frame(width: 112, height: 112)
             .padding(.top, 4)
-
             VStack(spacing: 3) {
-                Text(label)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
+                Text(label).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
                 Text("Goal: \(String(format: format, goal)) \(unit)")
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.32))
+                    .font(.caption2).foregroundStyle(.white.opacity(0.32))
             }
         }
         .frame(maxWidth: .infinity)
@@ -449,15 +459,13 @@ private struct WindowPickerSheet: View {
     @Binding var windowStartDate: Date
     @Binding var windowDurationHours: Int
     @Environment(\.dismiss) private var dismiss
-
     @State private var durationText: String = "8"
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Start Time") {
-                    DatePicker("Start Time", selection: $windowStartDate,
-                               displayedComponents: .hourAndMinute)
+                    DatePicker("Start Time", selection: $windowStartDate, displayedComponents: .hourAndMinute)
                 }
                 Section {
                     HStack {
@@ -467,11 +475,10 @@ private struct WindowPickerSheet: View {
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 50)
-                        Text("hours")
-                            .foregroundStyle(.secondary)
+                        Text("hours").foregroundStyle(.secondary)
                     }
                 } footer: {
-                    Text("Common windows: 6, 8, 10, or 12 hours. The end time updates automatically.")
+                    Text("Common windows: 6, 8, 10, or 12 hours.")
                 }
             }
             .onAppear { durationText = "\(windowDurationHours)" }
@@ -497,29 +504,18 @@ private struct GoalWeightSheet: View {
     @Binding var currentWeight: Double
     @Binding var goalWeight: Double
     @Environment(\.dismiss) private var dismiss
-
-    @State private var currentText: String = ""
-    @State private var goalText: String    = ""
+    @State private var currentText = ""
+    @State private var goalText    = ""
 
     private var previewGoal: Double? {
         guard let v = Double(goalText), v > 0 else { return nil }
         return v
     }
-    private var previewCalories: Double {
-        guard let g = previewGoal else { return 0 }
-        return max(g * 14, 1200)
-    }
-    private var previewProtein: Double {
-        guard let g = previewGoal else { return 0 }
-        return max(g * 0.9, 50)
-    }
-    private var previewFat: Double {
-        guard previewGoal != nil else { return 0 }
-        return max((previewCalories * 0.25) / 9, 30)
-    }
-    private var previewCarbs: Double {
-        guard previewGoal != nil else { return 0 }
-        return max((previewCalories - previewProtein * 4 - previewFat * 9) / 4, 50)
+    private var previewCalories: Double { previewGoal.map { max($0 * 14, 1200) } ?? 0 }
+    private var previewProtein:  Double { previewGoal.map { max($0 * 0.9, 50) } ?? 0 }
+    private var previewFat:      Double { previewGoal != nil ? max((previewCalories * 0.25) / 9, 30) : 0 }
+    private var previewCarbs:    Double {
+        previewGoal != nil ? max((previewCalories - previewProtein * 4 - previewFat * 9) / 4, 50) : 0
     }
 
     var body: some View {
@@ -527,66 +523,36 @@ private struct GoalWeightSheet: View {
             Form {
                 Section("Your Weight") {
                     HStack {
-                        Text("Current")
-                        Spacer()
-                        TextField("0", text: $currentText)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 80)
-                        Text("lbs")
-                            .foregroundStyle(.secondary)
+                        Text("Current"); Spacer()
+                        TextField("0", text: $currentText).keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing).frame(width: 80)
+                        Text("lbs").foregroundStyle(.secondary)
                     }
                     HStack {
-                        Text("Goal")
-                        Spacer()
-                        TextField("0", text: $goalText)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 80)
-                        Text("lbs")
-                            .foregroundStyle(.secondary)
+                        Text("Goal"); Spacer()
+                        TextField("0", text: $goalText).keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing).frame(width: 80)
+                        Text("lbs").foregroundStyle(.secondary)
                     }
                 }
-
                 if previewGoal != nil {
                     Section {
-                        HStack {
-                            Text("Calories")
-                            Spacer()
-                            Text(String(format: "%.0f kcal", previewCalories)).foregroundStyle(.secondary)
-                        }
-                        HStack {
-                            Text("Protein")
-                            Spacer()
-                            Text(String(format: "%.0f g", previewProtein)).foregroundStyle(.secondary)
-                        }
-                        HStack {
-                            Text("Carbs")
-                            Spacer()
-                            Text(String(format: "%.0f g", previewCarbs)).foregroundStyle(.secondary)
-                        }
-                        HStack {
-                            Text("Fat")
-                            Spacer()
-                            Text(String(format: "%.0f g", previewFat)).foregroundStyle(.secondary)
-                        }
-                    } header: {
-                        Text("Estimated Daily Macro Goals")
-                    } footer: {
-                        Text("~14 kcal/lb goal weight · 0.9 g protein/lb · 25% calories from fat · remainder from carbs. Saving will update your macro goals.")
-                    }
+                        HStack { Text("Calories"); Spacer(); Text(String(format: "%.0f kcal", previewCalories)).foregroundStyle(.secondary) }
+                        HStack { Text("Protein");  Spacer(); Text(String(format: "%.0f g",    previewProtein)).foregroundStyle(.secondary) }
+                        HStack { Text("Carbs");    Spacer(); Text(String(format: "%.0f g",    previewCarbs)).foregroundStyle(.secondary) }
+                        HStack { Text("Fat");      Spacer(); Text(String(format: "%.0f g",    previewFat)).foregroundStyle(.secondary) }
+                    } header: { Text("Estimated Daily Macro Goals") }
+                      footer: { Text("~14 kcal/lb · 0.9g protein/lb · 25% fat · remainder carbs. Saving updates your macro goals.") }
                 }
             }
             .onAppear {
                 currentText = currentWeight > 0 ? String(format: "%.1f", currentWeight) : ""
-                goalText    = goalWeight > 0    ? String(format: "%.0f", goalWeight)    : ""
+                goalText    = goalWeight    > 0 ? String(format: "%.0f", goalWeight)    : ""
             }
             .navigationTitle("Weight & Goals")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         if let cw = Double(currentText), cw > 0 { currentWeight = cw }
@@ -607,8 +573,8 @@ private struct GoalWeightSheet: View {
     return NavigationStack {
         HomeView(
             modelContext: container.mainContext,
-            selectedDate: .constant(Calendar.current.startOfDay(for: Date()))
+            selectedDate: .constant(Calendar.current.startOfDay(for: Date())),
+            userSettings: UserSettings()
         )
-        .navigationTitle("Today")
     }
 }

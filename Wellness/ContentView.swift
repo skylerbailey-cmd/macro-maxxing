@@ -10,13 +10,13 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @State private var selectedDate = Calendar.current.startOfDay(for: Date())
+    @State private var selectedDate  = Calendar.current.startOfDay(for: Date())
+    @State private var userSettings  = UserSettings()
 
     var body: some View {
         TabView {
             NavigationStack {
-                HomeView(modelContext: modelContext, selectedDate: $selectedDate)
-                    .navigationTitle("Today")
+                HomeView(modelContext: modelContext, selectedDate: $selectedDate, userSettings: userSettings)
             }
             .tabItem { Label("Home", systemImage: "house") }
 
@@ -25,6 +25,11 @@ struct ContentView: View {
                     .navigationTitle("Food Log")
             }
             .tabItem { Label("Food Log", systemImage: "fork.knife") }
+
+            NavigationStack {
+                SettingsView(userSettings: userSettings)
+            }
+            .tabItem { Label("Settings", systemImage: "gear") }
         }
     }
 }

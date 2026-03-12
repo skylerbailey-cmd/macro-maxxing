@@ -7,7 +7,7 @@ import Foundation
 import SwiftData
 
 @Observable final class HomeViewModel {
-    // MARK: - Selected date (drives all fetches)
+    // MARK: - Selected date
     var selectedDate: Date {
         didSet {
             if !Calendar.current.isDate(selectedDate, inSameDayAs: oldValue) {
@@ -15,6 +15,9 @@ import SwiftData
             }
         }
     }
+
+    // MARK: - User settings (shared reference)
+    let userSettings: UserSettings
 
     // MARK: - Fasting window (persisted)
     var windowStartHour: Int {
@@ -44,7 +47,7 @@ import SwiftData
     var totalCarbs:    Double = 0
     var totalFat:      Double = 0
 
-    // MARK: - Macro goals (persisted, sensible defaults)
+    // MARK: - Macro goals (persisted)
     var goalCalories: Double = 2000 {
         didSet { UserDefaults.standard.set(goalCalories, forKey: "goalCalories") }
     }
@@ -58,27 +61,30 @@ import SwiftData
         didSet { UserDefaults.standard.set(goalFat, forKey: "goalFat") }
     }
 
-    // MARK: - Weight (persisted)
-    var currentWeight: Double = 0 {
-        didSet { UserDefaults.standard.set(currentWeight, forKey: "currentWeight") }
+    // MARK: - Macros met today (computed from totals vs goals)
+    /// True/false for [calories, protein, carbs, fat]
+    var macroGoalsMet: [Bool] {
+        guard totalCalories > 0 else { return [false, false, false, false] }
+        return [
+            totalCalories >= goalCalories * 0.85 && totalCalories <= goalCalories * 1.10,
+            totalProtein  >= goalProtein  * 0.90,
+            totalCarbs    >  0 && totalCarbs <= goalCarbs * 1.10,
+            totalFat      >  0 && totalFat  <= goalFat   * 1.10
+        ]
     }
-    var goalWeight: Double = 0 {
-        didSet {
-            UserDefaults.standard.set(goalWeight, forKey: "goalWeight")
-            if goalWeight > 0 { recalculateMacrosFromGoalWeight() }
-        }
-    }
+    var macrosMetToday: Int { macroGoalsMet.filter { $0 }.count }
 
-    // MARK: - Streaks & activity (always based on today, not selectedDate)
+    // MARK: - Streak (consecutive days with any food logged, ending yesterday)
     var macroStreak: Int = 0
-    var daysLoggedThisWeek: Int = 0
 
     private let modelContext: ModelContext
 
     init(modelContext: ModelContext,
-         selectedDate: Date = Calendar.current.startOfDay(for: Date())) {
+         selectedDate: Date = Calendar.current.startOfDay(for: Date()),
+         userSettings: UserSettings) {
         self.modelContext  = modelContext
         self.selectedDate  = selectedDate
+        self.userSettings  = userSettings
 
         let storedHour = UserDefaults.standard.object(forKey: "windowStartHour")
         self.windowStartHour   = storedHour != nil ? UserDefaults.standard.integer(forKey: "windowStartHour") : 9
@@ -101,8 +107,6 @@ import SwiftData
         if UserDefaults.standard.object(forKey: "goalFat") != nil {
             self.goalFat = UserDefaults.standard.double(forKey: "goalFat")
         }
-        self.currentWeight = UserDefaults.standard.double(forKey: "currentWeight")
-        self.goalWeight    = UserDefaults.standard.double(forKey: "goalWeight")
 
         loadTodayTotals()
     }
@@ -121,20 +125,16 @@ import SwiftData
         totalCarbs    = entries.reduce(0) { $0 + $1.carbs }
         totalFat      = entries.reduce(0) { $0 + $1.fat }
 
-        loadStreaks()
+        loadStreak()
     }
 
     // MARK: - Macro recalculation from goal weight
 
-    /// Recalculates macro goals from goal weight using evidence-based estimates:
-    /// - Calories: ~14 kcal/lb goal weight (moderate activity, mild deficit)
-    /// - Protein:  0.9 g/lb goal weight (optimal for strength + training / muscle retention)
-    /// - Fat:      25% of total calories (minimum healthy fat intake)
-    /// - Carbs:    remainder of calories after protein and fat
     func recalculateMacrosFromGoalWeight() {
-        guard goalWeight > 0 else { return }
-        let cals    = goalWeight * 14.0
-        let protein = goalWeight * 0.9
+        let gw = userSettings.goalWeight
+        guard gw > 0 else { return }
+        let cals    = gw * 14.0
+        let protein = gw * 0.9
         let fat     = (cals * 0.25) / 9.0
         let carbs   = (cals - protein * 4.0 - fat * 9.0) / 4.0
 
@@ -146,13 +146,12 @@ import SwiftData
 
     // MARK: - Private
 
-    private func loadStreaks() {
-        // Streaks always reflect today, not selectedDate
+    private func loadStreak() {
+        // Count consecutive days ending yesterday where any food was logged
         let calendar = Calendar.current
-
         var streak = 0
         var offset = 1
-        while offset <= 60 {
+        while offset <= 365 {
             guard let checkDate = calendar.date(byAdding: .day, value: -offset, to: Date()) else { break }
             let dayStart = calendar.startOfDay(for: checkDate)
             guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else { break }
@@ -161,33 +160,9 @@ import SwiftData
             guard let entries = try? modelContext.fetch(FetchDescriptor<FoodEntry>(predicate: pred)),
                   !entries.isEmpty else { break }
 
-            let cal = entries.reduce(0.0) { $0 + $1.calories }
-            let pro = entries.reduce(0.0) { $0 + $1.protein }
-            let car = entries.reduce(0.0) { $0 + $1.carbs }
-            let fat = entries.reduce(0.0) { $0 + $1.fat }
-
-            let hit = cal >= goalCalories * 0.85 && cal <= goalCalories * 1.10
-                   && pro >= goalProtein * 0.90
-                   && car <= goalCarbs   * 1.10
-                   && fat <= goalFat     * 1.10
-
-            if hit { streak += 1 } else { break }
+            streak += 1
             offset += 1
         }
         macroStreak = streak
-
-        var logged = 0
-        for i in 0..<7 {
-            guard let checkDate = calendar.date(byAdding: .day, value: -i, to: Date()) else { continue }
-            let dayStart = calendar.startOfDay(for: checkDate)
-            guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else { continue }
-
-            let pred = #Predicate<FoodEntry> { $0.loggedAt >= dayStart && $0.loggedAt < dayEnd }
-            if let entries = try? modelContext.fetch(FetchDescriptor<FoodEntry>(predicate: pred)),
-               !entries.isEmpty {
-                logged += 1
-            }
-        }
-        daysLoggedThisWeek = logged
     }
 }
