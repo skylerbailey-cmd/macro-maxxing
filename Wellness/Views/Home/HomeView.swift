@@ -96,6 +96,7 @@ struct HomeView: View {
                         eatingWindowCard
                     }
                     macrosSection
+                    brainstormSection
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -123,6 +124,7 @@ struct HomeView: View {
         }
         .onChange(of: selectedDate) { _, newDate in
             viewModel.selectedDate = newDate
+            viewModel.resetBrainstorm()
         }
         .onChange(of: viewModel.userSettings.goalWeight) { _, newVal in
             if newVal > 0 { viewModel.recalculateMacrosFromGoalWeight() }
@@ -331,6 +333,86 @@ struct HomeView: View {
     }
     private func minRange(_ goal: Double) -> String {
         "\(Int(goal * 0.85)) – \(Int(goal * 1.15))"
+    }
+
+    // MARK: - Brainstorm section
+
+    private var brainstormSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "lightbulb.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+                Text("Brainstorm")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+            }
+
+            switch viewModel.brainstormState {
+            case .idle:
+                Text("See what to eat to hit your remaining macro goals for the rest of the day — specific meals and snacks suggested holistically.")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.50))
+                    .lineSpacing(2)
+
+            case .loading:
+                HStack(spacing: 10) {
+                    ProgressView().tint(Color(red: 0.65, green: 0.45, blue: 1.0))
+                    Text("Thinking…")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.50))
+                }
+
+            case .result(let text):
+                brainstormResult(text)
+
+            case .error(let msg):
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Text(msg).font(.caption).foregroundStyle(.white.opacity(0.65))
+                }
+            }
+
+            Button {
+                Task { await viewModel.brainstorm() }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "lightbulb.fill")
+                    Text(viewModel.brainstormState == .idle ? "Brainstorm" : "Re-Brainstorm")
+                }
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Color(red: 0.65, green: 0.45, blue: 1.0))
+            .disabled(viewModel.brainstormState == .loading)
+        }
+        .padding(16)
+        .background(Color.cardBg)
+        .cornerRadius(16)
+    }
+
+    @ViewBuilder
+    private func brainstormResult(_ text: String) -> some View {
+        if let attr = try? AttributedString(
+            markdown: text,
+            options: AttributedString.MarkdownParsingOptions(
+                interpretedSyntax: .inlineOnlyPreservingWhitespace
+            )
+        ) {
+            Text(attr)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.85))
+                .lineSpacing(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.85))
+                .lineSpacing(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     private func goalForMacro(_ macro: MacroType) -> Double {

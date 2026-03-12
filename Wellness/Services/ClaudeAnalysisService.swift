@@ -104,6 +104,61 @@ final class ClaudeAnalysisService {
         return p
     }
 
+    // MARK: - Brainstorm
+
+    struct BrainstormInput {
+        let totalCalories: Double; let goalCalories: Double
+        let totalProtein:  Double; let goalProtein:  Double
+        let totalCarbs:    Double; let goalCarbs:    Double
+        let totalFat:      Double; let goalFat:      Double
+    }
+
+    func brainstorm(_ input: BrainstormInput) async throws -> String {
+        let remCal  = max(input.goalCalories - input.totalCalories, 0)
+        let remPro  = max(input.goalProtein  - input.totalProtein,  0)
+        let remCarb = max(input.goalCarbs    - input.totalCarbs,    0)
+        let remFat  = max(input.goalFat      - input.totalFat,      0)
+
+        let prompt = """
+        You are a fitness nutrition coach. A user needs to hit their remaining macro goals \
+        for today. Suggest 3–5 specific, practical meals or snacks that would \
+        collectively satisfy the remaining budget.
+
+        **Remaining macros needed:**
+        - Calories: \(Int(remCal)) kcal  (logged \(Int(input.totalCalories)) / \(Int(input.goalCalories)))
+        - Protein:  \(Int(remPro))g       (logged \(Int(input.totalProtein))g / \(Int(input.goalProtein))g)
+        - Carbs:    \(Int(remCarb))g      (logged \(Int(input.totalCarbs))g / \(Int(input.goalCarbs))g)
+        - Fat:      \(Int(remFat))g       (logged \(Int(input.totalFat))g / \(Int(input.goalFat))g)
+
+        Focus on foods that hit multiple targets at once. Be specific (e.g. \
+        "2 eggs + 1 slice whole-grain toast" not just "eggs"). \
+        Format using **bold** for food names and - bullet points. \
+        Keep it concise — no intro sentence, just the suggestions.
+        """
+
+        let body = RequestBody(
+            model: model,
+            maxTokens: 600,
+            messages: [RequestBody.Message(role: "user", content: prompt)]
+        )
+        var req = URLRequest(url: endpoint)
+        req.httpMethod = "POST"
+        req.setValue(Config.anthropicAPIKey, forHTTPHeaderField: "x-api-key")
+        req.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONEncoder().encode(body)
+
+        let (data, response) = try await URLSession.shared.data(for: req)
+        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+            throw ClaudeServiceError.badResponse(statusCode: http.statusCode)
+        }
+        let decoded = try JSONDecoder().decode(ResponseBody.self, from: data)
+        guard let text = decoded.content.first(where: { $0.type == "text" })?.text else {
+            throw ClaudeServiceError.noContent
+        }
+        return text
+    }
+
     // MARK: - Codable types
 
     private struct RequestBody: Encodable {

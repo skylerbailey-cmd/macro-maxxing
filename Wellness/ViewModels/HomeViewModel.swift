@@ -77,6 +77,12 @@ import SwiftData
     }
     var macrosMetToday: Int { macroGoalsMet.filter { $0 }.count }
 
+    // MARK: - Brainstorm state
+    enum BrainstormState: Equatable {
+        case idle, loading, result(String), error(String)
+    }
+    var brainstormState: BrainstormState = .idle
+
     // MARK: - Streak (consecutive days with any food logged, ending yesterday)
     var macroStreak: Int = 0
 
@@ -130,6 +136,26 @@ import SwiftData
 
         loadStreak()
     }
+
+    // MARK: - Brainstorm
+
+    func brainstorm() async {
+        brainstormState = .loading
+        let input = ClaudeAnalysisService.BrainstormInput(
+            totalCalories: totalCalories, goalCalories: goalCalories,
+            totalProtein:  totalProtein,  goalProtein:  goalProtein,
+            totalCarbs:    totalCarbs,    goalCarbs:    goalCarbs,
+            totalFat:      totalFat,      goalFat:      goalFat
+        )
+        do {
+            let result = try await ClaudeAnalysisService().brainstorm(input)
+            brainstormState = .result(result)
+        } catch {
+            brainstormState = .error(error.localizedDescription)
+        }
+    }
+
+    func resetBrainstorm() { brainstormState = .idle }
 
     // MARK: - Macro recalculation from goal weight
 
