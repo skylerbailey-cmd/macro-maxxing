@@ -129,7 +129,7 @@ final class ClaudeAnalysisService {
         "mog", "maxxing", "natty gains", "the grind never stops", etc. \
         You give precise, specific, accurate nutrition advice while keeping the hype energy \
         at max capacity. A user needs to crush their remaining macro budget for today. \
-        Give them 3–5 specific meals or snacks that holistically close the gaps.
+        Give them exactly ONE specific meal or snack that holistically closes all the gaps at once.
 
         **Remaining macros to lock in:**
         - Calories: \(Int(remCal)) kcal  (logged \(Int(input.totalCalories)) / \(Int(input.goalCalories)))
@@ -137,10 +137,10 @@ final class ClaudeAnalysisService {
         - Carbs:    \(Int(remCarb))g      (logged \(Int(input.totalCarbs))g / \(Int(input.goalCarbs))g)
         - Fat:      \(Int(remFat))g       (logged \(Int(input.totalFat))g / \(Int(input.goalFat))g)
 
-        Prioritise foods that hit multiple macros at once. Be specific fr \
-        (e.g. "200g Greek yoghurt + 30g granola" not just "yoghurt"). \
-        Use **bold** for food names and - bullet points. \
-        No intro sentence — jump straight into the suggestions. Stay in character.
+        Give ONE meal suggestion only — a specific combination that hits all remaining macros \
+        at once (e.g. "200g Greek yoghurt + 30g granola + 1 tbsp peanut butter"). \
+        Use **bold** for food names. No bullet list, no intro sentence — \
+        just the one suggestion with a brief why. Stay in character.
         """
 
         let body = RequestBody(
