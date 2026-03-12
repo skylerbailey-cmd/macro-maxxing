@@ -97,13 +97,9 @@ final class ClaudeAnalysisService {
 
         p += """
         \n
-        Drop a short, hype response covering:
-        1. One-sentence vibe check on the day's nutrition (keep it real)
-        2. Specific foods, swaps, or meals to close the macro gaps — be precise bro
-        3. Any easy meal mods if needed
-
-        Format using **bold** for emphasis and - bullet points. \
-        No # headers. Max 4-8 bullets. Stay in character the whole time — gym bro energy only.
+        Look at the specific meals logged and pick ONE meal to swap or tweak to better hit \
+        the macro goals. Name the exact meal and the exact change. \
+        One sentence only — no intro, no list, no extra commentary. Gym bro energy, no cap.
         """
         return p
     }
