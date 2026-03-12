@@ -90,6 +90,18 @@ import Foundation
 
     // MARK: - Init
 
+    /// Profile picture — persisted as a JPEG file in the Documents directory.
+    var profileImageData: Data? {
+        didSet {
+            let url = UserSettings.profileImageURL
+            if let data = profileImageData { try? data.write(to: url) }
+            else { try? FileManager.default.removeItem(at: url) }
+        }
+    }
+    static let profileImageURL: URL =
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("profile_image.jpg")
+
     init() {
         if let saved = UserDefaults.standard.string(forKey: "userID"), !saved.isEmpty {
             self.userID = saved
@@ -115,5 +127,6 @@ import Foundation
 
         self.auraPoints = UserDefaults.standard.integer(forKey: "auraPoints")
         self.achievedMilestonesRaw = UserDefaults.standard.string(forKey: "achievedMilestones") ?? ""
+        self.profileImageData = try? Data(contentsOf: UserSettings.profileImageURL)
     }
 }

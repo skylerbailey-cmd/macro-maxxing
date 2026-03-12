@@ -148,6 +148,7 @@ struct AuraPopupView: View {
         post.isCustomPost     = false
         post.authorAuraLevel  = userSettings.auraLevel
         post.authorAuraPoints = userSettings.auraPoints
+        post.authorProfileImageData = userSettings.profileImageData
         post.imageData        = image?.jpegData(compressionQuality: 0.8)
         modelContext.insert(post)
         withAnimation { postedToFeed = true }

@@ -114,11 +114,6 @@ final class ClaudeAnalysisService {
     }
 
     func brainstorm(_ input: BrainstormInput) async throws -> String {
-        let remCal  = max(input.goalCalories - input.totalCalories, 0)
-        let remPro  = max(input.goalProtein  - input.totalProtein,  0)
-        let remCarb = max(input.goalCarbs    - input.totalCarbs,    0)
-        let remFat  = max(input.goalFat      - input.totalFat,      0)
-
         // Percentage of each goal completed so far
         func pct(_ logged: Double, _ goal: Double) -> Int {
             guard goal > 0 else { return 0 }

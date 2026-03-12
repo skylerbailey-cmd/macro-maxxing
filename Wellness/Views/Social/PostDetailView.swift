@@ -15,7 +15,8 @@ struct PostDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss)      private var dismiss
 
-    @State private var commentText = ""
+    @State private var commentText   = ""
+    @State private var showingProfile = false
     @FocusState private var commentFocused: Bool
 
     private let purpl   = Color(red: 0.65, green: 0.45, blue: 1.00)
@@ -47,6 +48,20 @@ struct PostDetailView: View {
             .preferredColorScheme(.dark)
             .navigationTitle("Post")
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showingProfile) {
+                NavigationStack {
+                    ProfileView(
+                        profileUserID:      post.authorID,
+                        profileUsername:    post.authorUsername,
+                        profileDisplayName: post.authorDisplayName,
+                        profileAuraLevel:   post.authorAuraLevel,
+                        profileAuraPoints:  post.authorAuraPoints,
+                        profileImageData:   post.authorProfileImageData,
+                        ownUserSettings:    post.authorID == userSettings.userID ? userSettings : nil
+                    )
+                }
+                .presentationDetents([.large])
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
@@ -72,14 +87,11 @@ struct PostDetailView: View {
         VStack(spacing: 10) {
             // Author
             HStack(spacing: 10) {
-                Circle()
-                    .fill(purpl.opacity(0.25))
-                    .frame(width: 42, height: 42)
-                    .overlay {
-                        Text(String(post.authorDisplayName.prefix(1)).uppercased())
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
-                            .foregroundStyle(purpl)
-                    }
+                Button { showingProfile = true } label: {
+                    avatarCircle(size: 42, data: post.authorProfileImageData,
+                                 initial: post.authorDisplayName)
+                }
+                .buttonStyle(.plain)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName)

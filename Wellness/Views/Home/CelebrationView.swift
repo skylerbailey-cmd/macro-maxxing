@@ -239,6 +239,7 @@ struct CelebrationView: View {
         )
         post.authorAuraLevel = userSettings.auraLevel
         post.authorAuraPoints = userSettings.auraPoints
+        post.authorProfileImageData = userSettings.profileImageData
         modelContext.insert(post)
         withAnimation { postedToFeed = true }
         userSettings.awardAura(

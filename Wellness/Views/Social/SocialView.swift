@@ -29,6 +29,7 @@ struct SocialView: View {
     @State private var showingNewPost   = false
     @State private var selectedPost: SocialPost?
     @State private var selectedFeed: Feed = .team
+    @State private var viewingProfile: SocialPost? = nil   // post whose author to view
 
     enum Feed: String, CaseIterable {
         case team  = "The Team"
@@ -66,7 +67,8 @@ struct SocialView: View {
                 } else {
                     List {
                         ForEach(displayedPosts) { post in
-                            PostCard(post: post, userID: userSettings.userID)
+                            PostCard(post: post, userID: userSettings.userID,
+                                 onAvatarTap: { viewingProfile = post })
                                 .contentShape(Rectangle())
                                 .onTapGesture { selectedPost = post }
                                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -114,6 +116,20 @@ struct SocialView: View {
         .sheet(item: $selectedPost) { post in
             PostDetailView(post: post, userSettings: userSettings)
         }
+        .sheet(item: $viewingProfile) { post in
+            NavigationStack {
+                ProfileView(
+                    profileUserID:      post.authorID,
+                    profileUsername:    post.authorUsername,
+                    profileDisplayName: post.authorDisplayName,
+                    profileAuraLevel:   post.authorAuraLevel,
+                    profileAuraPoints:  post.authorAuraPoints,
+                    profileImageData:   post.authorProfileImageData,
+                    ownUserSettings:    post.authorID == userSettings.userID ? userSettings : nil
+                )
+            }
+            .presentationDetents([.large])
+        }
     }
 
     private var emptyFeed: some View {
@@ -139,9 +155,31 @@ struct SocialView: View {
 
 // MARK: - Post card
 
+// Reusable avatar circle used by PostCard and PostDetailView
+func avatarCircle(size: CGFloat, data: Data?, initial: String) -> some View {
+    Group {
+        if let d = data, let img = UIImage(data: d) {
+            Image(uiImage: img)
+                .resizable().scaledToFill()
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+        } else {
+            Circle()
+                .fill(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.25))
+                .frame(width: size, height: size)
+                .overlay {
+                    Text(String(initial.prefix(1)).uppercased())
+                        .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0))
+                }
+        }
+    }
+}
+
 struct PostCard: View {
     @Bindable var post: SocialPost
     let userID: String
+    var onAvatarTap: (() -> Void)? = nil
 
     private let colCal  = Color(red: 1.00, green: 0.55, blue: 0.15)
     private let colPro  = Color(red: 0.35, green: 0.75, blue: 1.00)
@@ -202,14 +240,13 @@ struct PostCard: View {
 
     private var authorHeader: some View {
         HStack(spacing: 10) {
-            Circle()
-                .fill(Color.purpleHi.opacity(0.25))
-                .frame(width: 38, height: 38)
-                .overlay {
-                    Text(String(post.authorDisplayName.prefix(1)).uppercased())
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.purpleHi)
-                }
+            // Tappable avatar
+            Button(action: { onAvatarTap?() }) {
+                avatarCircle(size: 38, data: post.authorProfileImageData,
+                             initial: post.authorDisplayName)
+            }
+            .buttonStyle(.plain)
+            .disabled(onAvatarTap == nil)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName)

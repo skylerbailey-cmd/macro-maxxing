@@ -74,6 +74,19 @@ struct SettingsView: View {
         Form {
             // MARK: Profile
             Section("Profile") {
+                NavigationLink {
+                    ProfileView(
+                        profileUserID:      userSettings.userID,
+                        profileUsername:    userSettings.username,
+                        profileDisplayName: userSettings.name,
+                        profileAuraLevel:   userSettings.auraLevel,
+                        profileAuraPoints:  userSettings.auraPoints,
+                        profileImageData:   userSettings.profileImageData,
+                        ownUserSettings:    userSettings
+                    )
+                } label: {
+                    Label("View Profile", systemImage: "person.crop.circle")
+                }
                 HStack {
                     Text("Name")
                     Spacer()
