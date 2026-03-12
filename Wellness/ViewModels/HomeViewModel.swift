@@ -7,6 +7,15 @@ import Foundation
 import SwiftData
 
 @Observable final class HomeViewModel {
+    // MARK: - Selected date (drives all fetches)
+    var selectedDate: Date {
+        didSet {
+            if !Calendar.current.isDate(selectedDate, inSameDayAs: oldValue) {
+                loadTodayTotals()
+            }
+        }
+    }
+
     // MARK: - Fasting window (persisted)
     var windowStartHour: Int {
         didSet { UserDefaults.standard.set(windowStartHour, forKey: "windowStartHour") }
@@ -29,7 +38,7 @@ import SwiftData
     var windowStartFractional: Double { Double(windowStartHour) + Double(windowStartMinute) / 60.0 }
     var windowEndFractional: Double   { windowStartFractional + Double(windowDurationHours) }
 
-    // MARK: - Today's macro totals
+    // MARK: - Today's macro totals (for selectedDate)
     var totalCalories: Double = 0
     var totalProtein:  Double = 0
     var totalCarbs:    Double = 0
@@ -60,16 +69,16 @@ import SwiftData
         }
     }
 
-    // MARK: - Streaks & activity
-    /// Consecutive days (ending yesterday) where all macro goals were hit.
+    // MARK: - Streaks & activity (always based on today, not selectedDate)
     var macroStreak: Int = 0
-    /// Number of days this week (past 7 days including today) where food was logged.
     var daysLoggedThisWeek: Int = 0
 
     private let modelContext: ModelContext
 
-    init(modelContext: ModelContext) {
-        self.modelContext = modelContext
+    init(modelContext: ModelContext,
+         selectedDate: Date = Calendar.current.startOfDay(for: Date())) {
+        self.modelContext  = modelContext
+        self.selectedDate  = selectedDate
 
         let storedHour = UserDefaults.standard.object(forKey: "windowStartHour")
         self.windowStartHour   = storedHour != nil ? UserDefaults.standard.integer(forKey: "windowStartHour") : 9
@@ -99,8 +108,8 @@ import SwiftData
     }
 
     func loadTodayTotals() {
-        let calendar    = Calendar.current
-        let startOfDay  = calendar.startOfDay(for: Date())
+        let calendar   = Calendar.current
+        let startOfDay = calendar.startOfDay(for: selectedDate)
         guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return }
 
         let predicate  = #Predicate<FoodEntry> { $0.loggedAt >= startOfDay && $0.loggedAt < endOfDay }
@@ -138,9 +147,9 @@ import SwiftData
     // MARK: - Private
 
     private func loadStreaks() {
+        // Streaks always reflect today, not selectedDate
         let calendar = Calendar.current
 
-        // Macro streak: check each past day backwards from yesterday
         var streak = 0
         var offset = 1
         while offset <= 60 {
@@ -167,7 +176,6 @@ import SwiftData
         }
         macroStreak = streak
 
-        // Days logged: past 7 days including today
         var logged = 0
         for i in 0..<7 {
             guard let checkDate = calendar.date(byAdding: .day, value: -i, to: Date()) else { continue }

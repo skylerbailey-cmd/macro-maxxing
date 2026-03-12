@@ -10,24 +10,21 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @State private var selectedDate = Calendar.current.startOfDay(for: Date())
 
     var body: some View {
         TabView {
             NavigationStack {
-                HomeView(viewModel: HomeViewModel(modelContext: modelContext))
+                HomeView(modelContext: modelContext, selectedDate: $selectedDate)
                     .navigationTitle("Today")
             }
-            .tabItem {
-                Label("Home", systemImage: "house")
-            }
+            .tabItem { Label("Home", systemImage: "house") }
 
             NavigationStack {
-                FoodLogView(viewModel: FoodLogViewModel(modelContext: modelContext))
+                FoodLogView(modelContext: modelContext, selectedDate: $selectedDate)
                     .navigationTitle("Food Log")
             }
-            .tabItem {
-                Label("Food Log", systemImage: "fork.knife")
-            }
+            .tabItem { Label("Food Log", systemImage: "fork.knife") }
         }
     }
 }

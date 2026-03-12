@@ -18,15 +18,27 @@ private extension Color {
 // MARK: - FoodLogView
 
 struct FoodLogView: View {
-    @Bindable var viewModel: FoodLogViewModel
+    @State private var viewModel: FoodLogViewModel
+    @Binding var selectedDate: Date
     @State private var showingAnalysisSheet = false
+
+    init(modelContext: ModelContext, selectedDate: Binding<Date>) {
+        _viewModel    = State(wrappedValue: FoodLogViewModel(
+            modelContext: modelContext,
+            selectedDate: selectedDate.wrappedValue
+        ))
+        _selectedDate = selectedDate
+    }
 
     var body: some View {
         ZStack {
             Color.pageBg.ignoresSafeArea()
 
-            // Today's food list
-            Group {
+            VStack(spacing: 0) {
+                DateNavigatorView(selectedDate: $selectedDate)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+
                 if viewModel.todayEntries.isEmpty {
                     emptyState
                 } else {
@@ -39,13 +51,13 @@ struct FoodLogView: View {
                             }
                         }
                         .padding(.horizontal, 16)
-                        .padding(.top, 8)
+                        .padding(.top, 4)
                         .padding(.bottom, 100)
                     }
                 }
             }
 
-            // FABs — camera bottom-right, photo library bottom-left
+            // FABs — photo library bottom-left, camera bottom-right
             VStack {
                 Spacer()
                 HStack {
@@ -66,7 +78,10 @@ struct FoodLogView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .onAppear { viewModel.loadTodayEntries() }
+        .onAppear { viewModel.selectedDate = selectedDate }
+        .onChange(of: selectedDate) { _, newDate in
+            viewModel.selectedDate = newDate
+        }
         .onChange(of: viewModel.selectedImage) { _, newValue in
             if newValue != nil { showingAnalysisSheet = true }
         }
@@ -93,7 +108,7 @@ struct FoodLogView: View {
             Image(systemName: "fork.knife.circle")
                 .font(.system(size: 52))
                 .foregroundStyle(.white.opacity(0.15))
-            Text("No food logged today")
+            Text("No food logged")
                 .font(.headline)
                 .foregroundStyle(.white.opacity(0.35))
             Text("Tap the camera or photo button below\nto log a meal.")
@@ -116,7 +131,6 @@ private struct AnalysisSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Compact thumbnail
                     if let image = viewModel.selectedImage {
                         Image(uiImage: image)
                             .resizable()
@@ -131,11 +145,9 @@ private struct AnalysisSheet: View {
                     switch viewModel.analysisState {
                     case .idle:
                         analyzePrompt
-
                     case .analyzing:
                         ProgressView("Analyzing food...")
                             .padding(.vertical, 32)
-
                     case .result, .error:
                         entryFields
                     }
@@ -151,8 +163,6 @@ private struct AnalysisSheet: View {
             }
         }
     }
-
-    // MARK: Analyze prompt
 
     private var analyzePrompt: some View {
         VStack(spacing: 16) {
@@ -181,8 +191,6 @@ private struct AnalysisSheet: View {
         }
         .padding(.horizontal)
     }
-
-    // MARK: Entry fields
 
     private var entryFields: some View {
         VStack(spacing: 12) {
@@ -243,7 +251,6 @@ private struct FoodEntryRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Thumbnail
             if let data = entry.imageData, let uiImage = UIImage(data: data) {
                 Image(uiImage: uiImage)
                     .resizable()
@@ -261,7 +268,6 @@ private struct FoodEntryRow: View {
                     }
             }
 
-            // Name + macros
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.foodName)
                     .font(.subheadline.weight(.semibold))
@@ -273,7 +279,6 @@ private struct FoodEntryRow: View {
 
             Spacer()
 
-            // Time + delete
             VStack(alignment: .trailing, spacing: 8) {
                 Text(entry.loggedAt, style: .time)
                     .font(.caption2)
@@ -322,9 +327,11 @@ private struct CircleFAB: View {
 #Preview {
     let config    = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: FoodEntry.self, configurations: config)
-    let vm        = FoodLogViewModel(modelContext: container.mainContext)
     return NavigationStack {
-        FoodLogView(viewModel: vm)
-            .navigationTitle("Food Log")
+        FoodLogView(
+            modelContext: container.mainContext,
+            selectedDate: .constant(Calendar.current.startOfDay(for: Date()))
+        )
+        .navigationTitle("Food Log")
     }
 }

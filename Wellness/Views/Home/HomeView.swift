@@ -20,9 +20,18 @@ private extension Color {
 // MARK: - HomeView
 
 struct HomeView: View {
-    @Bindable var viewModel: HomeViewModel
+    @State private var viewModel: HomeViewModel
+    @Binding var selectedDate: Date
     @State private var showingWindowPicker = false
     @State private var showingGoalSheet    = false
+
+    init(modelContext: ModelContext, selectedDate: Binding<Date>) {
+        _viewModel    = State(wrappedValue: HomeViewModel(
+            modelContext: modelContext,
+            selectedDate: selectedDate.wrappedValue
+        ))
+        _selectedDate = selectedDate
+    }
 
     private var windowStartDate: Binding<Date> {
         Binding(
@@ -50,10 +59,13 @@ struct HomeView: View {
     }
 
     var body: some View {
+        @Bindable var bvm = viewModel
         ZStack {
             Color.pageBg.ignoresSafeArea()
             ScrollView {
                 VStack(spacing: 20) {
+                    DateNavigatorView(selectedDate: $selectedDate)
+
                     goalsSection
                     eatingWindowCard
                     macrosSection
@@ -64,18 +76,21 @@ struct HomeView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .onAppear { viewModel.loadTodayTotals() }
+        .onAppear { viewModel.selectedDate = selectedDate }
+        .onChange(of: selectedDate) { _, newDate in
+            viewModel.selectedDate = newDate
+        }
         .sheet(isPresented: $showingWindowPicker) {
             WindowPickerSheet(
                 windowStartDate: windowStartDate,
-                windowDurationHours: $viewModel.windowDurationHours
+                windowDurationHours: $bvm.windowDurationHours
             )
             .presentationDetents([.medium])
         }
         .sheet(isPresented: $showingGoalSheet) {
             GoalWeightSheet(
-                currentWeight: $viewModel.currentWeight,
-                goalWeight: $viewModel.goalWeight
+                currentWeight: $bvm.currentWeight,
+                goalWeight: $bvm.goalWeight
             )
             .presentationDetents([.medium, .large])
         }
@@ -90,7 +105,6 @@ struct HomeView: View {
                 .foregroundStyle(.white)
 
             HStack(spacing: 10) {
-                // Weight — tappable to set goal weight
                 GoalKPICard(
                     title: "WEIGHT",
                     icon: "scalemass.fill",
@@ -114,7 +128,6 @@ struct HomeView: View {
                     }
                 }
 
-                // Macro streak
                 GoalKPICard(title: "STREAK", icon: "flame.fill", iconColor: .orange) {
                     HStack(alignment: .lastTextBaseline, spacing: 3) {
                         Text("\(viewModel.macroStreak)")
@@ -123,7 +136,6 @@ struct HomeView: View {
                     }
                 }
 
-                // Days logged this week
                 GoalKPICard(title: "LOGGED", icon: "calendar.badge.checkmark", iconColor: .macroMint) {
                     VStack(alignment: .leading, spacing: 5) {
                         HStack(alignment: .lastTextBaseline, spacing: 3) {
@@ -204,6 +216,113 @@ struct HomeView: View {
     }
 }
 
+// MARK: - Date Navigator (internal — shared with FoodLogView)
+
+struct DateNavigatorView: View {
+    @Binding var selectedDate: Date
+    @State private var showingPicker = false
+
+    private let calendar = Calendar.current
+
+    private var isToday: Bool {
+        calendar.isDateInToday(selectedDate)
+    }
+
+    private var displayText: String {
+        if isToday { return "Today" }
+        if calendar.isDateInYesterday(selectedDate) { return "Yesterday" }
+        let f = DateFormatter()
+        f.dateFormat = "EEE, MMM d"
+        return f.string(from: selectedDate)
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            // Back
+            Button {
+                guard let prev = calendar.date(byAdding: .day, value: -1, to: selectedDate) else { return }
+                selectedDate = calendar.startOfDay(for: prev)
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 38)
+            }
+
+            // Date label — tappable to pick any date
+            Button { showingPicker = true } label: {
+                Text(displayText)
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+            }
+
+            // Forward (disabled on today)
+            Button {
+                guard !isToday,
+                      let next = calendar.date(byAdding: .day, value: 1, to: selectedDate) else { return }
+                selectedDate = calendar.startOfDay(for: next)
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(isToday ? .white.opacity(0.20) : .white)
+                    .frame(width: 44, height: 38)
+            }
+            .disabled(isToday)
+
+            // "Today" shortcut — only visible on past dates
+            if !isToday {
+                Button("Today") {
+                    selectedDate = calendar.startOfDay(for: Date())
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
+                .buttonStyle(.plain)
+                .padding(.leading, 6)
+                .padding(.trailing, 12)
+                .transition(.opacity.combined(with: .move(edge: .trailing)))
+            }
+        }
+        .padding(.leading, 4)
+        .frame(maxWidth: .infinity)
+        .background(Color(red: 0.13, green: 0.10, blue: 0.22))
+        .cornerRadius(12)
+        .animation(.easeInOut(duration: 0.2), value: isToday)
+        .sheet(isPresented: $showingPicker) {
+            DatePickerSheet(selectedDate: $selectedDate)
+                .presentationDetents([.medium])
+        }
+    }
+}
+
+private struct DatePickerSheet: View {
+    @Binding var selectedDate: Date
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            DatePicker(
+                "Select Date",
+                selection: $selectedDate,
+                in: ...Date(),
+                displayedComponents: .date
+            )
+            .datePickerStyle(.graphical)
+            .padding(.horizontal)
+            .navigationTitle("Select Date")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .onChange(of: selectedDate) { _, newDate in
+                selectedDate = Calendar.current.startOfDay(for: newDate)
+            }
+        }
+    }
+}
+
 // MARK: - Goal KPI Card
 
 private struct GoalKPICard<Content: View>: View {
@@ -252,7 +371,7 @@ private struct GoalKPICard<Content: View>: View {
     }
 }
 
-// MARK: - Macro Gauge Card (speedometer style)
+// MARK: - Macro Gauge Card
 
 private struct MacroGaugeCard: View {
     let label: String
@@ -262,31 +381,23 @@ private struct MacroGaugeCard: View {
     let format: String
     let color: Color
 
-    /// 0–1 clamped, used to trim the arc
     private var progress: Double {
         guard goal > 0 else { return 0 }
         return min(value / goal, 1.0)
     }
 
-    // The gauge uses 270° of a circle (75% of 360°).
-    // Circle() starts at the 3-o'clock position going clockwise.
-    // rotationEffect(.degrees(135)) shifts the start to ~7:30 o'clock (lower-left),
-    // and the arc sweeps clockwise through the top to ~4:30 o'clock (lower-right).
-    // This produces the classic car-speedometer shape, filling left → top → right.
     private let trackFraction: Double = 0.75
     private let lineWidth: CGFloat   = 11
 
     var body: some View {
         VStack(spacing: 8) {
             ZStack {
-                // Background track
                 Circle()
                     .trim(from: 0, to: trackFraction)
                     .stroke(color.opacity(0.13),
                             style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(135))
 
-                // Progress fill
                 Circle()
                     .trim(from: 0, to: progress * trackFraction)
                     .stroke(
@@ -303,7 +414,6 @@ private struct MacroGaugeCard: View {
                     .rotationEffect(.degrees(135))
                     .animation(.easeOut(duration: 0.55), value: progress)
 
-                // Value text centred in the gauge opening
                 VStack(spacing: 2) {
                     Text(String(format: format, value))
                         .font(.system(size: 18, weight: .bold, design: .rounded))
@@ -401,7 +511,7 @@ private struct GoalWeightSheet: View {
     }
     private var previewProtein: Double {
         guard let g = previewGoal else { return 0 }
-        return max(g * 0.8, 50)
+        return max(g * 0.9, 50)
     }
     private var previewFat: Double {
         guard previewGoal != nil else { return 0 }
@@ -443,31 +553,27 @@ private struct GoalWeightSheet: View {
                         HStack {
                             Text("Calories")
                             Spacer()
-                            Text(String(format: "%.0f kcal", previewCalories))
-                                .foregroundStyle(.secondary)
+                            Text(String(format: "%.0f kcal", previewCalories)).foregroundStyle(.secondary)
                         }
                         HStack {
                             Text("Protein")
                             Spacer()
-                            Text(String(format: "%.0f g", previewProtein))
-                                .foregroundStyle(.secondary)
+                            Text(String(format: "%.0f g", previewProtein)).foregroundStyle(.secondary)
                         }
                         HStack {
                             Text("Carbs")
                             Spacer()
-                            Text(String(format: "%.0f g", previewCarbs))
-                                .foregroundStyle(.secondary)
+                            Text(String(format: "%.0f g", previewCarbs)).foregroundStyle(.secondary)
                         }
                         HStack {
                             Text("Fat")
                             Spacer()
-                            Text(String(format: "%.0f g", previewFat))
-                                .foregroundStyle(.secondary)
+                            Text(String(format: "%.0f g", previewFat)).foregroundStyle(.secondary)
                         }
                     } header: {
                         Text("Estimated Daily Macro Goals")
                     } footer: {
-                        Text("~14 kcal/lb goal weight · 0.8 g protein/lb · 25% calories from fat · remainder from carbs. Saving will update your macro goals.")
+                        Text("~14 kcal/lb goal weight · 0.9 g protein/lb · 25% calories from fat · remainder from carbs. Saving will update your macro goals.")
                     }
                 }
             }
@@ -498,9 +604,11 @@ private struct GoalWeightSheet: View {
 #Preview {
     let config    = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: FoodEntry.self, configurations: config)
-    let vm        = HomeViewModel(modelContext: container.mainContext)
     return NavigationStack {
-        HomeView(viewModel: vm)
-            .navigationTitle("Today")
+        HomeView(
+            modelContext: container.mainContext,
+            selectedDate: .constant(Calendar.current.startOfDay(for: Date()))
+        )
+        .navigationTitle("Today")
     }
 }
