@@ -126,8 +126,9 @@ struct PostCard: View {
                 achievementBody
             }
 
-            // Reps + comments
+            // Reps + comments (right-aligned)
             HStack(spacing: 16) {
+                Spacer()
                 // 💪 Rep button
                 Button {
                     post.toggleRep(userID: userID)
@@ -160,8 +161,6 @@ struct PostCard: View {
                         .font(.caption)
                 }
                 .foregroundStyle(.white.opacity(0.35))
-
-                Spacer()
             }
         }
         .padding(14)
