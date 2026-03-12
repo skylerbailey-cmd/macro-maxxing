@@ -18,23 +18,23 @@ struct ContentView: View {
             NavigationStack {
                 HomeView(modelContext: modelContext, selectedDate: $selectedDate, userSettings: userSettings)
             }
-            .tabItem { Label("Hub", systemImage: "house") }
+            .tabItem { Label("Hub", systemImage: "bolt.fill") }              // ⚡ energy / power
 
             NavigationStack {
                 FoodLogView(modelContext: modelContext, selectedDate: $selectedDate)
                     .navigationTitle("Fuel Log")
             }
-            .tabItem { Label("Fuel Log", systemImage: "fork.knife") }
+            .tabItem { Label("Fuel Log", systemImage: "flame.fill") }         // 🔥 fuel / fire
 
             NavigationStack {
                 SocialView(userSettings: userSettings)
             }
-            .tabItem { Label("Mog Board", systemImage: "person.2.fill") }
+            .tabItem { Label("Mog Board", systemImage: "trophy.fill") }       // 🏆 winning
 
             NavigationStack {
                 SettingsView(userSettings: userSettings)
             }
-            .tabItem { Label("Account", systemImage: "person.circle") }
+            .tabItem { Label("Account", systemImage: "crown.fill") }          // 👑 status
         }
     }
 }
