@@ -27,6 +27,11 @@ struct ContentView: View {
             .tabItem { Label("Food Log", systemImage: "fork.knife") }
 
             NavigationStack {
+                SocialView(userSettings: userSettings)
+            }
+            .tabItem { Label("Social", systemImage: "person.2.fill") }
+
+            NavigationStack {
                 SettingsView(userSettings: userSettings)
             }
             .tabItem { Label("Settings", systemImage: "gear") }

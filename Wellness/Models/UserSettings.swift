@@ -6,6 +6,14 @@
 import Foundation
 
 @Observable final class UserSettings {
+    /// Stable unique identifier for this user (auto-generated once).
+    var userID: String = "" {
+        didSet { UserDefaults.standard.set(userID, forKey: "userID") }
+    }
+    /// The @handle other users search by.
+    var username: String = "" {
+        didSet { UserDefaults.standard.set(username, forKey: "username") }
+    }
     var name: String = "" {
         didSet { UserDefaults.standard.set(name, forKey: "userName") }
     }
@@ -24,7 +32,16 @@ import Foundation
     }
 
     init() {
-        self.name          = UserDefaults.standard.string(forKey: "userName") ?? ""
+        // Generate a stable userID the first time the app launches
+        if let saved = UserDefaults.standard.string(forKey: "userID"), !saved.isEmpty {
+            self.userID = saved
+        } else {
+            let newID = UUID().uuidString
+            self.userID = newID
+            UserDefaults.standard.set(newID, forKey: "userID")
+        }
+        self.username = UserDefaults.standard.string(forKey: "username") ?? ""
+        self.name     = UserDefaults.standard.string(forKey: "userName") ?? ""
         let storedFasting  = UserDefaults.standard.object(forKey: "fastingEnabled")
         self.fastingEnabled = storedFasting != nil
             ? UserDefaults.standard.bool(forKey: "fastingEnabled") : false

@@ -13,7 +13,7 @@ struct WellnessApp: App {
     @State private var showSplash = true
 
     let modelContainer: ModelContainer = {
-        let schema = Schema([FoodEntry.self])
+        let schema = Schema([FoodEntry.self, SocialPost.self, SocialComment.self, Friend.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do { return try ModelContainer(for: schema, configurations: [config]) }
         catch { fatalError("Failed to create ModelContainer: \(error)") }

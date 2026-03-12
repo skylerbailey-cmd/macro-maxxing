@@ -141,7 +141,15 @@ struct HomeView: View {
                 CelebrationView(
                     macroGoalsMet: viewModel.macroGoalsMet,
                     userName:      viewModel.userSettings.name,
-                    onDismiss:     { showCelebration = false }
+                    userSettings:  viewModel.userSettings,
+                    postData: CelebrationPostData(
+                        totalCalories: viewModel.totalCalories, goalCalories: viewModel.goalCalories,
+                        totalProtein:  viewModel.totalProtein,  goalProtein:  viewModel.goalProtein,
+                        totalCarbs:    viewModel.totalCarbs,    goalCarbs:    viewModel.goalCarbs,
+                        totalFat:      viewModel.totalFat,      goalFat:      viewModel.goalFat,
+                        date:          viewModel.selectedDate
+                    ),
+                    onDismiss: { showCelebration = false }
                 )
                 .transition(.opacity)
             }

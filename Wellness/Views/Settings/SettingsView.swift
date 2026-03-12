@@ -11,6 +11,7 @@ struct SettingsView: View {
 
     // Local state — only writes to userSettings on commit, preventing re-renders on every input
     @State private var nameText:         String = ""
+    @State private var usernameText:     String = ""
     @State private var currentWeightVal: Double = 160
     @State private var goalWeightVal:    Double = 160
     @State private var proteinPerLbVal:  Double = 0.9
@@ -25,8 +26,22 @@ struct SettingsView: View {
                     TextField("Your name", text: $nameText)
                         .multilineTextAlignment(.trailing)
                         .focused($nameFocused)
-                        .submitLabel(.done)
-                        .onSubmit { commitAll(); nameFocused = false }
+                        .submitLabel(.next)
+                        .onSubmit { nameFocused = false }
+                }
+                HStack {
+                    Text("Username")
+                    Spacer()
+                    HStack(spacing: 2) {
+                        Text("@").foregroundStyle(.secondary)
+                        TextField("handle", text: $usernameText)
+                            .multilineTextAlignment(.trailing)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .focused($nameFocused)
+                            .submitLabel(.done)
+                            .onSubmit { commitAll(); nameFocused = false }
+                    }
                 }
             }
 
@@ -90,6 +105,7 @@ struct SettingsView: View {
         }
         .onAppear {
             nameText         = userSettings.name
+            usernameText     = userSettings.username
             currentWeightVal = userSettings.currentWeight > 0 ? userSettings.currentWeight : 160
             goalWeightVal    = userSettings.goalWeight    > 0 ? userSettings.goalWeight    : 160
             proteinPerLbVal  = userSettings.proteinPerLb
@@ -133,7 +149,11 @@ struct SettingsView: View {
     }
 
     private func commitAll() {
-        userSettings.name          = nameText.trimmingCharacters(in: .whitespaces)
+        userSettings.name     = nameText.trimmingCharacters(in: .whitespaces)
+        userSettings.username = usernameText
+            .trimmingCharacters(in: .whitespaces)
+            .lowercased()
+            .replacingOccurrences(of: "@", with: "")
         userSettings.currentWeight = currentWeightVal
         userSettings.goalWeight    = goalWeightVal
         userSettings.proteinPerLb  = proteinPerLbVal

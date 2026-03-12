@@ -1,0 +1,339 @@
+//
+//  SocialView.swift
+//  Wellness
+//
+//  Feed + friend management.
+//  Posts are stored in SwiftData locally. Cross-device sync (seeing friends'
+//  posts from their devices) requires a backend such as Firebase or CloudKit
+//  — swap SocialService in that case; all SwiftData calls are isolated here.
+//
+
+import SwiftUI
+import SwiftData
+import Contacts
+import ContactsUI
+
+// MARK: - Color palette
+
+private extension Color {
+    static let pageBg   = Color(red: 0.07, green: 0.05, blue: 0.12)
+    static let cardBg   = Color(red: 0.13, green: 0.10, blue: 0.22)
+    static let purpleHi = Color(red: 0.65, green: 0.45, blue: 1.00)
+}
+
+// MARK: - SocialView
+
+struct SocialView: View {
+    let userSettings: UserSettings
+
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \SocialPost.postedAt, order: .reverse) private var posts: [SocialPost]
+    @Query(sort: \Friend.addedAt, order: .reverse)       private var friends: [Friend]
+
+    @State private var showingAddFriend  = false
+    @State private var showingContacts   = false
+    @State private var selectedPost: SocialPost?
+
+    var body: some View {
+        ZStack {
+            Color.pageBg.ignoresSafeArea()
+
+            if posts.isEmpty {
+                emptyFeed
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(posts) { post in
+                            PostCard(post: post)
+                                .onTapGesture { selectedPost = post }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 24)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+        .navigationTitle("Social")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { showingAddFriend = true } label: {
+                    Image(systemName: "person.badge.plus")
+                        .foregroundStyle(Color.purpleHi)
+                }
+            }
+        }
+        .sheet(isPresented: $showingAddFriend) {
+            AddFriendView(userSettings: userSettings, friends: friends)
+        }
+        .sheet(item: $selectedPost) { post in
+            PostDetailView(post: post, userSettings: userSettings)
+        }
+    }
+
+    private var emptyFeed: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "figure.strengthtraining.traditional")
+                .font(.system(size: 48))
+                .foregroundStyle(.white.opacity(0.15))
+            Text("No posts yet")
+                .font(.headline)
+                .foregroundStyle(.white.opacity(0.35))
+            Text("Hit all your macro goals and post\nyour achievement from the celebration screen.")
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.22))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Post card (feed row)
+
+struct PostCard: View {
+    let post: SocialPost
+
+    private let colCal  = Color(red: 1.00, green: 0.55, blue: 0.15)
+    private let colPro  = Color(red: 0.35, green: 0.75, blue: 1.00)
+    private let colCarb = Color(red: 0.40, green: 0.90, blue: 0.72)
+    private let colFat  = Color(red: 1.00, green: 0.50, blue: 0.72)
+
+    private var dateString: String {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
+        return f.string(from: post.macroDate)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header row
+            HStack(spacing: 10) {
+                // Avatar
+                Circle()
+                    .fill(Color.purpleHi.opacity(0.25))
+                    .frame(width: 38, height: 38)
+                    .overlay {
+                        Text(String(post.authorDisplayName.prefix(1)).uppercased())
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.purpleHi)
+                    }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                    Text("@\(post.authorUsername)  ·  \(dateString)")
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.35))
+                }
+                Spacer()
+                Text(post.memeEmoji).font(.title2)
+            }
+
+            // Meme headline
+            Text(post.memeHeadline.replacingOccurrences(of: "\n", with: " "))
+                .font(.system(size: 15, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+
+            Text(post.memeSub)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.50))
+
+            // Macro dots
+            HStack(spacing: 10) {
+                ForEach(Array(zip(
+                    [colCal, colPro, colCarb, colFat],
+                    [post.totalCalories / max(post.goalCalories, 1),
+                     post.totalProtein  / max(post.goalProtein,  1),
+                     post.totalCarbs    / max(post.goalCarbs,    1),
+                     post.totalFat      / max(post.goalFat,      1)]
+                ).enumerated(), id: \.offset), id: \.offset) { _, pair in
+                    let (color, pct) = pair
+                    ZStack {
+                        Circle().fill(color.opacity(0.15)).frame(width: 28, height: 28)
+                        Circle()
+                            .trim(from: 0, to: min(pct, 1))
+                            .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                            .frame(width: 28, height: 28)
+                    }
+                }
+                Spacer()
+                // Comment count
+                HStack(spacing: 4) {
+                    Image(systemName: "bubble.left")
+                        .font(.system(size: 12))
+                    Text("\(post.comments.count)")
+                        .font(.caption)
+                }
+                .foregroundStyle(.white.opacity(0.35))
+            }
+        }
+        .padding(14)
+        .background(Color.cardBg)
+        .cornerRadius(16)
+    }
+}
+
+// MARK: - Add Friend sheet
+
+struct AddFriendView: View {
+    let userSettings: UserSettings
+    let friends: [Friend]
+
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss)      private var dismiss
+
+    @State private var usernameInput  = ""
+    @State private var showContacts   = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.pageBg.ignoresSafeArea()
+                VStack(spacing: 20) {
+                    // Add by username
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Add by Username")
+                            .font(.headline).foregroundStyle(.white)
+                        HStack(spacing: 10) {
+                            TextField("@username", text: $usernameInput)
+                                .textFieldStyle(.roundedBorder)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                            Button("Add") { addByUsername() }
+                                .buttonStyle(.borderedProminent)
+                                .tint(Color.purpleHi)
+                        }
+                        if let err = errorMessage {
+                            Text(err).font(.caption).foregroundStyle(.red)
+                        }
+                    }
+                    .padding(16)
+                    .background(Color.cardBg)
+                    .cornerRadius(14)
+
+                    // Add from Contacts
+                    Button {
+                        showContacts = true
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "person.crop.circle")
+                            Text("Add from Contacts")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color.cardBg)
+                        .foregroundStyle(.white)
+                        .cornerRadius(14)
+                    }
+
+                    // Friends list
+                    if !friends.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Friends (\(friends.count))")
+                                .font(.headline).foregroundStyle(.white)
+                            ForEach(friends) { friend in
+                                HStack {
+                                    Circle()
+                                        .fill(Color.purpleHi.opacity(0.2))
+                                        .frame(width: 32, height: 32)
+                                        .overlay {
+                                            Text(String(friend.displayName.prefix(1)).uppercased())
+                                                .font(.system(size: 13, weight: .bold))
+                                                .foregroundStyle(Color.purpleHi)
+                                        }
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(friend.displayName)
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(.white)
+                                        Text("@\(friend.username)")
+                                            .font(.caption2).foregroundStyle(.white.opacity(0.40))
+                                    }
+                                    Spacer()
+                                    Button(role: .destructive) {
+                                        modelContext.delete(friend)
+                                    } label: {
+                                        Image(systemName: "person.badge.minus")
+                                            .foregroundStyle(.red.opacity(0.65))
+                                    }
+                                }
+                                .padding(10)
+                                .background(Color.cardBg)
+                                .cornerRadius(12)
+                            }
+                        }
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+            }
+            .preferredColorScheme(.dark)
+            .navigationTitle("Friends")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .sheet(isPresented: $showContacts) {
+            ContactPickerView { name in
+                addFriend(username: name.lowercased().replacingOccurrences(of: " ", with: ""),
+                          displayName: name)
+            }
+        }
+    }
+
+    private func addByUsername() {
+        let handle = usernameInput
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "@", with: "")
+        guard !handle.isEmpty else { errorMessage = "Enter a username."; return }
+        if handle == userSettings.username { errorMessage = "That's you!"; return }
+        if friends.contains(where: { $0.username == handle }) {
+            errorMessage = "Already added."; return
+        }
+        addFriend(username: handle, displayName: handle)
+        usernameInput = ""
+        errorMessage  = nil
+    }
+
+    private func addFriend(username: String, displayName: String) {
+        let friend = Friend(username: username, displayName: displayName)
+        modelContext.insert(friend)
+    }
+}
+
+// MARK: - Contacts picker (UIKit wrapper)
+
+private struct ContactPickerView: UIViewControllerRepresentable {
+    let onSelect: (String) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(onSelect: onSelect) }
+
+    func makeUIViewController(context: Context) -> CNContactPickerViewController {
+        let picker = CNContactPickerViewController()
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_: CNContactPickerViewController, context: Context) {}
+
+    class Coordinator: NSObject, CNContactPickerDelegate {
+        let onSelect: (String) -> Void
+        init(onSelect: @escaping (String) -> Void) { self.onSelect = onSelect }
+
+        func contactPicker(_: CNContactPickerViewController, didSelect contact: CNContact) {
+            let name = [contact.givenName, contact.familyName]
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+            onSelect(name.isEmpty ? "Friend" : name)
+        }
+    }
+}

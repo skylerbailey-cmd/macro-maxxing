@@ -30,15 +30,29 @@ struct GymMeme {
 
 // MARK: - CelebrationView
 
+/// All macro data needed to create a social post from the celebration screen.
+struct CelebrationPostData {
+    let totalCalories: Double; let goalCalories: Double
+    let totalProtein:  Double; let goalProtein:  Double
+    let totalCarbs:    Double; let goalCarbs:    Double
+    let totalFat:      Double; let goalFat:      Double
+    let date: Date
+}
+
 struct CelebrationView: View {
     let macroGoalsMet: [Bool]
     let userName:      String
+    let userSettings:  UserSettings
+    let postData:      CelebrationPostData
     let onDismiss:     () -> Void
 
-    @State private var cardScale:    CGFloat = 0.2
-    @State private var cardOpacity:  Double  = 0
-    @State private var bgOpacity:    Double  = 0
-    @State private var showingShare  = false
+    @Environment(\.modelContext) private var modelContext
+
+    @State private var cardScale:     CGFloat = 0.2
+    @State private var cardOpacity:   Double  = 0
+    @State private var bgOpacity:     Double  = 0
+    @State private var showingShare   = false
+    @State private var postedToFeed   = false
     @State private var renderedImage: UIImage?
 
     private let meme = GymMeme.random()
@@ -74,21 +88,44 @@ struct CelebrationView: View {
                 macroRow
                     .padding(.top, 4)
 
-                // Share button
-                Button {
-                    showingShare = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 14, weight: .semibold))
-                        Text("Share")
-                            .font(.subheadline.weight(.semibold))
+                // Buttons row
+                VStack(spacing: 10) {
+                    // Post to Feed
+                    Button {
+                        postToFeed()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: postedToFeed ? "checkmark.circle.fill" : "person.2.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text(postedToFeed ? "Posted!" : "Post to Feed")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(postedToFeed
+                            ? Color.green.opacity(0.30)
+                            : Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.35))
+                        .cornerRadius(14)
                     }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.35))
-                    .cornerRadius(14)
+                    .disabled(postedToFeed)
+
+                    // Share image
+                    Button {
+                        showingShare = true
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Share")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.white.opacity(0.10))
+                        .cornerRadius(14)
+                    }
                 }
                 .padding(.top, 4)
             }
@@ -183,6 +220,25 @@ struct CelebrationView: View {
         let renderer   = ImageRenderer(content: card)
         renderer.scale = 3.0
         renderedImage  = renderer.uiImage
+    }
+
+    private func postToFeed() {
+        guard !postedToFeed else { return }
+        let post = SocialPost(
+            authorID:          userSettings.userID,
+            authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
+            authorDisplayName: userSettings.name,
+            memeEmoji:         meme.emoji,
+            memeHeadline:      meme.headline,
+            memeSub:           meme.sub,
+            macroDate:         postData.date,
+            totalCalories:     postData.totalCalories, goalCalories: postData.goalCalories,
+            totalProtein:      postData.totalProtein,  goalProtein:  postData.goalProtein,
+            totalCarbs:        postData.totalCarbs,    goalCarbs:    postData.goalCarbs,
+            totalFat:          postData.totalFat,      goalFat:      postData.goalFat
+        )
+        modelContext.insert(post)
+        withAnimation { postedToFeed = true }
     }
 
     private func animatedDismiss() {
