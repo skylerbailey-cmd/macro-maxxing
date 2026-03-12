@@ -4,30 +4,31 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct AuraPopupView: View {
-    let award:      UserSettings.AuraAward
-    let auraLevel:  Int
-    let auraTitle:  String
+    let award:       UserSettings.AuraAward
+    let auraLevel:   Int
+    let auraTitle:   String
     let totalPoints: Int
-    let onDismiss:  () -> Void
+    let userSettings: UserSettings
+    let onDismiss:   () -> Void
 
-    @State private var scale:   CGFloat = 0.3
-    @State private var opacity: Double  = 0
-    @State private var bgOpacity: Double = 0
+    @Environment(\.modelContext) private var modelContext
+    @State private var scale:      CGFloat = 0.3
+    @State private var opacity:    Double  = 0
+    @State private var bgOpacity:  Double  = 0
+    @State private var postedToFeed = false
 
     var body: some View {
         ZStack {
             Color.black.opacity(bgOpacity * 0.60)
                 .ignoresSafeArea()
-                .onTapGesture { animatedDismiss() }
 
             VStack(spacing: 14) {
-                // Star burst
                 Text("⭐")
                     .font(.system(size: 60))
 
-                // Points earned
                 Text("+\(award.points) Aura")
                     .font(.system(size: 32, weight: .black, design: .rounded))
                     .foregroundStyle(
@@ -63,7 +64,26 @@ struct AuraPopupView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 8)
 
-                // intentionally empty — X button handles dismiss
+                // Post to Feed button
+                Button {
+                    postToFeed()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: postedToFeed ? "checkmark.circle.fill" : "person.2.fill")
+                        Text(postedToFeed ? "Posted!" : "Post to Feed")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(
+                        postedToFeed
+                            ? Color.green.opacity(0.30)
+                            : Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.35)
+                    )
+                    .cornerRadius(14)
+                }
+                .disabled(postedToFeed)
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 30)
@@ -98,6 +118,26 @@ struct AuraPopupView: View {
                 scale = 1.0; opacity = 1.0
             }
         }
+    }
+
+    private func postToFeed() {
+        guard !postedToFeed else { return }
+        let post = SocialPost(
+            authorID:          userSettings.userID,
+            authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
+            authorDisplayName: userSettings.name,
+            memeEmoji:         "⭐",
+            memeHeadline:      award.reason,
+            memeSub:           "\(award.message) +\(award.points) aura pts",
+            macroDate:         Date(),
+            totalCalories: 0, goalCalories: 0,
+            totalProtein:  0, goalProtein:  0,
+            totalCarbs:    0, goalCarbs:    0,
+            totalFat:      0, goalFat:      0
+        )
+        post.isCustomPost = false   // show as achievement-style post
+        modelContext.insert(post)
+        withAnimation { postedToFeed = true }
     }
 
     private func animatedDismiss() {

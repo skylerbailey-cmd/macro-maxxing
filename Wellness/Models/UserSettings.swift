@@ -45,7 +45,7 @@ import Foundation
 
     // MARK: Computed aura properties
 
-    var auraLevel: Int { min(auraPoints / 100, 100) }
+    var auraLevel: Int { min(auraPoints / 1000, 100) }
 
     var auraTitle: String {
         switch auraLevel {

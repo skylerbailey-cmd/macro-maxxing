@@ -146,7 +146,7 @@ struct ShareCardView: View {
 
     private var celebration: some View {
         let m = data.meme ?? GymMeme(
-            emoji: "🏆",
+            imageName: "🏆",
             headline: data.name.isEmpty
                 ? "All Goals Crushed!"
                 : "\(data.name.components(separatedBy: " ").first ?? data.name) Crushed It!",

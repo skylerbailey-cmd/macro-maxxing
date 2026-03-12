@@ -186,7 +186,7 @@ struct HomeView: View {
                 award:       award,
                 auraLevel:   viewModel.userSettings.auraLevel,
                 auraTitle:   viewModel.userSettings.auraTitle,
-                totalPoints: viewModel.userSettings.auraPoints,
+                totalPoints:  viewModel.userSettings.auraPoints,                userSettings: viewModel.userSettings,
                 onDismiss:   { pendingAward = nil; viewModel.userSettings.pendingAura = nil }
             )
             .transition(.opacity)

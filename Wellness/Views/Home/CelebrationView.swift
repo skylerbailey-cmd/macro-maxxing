@@ -10,22 +10,23 @@ import SwiftData
 
 struct GymMeme {
     let imageName: String   // asset catalog image
+    let emoji:     String   // shown in social posts
     let headline:  String
     let sub:       String
 
     static func random() -> GymMeme { all.randomElement()! }
 
     static let all: [GymMeme] = [
-        GymMeme(imageName: "meme_looksmaxx",  headline: "LOOKSMAXX MODE\nACTIVATED",    sub: "your gains are immaculate fr"),
-        GymMeme(imageName: "meme_gigachad",   headline: "GIGACHAD ENERGY\nUNLOCKED",    sub: "NPC energy has officially left the chat"),
-        GymMeme(imageName: "meme_sigma",      headline: "SIGMA GRINDSET\nCOMPLETE",      sub: "the mewing is literally paying off rn"),
-        GymMeme(imageName: "meme_roman",      headline: "ROMAN EMPEROR\nPHYSIQUE",      sub: "built different. always have been."),
-        GymMeme(imageName: "meme_finalform",  headline: "ALL MACROS?\nEZ CLAP.",         sub: "you are simply not the same as them"),
-        GymMeme(imageName: "meme_goat",       headline: "GOAT STATUS\nCONFIRMED",       sub: "your jawline could cut through steel rn"),
-        GymMeme(imageName: "meme_bro",        headline: "BRO ATE\n(LITERALLY)",         sub: "no cap this is your villain arc and you're winning"),
-        GymMeme(imageName: "meme_optimal",    headline: "OPTIMAL SPECIMEN\nUNLOCKED",   sub: "peak performance protocol: complete"),
-        GymMeme(imageName: "meme_king",       headline: "MACRO KING\nHAS LOGGED",       sub: "the iron never lies. neither do your macros."),
-        GymMeme(imageName: "meme_silverback", headline: "SILVERBACK\nNUTRITION",        sub: "respect. every gram accounted for."),
+        GymMeme(imageName: "meme_looksmaxx",  emoji: "🗿",  headline: "LOOKSMAXX MODE\nACTIVATED",    sub: "your gains are immaculate fr"),
+        GymMeme(imageName: "meme_gigachad",   emoji: "💪",  headline: "GIGACHAD ENERGY\nUNLOCKED",    sub: "NPC energy has officially left the chat"),
+        GymMeme(imageName: "meme_sigma",      emoji: "⚡",  headline: "SIGMA GRINDSET\nCOMPLETE",      sub: "the mewing is literally paying off rn"),
+        GymMeme(imageName: "meme_roman",      emoji: "🏛️", headline: "ROMAN EMPEROR\nPHYSIQUE",      sub: "built different. always have been."),
+        GymMeme(imageName: "meme_finalform",  emoji: "🔱",  headline: "ALL MACROS?\nEZ CLAP.",         sub: "you are simply not the same as them"),
+        GymMeme(imageName: "meme_goat",       emoji: "🐐",  headline: "GOAT STATUS\nCONFIRMED",       sub: "your jawline could cut through steel rn"),
+        GymMeme(imageName: "meme_bro",        emoji: "💀",  headline: "BRO ATE\n(LITERALLY)",         sub: "no cap this is your villain arc and you're winning"),
+        GymMeme(imageName: "meme_optimal",    emoji: "🧬",  headline: "OPTIMAL SPECIMEN\nUNLOCKED",   sub: "peak performance protocol: complete"),
+        GymMeme(imageName: "meme_king",       emoji: "👑",  headline: "MACRO KING\nHAS LOGGED",       sub: "the iron never lies. neither do your macros."),
+        GymMeme(imageName: "meme_silverback", emoji: "🦍",  headline: "SILVERBACK\nNUTRITION",        sub: "respect. every gram accounted for."),
     ]
 }
 
@@ -227,7 +228,7 @@ struct CelebrationView: View {
             authorID:          userSettings.userID,
             authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
             authorDisplayName: userSettings.name,
-            memeEmoji:         meme.imageName,
+            memeEmoji:         meme.emoji,
             memeHeadline:      meme.headline,
             memeSub:           meme.sub,
             macroDate:         postData.date,
