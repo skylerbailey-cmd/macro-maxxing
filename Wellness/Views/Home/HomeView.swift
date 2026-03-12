@@ -24,6 +24,7 @@ struct HomeView: View {
     @Binding var selectedDate: Date
     @State private var showingWindowPicker = false
     @State private var showingGoalSheet    = false
+    @State private var selectedMacro: MacroType? = nil
 
     init(modelContext: ModelContext, selectedDate: Binding<Date>, userSettings: UserSettings) {
         _viewModel    = State(wrappedValue: HomeViewModel(
@@ -117,6 +118,10 @@ struct HomeView: View {
                 windowDurationHours: $bvm.windowDurationHours
             )
             .presentationDetents([.medium])
+        }
+        .sheet(item: $selectedMacro) { macro in
+            MacroHistorySheet(macro: macro, goalValue: goalForMacro(macro))
+                .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showingGoalSheet) {
             GoalWeightSheet(
@@ -247,17 +252,30 @@ struct HomeView: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
                 MacroGaugeCard(label: "Calories", value: viewModel.totalCalories,
                                goal: viewModel.goalCalories, unit: "kcal",
-                               format: "%.0f", color: .orange)
+                               format: "%.0f", color: .orange,
+                               action: { selectedMacro = .calories })
                 MacroGaugeCard(label: "Protein",  value: viewModel.totalProtein,
                                goal: viewModel.goalProtein,  unit: "g",
-                               format: "%.0f", color: .macroBlue)
+                               format: "%.0f", color: .macroBlue,
+                               action: { selectedMacro = .protein })
                 MacroGaugeCard(label: "Carbs",    value: viewModel.totalCarbs,
                                goal: viewModel.goalCarbs,    unit: "g",
-                               format: "%.0f", color: .macroMint)
+                               format: "%.0f", color: .macroMint,
+                               action: { selectedMacro = .carbs })
                 MacroGaugeCard(label: "Fat",      value: viewModel.totalFat,
                                goal: viewModel.goalFat,      unit: "g",
-                               format: "%.0f", color: .macroRose)
+                               format: "%.0f", color: .macroRose,
+                               action: { selectedMacro = .fat })
             }
+        }
+    }
+
+    private func goalForMacro(_ macro: MacroType) -> Double {
+        switch macro {
+        case .calories: return viewModel.goalCalories
+        case .protein:  return viewModel.goalProtein
+        case .carbs:    return viewModel.goalCarbs
+        case .fat:      return viewModel.goalFat
         }
     }
 }
@@ -410,6 +428,7 @@ private struct MacroGaugeCard: View {
     let unit: String
     let format: String
     let color: Color
+    var action: (() -> Void)? = nil
 
     private var progress: Double {
         guard goal > 0 else { return 0 }
@@ -458,6 +477,16 @@ private struct MacroGaugeCard: View {
         .padding(.horizontal, 8)
         .background(Color.cardBg)
         .cornerRadius(16)
+        .contentShape(Rectangle())
+        .onTapGesture { action?() }
+        .overlay(alignment: .topTrailing) {
+            if action != nil {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(color.opacity(0.55))
+                    .padding(8)
+            }
+        }
     }
 }
 
