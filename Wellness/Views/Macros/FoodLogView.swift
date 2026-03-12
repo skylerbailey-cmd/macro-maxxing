@@ -236,6 +236,7 @@ private struct AnalysisSheet: View {
     @Bindable var viewModel: FoodLogViewModel
     let onSaved: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var showSaveError = false
 
     var body: some View {
         NavigationStack {
@@ -334,17 +335,37 @@ private struct AnalysisSheet: View {
                 .padding(.horizontal)
             }
 
+            if showSaveError {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .foregroundStyle(.red)
+                    Text("Please fill in all macro fields (calories, protein, carbs, fat) before saving.")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.red.opacity(0.10))
+                .cornerRadius(10)
+                .padding(.horizontal)
+            }
+
             HStack(spacing: 12) {
                 Button("Discard") { dismiss() }
                     .buttonStyle(.bordered)
                     .frame(maxWidth: .infinity)
 
                 Button("Save") {
-                    if viewModel.saveEntry() { onSaved() }
+                    if viewModel.caloriesText.isEmpty || viewModel.proteinText.isEmpty ||
+                       viewModel.carbsText.isEmpty   || viewModel.fatText.isEmpty {
+                        showSaveError = true
+                    } else if viewModel.saveEntry() {
+                        showSaveError = false
+                        onSaved()
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .frame(maxWidth: .infinity)
-                .disabled(viewModel.caloriesText.isEmpty)
             }
             .padding(.horizontal)
             .padding(.top, 4)
@@ -426,6 +447,7 @@ private struct EditEntrySheet: View {
     @State private var proteinText:  String
     @State private var carbsText:    String
     @State private var fatText:      String
+    @State private var showEditError = false
 
     private enum Field: Hashable { case name, calories, protein, carbs, fat }
 
@@ -459,7 +481,21 @@ private struct EditEntrySheet: View {
                     macroRow("Carbs",    unit: "g",    text: $carbsText,    field: .carbs,    next: .fat)
                     macroRow("Fat",      unit: "g",    text: $fatText,      field: .fat,      next: nil)
                 }
+                if showEditError {
+                    Section {
+                        Label(
+                            "All macro fields (calories, protein, carbs, fat) must be filled in with valid numbers before saving.",
+                            systemImage: "exclamationmark.circle.fill"
+                        )
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                    }
+                }
             }
+            .onChange(of: caloriesText) { _, _ in if showEditError && isValid { showEditError = false } }
+            .onChange(of: proteinText)  { _, _ in if showEditError && isValid { showEditError = false } }
+            .onChange(of: carbsText)    { _, _ in if showEditError && isValid { showEditError = false } }
+            .onChange(of: fatText)      { _, _ in if showEditError && isValid { showEditError = false } }
             .navigationTitle("Edit Entry")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -467,8 +503,9 @@ private struct EditEntrySheet: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
-                        .disabled(!isValid)
+                    Button("Save") {
+                        if isValid { save() } else { showEditError = true }
+                    }
                 }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
