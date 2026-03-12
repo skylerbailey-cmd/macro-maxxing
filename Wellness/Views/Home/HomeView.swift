@@ -25,7 +25,8 @@ struct HomeView: View {
     @State private var showingWindowPicker = false
     @State private var showingGoalSheet    = false
     @State private var selectedMacro: MacroType? = nil
-    @State private var showingShare = false
+    @State private var showingShare       = false
+    @State private var showCelebration    = false
 
     init(modelContext: ModelContext, selectedDate: Binding<Date>, userSettings: UserSettings) {
         _viewModel    = State(wrappedValue: HomeViewModel(
@@ -128,6 +129,18 @@ struct HomeView: View {
         }
         .onChange(of: viewModel.userSettings.proteinPerLb) { _, _ in
             viewModel.recalculateMacrosFromGoalWeight()
+        }
+        .onChange(of: viewModel.macrosMetToday) { oldVal, newVal in
+            // Only celebrate when all 4 are newly hit on today's date
+            if newVal == 4 && oldVal < 4 && Calendar.current.isDateInToday(viewModel.selectedDate) {
+                showCelebration = true
+            }
+        }
+        .overlay {
+            if showCelebration {
+                CelebrationView { showCelebration = false }
+                    .transition(.opacity)
+            }
         }
         .sheet(isPresented: $showingWindowPicker) {
             WindowPickerSheet(
