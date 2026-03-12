@@ -5,11 +5,65 @@
 
 import SwiftUI
 
+// MARK: - FAQ item model
+
+private struct FAQItem: Identifiable {
+    let id = UUID()
+    let question: String
+    let answer:   String
+}
+
+private let faqItems: [FAQItem] = [
+    FAQItem(
+        question: "What are Aura Points?",
+        answer: """
+        Aura Points are the currency of your gains journey. Every rep in the gym and \
+        every meal you track earns you Aura.
+
+        How to earn them:
+        • 3-day logging streak → +50 pts
+        • 7-day streak → +150 pts
+        • 14-day streak → +300 pts
+        • 30-day streak → +500 pts
+        • 60-day streak → +750 pts
+        • 100-day streak → +1,000 pts
+        • Post when you crush your macro goals → +75 pts
+        • Drop a comment on someone's post → +10 pts
+
+        Each streak milestone is awarded once. Keep the streak alive and the \
+        aura farms itself, no cap.
+        """
+    ),
+    FAQItem(
+        question: "What are Aura Levels?",
+        answer: """
+        Aura Levels show where you stand on the looksmaxxing hierarchy. \
+        Every 1,000 Aura Points = 1 level, up to a max of Level 100.
+
+        Level titles:
+        • Level 0 — (no title yet)
+        • Levels 1–9 — Initiate
+        • Levels 10–24 — Disciple
+        • Levels 25–39 — Ascender
+        • Levels 40–59 — Mog Apprentice
+        • Levels 60–79 — Aura Farmer
+        • Levels 80–94 — Elite Aesthetic
+        • Levels 95–100 — Final Form
+
+        Your level and title appear under your name on the Home screen and \
+        next to your name on every post you make. Stack those points and ascend.
+        """
+    ),
+]
+
+// MARK: - SettingsView
+
 struct SettingsView: View {
     @Bindable var userSettings: UserSettings
     @FocusState private var nameFocused: Bool
 
     // Local state — only writes to userSettings on commit, preventing re-renders on every input
+    @State private var activeFAQ: FAQItem? = nil
     @State private var nameText:         String = ""
     @State private var usernameText:     String = ""
     @State private var currentWeightVal: Double = 160
@@ -92,6 +146,25 @@ struct SettingsView: View {
                 Text("Grams of protein per pound of goal body weight. General fitness: 0.7–0.8 g/lb. Strength training: 0.8–1.0 g/lb.")
             }
 
+            // MARK: FAQ
+            Section("FAQ") {
+                ForEach(faqItems) { item in
+                    Button {
+                        activeFAQ = item
+                    } label: {
+                        HStack {
+                            Text(item.question)
+                                .foregroundStyle(.primary)
+                                .multilineTextAlignment(.leading)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
             // MARK: Intermittent Fasting
             Section {
                 Toggle("Track Eating Window", isOn: $userSettings.fastingEnabled)
@@ -111,9 +184,13 @@ struct SettingsView: View {
             proteinPerLbVal  = userSettings.proteinPerLb
         }
         .onDisappear { commitAll() }
-        .navigationTitle("Settings")
+        .navigationTitle("Account")
         .navigationBarTitleDisplayMode(.inline)
         .preferredColorScheme(.dark)
+        .sheet(item: $activeFAQ) { item in
+            FAQDetailView(item: item)
+                .presentationDetents([.medium, .large])
+        }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -157,6 +234,35 @@ struct SettingsView: View {
         userSettings.currentWeight = currentWeightVal
         userSettings.goalWeight    = goalWeightVal
         userSettings.proteinPerLb  = proteinPerLbVal
+    }
+}
+
+// MARK: - FAQ Detail Sheet
+
+private struct FAQDetailView: View {
+    let item: FAQItem
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                Text(item.answer)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .lineSpacing(5)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+            }
+            .preferredColorScheme(.dark)
+            .navigationTitle(item.question)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
     }
 }
 

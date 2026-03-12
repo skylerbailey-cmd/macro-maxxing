@@ -34,7 +34,7 @@ struct ContentView: View {
             NavigationStack {
                 SettingsView(userSettings: userSettings)
             }
-            .tabItem { Label("Settings", systemImage: "gear") }
+            .tabItem { Label("Account", systemImage: "person.circle") }
         }
     }
 }
