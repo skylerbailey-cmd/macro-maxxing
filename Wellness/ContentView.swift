@@ -18,7 +18,7 @@ struct ContentView: View {
             NavigationStack {
                 HomeView(modelContext: modelContext, selectedDate: $selectedDate, userSettings: userSettings)
             }
-            .tabItem { Label("Home", systemImage: "house") }
+            .tabItem { Label("Hub", systemImage: "house") }
 
             NavigationStack {
                 FoodLogView(modelContext: modelContext, selectedDate: $selectedDate)
