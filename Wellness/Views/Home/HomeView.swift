@@ -175,20 +175,37 @@ struct HomeView: View {
                     icon: "checkmark.seal.fill",
                     iconColor: macrosKPIColor
                 ) {
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack(alignment: .lastTextBaseline, spacing: 3) {
-                            Text("\(viewModel.macrosMetToday)")
-                                .font(.title3.bold()).foregroundStyle(.white)
-                            Text("/ 4").font(.caption).foregroundStyle(.white.opacity(0.45))
-                        }
-                        HStack(spacing: 5) {
-                            ForEach(Array(viewModel.macroGoalsMet.enumerated()), id: \.offset) { _, met in
-                                Circle()
-                                    .fill(met ? macrosKPIColor : Color.white.opacity(0.12))
-                                    .frame(width: 7, height: 7)
-                            }
-                        }
-                    }
+                    macroIndicatorGrid
+                }
+            }
+        }
+    }
+
+    // Each row: (current value, macro color, goal met)
+    private var macroIndicatorGrid: some View {
+        let met   = viewModel.macroGoalsMet
+        let rows: [(Double, Color, Bool)] = [
+            (viewModel.totalCalories, Color.orange,    met[0]),
+            (viewModel.totalProtein,  Color.macroBlue, met[1]),
+            (viewModel.totalCarbs,    Color.macroMint,  met[2]),
+            (viewModel.totalFat,      Color.macroRose,  met[3])
+        ]
+        return LazyVGrid(
+            columns: [GridItem(.flexible()), GridItem(.flexible())],
+            spacing: 5
+        ) {
+            ForEach(rows.indices, id: \.self) { i in
+                let (val, color, isMet) = rows[i]
+                VStack(spacing: 2) {
+                    Circle()
+                        .fill(isMet ? color : color.opacity(0.13))
+                        .frame(width: 22, height: 22)
+                        .shadow(color: isMet ? color.opacity(0.6) : .clear, radius: 4)
+                    Text(String(format: "%.0f", val))
+                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                        .foregroundStyle(isMet ? .white : .white.opacity(0.22))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
                 }
             }
         }
