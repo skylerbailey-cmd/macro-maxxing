@@ -57,21 +57,21 @@ struct SplashView: View {
         }
         .preferredColorScheme(.dark)
         .onAppear {
-            withAnimation(.spring(duration: 0.7, bounce: 0.3)) {
-                ringScale  = 1.0
+            withAnimation(.spring(duration: 0.35, bounce: 0.2)) {
+                ringScale   = 1.0
                 ringOpacity = 1.0
             }
-            withAnimation(.easeOut(duration: 0.5).delay(0.35)) {
+            withAnimation(.easeOut(duration: 0.25).delay(0.15)) {
                 titleOpacity = 1.0
             }
         }
         .task {
-            // Let the entrance animation play before filling starts
-            try? await Task.sleep(for: .seconds(0.45))
+            // Brief pause for entrance animation
+            try? await Task.sleep(for: .seconds(0.15))
 
-            // Fill the ring 0 → 100% using ease-out cubic (fast start, slows near end)
-            let steps    = 80
-            let duration = 1.3
+            // Fill the ring 0 → 100% using ease-out cubic
+            let steps    = 40
+            let duration = 0.4
             let interval = duration / Double(steps)
 
             for i in 1...steps {
@@ -81,8 +81,8 @@ struct SplashView: View {
             }
             loadProgress = 1.0
 
-            // Brief pause at 100% so the user can see it complete
-            try? await Task.sleep(for: .seconds(0.35))
+            // Very brief pause at 100%
+            try? await Task.sleep(for: .seconds(0.1))
             onComplete()
         }
     }
