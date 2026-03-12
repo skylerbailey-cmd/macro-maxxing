@@ -224,7 +224,15 @@ struct PostCard: View {
                     .font(.caption2).foregroundStyle(.white.opacity(0.35))
             }
             Spacer()
-            if !post.isCustomPost { Text(post.memeEmoji).font(.title2) }
+            if !post.isCustomPost {
+                Text(post.memeEmoji)
+                    .font(post.memeEmoji.count > 2 ? .subheadline.weight(.bold) : .title2)
+                    .foregroundStyle(
+                        post.memeEmoji.hasPrefix("⭐")
+                            ? Color(red: 1.0, green: 0.80, blue: 0.20)
+                            : .white
+                    )
+            }
         }
     }
 

@@ -136,7 +136,7 @@ struct AuraPopupView: View {
             authorID:          userSettings.userID,
             authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
             authorDisplayName: userSettings.name,
-            memeEmoji:         "⭐",
+            memeEmoji:         "⭐ +\(award.points)",
             memeHeadline:      title,
             memeSub:           message,
             macroDate:         Date(),
