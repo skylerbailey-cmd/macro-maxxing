@@ -32,7 +32,7 @@ struct PostDetailView: View {
                     ScrollView {
                         VStack(spacing: 16) {
                             postCard
-                            macroBreakdown
+                            if post.goalCalories > 0 { macroBreakdown }
                             commentsSection
                         }
                         .padding(.horizontal, 16)
