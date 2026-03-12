@@ -123,14 +123,14 @@ struct AuraPopupView: View {
             AuraPostEditorView(
                 defaultTitle:   award.reason,
                 defaultMessage: "\(award.message) +\(award.points) aura pts"
-            ) { title, message in
-                postToFeed(title: title, message: message)
+            ) { title, message, image in
+                postToFeed(title: title, message: message, image: image)
             }
             .presentationDetents([.medium, .large])
         }
     }
 
-    private func postToFeed(title: String, message: String) {
+    private func postToFeed(title: String, message: String, image: UIImage? = nil) {
         guard !postedToFeed else { return }
         let post = SocialPost(
             authorID:          userSettings.userID,
@@ -148,6 +148,7 @@ struct AuraPopupView: View {
         post.isCustomPost     = false
         post.authorAuraLevel  = userSettings.auraLevel
         post.authorAuraPoints = userSettings.auraPoints
+        post.imageData        = image?.jpegData(compressionQuality: 0.8)
         modelContext.insert(post)
         withAnimation { postedToFeed = true }
     }
@@ -170,13 +171,15 @@ struct AuraPopupView: View {
 private struct AuraPostEditorView: View {
     let defaultTitle:   String
     let defaultMessage: String
-    let onPost: (String, String) -> Void
+    let onPost: (String, String, UIImage?) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focus: Field?
-    @State private var titleText:   String = ""
-    @State private var messageText: String = ""
-    @State private var showError    = false
+    @State private var titleText:    String  = ""
+    @State private var messageText:  String  = ""
+    @State private var selectedImage: UIImage? = nil
+    @State private var showCamera    = false
+    @State private var showError     = false
 
     private enum Field: Hashable { case title, message }
 
@@ -235,6 +238,40 @@ private struct AuraPostEditorView: View {
                             .onChange(of: messageText) { _, _ in if showError { showError = false } }
                         }
 
+                        // Photo
+                        if let img = selectedImage {
+                            ZStack(alignment: .topTrailing) {
+                                Image(uiImage: img)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 180)
+                                    .clipped()
+                                    .cornerRadius(12)
+                                Button { selectedImage = nil } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.title2)
+                                        .foregroundStyle(.white)
+                                        .shadow(radius: 4)
+                                        .padding(8)
+                                }
+                            }
+                        } else {
+                            Button { showCamera = true } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "camera.fill")
+                                    Text("Add Photo")
+                                        .font(.subheadline.weight(.semibold))
+                                }
+                                .foregroundStyle(.white.opacity(0.65))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(cardBg)
+                                .cornerRadius(12)
+                            }
+                            .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
+                        }
+
                         // Error
                         if showError {
                             HStack(spacing: 8) {
@@ -269,7 +306,7 @@ private struct AuraPostEditorView: View {
                         if t.isEmpty || m.isEmpty {
                             showError = true
                         } else {
-                            onPost(t, m)
+                            onPost(t, m, selectedImage)
                             dismiss()
                         }
                     }
@@ -285,6 +322,9 @@ private struct AuraPostEditorView: View {
                 titleText   = defaultTitle
                 messageText = defaultMessage
             }
+        }
+        .sheet(isPresented: $showCamera) {
+            ImagePickerView(sourceType: .camera, selectedImage: $selectedImage)
         }
     }
 }
