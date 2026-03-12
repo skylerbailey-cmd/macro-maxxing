@@ -28,39 +28,68 @@ struct SocialView: View {
     @State private var showingAddFriend = false
     @State private var showingNewPost   = false
     @State private var selectedPost: SocialPost?
+    @State private var selectedFeed: Feed = .team
+
+    enum Feed: String, CaseIterable {
+        case team  = "The Team"
+        case arena = "The Arena"
+    }
+
+    // "The Team": own posts + posts from added friends (matched by authorUsername)
+    private var teamPosts: [SocialPost] {
+        let friendUsernames = Set(friends.map { $0.username.lowercased() })
+        return posts.filter { post in
+            post.authorID == userSettings.userID ||
+            friendUsernames.contains(post.authorUsername.lowercased())
+        }
+    }
+
+    private var displayedPosts: [SocialPost] {
+        selectedFeed == .team ? teamPosts : posts
+    }
 
     var body: some View {
         ZStack {
             Color.pageBg.ignoresSafeArea()
 
-            if posts.isEmpty {
-                emptyFeed
-            } else {
-                List {
-                    ForEach(posts) { post in
-                        PostCard(post: post, userID: userSettings.userID)
-                            .contentShape(Rectangle())
-                            .onTapGesture { selectedPost = post }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    modelContext.delete(post)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(
-                                EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16)
-                            )
-                    }
+            VStack(spacing: 0) {
+                // Segment picker
+                Picker("Feed", selection: $selectedFeed) {
+                    ForEach(Feed.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+
+                if displayedPosts.isEmpty {
+                    emptyFeed
+                } else {
+                    List {
+                        ForEach(displayedPosts) { post in
+                            PostCard(post: post, userID: userSettings.userID)
+                                .contentShape(Rectangle())
+                                .onTapGesture { selectedPost = post }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        modelContext.delete(post)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(
+                                    EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16)
+                                )
+                        }
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                }
             }
         }
         .preferredColorScheme(.dark)
-        .navigationTitle("Social")
+        .navigationTitle("Mog Board")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -89,13 +118,16 @@ struct SocialView: View {
 
     private var emptyFeed: some View {
         VStack(spacing: 14) {
-            Image(systemName: "figure.strengthtraining.traditional")
+            Image(systemName: selectedFeed == .team
+                  ? "person.2" : "figure.strengthtraining.traditional")
                 .font(.system(size: 48))
                 .foregroundStyle(.white.opacity(0.15))
-            Text("No posts yet")
+            Text(selectedFeed == .team ? "The Team is quiet" : "The Arena is empty")
                 .font(.headline)
                 .foregroundStyle(.white.opacity(0.35))
-            Text("Hit all your macro goals and post from the celebration screen,\nor tap ✏️ to write your own post.")
+            Text(selectedFeed == .team
+                 ? "Add friends from the + button above, then their posts will appear here."
+                 : "Hit all your macro goals and post from the celebration screen, or tap ✏️ to drop a post.")
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.22))
                 .multilineTextAlignment(.center)

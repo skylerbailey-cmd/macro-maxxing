@@ -29,7 +29,7 @@ struct ContentView: View {
             NavigationStack {
                 SocialView(userSettings: userSettings)
             }
-            .tabItem { Label("Social", systemImage: "person.2.fill") }
+            .tabItem { Label("Mog Board", systemImage: "person.2.fill") }
 
             NavigationStack {
                 SettingsView(userSettings: userSettings)
