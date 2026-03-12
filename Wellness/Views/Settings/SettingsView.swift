@@ -11,6 +11,11 @@ struct SettingsView: View {
 
     private enum Field: Hashable { case name, currentWeight, goalWeight }
 
+    // Local text state — avoids re-rendering the whole app on every keystroke
+    @State private var nameText          = ""
+    @State private var currentWeightText = ""
+    @State private var goalWeightText    = ""
+
     var body: some View {
         Form {
             // MARK: Profile
@@ -18,11 +23,11 @@ struct SettingsView: View {
                 HStack {
                     Text("Name")
                     Spacer()
-                    TextField("Your name", text: $userSettings.name)
+                    TextField("Your name", text: $nameText)
                         .multilineTextAlignment(.trailing)
                         .focused($focus, equals: .name)
                         .submitLabel(.done)
-                        .onSubmit { focus = nil }
+                        .onSubmit { commitAll(); focus = nil }
                 }
             }
 
@@ -31,7 +36,7 @@ struct SettingsView: View {
                 HStack {
                     Text("Current Weight")
                     Spacer()
-                    TextField("0", value: $userSettings.currentWeight, format: .number)
+                    TextField("0", text: $currentWeightText)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 80)
@@ -41,7 +46,7 @@ struct SettingsView: View {
                 HStack {
                     Text("Goal Weight")
                     Spacer()
-                    TextField("0", value: $userSettings.goalWeight, format: .number)
+                    TextField("0", text: $goalWeightText)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 80)
@@ -61,16 +66,36 @@ struct SettingsView: View {
                      : "Enable to track your daily eating window on the Home screen.")
             }
         }
+        .onAppear {
+            nameText          = userSettings.name
+            currentWeightText = userSettings.currentWeight > 0
+                ? String(format: "%.1f", userSettings.currentWeight) : ""
+            goalWeightText    = userSettings.goalWeight > 0
+                ? String(format: "%.0f", userSettings.goalWeight) : ""
+        }
+        // Commit when navigating away without tapping Done
+        .onDisappear { commitAll() }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
         .preferredColorScheme(.dark)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("Done") { focus = nil }
-                    .fontWeight(.semibold)
+                Button("Done") {
+                    commitAll()
+                    focus = nil
+                }
+                .fontWeight(.semibold)
             }
         }
+    }
+
+    private func commitAll() {
+        let trimmedName = nameText.trimmingCharacters(in: .whitespaces)
+        userSettings.name = trimmedName
+
+        if let cw = Double(currentWeightText), cw > 0 { userSettings.currentWeight = cw }
+        if let gw = Double(goalWeightText),    gw > 0 { userSettings.goalWeight    = gw }
     }
 }
 
