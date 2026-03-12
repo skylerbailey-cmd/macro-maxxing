@@ -198,5 +198,21 @@ import SwiftData
             offset += 1
         }
         macroStreak = streak
+        checkStreakMilestones(streak)
+    }
+
+    private func checkStreakMilestones(_ streak: Int) {
+        let milestones: [(days: Int, pts: Int, reason: String, msg: String)] = [
+            (3,   50,  "🔥 3-Day Streak",   "3 days straight no cap. sigma behavior activated."),
+            (7,   150, "🔥 7-Day Streak",   "one full week of the grind fr fr. you're different."),
+            (14,  300, "🔥 14-Day Streak",  "two weeks locked in. roman emperor energy."),
+            (30,  500, "🔥 30-Day Streak",  "30 days. built different is an understatement bro."),
+            (60,  750, "🔥 60-Day Streak",  "60 days of pure discipline. aura is immaculate."),
+            (100, 1000,"🔥 100-Day Streak", "100 DAYS. final form unlocked. you simply cannot be mogged."),
+        ]
+        for m in milestones where streak >= m.days && !userSettings.achievedMilestones.contains(m.days) {
+            userSettings.markMilestoneAchieved(m.days)
+            userSettings.awardAura(points: m.pts, reason: m.reason, message: m.msg)
+        }
     }
 }

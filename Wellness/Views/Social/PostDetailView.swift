@@ -281,7 +281,12 @@ struct PostDetailView: View {
         )
         post.comments.append(comment)
         modelContext.insert(comment)
-        commentText   = ""
+        commentText    = ""
         commentFocused = false
+        userSettings.awardAura(
+            points: 10,
+            reason: "💬 Comment Drop",
+            message: "leaving your mark on the feed fr. every comment is aura."
+        )
     }
 }

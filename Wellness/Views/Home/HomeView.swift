@@ -27,6 +27,7 @@ struct HomeView: View {
     @State private var selectedMacro: MacroType? = nil
     @State private var showingShare       = false
     @State private var showCelebration    = false
+    @State private var pendingAward: UserSettings.AuraAward? = nil
 
     init(modelContext: ModelContext, selectedDate: Binding<Date>, userSettings: UserSettings) {
         _viewModel    = State(wrappedValue: HomeViewModel(
@@ -49,6 +50,29 @@ struct HomeView: View {
         default: timeGreeting = "Good Evening"
         }
         return name.isEmpty ? timeGreeting : "\(timeGreeting), \(name)"
+    }
+
+    private var auraBadge: some View {
+        let s = viewModel.userSettings
+        return HStack(spacing: 6) {
+            Text("⭐")
+                .font(.system(size: 11))
+            Text("Lv \(s.auraLevel)")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+            if !s.auraTitle.isEmpty {
+                Text("·")
+                    .foregroundStyle(.white.opacity(0.30))
+                Text(s.auraTitle)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0))
+            }
+            Text("·")
+                .foregroundStyle(.white.opacity(0.30))
+            Text("\(s.auraPoints) aura pts")
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.40))
+        }
     }
 
     private var windowStartDate: Binding<Date> {
@@ -83,11 +107,17 @@ struct HomeView: View {
             Color.pageBg.ignoresSafeArea()
             ScrollView {
                 VStack(spacing: 20) {
-                    // Greeting
-                    Text(greetingText)
-                        .font(.title2.bold())
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    // Greeting + aura
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(greetingText)
+                            .font(.title2.bold())
+                            .foregroundStyle(.white)
+
+                        if viewModel.userSettings.auraLevel > 0 {
+                            auraBadge
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                     DateNavigatorView(selectedDate: $selectedDate)
 
@@ -131,6 +161,22 @@ struct HomeView: View {
         }
         .onChange(of: viewModel.userSettings.proteinPerLb) { _, _ in
             viewModel.recalculateMacrosFromGoalWeight()
+        }
+        .onChange(of: viewModel.userSettings.pendingAura) { _, award in
+            if let award { pendingAward = award }
+        }
+        .overlay {
+            if let award = pendingAward {
+                AuraPopupView(
+                    award:       award,
+                    auraLevel:   viewModel.userSettings.auraLevel,
+                    auraTitle:   viewModel.userSettings.auraTitle,
+                    totalPoints: viewModel.userSettings.auraPoints,
+                    onDismiss:   { pendingAward = nil; viewModel.userSettings.pendingAura = nil }
+                )
+                .transition(.opacity)
+                .zIndex(2)
+            }
         }
         .onChange(of: viewModel.macrosMetToday) { oldVal, newVal in
             // Only celebrate when all 4 are newly hit on today's date
@@ -343,7 +389,7 @@ struct HomeView: View {
                 Image(systemName: "lightbulb.fill")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
-                Text("Brainstorm")
+                Text("Brainstorm next meal")
                     .font(.headline)
                     .foregroundStyle(.white)
             }
@@ -378,7 +424,7 @@ struct HomeView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "lightbulb.fill")
-                    Text(viewModel.brainstormState == .idle ? "Brainstorm" : "Re-Brainstorm")
+                    Text(viewModel.brainstormState == .idle ? "Brainstorm next meal" : "Re-Brainstorm next meal")
                 }
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity)

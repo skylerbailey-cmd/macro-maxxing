@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 // MARK: - GymMeme (internal so ShareCardView can also use it)
 
@@ -239,6 +240,11 @@ struct CelebrationView: View {
         )
         modelContext.insert(post)
         withAnimation { postedToFeed = true }
+        userSettings.awardAura(
+            points: 75,
+            reason: "📸 Macro Goal Post",
+            message: "posting your W to the feed — aura farming is real, no cap."
+        )
     }
 
     private func animatedDismiss() {
