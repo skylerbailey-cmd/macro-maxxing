@@ -7,6 +7,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Bindable var userSettings: UserSettings
+    @FocusState private var focusedField: Bool
 
     var body: some View {
         Form {
@@ -57,6 +58,13 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
         .preferredColorScheme(.dark)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { focusedField = false }
+                    .fontWeight(.semibold)
+            }
+        }
     }
 }
 
