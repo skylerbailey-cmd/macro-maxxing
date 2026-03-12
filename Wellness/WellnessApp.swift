@@ -37,7 +37,7 @@ struct WellnessApp: App {
             }
             .animation(.easeInOut(duration: 0.5), value: showSplash)
             .task {
-                try? await Task.sleep(for: .seconds(1.8))
+                try? await Task.sleep(for: .seconds(0.8))
                 showSplash = false
             }
         }

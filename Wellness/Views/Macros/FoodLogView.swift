@@ -78,7 +78,10 @@ struct FoodLogView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .onAppear { viewModel.selectedDate = selectedDate }
+        .onAppear {
+            viewModel.selectedDate = selectedDate
+            Task { viewModel.loadTodayEntries() }
+        }
         .onChange(of: selectedDate) { _, newDate in
             viewModel.selectedDate = newDate
         }

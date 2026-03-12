@@ -45,7 +45,7 @@ enum AnalysisState: Equatable {
         self.modelContext = modelContext
         self.selectedDate = selectedDate
         self.service      = service
-        loadTodayEntries()
+        // Loaded lazily from the view's onAppear
     }
 
     func loadTodayEntries() {

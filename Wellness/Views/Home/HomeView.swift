@@ -100,7 +100,11 @@ struct HomeView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .onAppear { viewModel.selectedDate = selectedDate }
+        .onAppear {
+            viewModel.selectedDate = selectedDate
+            // Defer the DB fetch to after the first frame so the UI renders immediately
+            Task { viewModel.loadTodayTotals() }
+        }
         .onChange(of: selectedDate) { _, newDate in
             viewModel.selectedDate = newDate
         }

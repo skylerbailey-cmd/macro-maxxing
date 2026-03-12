@@ -108,7 +108,7 @@ import SwiftData
             self.goalFat = UserDefaults.standard.double(forKey: "goalFat")
         }
 
-        loadTodayTotals()
+        // Data is loaded lazily from the view's onAppear to avoid blocking init
     }
 
     func loadTodayTotals() {
@@ -147,20 +147,25 @@ import SwiftData
     // MARK: - Private
 
     private func loadStreak() {
-        // Count consecutive days ending yesterday where any food was logged
+        // Single bulk query for the last 366 days, then group by day in memory.
+        // This replaces the previous N+1 pattern (up to 365 individual fetches).
         let calendar = Calendar.current
+        guard let cutoff = calendar.date(byAdding: .day, value: -366, to: Date()) else { return }
+
+        let pred = #Predicate<FoodEntry> { $0.loggedAt >= cutoff }
+        guard let entries = try? modelContext.fetch(FetchDescriptor<FoodEntry>(predicate: pred)) else { return }
+
+        // Build a set of "yyyy-MM-dd" strings for days that have entries
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.calendar   = calendar
+        let daysWithFood = Set(entries.map { fmt.string(from: $0.loggedAt) })
+
         var streak = 0
         var offset = 1
         while offset <= 365 {
-            guard let checkDate = calendar.date(byAdding: .day, value: -offset, to: Date()) else { break }
-            let dayStart = calendar.startOfDay(for: checkDate)
-            guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else { break }
-
-            let pred = #Predicate<FoodEntry> { $0.loggedAt >= dayStart && $0.loggedAt < dayEnd }
-            guard let entries = try? modelContext.fetch(FetchDescriptor<FoodEntry>(predicate: pred)),
-                  !entries.isEmpty else { break }
-
-            streak += 1
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: Date()) else { break }
+            if daysWithFood.contains(fmt.string(from: day)) { streak += 1 } else { break }
             offset += 1
         }
         macroStreak = streak
