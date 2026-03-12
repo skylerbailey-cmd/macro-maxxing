@@ -45,8 +45,8 @@ struct SplashView: View {
 
                 // App name
                 VStack(spacing: 6) {
-                    Text("Wellness")
-                        .font(.system(size: 38, weight: .bold, design: .rounded))
+                    Text("Macro Maxxing")
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                     Text("Track your journey")
                         .font(.subheadline)

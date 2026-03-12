@@ -25,6 +25,7 @@ struct HomeView: View {
     @State private var showingWindowPicker = false
     @State private var showingGoalSheet    = false
     @State private var selectedMacro: MacroType? = nil
+    @State private var showingShare = false
 
     init(modelContext: ModelContext, selectedDate: Binding<Date>, userSettings: UserSettings) {
         _viewModel    = State(wrappedValue: HomeViewModel(
@@ -101,6 +102,19 @@ struct HomeView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { showingShare = true } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
+                }
+            }
+        }
+        .sheet(isPresented: $showingShare) {
+            ShareView(viewModel: viewModel)
+                .presentationDetents([.large])
+        }
         .onAppear {
             viewModel.selectedDate = selectedDate
             // Defer the DB fetch to after the first frame so the UI renders immediately
