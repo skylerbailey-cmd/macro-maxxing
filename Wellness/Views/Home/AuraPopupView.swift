@@ -15,10 +15,11 @@ struct AuraPopupView: View {
     let onDismiss:   () -> Void
 
     @Environment(\.modelContext) private var modelContext
-    @State private var scale:      CGFloat = 0.3
-    @State private var opacity:    Double  = 0
-    @State private var bgOpacity:  Double  = 0
-    @State private var postedToFeed = false
+    @State private var scale:           CGFloat = 0.3
+    @State private var opacity:         Double  = 0
+    @State private var bgOpacity:       Double  = 0
+    @State private var postedToFeed     = false
+    @State private var showingEditor    = false
 
     var body: some View {
         ZStack {
@@ -66,7 +67,7 @@ struct AuraPopupView: View {
 
                 // Post to Feed button
                 Button {
-                    postToFeed()
+                    showingEditor = true
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: postedToFeed ? "checkmark.circle.fill" : "person.2.fill")
@@ -118,29 +119,40 @@ struct AuraPopupView: View {
                 scale = 1.0; opacity = 1.0
             }
         }
+        .sheet(isPresented: $showingEditor) {
+            AuraPostEditorView(
+                defaultTitle:   award.reason,
+                defaultMessage: "\(award.message) +\(award.points) aura pts"
+            ) { title, message in
+                postToFeed(title: title, message: message)
+            }
+            .presentationDetents([.medium, .large])
+        }
     }
 
-    private func postToFeed() {
+    private func postToFeed(title: String, message: String) {
         guard !postedToFeed else { return }
         let post = SocialPost(
             authorID:          userSettings.userID,
             authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
             authorDisplayName: userSettings.name,
             memeEmoji:         "⭐",
-            memeHeadline:      award.reason,
-            memeSub:           "\(award.message) +\(award.points) aura pts",
+            memeHeadline:      title,
+            memeSub:           message,
             macroDate:         Date(),
             totalCalories: 0, goalCalories: 0,
             totalProtein:  0, goalProtein:  0,
             totalCarbs:    0, goalCarbs:    0,
             totalFat:      0, goalFat:      0
         )
-        post.isCustomPost    = false
-        post.authorAuraLevel = userSettings.auraLevel
+        post.isCustomPost     = false
+        post.authorAuraLevel  = userSettings.auraLevel
         post.authorAuraPoints = userSettings.auraPoints
         modelContext.insert(post)
         withAnimation { postedToFeed = true }
     }
+
+    // MARK: - Dismiss
 
     private func animatedDismiss() {
         withAnimation(.easeIn(duration: 0.15)) {
@@ -149,6 +161,130 @@ struct AuraPopupView: View {
         Task {
             try? await Task.sleep(for: .seconds(0.2))
             onDismiss()
+        }
+    }
+}
+
+// MARK: - Aura Post Editor
+
+private struct AuraPostEditorView: View {
+    let defaultTitle:   String
+    let defaultMessage: String
+    let onPost: (String, String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var focus: Field?
+    @State private var titleText:   String = ""
+    @State private var messageText: String = ""
+    @State private var showError    = false
+
+    private enum Field: Hashable { case title, message }
+
+    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
+    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                pageBg.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 16) {
+                        // Title field
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Title")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.50))
+                            TextField("", text: $titleText, prompt:
+                                Text("e.g. \"sigma streak unlocked fr 🔥\"")
+                                    .foregroundStyle(.white.opacity(0.28))
+                            )
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(12)
+                            .background(cardBg)
+                            .cornerRadius(12)
+                            .focused($focus, equals: .title)
+                            .submitLabel(.next)
+                            .onSubmit { focus = .message }
+                            .onChange(of: titleText) { _, _ in if showError { showError = false } }
+                        }
+
+                        // Message field
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Message")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.50))
+                            ZStack(alignment: .topLeading) {
+                                if messageText.isEmpty {
+                                    Text("tell the feed what you did, no cap. the mewing paid off, the grind was real, whatever…")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.white.opacity(0.28))
+                                        .padding(14)
+                                }
+                                TextEditor(text: $messageText)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.white)
+                                    .scrollContentBackground(.hidden)
+                                    .frame(minHeight: 110)
+                                    .padding(10)
+                                    .focused($focus, equals: .message)
+                            }
+                            .background(cardBg)
+                            .cornerRadius(12)
+                            .onChange(of: messageText) { _, _ in if showError { showError = false } }
+                        }
+
+                        // Error
+                        if showError {
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .foregroundStyle(.red)
+                                Text("Both fields are required before you can post, bro.")
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                            }
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.red.opacity(0.10))
+                            .cornerRadius(10)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 40)
+                }
+            }
+            .preferredColorScheme(.dark)
+            .navigationTitle("Write Your Post")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Post") {
+                        let t = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let m = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if t.isEmpty || m.isEmpty {
+                            showError = true
+                        } else {
+                            onPost(t, m)
+                            dismiss()
+                        }
+                    }
+                    .fontWeight(.bold)
+                    .foregroundStyle(gold)
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { focus = nil }.fontWeight(.semibold)
+                }
+            }
+            .onAppear {
+                titleText   = defaultTitle
+                messageText = defaultMessage
+            }
         }
     }
 }
