@@ -67,9 +67,9 @@ import SwiftData
         guard totalCalories > 0 else { return [false, false, false, false] }
         return [
             totalCalories >= goalCalories * 0.85 && totalCalories <= goalCalories * 1.10,
-            totalProtein  >= goalProtein  * 0.90,
-            totalCarbs    >  0 && totalCarbs <= goalCarbs * 1.10,
-            totalFat      >  0 && totalFat  <= goalFat   * 1.10
+            totalProtein  >= goalProtein  * 0.85 && totalProtein  <= goalProtein  * 1.10,
+            totalCarbs    >= goalCarbs    * 0.85 && totalCarbs    <= goalCarbs    * 1.10,
+            totalFat      >= goalFat      * 0.85 && totalFat      <= goalFat      * 1.10
         ]
     }
     var macrosMetToday: Int { macroGoalsMet.filter { $0 }.count }

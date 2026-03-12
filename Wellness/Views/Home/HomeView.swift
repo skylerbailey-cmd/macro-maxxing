@@ -181,32 +181,19 @@ struct HomeView: View {
         }
     }
 
-    // Each row: (current value, macro color, goal met)
+    // 2×2 grid of colored dots — lights up when each macro goal is met
     private var macroIndicatorGrid: some View {
-        let met   = viewModel.macroGoalsMet
-        let rows: [(Double, Color, Bool)] = [
-            (viewModel.totalCalories, Color.orange,    met[0]),
-            (viewModel.totalProtein,  Color.macroBlue, met[1]),
-            (viewModel.totalCarbs,    Color.macroMint,  met[2]),
-            (viewModel.totalFat,      Color.macroRose,  met[3])
-        ]
+        let met    = viewModel.macroGoalsMet
+        let colors: [Color] = [.orange, .macroBlue, .macroMint, .macroRose]
         return LazyVGrid(
             columns: [GridItem(.flexible()), GridItem(.flexible())],
-            spacing: 5
+            spacing: 6
         ) {
-            ForEach(rows.indices, id: \.self) { i in
-                let (val, color, isMet) = rows[i]
-                VStack(spacing: 2) {
-                    Circle()
-                        .fill(isMet ? color : color.opacity(0.13))
-                        .frame(width: 22, height: 22)
-                        .shadow(color: isMet ? color.opacity(0.6) : .clear, radius: 4)
-                    Text(String(format: "%.0f", val))
-                        .font(.system(size: 8, weight: .bold, design: .rounded))
-                        .foregroundStyle(isMet ? .white : .white.opacity(0.22))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                }
+            ForEach(0..<4, id: \.self) { i in
+                Circle()
+                    .fill(met[i] ? colors[i] : colors[i].opacity(0.13))
+                    .frame(width: 14, height: 14)
+                    .shadow(color: met[i] ? colors[i].opacity(0.7) : .clear, radius: 4)
             }
         }
     }
@@ -408,7 +395,7 @@ private struct GoalKPICard<Content: View>: View {
             content().frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(12)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.cardBg)
         .cornerRadius(14)
     }
