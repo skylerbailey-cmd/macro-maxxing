@@ -22,9 +22,9 @@ struct ContentView: View {
 
             NavigationStack {
                 FoodLogView(modelContext: modelContext, selectedDate: $selectedDate)
-                    .navigationTitle("Food Log")
+                    .navigationTitle("Fuel Log")
             }
-            .tabItem { Label("Food Log", systemImage: "fork.knife") }
+            .tabItem { Label("Fuel Log", systemImage: "fork.knife") }
 
             NavigationStack {
                 SocialView(userSettings: userSettings)
