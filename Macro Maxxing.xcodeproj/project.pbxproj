@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		881BD6732F620203003E41BE /* Wellness.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Wellness.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		881BD6732F620203003E41BE /* Macro Maxxing.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Macro Maxxing.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -40,7 +40,7 @@
 		881BD6742F620203003E41BE /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				881BD6732F620203003E41BE /* Wellness.app */,
+				881BD6732F620203003E41BE /* Macro Maxxing.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,9 +48,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		881BD6722F620203003E41BE /* Wellness */ = {
+		881BD6722F620203003E41BE /* Macro Maxxing */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 881BD67E2F620205003E41BE /* Build configuration list for PBXNativeTarget "Wellness" */;
+			buildConfigurationList = 881BD67E2F620205003E41BE /* Build configuration list for PBXNativeTarget "Macro Maxxing" */;
 			buildPhases = (
 				881BD66F2F620203003E41BE /* Sources */,
 				881BD6702F620203003E41BE /* Frameworks */,
@@ -63,11 +63,11 @@
 			fileSystemSynchronizedGroups = (
 				881BD6752F620203003E41BE /* Wellness */,
 			);
-			name = Wellness;
+			name = "Macro Maxxing";
 			packageProductDependencies = (
 			);
 			productName = Wellness;
-			productReference = 881BD6732F620203003E41BE /* Wellness.app */;
+			productReference = 881BD6732F620203003E41BE /* Macro Maxxing.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -85,7 +85,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 881BD66E2F620203003E41BE /* Build configuration list for PBXProject "Wellness" */;
+			buildConfigurationList = 881BD66E2F620203003E41BE /* Build configuration list for PBXProject "Macro Maxxing" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -99,7 +99,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				881BD6722F620203003E41BE /* Wellness */,
+				881BD6722F620203003E41BE /* Macro Maxxing */,
 			);
 		};
 /* End PBXProject section */
@@ -257,8 +257,8 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Wellness uses your camera to photograph food for macro estimation.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_BackgroundColor = LaunchBackground;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -291,8 +291,8 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Wellness uses your camera to photograph food for macro estimation.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_BackgroundColor = LaunchBackground;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -315,7 +315,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		881BD66E2F620203003E41BE /* Build configuration list for PBXProject "Wellness" */ = {
+		881BD66E2F620203003E41BE /* Build configuration list for PBXProject "Macro Maxxing" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				881BD67C2F620205003E41BE /* Debug */,
@@ -324,7 +324,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		881BD67E2F620205003E41BE /* Build configuration list for PBXNativeTarget "Wellness" */ = {
+		881BD67E2F620205003E41BE /* Build configuration list for PBXNativeTarget "Macro Maxxing" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				881BD67F2F620205003E41BE /* Debug */,

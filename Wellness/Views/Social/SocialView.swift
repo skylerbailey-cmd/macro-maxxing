@@ -201,7 +201,7 @@ struct PostCard: View {
                  post.totalProtein  / max(post.goalProtein,  1),
                  post.totalCarbs    / max(post.goalCarbs,    1),
                  post.totalFat      / max(post.goalFat,      1)]
-            ).enumerated(), id: \.offset), id: \.offset) { _, pair in
+            ).enumerated()), id: \.offset) { _, pair in
                 let (color, pct) = pair
                 ZStack {
                     Circle().fill(color.opacity(0.15)).frame(width: 28, height: 28)

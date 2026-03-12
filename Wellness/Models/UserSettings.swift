@@ -66,11 +66,15 @@ import Foundation
 
     // MARK: Aura award
 
-    struct AuraAward: Identifiable {
+    struct AuraAward: Identifiable, Equatable {
         let id    = UUID()
         let points:  Int
         let reason:  String   // e.g. "🔥 7-Day Streak"
         let message: String   // gym bro hype line
+        
+        static func == (lhs: AuraAward, rhs: AuraAward) -> Bool {
+            lhs.id == rhs.id
+        }
     }
 
     func awardAura(points: Int, reason: String, message: String) {

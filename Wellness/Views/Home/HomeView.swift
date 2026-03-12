@@ -103,24 +103,39 @@ struct HomeView: View {
     var body: some View {
         @Bindable var bvm      = viewModel
         @Bindable var settings = viewModel.userSettings
+        
+        let contentWithModifiers = mainContent
+            .preferredColorScheme(.dark)
+            .toolbar { toolbarContent }
+            .sheet(isPresented: $showingShare) { shareSheet }
+            .onAppear { handleAppear() }
+            .onChange(of: selectedDate) { _, newDate in handleDateChange(newDate) }
+        
+        let contentWithGoalChanges = contentWithModifiers
+            .onChange(of: viewModel.userSettings.goalWeight) { _, newVal in handleGoalWeightChange(newVal) }
+            .onChange(of: viewModel.userSettings.proteinPerLb) { _, _ in handleProteinPerLbChange() }
+            .onChange(of: viewModel.userSettings.pendingAura) { _, award in handlePendingAuraChange(award) }
+        
+        let contentWithOverlays = contentWithGoalChanges
+            .overlay { auraPopupOverlay }
+            .onChange(of: viewModel.macrosMetToday) { oldVal, newVal in handleMacrosMetChange(oldVal, newVal) }
+            .overlay { celebrationOverlay }
+        
+        return contentWithOverlays
+            .sheet(isPresented: $showingWindowPicker) { windowPickerSheet() }
+            .sheet(item: $selectedMacro) { macro in macroHistorySheet(macro: macro) }
+            .sheet(isPresented: $showingGoalSheet) { goalWeightSheet() }
+    }
+    
+    // MARK: - Body Helpers
+    
+    private var mainContent: some View {
         ZStack {
             Color.pageBg.ignoresSafeArea()
             ScrollView {
                 VStack(spacing: 20) {
-                    // Greeting + aura
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(greetingText)
-                            .font(.title2.bold())
-                            .foregroundStyle(.white)
-
-                        if viewModel.userSettings.auraLevel > 0 {
-                            auraBadge
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
+                    greetingHeader
                     DateNavigatorView(selectedDate: $selectedDate)
-
                     goalsSection
                     if viewModel.userSettings.fastingEnabled {
                         eatingWindowCard
@@ -133,92 +148,122 @@ struct HomeView: View {
                 .padding(.bottom, 28)
             }
         }
-        .preferredColorScheme(.dark)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button { showingShare = true } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
-                }
+    }
+    
+    private var greetingHeader: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(greetingText)
+                .font(.title2.bold())
+                .foregroundStyle(.white)
+
+            if viewModel.userSettings.auraLevel > 0 {
+                auraBadge
             }
         }
-        .sheet(isPresented: $showingShare) {
-            ShareView(viewModel: viewModel)
-                .presentationDetents([.large])
-        }
-        .onAppear {
-            viewModel.selectedDate = selectedDate
-            // Defer the DB fetch to after the first frame so the UI renders immediately
-            Task { viewModel.loadTodayTotals() }
-        }
-        .onChange(of: selectedDate) { _, newDate in
-            viewModel.selectedDate = newDate
-            viewModel.resetBrainstorm()
-        }
-        .onChange(of: viewModel.userSettings.goalWeight) { _, newVal in
-            if newVal > 0 { viewModel.recalculateMacrosFromGoalWeight() }
-        }
-        .onChange(of: viewModel.userSettings.proteinPerLb) { _, _ in
-            viewModel.recalculateMacrosFromGoalWeight()
-        }
-        .onChange(of: viewModel.userSettings.pendingAura) { _, award in
-            if let award { pendingAward = award }
-        }
-        .overlay {
-            if let award = pendingAward {
-                AuraPopupView(
-                    award:       award,
-                    auraLevel:   viewModel.userSettings.auraLevel,
-                    auraTitle:   viewModel.userSettings.auraTitle,
-                    totalPoints: viewModel.userSettings.auraPoints,
-                    onDismiss:   { pendingAward = nil; viewModel.userSettings.pendingAura = nil }
-                )
-                .transition(.opacity)
-                .zIndex(2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarTrailing) {
+            Button { showingShare = true } label: {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
             }
         }
-        .onChange(of: viewModel.macrosMetToday) { oldVal, newVal in
-            // Only celebrate when all 4 are newly hit on today's date
-            if newVal == 4 && oldVal < 4 && Calendar.current.isDateInToday(viewModel.selectedDate) {
-                showCelebration = true
-            }
-        }
-        .overlay {
-            if showCelebration {
-                CelebrationView(
-                    macroGoalsMet: viewModel.macroGoalsMet,
-                    userName:      viewModel.userSettings.name,
-                    userSettings:  viewModel.userSettings,
-                    postData: CelebrationPostData(
-                        totalCalories: viewModel.totalCalories, goalCalories: viewModel.goalCalories,
-                        totalProtein:  viewModel.totalProtein,  goalProtein:  viewModel.goalProtein,
-                        totalCarbs:    viewModel.totalCarbs,    goalCarbs:    viewModel.goalCarbs,
-                        totalFat:      viewModel.totalFat,      goalFat:      viewModel.goalFat,
-                        date:          viewModel.selectedDate
-                    ),
-                    onDismiss: { showCelebration = false }
-                )
-                .transition(.opacity)
-            }
-        }
-        .sheet(isPresented: $showingWindowPicker) {
-            WindowPickerSheet(
-                windowStartDate: windowStartDate,
-                windowDurationHours: $bvm.windowDurationHours
+    }
+    
+    private var shareSheet: some View {
+        ShareView(viewModel: viewModel)
+            .presentationDetents([.large])
+    }
+    
+    @ViewBuilder
+    private var auraPopupOverlay: some View {
+        if let award = pendingAward {
+            AuraPopupView(
+                award:       award,
+                auraLevel:   viewModel.userSettings.auraLevel,
+                auraTitle:   viewModel.userSettings.auraTitle,
+                totalPoints: viewModel.userSettings.auraPoints,
+                onDismiss:   { pendingAward = nil; viewModel.userSettings.pendingAura = nil }
             )
-            .presentationDetents([.medium])
+            .transition(.opacity)
+            .zIndex(2)
         }
-        .sheet(item: $selectedMacro) { macro in
-            MacroHistorySheet(macro: macro, goalValue: goalForMacro(macro))
-                .presentationDetents([.medium, .large])
-        }
-        .sheet(isPresented: $showingGoalSheet) {
-            GoalWeightSheet(
-                currentWeight: $settings.currentWeight,
-                goalWeight: $settings.goalWeight
+    }
+    
+    @ViewBuilder
+    private var celebrationOverlay: some View {
+        if showCelebration {
+            CelebrationView(
+                macroGoalsMet: viewModel.macroGoalsMet,
+                userName:      viewModel.userSettings.name,
+                userSettings:  viewModel.userSettings,
+                postData: CelebrationPostData(
+                    totalCalories: viewModel.totalCalories, goalCalories: viewModel.goalCalories,
+                    totalProtein:  viewModel.totalProtein,  goalProtein:  viewModel.goalProtein,
+                    totalCarbs:    viewModel.totalCarbs,    goalCarbs:    viewModel.goalCarbs,
+                    totalFat:      viewModel.totalFat,      goalFat:      viewModel.goalFat,
+                    date:          viewModel.selectedDate
+                ),
+                onDismiss: { showCelebration = false }
             )
-            .presentationDetents([.medium])
+            .transition(.opacity)
+        }
+    }
+    
+    private func windowPickerSheet() -> some View {
+        @Bindable var bvm = viewModel
+        return WindowPickerSheet(
+            windowStartDate: windowStartDate,
+            windowDurationHours: $bvm.windowDurationHours
+        )
+        .presentationDetents([.medium])
+    }
+    
+    private func macroHistorySheet(macro: MacroType) -> some View {
+        MacroHistorySheet(macro: macro, goalValue: goalForMacro(macro))
+            .presentationDetents([.medium, .large])
+    }
+    
+    private func goalWeightSheet() -> some View {
+        @Bindable var settings = viewModel.userSettings
+        return GoalWeightSheet(
+            currentWeight: $settings.currentWeight,
+            goalWeight: $settings.goalWeight
+        )
+        .presentationDetents([.medium])
+    }
+    
+    private func handleAppear() {
+        viewModel.selectedDate = selectedDate
+        // Defer the DB fetch to after the first frame so the UI renders immediately
+        Task { viewModel.loadTodayTotals() }
+    }
+    
+    private func handleDateChange(_ newDate: Date) {
+        viewModel.selectedDate = newDate
+        viewModel.resetBrainstorm()
+    }
+    
+    private func handleGoalWeightChange(_ newVal: Double) {
+        if newVal > 0 { viewModel.recalculateMacrosFromGoalWeight() }
+    }
+    
+    private func handleProteinPerLbChange() {
+        viewModel.recalculateMacrosFromGoalWeight()
+    }
+    
+    private func handlePendingAuraChange(_ award: UserSettings.AuraAward?) {
+        if let award { pendingAward = award }
+    }
+    
+    private func handleMacrosMetChange(_ oldVal: Int, _ newVal: Int) {
+        // Only celebrate when all 4 are newly hit on today's date
+        if newVal == 4 && oldVal < 4 && Calendar.current.isDateInToday(viewModel.selectedDate) {
+            showCelebration = true
         }
     }
 

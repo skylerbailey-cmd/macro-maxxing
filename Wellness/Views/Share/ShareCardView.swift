@@ -153,9 +153,12 @@ struct ShareCardView: View {
             sub: "every macro goal met today 🔥"
         )
         return VStack(spacing: 6) {
-            Text(m.emoji)
-                .font(.system(size: 50))
-                .shadow(color: gold.opacity(0.7), radius: 16)
+            Image(m.imageName)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 200)
+                .cornerRadius(10)
+                .shadow(color: gold.opacity(0.5), radius: 12)
 
             Text(m.headline)
                 .font(.system(size: 24, weight: .black, design: .rounded))
