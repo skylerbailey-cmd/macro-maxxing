@@ -250,6 +250,17 @@ private struct ProfilePostRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // Post image (if any)
+            if let data = post.imageData, let uiImage = UIImage(data: data) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 180)
+                    .clipped()
+                    .cornerRadius(10)
+            }
+
             HStack {
                 if post.isCustomPost {
                     Text(post.memeHeadline)
