@@ -25,12 +25,27 @@ enum AnalysisState: Equatable {
     var carbsText = ""
     var fatText = ""
 
+    var todayEntries: [FoodEntry] = []
+
     private let modelContext: ModelContext
     private let service: ClaudeVisionService
 
     init(modelContext: ModelContext, service: ClaudeVisionService = ClaudeVisionService()) {
         self.modelContext = modelContext
         self.service = service
+        loadTodayEntries()
+    }
+
+    func loadTodayEntries() {
+        let calendar   = Calendar.current
+        let startOfDay = calendar.startOfDay(for: Date())
+        guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return }
+        let predicate  = #Predicate<FoodEntry> { $0.loggedAt >= startOfDay && $0.loggedAt < endOfDay }
+        let descriptor = FetchDescriptor<FoodEntry>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.loggedAt, order: .reverse)]
+        )
+        todayEntries = (try? modelContext.fetch(descriptor)) ?? []
     }
 
     func analyzeImage() async {
@@ -38,11 +53,11 @@ enum AnalysisState: Equatable {
         analysisState = .analyzing
         do {
             let result = try await service.analyzeFoodImage(image)
-            foodName = result.food
+            foodName     = result.food
             caloriesText = String(format: "%.0f", result.calories)
-            proteinText = String(format: "%.1f", result.protein)
-            carbsText = String(format: "%.1f", result.carbs)
-            fatText = String(format: "%.1f", result.fat)
+            proteinText  = String(format: "%.1f", result.protein)
+            carbsText    = String(format: "%.1f", result.carbs)
+            fatText      = String(format: "%.1f", result.fat)
             analysisState = .result
         } catch {
             analysisState = .error(error.localizedDescription)
@@ -53,9 +68,9 @@ enum AnalysisState: Equatable {
     func saveEntry() -> Bool {
         guard
             let calories = Double(caloriesText),
-            let protein = Double(proteinText),
-            let carbs = Double(carbsText),
-            let fat = Double(fatText)
+            let protein  = Double(proteinText),
+            let carbs    = Double(carbsText),
+            let fat      = Double(fatText)
         else { return false }
 
         let imageData = selectedImage?.jpegData(compressionQuality: 0.8)
@@ -69,7 +84,13 @@ enum AnalysisState: Equatable {
         )
         modelContext.insert(entry)
         resetFields()
+        loadTodayEntries()
         return true
+    }
+
+    func deleteEntry(_ entry: FoodEntry) {
+        modelContext.delete(entry)
+        loadTodayEntries()
     }
 
     func discardEntry() {
@@ -78,11 +99,11 @@ enum AnalysisState: Equatable {
 
     func resetFields() {
         selectedImage = nil
-        foodName = ""
-        caloriesText = ""
-        proteinText = ""
-        carbsText = ""
-        fatText = ""
+        foodName      = ""
+        caloriesText  = ""
+        proteinText   = ""
+        carbsText     = ""
+        fatText       = ""
         analysisState = .idle
     }
 }

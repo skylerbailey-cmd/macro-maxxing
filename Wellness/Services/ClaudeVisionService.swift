@@ -116,7 +116,7 @@ final class ClaudeVisionService {
 
         var urlRequest = URLRequest(url: endpoint)
         urlRequest.httpMethod = "POST"
-        urlRequest.setValue(Config.anthropicAPIKey, forHTTPHeaderField: "REDACTED")
+        urlRequest.setValue(Config.anthropicAPIKey, forHTTPHeaderField: "x-api-key")
         urlRequest.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.httpBody = try JSONEncoder().encode(request)
