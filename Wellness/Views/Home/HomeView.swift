@@ -132,11 +132,20 @@ struct HomeView: View {
         }
     }
 
+    private var goalsTitle: String {
+        let current = viewModel.userSettings.currentWeight
+        let goal    = viewModel.userSettings.goalWeight
+        guard goal > 0, current > 0 else { return "Goals" }
+        if goal > current   { return "Goals: Bulking" }
+        if goal < current   { return "Goals: Cutting" }
+        return "Goals: Maintaining"
+    }
+
     // MARK: - Goals section
 
     private var goalsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Goals")
+            Text(goalsTitle)
                 .font(.title2.bold())
                 .foregroundStyle(.white)
 
