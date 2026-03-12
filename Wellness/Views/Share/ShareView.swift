@@ -35,14 +35,6 @@ struct ShareView: View {
                         ) { shareToInstagram() }
 
                         shareButton(
-                            title: "TikTok",
-                            subtitle: "Saved to Photos — open TikTok to post",
-                            icon: "music.quarternote.3",
-                            colors: [Color(red: 0.00, green: 0.80, blue: 0.70),
-                                     Color(red: 0.95, green: 0.07, blue: 0.31)]
-                        ) { shareToTikTok() }
-
-                        shareButton(
                             title: "Share / Save / More",
                             subtitle: "Messages, AirDrop, save to Photos…",
                             icon: "square.and.arrow.up",
@@ -193,17 +185,6 @@ struct ShareView: View {
         }
     }
 
-    private func shareToTikTok() {
-        guard let image = renderedImage else { return }
-        // Save to camera roll; user opens TikTok and picks from recents
-        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-        // Try to open TikTok directly
-        if let url = URL(string: "tiktok://"), UIApplication.shared.canOpenURL(url) {
-            UIApplication.shared.open(url)
-        } else {
-            showingActivitySheet = true
-        }
-    }
 }
 
 // MARK: - UIActivityViewController wrapper

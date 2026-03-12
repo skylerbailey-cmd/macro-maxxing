@@ -132,7 +132,10 @@ struct CelebrationView: View {
             Task { await renderShareCard() }
         }
         .sheet(isPresented: $showingShare) {
-            if let img = renderedImage { ActivitySheet(items: [img]) }
+            if let img = renderedImage {
+                CelebrationShareOptionsSheet(image: img)
+                    .presentationDetents([.medium])
+            }
         }
     }
 
@@ -191,6 +194,102 @@ struct CelebrationView: View {
         Task {
             try? await Task.sleep(for: .seconds(0.2))
             onDismiss()
+        }
+    }
+}
+
+// MARK: - Share options sheet
+
+private struct CelebrationShareOptionsSheet: View {
+    let image: UIImage
+    @Environment(\.dismiss) private var dismiss
+    @State private var showingActivitySheet = false
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color(red: 0.07, green: 0.05, blue: 0.12).ignoresSafeArea()
+
+                VStack(spacing: 12) {
+                    shareButton(
+                        title: "Instagram Stories",
+                        subtitle: "Share directly to your story",
+                        icon: "camera.fill",
+                        colors: [Color(red: 0.88, green: 0.19, blue: 0.42),
+                                 Color(red: 0.98, green: 0.35, blue: 0.00)]
+                    ) { shareToInstagram() }
+
+                    shareButton(
+                        title: "Share / Save / More",
+                        subtitle: "Messages, AirDrop, save to Photos…",
+                        icon: "square.and.arrow.up",
+                        colors: [Color(red: 0.65, green: 0.45, blue: 1.00),
+                                 Color(red: 0.40, green: 0.20, blue: 0.85)]
+                    ) { showingActivitySheet = true }
+                }
+                .padding(.horizontal, 20)
+            }
+            .preferredColorScheme(.dark)
+            .navigationTitle("Share")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+        .sheet(isPresented: $showingActivitySheet) {
+            ActivitySheet(items: [image])
+        }
+    }
+
+    private func shareButton(title: String, subtitle: String,
+                             icon: String, colors: [Color],
+                             action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(LinearGradient(colors: colors,
+                                             startPoint: .topLeading,
+                                             endPoint: .bottomTrailing))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                    Text(subtitle).font(.caption).foregroundStyle(.white.opacity(0.45))
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.30))
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .background(Color(red: 0.13, green: 0.10, blue: 0.22))
+            .cornerRadius(14)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func shareToInstagram() {
+        guard let data = image.pngData(),
+              let url  = URL(string: "instagram-stories://share?source_application=com.sbailey.Wellness")
+        else { showingActivitySheet = true; return }
+
+        let items: [String: Any] = [
+            "com.instagram.sharedSticker.backgroundImage": data,
+            "com.instagram.sharedSticker.backgroundTopColor":    "#080215",
+            "com.instagram.sharedSticker.backgroundBottomColor": "#030108"
+        ]
+        UIPasteboard.general.setItems(
+            [items],
+            options: [.expirationDate: Date(timeIntervalSinceNow: 300)]
+        )
+        UIApplication.shared.open(url) { success in
+            if !success { showingActivitySheet = true }
         }
     }
 }
