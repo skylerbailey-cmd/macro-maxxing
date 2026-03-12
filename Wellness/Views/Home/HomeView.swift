@@ -292,21 +292,35 @@ struct HomeView: View {
                 MacroGaugeCard(label: "Calories", value: viewModel.totalCalories,
                                goal: viewModel.goalCalories, unit: "kcal",
                                format: "%.0f", color: .orange,
-                               action: { selectedMacro = .calories })
+                               action: { selectedMacro = .calories },
+                               rangeText: caloriesRange)
                 MacroGaugeCard(label: "Protein",  value: viewModel.totalProtein,
                                goal: viewModel.goalProtein,  unit: "g",
                                format: "%.0f", color: .macroBlue,
-                               action: { selectedMacro = .protein })
+                               action: { selectedMacro = .protein },
+                               rangeText: minRange(viewModel.goalProtein, unit: "g"))
                 MacroGaugeCard(label: "Carbs",    value: viewModel.totalCarbs,
                                goal: viewModel.goalCarbs,    unit: "g",
                                format: "%.0f", color: .macroMint,
-                               action: { selectedMacro = .carbs })
+                               action: { selectedMacro = .carbs },
+                               rangeText: minRange(viewModel.goalCarbs, unit: "g"))
                 MacroGaugeCard(label: "Fat",      value: viewModel.totalFat,
                                goal: viewModel.goalFat,      unit: "g",
                                format: "%.0f", color: .macroRose,
-                               action: { selectedMacro = .fat })
+                               action: { selectedMacro = .fat },
+                               rangeText: minRange(viewModel.goalFat, unit: "g"))
             }
         }
+    }
+
+    // Range helpers matching macroGoalsMet logic
+    private var caloriesRange: String {
+        let lo = Int(viewModel.goalCalories * 0.85)
+        let hi = Int(viewModel.goalCalories * 1.15)
+        return "\(lo) – \(hi) kcal"
+    }
+    private func minRange(_ goal: Double, unit: String) -> String {
+        "min \(Int(goal * 0.85))\(unit)"
     }
 
     private func goalForMacro(_ macro: MacroType) -> Double {
@@ -468,6 +482,7 @@ private struct MacroGaugeCard: View {
     let format: String
     let color: Color
     var action: (() -> Void)? = nil
+    var rangeText: String? = nil
 
     private var progress: Double {
         guard goal > 0 else { return 0 }
@@ -509,6 +524,11 @@ private struct MacroGaugeCard: View {
                 Text(label).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
                 Text("Goal: \(String(format: format, goal)) \(unit)")
                     .font(.caption2).foregroundStyle(.white.opacity(0.32))
+                if let rangeText {
+                    Text(rangeText)
+                        .font(.system(size: 9))
+                        .foregroundStyle(.white.opacity(0.20))
+                }
             }
         }
         .frame(maxWidth: .infinity)

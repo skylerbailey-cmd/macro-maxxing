@@ -66,10 +66,13 @@ import SwiftData
     var macroGoalsMet: [Bool] {
         guard totalCalories > 0 else { return [false, false, false, false] }
         return [
-            totalCalories >= goalCalories * 0.85 && totalCalories <= goalCalories * 1.10,
-            totalProtein  >= goalProtein  * 0.85 && totalProtein  <= goalProtein  * 1.10,
-            totalCarbs    >= goalCarbs    * 0.85 && totalCarbs    <= goalCarbs    * 1.10,
-            totalFat      >= goalFat      * 0.85 && totalFat      <= goalFat      * 1.10
+            // Calories: stay within a range (not too low, not too high)
+            totalCalories >= goalCalories * 0.85 && totalCalories <= goalCalories * 1.15,
+            // Protein & fat: floor only — eating more than the goal is always a win
+            totalProtein  >= goalProtein  * 0.85,
+            // Carbs: floor only — going over isn't penalised either
+            totalCarbs    >= goalCarbs    * 0.85,
+            totalFat      >= goalFat      * 0.85
         ]
     }
     var macrosMetToday: Int { macroGoalsMet.filter { $0 }.count }
