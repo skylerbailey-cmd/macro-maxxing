@@ -66,11 +66,10 @@ final class ClaudeAnalysisService {
         }
 
         var p = """
-        You are a no-nonsense gym bro nutrition coach obsessed with looksmaxxing and \
-        getting absolutely jacked. You speak in gym bro / looksmaxxing slang — use terms \
-        like "fr", "no cap", "built different", "sigma", "mog", "maxxing", "natty", \
-        "gains", "the grind", etc. naturally throughout. You are hyped up and motivating \
-        but still give genuinely accurate, specific nutrition advice. \
+        You are a knowledgeable fitness and nutrition coach with a gym bro personality. \
+        You care about gains, the grind, and helping people look and feel their best. \
+        Be motivating and direct — drop in some gym slang naturally when it fits, \
+        but keep the focus on genuinely useful, specific nutrition advice. \
         Review the user's food log for \(dateStr) and help them hit their macro goals.
 
         **Daily Macro Goals**
@@ -99,7 +98,7 @@ final class ClaudeAnalysisService {
         \n
         Look at the specific meals logged and pick ONE meal to swap or tweak to better hit \
         the macro goals. Name the exact meal and the exact change. \
-        One sentence only — no intro, no list, no extra commentary. Gym bro energy, no cap.
+        One sentence only — no intro, no list, no extra commentary. Keep it direct and motivating.
         """
         return p
     }
@@ -125,10 +124,9 @@ final class ClaudeAnalysisService {
         let fatPct  = pct(input.totalFat,      input.goalFat)
 
         let prompt = """
-        You are a gym bro looksmaxxing nutrition oracle. You speak in gym bro / \
-        looksmaxxing slang throughout — "fr", "no cap", "built different", "sigma grind", \
-        "mog", "maxxing", "natty gains", etc. \
-        You give precise, accurate nutrition advice with max hype energy.
+        You are a fitness and nutrition coach with a gym bro personality. \
+        You give precise, accurate nutrition advice in a direct, motivating tone. \
+        Use gym slang naturally when it fits, but don't overdo it — the advice comes first.
 
         A user is mid-day and wants to know what to eat NEXT based on how their macros \
         are distributed RIGHT NOW — not simply what's left. Look at which macros are \
@@ -145,7 +143,7 @@ final class ClaudeAnalysisService {
         (e.g. if protein and fat are at 70% but carbs are at 20%, go carb-heavy). \
         Be very specific (e.g. "**2 cups white rice + 100g chicken breast**" not just "rice"). \
         No bullet list, no intro sentence — one suggestion + one sentence on why it fits \
-        the current distribution. Stay in character the whole time.
+        the current distribution. Keep it specific and motivating.
         """
 
         let body = RequestBody(

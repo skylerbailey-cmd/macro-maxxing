@@ -23,11 +23,18 @@ struct HomeView: View {
     @State private var viewModel: HomeViewModel
     @Binding var selectedDate: Date
     @State private var showingWindowPicker = false
-    @State private var showingGoalSheet    = false
     @State private var selectedMacro: MacroType? = nil
     @State private var showingShare       = false
     @State private var showCelebration    = false
-    @State private var pendingAward: UserSettings.AuraAward? = nil
+    @State private var pendingAuraGain: AuraGain? = nil
+    @State private var showingSettings    = false
+    @State private var showingProfile     = false
+    @State private var brainstormAlert: BrainstormAlert? = nil
+
+    private enum BrainstormAlert: Identifiable {
+        case confirm, limitReached
+        var id: Self { self }
+    }
 
     init(modelContext: ModelContext, selectedDate: Binding<Date>, userSettings: UserSettings) {
         _viewModel    = State(wrappedValue: HomeViewModel(
@@ -108,23 +115,42 @@ struct HomeView: View {
             .preferredColorScheme(.dark)
             .toolbar { toolbarContent }
             .sheet(isPresented: $showingShare) { shareSheet }
+            .sheet(isPresented: $showingSettings) {
+                NavigationStack {
+                    SettingsView(userSettings: viewModel.userSettings)
+                }
+            }
+            .sheet(isPresented: $showingProfile) {
+                NavigationStack {
+                    ProfileView(
+                        profileUserID:      viewModel.userSettings.userID,
+                        profileUsername:    viewModel.userSettings.username,
+                        profileDisplayName: viewModel.userSettings.name,
+                        profileAuraLevel:   viewModel.userSettings.auraLevel,
+                        profileAuraPoints:  viewModel.userSettings.auraPoints,
+                        profileImageData:   viewModel.userSettings.profileImageData,
+                        profileLocation:    viewModel.userSettings.location,
+                        ownUserSettings:    viewModel.userSettings
+                    )
+                }
+            }
             .onAppear { handleAppear() }
             .onChange(of: selectedDate) { _, newDate in handleDateChange(newDate) }
         
         let contentWithGoalChanges = contentWithModifiers
             .onChange(of: viewModel.userSettings.goalWeight) { _, newVal in handleGoalWeightChange(newVal) }
             .onChange(of: viewModel.userSettings.proteinPerLb) { _, _ in handleProteinPerLbChange() }
-            .onChange(of: viewModel.userSettings.pendingAura) { _, award in handlePendingAuraChange(award) }
-        
         let contentWithOverlays = contentWithGoalChanges
-            .overlay { auraPopupOverlay }
+            .onChange(of: viewModel.userSettings.pendingAuraGain) { (_: AuraGain?, gain: AuraGain?) in
+                if let gain { pendingAuraGain = gain }
+            }
             .onChange(of: viewModel.macrosMetToday) { oldVal, newVal in handleMacrosMetChange(oldVal, newVal) }
+            .overlay { auraPopupOverlay }
             .overlay { celebrationOverlay }
         
         return contentWithOverlays
             .sheet(isPresented: $showingWindowPicker) { windowPickerSheet() }
             .sheet(item: $selectedMacro) { macro in macroHistorySheet(macro: macro) }
-            .sheet(isPresented: $showingGoalSheet) { goalWeightSheet() }
     }
     
     // MARK: - Body Helpers
@@ -151,13 +177,37 @@ struct HomeView: View {
     }
     
     private var greetingHeader: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(greetingText)
-                .font(.title2.bold())
-                .foregroundStyle(.white)
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(greetingText)
+                    .font(.title2.bold())
+                    .foregroundStyle(.white)
 
-            if viewModel.userSettings.auraPoints > 0 {
-                auraBadge
+                if viewModel.userSettings.auraPoints > 0 {
+                    auraBadge
+                }
+            }
+            Spacer()
+            Button { showingProfile = true } label: {
+                if let data = viewModel.userSettings.profileImageData,
+                   let uiImg = UIImage(data: data) {
+                    Image(uiImage: uiImg)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 44, height: 44)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color(red: 0.65, green: 0.45, blue: 1.00), lineWidth: 2))
+                } else {
+                    ZStack {
+                        Circle()
+                            .fill(Color(red: 0.13, green: 0.10, blue: 0.22))
+                            .frame(width: 44, height: 44)
+                            .overlay(Circle().stroke(Color(red: 0.65, green: 0.45, blue: 1.00), lineWidth: 2))
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -166,10 +216,17 @@ struct HomeView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .navigationBarTrailing) {
-            Button { showingShare = true } label: {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
+            HStack(spacing: 12) {
+                Button { showingShare = true } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
+                }
+                Button { showingSettings = true } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
+                }
             }
         }
     }
@@ -181,19 +238,20 @@ struct HomeView: View {
     
     @ViewBuilder
     private var auraPopupOverlay: some View {
-        if let award = pendingAward {
+        if let gain = pendingAuraGain {
             AuraPopupView(
-                award:       award,
-                auraLevel:   viewModel.userSettings.auraLevel,
-                auraTitle:   viewModel.userSettings.auraTitle,
-                totalPoints:  viewModel.userSettings.auraPoints,                userSettings: viewModel.userSettings,
-                onDismiss:   { pendingAward = nil; viewModel.userSettings.pendingAura = nil }
+                gain:         gain,
+                userSettings: viewModel.userSettings,
+                onDismiss: {
+                    pendingAuraGain = nil
+                    viewModel.userSettings.pendingAuraGain = nil
+                }
             )
             .transition(.opacity)
-            .zIndex(2)
+            .zIndex(3)
         }
     }
-    
+
     @ViewBuilder
     private var celebrationOverlay: some View {
         if showCelebration {
@@ -228,15 +286,6 @@ struct HomeView: View {
             .presentationDetents([.medium, .large])
     }
     
-    private func goalWeightSheet() -> some View {
-        @Bindable var settings = viewModel.userSettings
-        return GoalWeightSheet(
-            currentWeight: $settings.currentWeight,
-            goalWeight: $settings.goalWeight
-        )
-        .presentationDetents([.medium])
-    }
-    
     private func handleAppear() {
         viewModel.selectedDate = selectedDate
         // Defer the DB fetch to after the first frame so the UI renders immediately
@@ -254,10 +303,6 @@ struct HomeView: View {
     
     private func handleProteinPerLbChange() {
         viewModel.recalculateMacrosFromGoalWeight()
-    }
-    
-    private func handlePendingAuraChange(_ award: UserSettings.AuraAward?) {
-        if let award { pendingAward = award }
     }
     
     private func handleMacrosMetChange(_ oldVal: Int, _ newVal: Int) {
@@ -285,12 +330,10 @@ struct HomeView: View {
                 .foregroundStyle(.white)
 
             HStack(spacing: 10) {
-                // Weight — tappable
                 GoalKPICard(
                     title: "WEIGHT",
                     icon: "scalemass.fill",
-                    iconColor: .purpleHi,
-                    action: { showingGoalSheet = true }
+                    iconColor: .purpleHi
                 ) {
                     if viewModel.userSettings.goalWeight > 0 {
                         VStack(alignment: .leading, spacing: 2) {
@@ -365,20 +408,27 @@ struct HomeView: View {
                     Text("Eating Window")
                         .font(.headline).foregroundStyle(.white)
                     Text(
-                        "\(timeString(hour: viewModel.windowStartHour, minute: viewModel.windowStartMinute))" +
+                        "\(timeString(hour: viewModel.displayedWindowStartHour, minute: viewModel.displayedWindowStartMinute))" +
                         " – " +
                         "\(timeString(hour: viewModel.windowEndHour, minute: viewModel.windowEndMinute))" +
-                        " · \(viewModel.windowDurationHours)h"
+                        " · \(viewModel.displayedWindowDuration)h"
                     )
                     .font(.subheadline).foregroundStyle(.white.opacity(0.50))
                 }
                 Spacer()
-                Button("Edit") { showingWindowPicker = true }
-                    .buttonStyle(.bordered).controlSize(.small).tint(.purpleHi)
+                if viewModel.isSelectedDateToday {
+                    Button("Edit") { showingWindowPicker = true }
+                        .buttonStyle(.bordered).controlSize(.small).tint(.purpleHi)
+                } else {
+                    Text("Locked")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.30))
+                }
             }
             FastingTimelineView(
                 windowStart: viewModel.windowStartFractional,
-                windowEnd: viewModel.windowEndFractional
+                windowEnd: viewModel.windowEndFractional,
+                mealLogTimes: viewModel.mealLogTimes
             )
         }
         .padding()
@@ -447,12 +497,7 @@ struct HomeView: View {
                     .lineSpacing(2)
 
             case .loading:
-                HStack(spacing: 10) {
-                    ProgressView().tint(Color(red: 0.65, green: 0.45, blue: 1.0))
-                    Text("Thinking…")
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.50))
-                }
+                BrainstormSkeletonView()
 
             case .result(let text):
                 brainstormResult(text)
@@ -465,19 +510,52 @@ struct HomeView: View {
             }
 
             Button {
-                Task { await viewModel.brainstorm() }
+                if viewModel.userSettings.brainstormLimitReached {
+                    brainstormAlert = .limitReached
+                } else {
+                    brainstormAlert = .confirm
+                }
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: "lightbulb.fill")
-                    Text(viewModel.brainstormState == .idle ? "Brainstorm next meal" : "Re-Brainstorm next meal")
+                    Image(systemName: viewModel.userSettings.brainstormLimitReached ? "xmark.circle.fill" : "lightbulb.fill")
+                    if viewModel.userSettings.brainstormLimitReached {
+                        Text("Daily limit reached (2/2)")
+                    } else {
+                        Text(viewModel.brainstormState == .idle ? "Brainstorm next meal" : "Re-Brainstorm next meal")
+                        Text("(\(viewModel.userSettings.brainstormUsesRemaining) left today)")
+                            .opacity(0.65)
+                    }
                 }
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
             }
             .buttonStyle(.borderedProminent)
-            .tint(Color(red: 0.65, green: 0.45, blue: 1.0))
+            .tint(viewModel.userSettings.brainstormLimitReached
+                  ? Color.gray
+                  : Color(red: 0.65, green: 0.45, blue: 1.0))
             .disabled(viewModel.brainstormState == .loading)
+            .alert(item: $brainstormAlert) { alert in
+                switch alert {
+                case .confirm:
+                    Alert(
+                        title: Text("Brainstorm Next Meal"),
+                        message: Text("Claude will suggest a specific meal based on your current macro balance. You have \(viewModel.userSettings.brainstormUsesRemaining) use\(viewModel.userSettings.brainstormUsesRemaining == 1 ? "" : "s") left today."),
+                        primaryButton: .default(Text("Let's Go")) {
+                            if viewModel.userSettings.consumeBrainstormUse() {
+                                Task { await viewModel.brainstorm() }
+                            }
+                        },
+                        secondaryButton: .cancel()
+                    )
+                case .limitReached:
+                    Alert(
+                        title: Text("Daily Limit Reached"),
+                        message: Text("You've used both brainstorm suggestions for today. Come back tomorrow for 2 more."),
+                        dismissButton: .default(Text("Got it"))
+                    )
+                }
+            }
         }
         .padding(16)
         .background(Color.cardBg)
@@ -777,61 +855,35 @@ private struct WindowPickerSheet: View {
     }
 }
 
-// MARK: - Goal Weight Sheet
 
-private struct GoalWeightSheet: View {
-    @Binding var currentWeight: Double
-    @Binding var goalWeight: Double
-    @Environment(\.dismiss) private var dismiss
+/// MARK: - Brainstorm skeleton
 
-    @State private var currentVal: Double = 160
-    @State private var goalVal:    Double = 160
+private struct BrainstormSkeletonView: View {
+    @State private var pulse = false
+
+    private let purpl = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let lines = ["████████████████████", "████████████", "██████████████████"]
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Your Weight") {
-                    sliderRow("Current Weight", value: $currentVal) { editing in
-                        if !editing { currentWeight = currentVal }
-                    }
-                    sliderRow("Goal Weight", value: $goalVal) { editing in
-                        if !editing { goalWeight = goalVal }
-                    }
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                ProgressView().scaleEffect(0.7).tint(purpl)
+                Text("Claude is thinking…")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.40))
             }
-            .onAppear {
-                currentVal = currentWeight > 0 ? currentWeight : 160
-                goalVal    = goalWeight    > 0 ? goalWeight    : 160
-            }
-            .navigationTitle("Weight")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        currentWeight = currentVal
-                        goalWeight    = goalVal
-                        dismiss()
-                    }
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(lines, id: \.self) { line in
+                    Text(line)
+                        .font(.subheadline)
+                        .foregroundStyle(purpl.opacity(0.25))
+                        .redacted(reason: .placeholder)
                 }
             }
         }
-    }
-
-    @ViewBuilder
-    private func sliderRow(_ label: String, value: Binding<Double>,
-                            onEditingChanged: @escaping (Bool) -> Void) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(label)
-                Spacer()
-                Text("\(Int(value.wrappedValue)) lbs")
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-            Slider(value: value, in: 100...300, step: 1, onEditingChanged: onEditingChanged)
-                .tint(Color(red: 0.65, green: 0.45, blue: 1.0))
-        }
-        .padding(.vertical, 4)
+        .opacity(pulse ? 0.4 : 1.0)
+        .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: pulse)
+        .onAppear { pulse = true }
     }
 }
 

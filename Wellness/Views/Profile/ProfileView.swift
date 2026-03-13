@@ -16,6 +16,7 @@ struct ProfileView: View {
     let profileAuraLevel:    Int
     let profileAuraPoints:   Int
     let profileImageData:    Data?
+    var profileLocation:     String = ""
 
     /// Non-nil only when viewing your own profile (enables photo editing)
     var ownUserSettings: UserSettings? = nil
@@ -29,6 +30,7 @@ struct ProfileView: View {
     @State private var showingCamera = false
     @State private var newProfileImage: UIImage?
     @State private var selectedPost: SocialPost?
+    @State private var showingProfileShare = false
 
     private var isOwnProfile: Bool { ownUserSettings != nil }
 
@@ -79,8 +81,30 @@ struct ProfileView: View {
         .preferredColorScheme(.dark)
         .navigationTitle(isOwnProfile ? "My Profile" : displayName)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if isOwnProfile {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showingProfileShare = true
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showingCamera, onDismiss: saveNewPhoto) {
             ImagePickerView(sourceType: .camera, selectedImage: $newProfileImage)
+        }
+        .sheet(isPresented: $showingProfileShare) {
+            ProfileShareView(
+                displayName:     profileDisplayName.isEmpty ? profileUsername : profileDisplayName,
+                username:        profileUsername,
+                auraLevel:       profileAuraLevel,
+                auraPoints:      profileAuraPoints,
+                auraTitleString: auraTitleString,
+                profileImage:    resolvedAvatarImage
+            )
         }
         .sheet(item: $selectedPost) { post in
             if let settings = ownUserSettings {
@@ -113,7 +137,7 @@ struct ProfileView: View {
             .buttonStyle(.plain)
             .disabled(!isOwnProfile)
 
-            // Name + handle
+            // Name + handle + location
             VStack(spacing: 4) {
                 Text(displayName)
                     .font(.title2.bold())
@@ -122,6 +146,16 @@ struct ProfileView: View {
                     Text("@\(profileUsername)")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.45))
+                }
+                if !profileLocation.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "mappin.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(purpl.opacity(0.60))
+                        Text(profileLocation)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.50))
+                    }
                 }
             }
 
@@ -142,6 +176,55 @@ struct ProfileView: View {
                 .padding(.vertical, 8)
                 .background(cardBg)
                 .cornerRadius(12)
+            }
+
+            // Social links (own profile only, shown when set)
+            if isOwnProfile {
+                let ig = ownUserSettings?.instagramHandle.trimmingCharacters(in: .whitespaces) ?? ""
+                let tt = ownUserSettings?.tiktokHandle.trimmingCharacters(in: .whitespaces) ?? ""
+                if !ig.isEmpty || !tt.isEmpty {
+                    HStack(spacing: 12) {
+                        if !ig.isEmpty {
+                            Button {
+                                let appURL  = URL(string: "instagram://user?username=\(ig)")!
+                                let webURL  = URL(string: "https://instagram.com/\(ig)")!
+                                if UIApplication.shared.canOpenURL(appURL) {
+                                    UIApplication.shared.open(appURL)
+                                } else {
+                                    UIApplication.shared.open(webURL)
+                                }
+                            } label: {
+                                socialBadge(
+                                    icon: "camera.fill",
+                                    label: "@\(ig)",
+                                    gradient: [Color(red: 1.0, green: 0.55, blue: 0.0),
+                                               Color(red: 0.95, green: 0.2, blue: 0.55),
+                                               Color(red: 0.55, green: 0.15, blue: 0.9)]
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        if !tt.isEmpty {
+                            Button {
+                                let appURL  = URL(string: "tiktok://user?username=\(tt)")!
+                                let webURL  = URL(string: "https://www.tiktok.com/@\(tt)")!
+                                if UIApplication.shared.canOpenURL(appURL) {
+                                    UIApplication.shared.open(appURL)
+                                } else {
+                                    UIApplication.shared.open(webURL)
+                                }
+                            } label: {
+                                socialBadge(
+                                    icon: "music.note",
+                                    label: "@\(tt)",
+                                    gradient: [Color(red: 0.1, green: 0.1, blue: 0.1),
+                                               Color(red: 0.25, green: 0.25, blue: 0.25)]
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
             }
 
             // Add to Team (only on others' profiles)
@@ -204,6 +287,26 @@ struct ProfileView: View {
         }
     }
 
+    // MARK: - Social badge helper
+
+    @ViewBuilder
+    private func socialBadge(icon: String, label: String, gradient: [Color]) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+            Text(label)
+                .font(.system(size: 12, weight: .semibold))
+                .lineLimit(1)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(
+            LinearGradient(colors: gradient, startPoint: .leading, endPoint: .trailing)
+        )
+        .cornerRadius(20)
+    }
+
     // MARK: - Avatar helper
 
     @ViewBuilder
@@ -254,15 +357,9 @@ private struct ProfilePostRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Post image (if any)
-            if let data = post.imageData, let uiImage = UIImage(data: data) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 180)
-                    .clipped()
-                    .cornerRadius(10)
+            // Post images (up to 4)
+            if !post.allImageDatas.isEmpty {
+                PostImagesView(imageDatas: post.allImageDatas)
             }
 
             HStack {

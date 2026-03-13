@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import MapKit
 
 // MARK: - FAQ item model
 
@@ -15,23 +16,54 @@ private struct FAQItem: Identifiable {
 
 private let faqItems: [FAQItem] = [
     FAQItem(
+        question: "House Rules",
+        answer: """
+        A few rules that keep the app honest.
+
+        Streaks:
+        A streak only continues if you hit ALL of your macro goals for that day — \
+        calories, protein, carbs, and fat. Simply logging food does not count.
+
+        To see if you're on track, open the Hub tab and check the macro rings under \
+        your daily goal summary. All four need to be at or above 85% of their targets \
+        by end of day for that day to count toward your streak.
+
+        Fuel Log:
+        Every food entry must be logged with a photo. The camera and photo library \
+        buttons in the Fuel Log are the only way to add a meal — there is no \
+        text-only entry. This keeps your log honest and your feed worth looking at.
+        """
+    ),
+    FAQItem(
         question: "What are Aura Points?",
         answer: """
         Aura Points are the currency of your gains journey. Every rep in the gym and \
         every meal you track earns you Aura.
 
-        How to earn them:
-        • 3-day logging streak → +50 pts
+        Streaks — consecutive days hitting ALL macro goals (each milestone awarded once):
+        • 3-day streak → +50 pts
         • 7-day streak → +150 pts
         • 14-day streak → +300 pts
         • 30-day streak → +500 pts
         • 60-day streak → +750 pts
         • 100-day streak → +1,000 pts
-        • Post when you crush your macro goals → +75 pts
-        • Drop a comment on someone's post → +10 pts
 
-        Each streak milestone is awarded once. Keep the streak alive and the \
-        aura farms itself, no cap.
+        Logging food alone does not count — you have to actually hit your goals.
+
+        Posts, Comments & Reps (Social):
+        • Post when you crush your macro goals → +50 pts
+        • Rep a post or comment → +1 pt per rep
+        • Comment on someone's post → +1 pt
+        • Comment with a photo → +5 pts
+
+        Leaderboard (Mog Board, resets every Monday):
+        Local top 10:
+        • #1 → +75 pts  •  #2–3 → +50 pts  •  #4–10 → +25 pts
+        Arena top 10:
+        • #1 → +150 pts  •  #2–3 → +100 pts  •  #4–10 → +50 pts
+
+        Points are calculated Sunday at 11:59 PM EST and awarded the next time \
+        you open the app. Arena pays more — you're up against everyone.
         """
     ),
     FAQItem(
@@ -58,6 +90,11 @@ private let faqItems: [FAQItem] = [
 
 // MARK: - SettingsView
 
+private enum ActivePicker: Identifiable {
+    case currentWeight, goalWeight, proteinPerLb
+    var id: Self { self }
+}
+
 struct SettingsView: View {
     @Bindable var userSettings: UserSettings
     @FocusState private var nameFocused: Bool
@@ -69,6 +106,8 @@ struct SettingsView: View {
     @State private var currentWeightVal: Double = 160
     @State private var goalWeightVal:    Double = 160
     @State private var proteinPerLbVal:  Double = 0.9
+    @State private var activePicker: ActivePicker? = nil
+    @State private var showCitySearch = false
 
     var body: some View {
         Form {
@@ -82,6 +121,7 @@ struct SettingsView: View {
                         profileAuraLevel:   userSettings.auraLevel,
                         profileAuraPoints:  userSettings.auraPoints,
                         profileImageData:   userSettings.profileImageData,
+                        profileLocation:    userSettings.location,
                         ownUserSettings:    userSettings
                     )
                 } label: {
@@ -110,49 +150,67 @@ struct SettingsView: View {
                             .onSubmit { commitAll(); nameFocused = false }
                     }
                 }
+                Button { showCitySearch = true } label: {
+                    HStack {
+                        Label("Location", systemImage: "mappin.circle.fill")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text(userSettings.location.isEmpty ? "Set city" : userSettings.location)
+                            .foregroundStyle(userSettings.location.isEmpty ? .secondary : .primary)
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+                Toggle(isOn: $userSettings.isPrivateAccount) {
+                    Label("Private Account", systemImage: "lock.fill")
+                }
+                HStack {
+                    Label("Instagram", systemImage: "camera.fill")
+                        .foregroundStyle(
+                            LinearGradient(colors: [.orange, .pink, .purple],
+                                           startPoint: .leading, endPoint: .trailing)
+                        )
+                    Spacer()
+                    HStack(spacing: 2) {
+                        Text("@").foregroundStyle(.secondary)
+                        TextField("username", text: $userSettings.instagramHandle)
+                            .multilineTextAlignment(.trailing)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .submitLabel(.done)
+                    }
+                }
+                HStack {
+                    Label("TikTok", systemImage: "music.note")
+                    Spacer()
+                    HStack(spacing: 2) {
+                        Text("@").foregroundStyle(.secondary)
+                        TextField("username", text: $userSettings.tiktokHandle)
+                            .multilineTextAlignment(.trailing)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .submitLabel(.done)
+                    }
+                }
             }
 
             // MARK: Body
             Section("Body") {
-                sliderRow(
-                    label: "Current Weight",
-                    value: $currentWeightVal,
-                    range: 100...300,
-                    step: 1,
-                    display: "\(Int(currentWeightVal)) lbs"
-                ) { editing in
-                    if !editing { userSettings.currentWeight = currentWeightVal }
+                pickerRow(label: "Current Weight", display: "\(Int(currentWeightVal)) lbs") {
+                    activePicker = .currentWeight
                 }
-
-                sliderRow(
-                    label: "Goal Weight",
-                    value: $goalWeightVal,
-                    range: 100...300,
-                    step: 1,
-                    display: "\(Int(goalWeightVal)) lbs"
-                ) { editing in
-                    if !editing { userSettings.goalWeight = goalWeightVal }
+                pickerRow(label: "Goal Weight", display: "\(Int(goalWeightVal)) lbs") {
+                    activePicker = .goalWeight
                 }
             }
 
             // MARK: Nutrition
             Section {
-                sliderRow(
-                    label: "Protein per lb",
-                    value: $proteinPerLbVal,
-                    range: 0.7...1.0,
-                    step: 0.05,
-                    display: String(format: "%.2f g/lb", proteinPerLbVal)
-                ) { editing in
-                    if !editing { userSettings.proteinPerLb = proteinPerLbVal }
+                pickerRow(label: "Protein per lb", display: String(format: "%.2f g/lb", proteinPerLbVal)) {
+                    activePicker = .proteinPerLb
                 }
-                HStack {
-                    Text("0.7").font(.caption2).foregroundStyle(.secondary)
-                    Spacer()
-                    Text("1.0").font(.caption2).foregroundStyle(.secondary)
-                }
-                .listRowSeparator(.hidden)
-                .padding(.top, -8)
             } header: {
                 Text("Nutrition")
             } footer: {
@@ -176,6 +234,17 @@ struct SettingsView: View {
                         }
                     }
                 }
+            }
+
+            // MARK: Aura
+            Section {
+                Toggle("Aura Points Popups", isOn: $userSettings.auraPopupsEnabled)
+            } header: {
+                Text("Aura")
+            } footer: {
+                Text(userSettings.auraPopupsEnabled
+                     ? "A popup appears whenever you earn Aura Points, showing your level, total, and progress to the next level."
+                     : "Aura Points are still earned silently — no popup will appear.")
             }
 
             // MARK: Intermittent Fasting
@@ -204,38 +273,34 @@ struct SettingsView: View {
             FAQDetailView(item: item)
                 .presentationDetents([.medium, .large])
         }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") { commitAll(); nameFocused = false }
-                    .fontWeight(.semibold)
-            }
+        .sheet(isPresented: $showCitySearch) {
+            CitySearchSheet(location: $userSettings.location)
+        }
+        .sheet(item: $activePicker) { picker in
+            NumberPickerSheet(picker: picker,
+                              currentWeight: $currentWeightVal,
+                              goalWeight:    $goalWeightVal,
+                              proteinPerLb:  $proteinPerLbVal)
+            { commitAll() }
+                .presentationDetents([.height(280)])
         }
     }
 
     // MARK: - Helpers
 
     @ViewBuilder
-    private func sliderRow(
-        label: String,
-        value: Binding<Double>,
-        range: ClosedRange<Double>,
-        step: Double,
-        display: String,
-        onEditingChanged: @escaping (Bool) -> Void
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+    private func pickerRow(label: String, display: String, onTap: @escaping () -> Void) -> some View {
+        Button(action: onTap) {
             HStack {
-                Text(label)
+                Text(label).foregroundStyle(.primary)
                 Spacer()
                 Text(display)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0))
                     .monospacedDigit()
+                    .fontWeight(.semibold)
             }
-            Slider(value: value, in: range, step: step, onEditingChanged: onEditingChanged)
-                .tint(Color(red: 0.65, green: 0.45, blue: 1.0))
         }
-        .padding(.vertical, 4)
+        .buttonStyle(.plain)
     }
 
     private func commitAll() {
@@ -247,6 +312,72 @@ struct SettingsView: View {
         userSettings.currentWeight = currentWeightVal
         userSettings.goalWeight    = goalWeightVal
         userSettings.proteinPerLb  = proteinPerLbVal
+    }
+}
+
+// MARK: - Number Picker Sheet
+
+private struct NumberPickerSheet: View {
+    let picker: ActivePicker
+    @Binding var currentWeight: Double
+    @Binding var goalWeight:    Double
+    @Binding var proteinPerLb:  Double
+    let onDone: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    private let weightValues  = Array(100...300).map { Double($0) }
+    private let proteinValues = stride(from: 0.70, through: 1.00, by: 0.05).map { Double(String(format: "%.2f", $0))! }
+
+    var body: some View {
+        NavigationStack {
+            switch picker {
+            case .currentWeight:
+                wheelPicker(
+                    title: "Current Weight",
+                    values: weightValues,
+                    selection: $currentWeight,
+                    label: { "\(Int($0)) lbs" }
+                )
+            case .goalWeight:
+                wheelPicker(
+                    title: "Goal Weight",
+                    values: weightValues,
+                    selection: $goalWeight,
+                    label: { "\(Int($0)) lbs" }
+                )
+            case .proteinPerLb:
+                wheelPicker(
+                    title: "Protein per lb",
+                    values: proteinValues,
+                    selection: $proteinPerLb,
+                    label: { String(format: "%.2f g/lb", $0) }
+                )
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    @ViewBuilder
+    private func wheelPicker(
+        title: String,
+        values: [Double],
+        selection: Binding<Double>,
+        label: @escaping (Double) -> String
+    ) -> some View {
+        Picker(title, selection: selection) {
+            ForEach(values, id: \.self) { v in
+                Text(label(v)).tag(v)
+            }
+        }
+        .pickerStyle(.wheel)
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done") { onDone(); dismiss() }.fontWeight(.semibold)
+            }
+        }
     }
 }
 
@@ -276,6 +407,85 @@ private struct FAQDetailView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - City Search
+
+@Observable
+private final class CityCompleter: NSObject, MKLocalSearchCompleterDelegate {
+    var suggestions: [MKLocalSearchCompletion] = []
+    private let completer = MKLocalSearchCompleter()
+
+    override init() {
+        super.init()
+        completer.delegate = self
+        completer.resultTypes = .address
+    }
+
+    func search(_ text: String) {
+        completer.queryFragment = text
+    }
+
+    func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+        // Keep only results that look like cities/regions (no leading digit = not a street address)
+        suggestions = completer.results.filter { result in
+            guard let first = result.title.first else { return false }
+            return !first.isNumber
+        }
+    }
+
+    func completer(_ completer: MKLocalSearchCompleter, didFailWithError: Error) {
+        suggestions = []
+    }
+}
+
+private struct CitySearchSheet: View {
+    @Binding var location: String
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var query = ""
+    @State private var completer = CityCompleter()
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(completer.suggestions, id: \.title) { suggestion in
+                    Button {
+                        location = [suggestion.title, suggestion.subtitle]
+                            .filter { !$0.isEmpty }
+                            .joined(separator: ", ")
+                        dismiss()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(suggestion.title)
+                                .foregroundStyle(.primary)
+                            if !suggestion.subtitle.isEmpty {
+                                Text(suggestion.subtitle)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search city or region")
+            .onChange(of: query) { _, new in completer.search(new) }
+            .navigationTitle("Location")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                if !location.isEmpty {
+                    ToolbarItem(placement: .destructiveAction) {
+                        Button("Clear") { location = ""; dismiss() }
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
     }
 }
 

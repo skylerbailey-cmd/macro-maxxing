@@ -21,11 +21,22 @@ import SwiftData
     var totalCarbs:    Double = 0; var goalCarbs:    Double = 0
     var totalFat:      Double = 0; var goalFat:      Double = 0
     var isCustomPost:  Bool   = false
-    @Attribute(.externalStorage) var imageData: Data?
+    @Attribute(.externalStorage) var imageData:  Data?
+    @Attribute(.externalStorage) var imageData2: Data?
+    @Attribute(.externalStorage) var imageData3: Data?
+    @Attribute(.externalStorage) var imageData4: Data?
 
-    // Author aura + profile picture at time of posting
-    var authorAuraLevel:  Int  = 0
-    var authorAuraPoints: Int  = 0
+    /// All image datas in order, skipping nils.
+    var allImageDatas: [Data] {
+        [imageData, imageData2, imageData3, imageData4].compactMap { $0 }
+    }
+
+    // Author aura + profile picture + location + streak + privacy at time of posting
+    var authorAuraLevel:   Int    = 0
+    var authorAuraPoints:  Int    = 0
+    var authorLocation:    String = ""
+    var authorStreak:      Int    = 0
+    var isAuthorPrivate:   Bool   = false
     @Attribute(.externalStorage) var authorProfileImageData: Data?
 
     // 💪 Reps (likes)
@@ -34,6 +45,9 @@ import SwiftData
 
     @Relationship(deleteRule: .cascade)
     var comments: [SocialComment] = []
+
+    @Relationship(deleteRule: .cascade)
+    var fuelLogEntries: [FuelLogEntry] = []
 
     func hasRepped(userID: String) -> Bool {
         guard !reppedByRaw.isEmpty else { return false }

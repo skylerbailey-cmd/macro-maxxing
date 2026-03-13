@@ -146,6 +146,62 @@ final class ClaudeVisionService {
         }
     }
 
+    func analyzeFoodImageWithVoice(_ image: UIImage, voiceNote: String) async throws -> MacroResult {
+        guard let jpegData = resized(image, maxEdge: 1024).jpegData(compressionQuality: 0.8) else {
+            throw ClaudeServiceError.noContent
+        }
+
+        let base64 = jpegData.base64EncodedString()
+
+        let prompt = """
+        Analyze this food photo and the user's description to estimate macronutrients. \
+        User said: "\(voiceNote)". \
+        Use both the photo and the description together for a more accurate estimate. \
+        Reply with ONLY a single-line JSON object, no markdown, no explanation:
+        {"food":"<name>","calories":<kcal>,"protein":<g>,"carbs":<g>,"fat":<g>}
+        """
+
+        let request = ClaudeRequest(
+            model: model,
+            maxTokens: 256,
+            messages: [
+                ClaudeMessage(role: "user", content: [
+                    .image(mediaType: "image/jpeg", base64Data: base64),
+                    .text(prompt)
+                ])
+            ]
+        )
+
+        var urlRequest = URLRequest(url: endpoint)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue(Config.anthropicAPIKey, forHTTPHeaderField: "x-api-key")
+        urlRequest.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.httpBody = try JSONEncoder().encode(request)
+
+        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            throw ClaudeServiceError.badResponse(statusCode: httpResponse.statusCode)
+        }
+
+        let claudeResponse = try JSONDecoder().decode(ClaudeResponse.self, from: data)
+        guard let text = claudeResponse.content.first(where: { $0.type == "text" })?.text else {
+            throw ClaudeServiceError.noContent
+        }
+
+        let jsonString = stripMarkdownFences(text)
+        guard let jsonData = jsonString.data(using: .utf8) else {
+            throw ClaudeServiceError.malformedJSON(text)
+        }
+
+        do {
+            return try JSONDecoder().decode(MacroResult.self, from: jsonData)
+        } catch {
+            throw ClaudeServiceError.malformedJSON(jsonString)
+        }
+    }
+
     private nonisolated func resized(_ image: UIImage, maxEdge: CGFloat) -> UIImage {
         let size = image.size
         let longestEdge = max(size.width, size.height)

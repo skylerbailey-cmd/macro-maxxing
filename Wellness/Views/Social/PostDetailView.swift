@@ -15,8 +15,10 @@ struct PostDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss)      private var dismiss
 
-    @State private var commentText   = ""
-    @State private var showingProfile = false
+    @State private var commentText     = ""
+    @State private var commentImage:   UIImage? = nil
+    @State private var showCommentCamera = false
+    @State private var showingProfile  = false
     @FocusState private var commentFocused: Bool
 
     private let purpl   = Color(red: 0.65, green: 0.45, blue: 1.00)
@@ -33,7 +35,9 @@ struct PostDetailView: View {
                     ScrollView {
                         VStack(spacing: 16) {
                             postCard
-                            if post.goalCalories > 0 { macroBreakdown }
+                            if post.goalCalories > 0 && post.fuelLogEntries.isEmpty {
+                                macroBreakdown
+                            }
                             commentsSection
                         }
                         .padding(.horizontal, 16)
@@ -48,6 +52,9 @@ struct PostDetailView: View {
             .preferredColorScheme(.dark)
             .navigationTitle("Post")
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showCommentCamera) {
+                ImagePickerView(sourceType: .camera, selectedImage: $commentImage)
+            }
             .sheet(isPresented: $showingProfile) {
                 NavigationStack {
                     ProfileView(
@@ -57,6 +64,7 @@ struct PostDetailView: View {
                         profileAuraLevel:   post.authorAuraLevel,
                         profileAuraPoints:  post.authorAuraPoints,
                         profileImageData:   post.authorProfileImageData,
+                        profileLocation:    post.authorLocation,
                         ownUserSettings:    post.authorID == userSettings.userID ? userSettings : nil
                     )
                 }
@@ -108,15 +116,13 @@ struct PostDetailView: View {
                 Spacer()
             }
 
-            // Content — show photo if present (both custom and achievement posts)
-            if let data = post.imageData, let uiImage = UIImage(data: data) {
-                Image(uiImage: uiImage)
-                    .resizable().scaledToFill()
-                    .frame(maxWidth: .infinity).frame(height: 200)
-                    .clipped().cornerRadius(12)
-            }
-
-            if post.isCustomPost {
+            // Content
+            if !post.fuelLogEntries.isEmpty {
+                fuelLogContent
+            } else if post.isCustomPost {
+                if !post.allImageDatas.isEmpty {
+                    PostImagesView(imageDatas: post.allImageDatas)
+                }
                 Text(post.memeHeadline)
                     .font(.system(size: 20, weight: .black, design: .rounded))
                     .foregroundStyle(.white).multilineTextAlignment(.center)
@@ -126,6 +132,9 @@ struct PostDetailView: View {
                         .multilineTextAlignment(.center)
                 }
             } else {
+                if !post.allImageDatas.isEmpty {
+                    PostImagesView(imageDatas: post.allImageDatas)
+                }
                 Text(post.memeEmoji).font(.system(size: 56))
                 Text(post.memeHeadline)
                     .font(.system(size: 22, weight: .black, design: .rounded))
@@ -141,58 +150,142 @@ struct PostDetailView: View {
         .cornerRadius(16)
     }
 
-    // MARK: Macro breakdown (food log summary for this user on that day)
+    // MARK: Macro breakdown (celebration posts only)
 
     private var macroBreakdown: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let items: [(String, Double, Double, Color)] = [
+            ("Calories", post.totalCalories, post.goalCalories, Color(red: 1.00, green: 0.55, blue: 0.15)),
+            ("Protein",  post.totalProtein,  post.goalProtein,  Color(red: 0.35, green: 0.75, blue: 1.00)),
+            ("Carbs",    post.totalCarbs,    post.goalCarbs,    Color(red: 0.40, green: 0.90, blue: 0.72)),
+            ("Fat",      post.totalFat,      post.goalFat,      Color(red: 1.00, green: 0.50, blue: 0.72)),
+        ]
+        return VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Macros that day")
+                Text("Macros")
                     .font(.headline).foregroundStyle(.white)
                 Spacer()
                 Text(post.macroDate, style: .date)
                     .font(.caption).foregroundStyle(.white.opacity(0.35))
             }
-
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                macroCell("Calories", value: post.totalCalories, goal: post.goalCalories,
-                          color: Color(red: 1.00, green: 0.55, blue: 0.15), unit: "kcal")
-                macroCell("Protein",  value: post.totalProtein,  goal: post.goalProtein,
-                          color: Color(red: 0.35, green: 0.75, blue: 1.00), unit: "g")
-                macroCell("Carbs",    value: post.totalCarbs,    goal: post.goalCarbs,
-                          color: Color(red: 0.40, green: 0.90, blue: 0.72), unit: "g")
-                macroCell("Fat",      value: post.totalFat,      goal: post.goalFat,
-                          color: Color(red: 1.00, green: 0.50, blue: 0.72), unit: "g")
+            HStack(spacing: 12) {
+                ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                    let (label, actual, goal, color) = item
+                    let met: Bool = label == "Calories"
+                        ? actual >= goal * 0.85 && actual <= goal * 1.15
+                        : actual >= goal * 0.85
+                    VStack(spacing: 6) {
+                        ZStack {
+                            Circle()
+                                .fill(met ? color.opacity(0.20) : Color.white.opacity(0.06))
+                                .frame(width: 48, height: 48)
+                            if met {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundStyle(color)
+                            } else {
+                                Text("\(Int(actual))g")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(.white.opacity(0.50))
+                            }
+                        }
+                        .shadow(color: met ? color.opacity(0.40) : .clear, radius: 6)
+                        Text(label)
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.45))
+                        Text("/ \(Int(goal))\(label == "Calories" ? " kcal" : "g")")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.white.opacity(0.28))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
             }
         }
         .padding(14)
-        .background(cardBg)
+        .background(Color(red: 0.13, green: 0.10, blue: 0.22))
         .cornerRadius(16)
     }
 
-    private func macroCell(_ label: String, value: Double, goal: Double,
-                            color: Color, unit: String) -> some View {
-        let pct = goal > 0 ? min(value / goal, 1.0) : 0
-        return VStack(spacing: 4) {
-            ZStack {
-                Circle().trim(from: 0, to: 0.75)
-                    .stroke(color.opacity(0.15),
-                            style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                    .rotationEffect(.degrees(135))
-                Circle().trim(from: 0, to: pct * 0.75)
-                    .stroke(color, style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                    .rotationEffect(.degrees(135))
-                Text("\(Int(value))\(unit == "kcal" ? "" : unit)")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+    // MARK: Fuel log content (inline inside postCard)
+
+    @ViewBuilder
+    private var fuelLogContent: some View {
+        let sorted    = post.fuelLogEntries.sorted { $0.sortOrder < $1.sortOrder }
+        let purpl     = Color(red: 0.65, green: 0.45, blue: 1.00)
+        let totalCal  = sorted.reduce(0.0) { $0 + $1.calories }
+        let totalPro  = sorted.reduce(0.0) { $0 + $1.protein  }
+        let totalCarb = sorted.reduce(0.0) { $0 + $1.carbs    }
+        let totalFat  = sorted.reduce(0.0) { $0 + $1.fat      }
+
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Today's Fuel Log 🔥")
+                .font(.system(size: 20, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+                .padding(.bottom, 10)
+
+            if !post.memeSub.isEmpty {
+                Text(post.memeSub)
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.65))
+                    .padding(.bottom, 12)
             }
-            .frame(width: 60, height: 60)
-            Text(label).font(.caption2).foregroundStyle(.white.opacity(0.55))
-            Text("/ \(Int(goal))\(unit)").font(.system(size: 9)).foregroundStyle(.white.opacity(0.30))
+
+            ForEach(sorted) { entry in
+                VStack(spacing: 0) {
+                    HStack(spacing: 12) {
+                        if let data = entry.imageData, let img = UIImage(data: data) {
+                            Image(uiImage: img)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 48, height: 48)
+                                .clipped()
+                                .cornerRadius(10)
+                        } else {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.white.opacity(0.07))
+                                .frame(width: 48, height: 48)
+                                .overlay {
+                                    Image(systemName: "fork.knife")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(.white.opacity(0.30))
+                                }
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(entry.foodName)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white)
+                            Text("\(Int(entry.calories)) kcal · \(Int(entry.protein))g P · \(Int(entry.carbs))g C · \(Int(entry.fat))g F")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.45))
+                        }
+                        Spacer()
+                        Text(entry.loggedAt, style: .time)
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.25))
+                    }
+                    .padding(.vertical, 10)
+
+                    if entry.id != sorted.last?.id {
+                        Divider().background(Color.white.opacity(0.08))
+                    }
+                }
+            }
+
+            Divider()
+                .background(purpl.opacity(0.40))
+                .padding(.top, 4)
+
+            HStack {
+                Text("Total")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.white)
+                Spacer()
+                Text("\(Int(totalCal)) kcal · \(Int(totalPro))g P · \(Int(totalCarb))g C · \(Int(totalFat))g F")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(purpl)
+            }
+            .padding(.top, 8)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(Color(red: 0.10, green: 0.07, blue: 0.18))
-        .cornerRadius(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: Comments
@@ -234,7 +327,7 @@ struct PostDetailView: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-                .frame(height: CGFloat(sorted.count) * 70)
+                .frame(height: sorted.reduce(0) { $0 + ($1.imageData != nil ? 175 : 70) })
                 .padding(.bottom, 8)
             }
         }
@@ -257,15 +350,26 @@ struct PostDetailView: View {
                 HStack(spacing: 6) {
                     Text(comment.authorDisplayName.isEmpty ? comment.authorUsername : comment.authorDisplayName)
                         .font(.caption.weight(.semibold)).foregroundStyle(.white)
-                    Text(comment.postedAt, style: .relative)
+                    Text(comment.postedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
                         .font(.caption2).foregroundStyle(.white.opacity(0.30))
                 }
                 Text(comment.text)
                     .font(.subheadline).foregroundStyle(.white.opacity(0.85))
+                if let data = comment.imageData, let uiImg = UIImage(data: data) {
+                    Image(uiImage: uiImg)
+                        .resizable().scaledToFill()
+                        .frame(maxWidth: .infinity).frame(height: 120)
+                        .clipped().cornerRadius(10)
+                        .padding(.top, 4)
+                }
 
                 // 💪 Rep button on comment
                 Button {
+                    let isNewRep = !comment.hasRepped(userID: userSettings.userID)
                     comment.toggleRep(userID: userSettings.userID)
+                    if isNewRep {
+                        userSettings.awardAura(points: 1, silent: true)
+                    }
                 } label: {
                     HStack(spacing: 4) {
                         Text("💪")
@@ -288,46 +392,78 @@ struct PostDetailView: View {
     // MARK: Comment input bar
 
     private var commentBar: some View {
-        HStack(spacing: 10) {
-            TextField("Add a comment…", text: $commentText)
-                .padding(10)
-                .background(Color(red: 0.13, green: 0.10, blue: 0.22))
-                .cornerRadius(20)
-                .foregroundStyle(.white)
-                .focused($commentFocused)
-                .submitLabel(.send)
-                .onSubmit { submitComment() }
-
-            Button(action: submitComment) {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 30))
-                    .foregroundStyle(commentText.isEmpty ? .white.opacity(0.25) : purpl)
+        VStack(spacing: 0) {
+            // Image preview strip (shown when a photo is attached)
+            if let img = commentImage {
+                HStack(spacing: 8) {
+                    Image(uiImage: img)
+                        .resizable().scaledToFill()
+                        .frame(width: 48, height: 48)
+                        .clipped().cornerRadius(8)
+                    Text("Photo attached")
+                        .font(.caption).foregroundStyle(.white.opacity(0.55))
+                    Spacer()
+                    Button { commentImage = nil } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.white.opacity(0.50))
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color(red: 0.07, green: 0.05, blue: 0.12))
             }
-            .disabled(commentText.isEmpty)
+
+            HStack(spacing: 10) {
+                // Camera button
+                Button {
+                    showCommentCamera = true
+                } label: {
+                    Image(systemName: commentImage != nil ? "camera.fill" : "camera")
+                        .font(.system(size: 20))
+                        .foregroundStyle(commentImage != nil ? purpl : .white.opacity(0.40))
+                }
+                .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
+
+                TextField("Add a comment…", text: $commentText)
+                    .padding(10)
+                    .background(Color(red: 0.13, green: 0.10, blue: 0.22))
+                    .cornerRadius(20)
+                    .foregroundStyle(.white)
+                    .focused($commentFocused)
+                    .submitLabel(.send)
+                    .onSubmit { submitComment() }
+
+                Button(action: submitComment) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 30))
+                        .foregroundStyle((commentText.isEmpty && commentImage == nil) ? .white.opacity(0.25) : purpl)
+                }
+                .disabled(commentText.isEmpty && commentImage == nil)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Color(red: 0.07, green: 0.05, blue: 0.12))
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(Color(red: 0.07, green: 0.05, blue: 0.12))
     }
 
     private func submitComment() {
         let text = commentText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty || commentImage != nil else { return }
+        let imgData = commentImage?.jpegData(compressionQuality: 0.8)
         let comment = SocialComment(
             authorID:          userSettings.userID,
             authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
             authorDisplayName: userSettings.name,
-            text:              text,
+            text:              text.isEmpty ? "📸" : text,
+            imageData:         imgData,
             post:              post
         )
         post.comments.append(comment)
         modelContext.insert(comment)
         commentText    = ""
+        commentImage   = nil
         commentFocused = false
-        userSettings.awardAura(
-            points: 10,
-            reason: "💬 Comment Drop",
-            message: "leaving your mark on the feed fr. every comment is aura."
-        )
+        let hasPhoto = imgData != nil
+        userSettings.awardAura(points: hasPhoto ? 5 : 1, silent: true)
     }
 }

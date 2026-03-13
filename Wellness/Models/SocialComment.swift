@@ -12,6 +12,7 @@ import SwiftData
     var authorUsername:    String = ""
     var authorDisplayName: String = ""
     var text:              String = ""
+    var imageData:         Data?  = nil
     var postedAt:          Date   = Date()
 
     // 💪 Reps (likes)
@@ -37,9 +38,9 @@ import SwiftData
     }
 
     init(authorID: String, authorUsername: String, authorDisplayName: String,
-         text: String, post: SocialPost) {
+         text: String, imageData: Data? = nil, post: SocialPost) {
         self.authorID = authorID; self.authorUsername = authorUsername
         self.authorDisplayName = authorDisplayName
-        self.text = text; self.postedAt = Date(); self.post = post
+        self.text = text; self.imageData = imageData; self.postedAt = Date(); self.post = post
     }
 }

@@ -7,8 +7,9 @@ import SwiftUI
 import Charts
 
 struct FastingTimelineView: View {
-    let windowStart: Double   // fractional hour, e.g. 9.0
-    let windowEnd: Double     // fractional hour, e.g. 17.0
+    let windowStart: Double      // fractional hour, e.g. 9.0
+    let windowEnd: Double        // fractional hour, e.g. 17.0
+    var mealLogTimes: [Double] = []  // fractional hours when meals were logged today
 
     private var currentFractionalHour: Double {
         let now = Date()
@@ -38,6 +39,15 @@ struct FastingTimelineView: View {
         return result
     }
 
+    // True if any meal was logged outside the eating window
+    private var hasOutOfWindowMeal: Bool {
+        mealLogTimes.contains { $0 < windowStart || $0 > windowEnd }
+    }
+
+    private var eatingWindowColor: Color {
+        hasOutOfWindowMeal ? Color.orange.opacity(0.80) : Color.green.opacity(0.75)
+    }
+
     var body: some View {
         Chart {
             ForEach(segments) { segment in
@@ -47,9 +57,16 @@ struct FastingTimelineView: View {
                     y: .value("", "")
                 )
                 .foregroundStyle(segment.isEatingWindow
-                    ? Color.green.opacity(0.75)
+                    ? eatingWindowColor
                     : Color(.systemGray4))
                 .cornerRadius(4)
+            }
+
+            // Meal log indicators — solid red line per meal
+            ForEach(Array(mealLogTimes.enumerated()), id: \.offset) { _, mealTime in
+                RuleMark(x: .value("Meal", mealTime))
+                    .foregroundStyle(.red)
+                    .lineStyle(StrokeStyle(lineWidth: 2))
             }
 
             // Current time indicator

@@ -21,10 +21,14 @@ struct FoodLogView: View {
     @State private var viewModel:    FoodLogViewModel
     @State private var analyzeVM:    AnalyzeViewModel
     @Binding var selectedDate: Date
-    @State private var showingAnalysisSheet = false
+    let userSettings: UserSettings
+    @State private var showingAnalysisSheet  = false
     @State private var editingEntry: FoodEntry? = nil
+    @State private var showingFuelLogPost    = false
 
-    init(modelContext: ModelContext, selectedDate: Binding<Date>) {
+    @Environment(\.modelContext) private var modelContext
+
+    init(modelContext: ModelContext, selectedDate: Binding<Date>, userSettings: UserSettings) {
         _viewModel  = State(wrappedValue: FoodLogViewModel(
             modelContext: modelContext,
             selectedDate: selectedDate.wrappedValue
@@ -34,6 +38,7 @@ struct FoodLogView: View {
             selectedDate: selectedDate.wrappedValue
         ))
         _selectedDate = selectedDate
+        self.userSettings = userSettings
     }
 
     private var isToday: Bool { Calendar.current.isDateInToday(selectedDate) }
@@ -106,6 +111,22 @@ struct FoodLogView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .toolbar {
+            if isToday && !viewModel.todayEntries.isEmpty {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showingFuelLogPost = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "square.and.arrow.up")
+                            Text("Post Fuel Log")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                    }
+                    .tint(.purpleHi)
+                }
+            }
+        }
         .onAppear {
             viewModel.selectedDate = selectedDate
             Task { viewModel.loadTodayEntries() }
@@ -139,6 +160,13 @@ struct FoodLogView: View {
                 showingAnalysisSheet = false
             })
             .presentationDetents([.large])
+        }
+        .sheet(isPresented: $showingFuelLogPost) {
+            FuelLogPostSheet(
+                entries:      viewModel.todayEntries,
+                userSettings: userSettings,
+                modelContext: modelContext
+            )
         }
     }
 
@@ -196,12 +224,7 @@ struct FoodLogView: View {
                 }
 
             case .analyzing:
-                HStack(spacing: 10) {
-                    ProgressView().tint(Color.purpleHi)
-                    Text("Logging your meals…")
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.50))
-                }
+                CoachSkeletonView()
 
             case .result(let text):
                 resultText(text)
@@ -269,7 +292,10 @@ private struct AnalysisSheet: View {
     @Bindable var viewModel: FoodLogViewModel
     let onSaved: () -> Void
     @Environment(\.dismiss) private var dismiss
-    @State private var showSaveError = false
+    @State private var showSaveError     = false
+    @State private var showVoiceRecorder = false
+    @State private var speechRecognizer  = SpeechRecognizer()
+    @State private var skeletonPulse     = false
 
     var body: some View {
         NavigationStack {
@@ -288,10 +314,13 @@ private struct AnalysisSheet: View {
 
                     switch viewModel.analysisState {
                     case .idle:
-                        analyzePrompt
+                        if showVoiceRecorder {
+                            voiceRecorderPrompt
+                        } else {
+                            analyzePrompt
+                        }
                     case .analyzing:
-                        ProgressView("Analyzing food...")
-                            .padding(.vertical, 32)
+                        skeletonEntryFields
                     case .result, .error:
                         entryFields
                     }
@@ -302,29 +331,46 @@ private struct AnalysisSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        speechRecognizer.reset()
+                        dismiss()
+                    }
                 }
             }
+            .onDisappear { speechRecognizer.reset() }
         }
     }
 
     private var analyzePrompt: some View {
         VStack(spacing: 16) {
             VStack(spacing: 6) {
-                Text("Analyze this photo?")
+                Text("How do you want to log this?")
                     .font(.headline)
-                Text("Claude will identify the food and estimate macros.")
+                Text("Analyze the photo, describe what you ate, or enter macros manually.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
-            Button {
-                Task { await viewModel.analyzeImage() }
-            } label: {
-                Text("Analyze")
-                    .frame(maxWidth: .infinity)
+            .padding(.horizontal)
+
+            VStack(spacing: 10) {
+                Button {
+                    Task { await viewModel.analyzeImage() }
+                } label: {
+                    Label("Analyze Photo", systemImage: "camera.viewfinder")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    showVoiceRecorder = true
+                } label: {
+                    Label("Describe What You Ate", systemImage: "mic.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(Color(red: 0.65, green: 0.45, blue: 1.00))
             }
-            .buttonStyle(.borderedProminent)
             .padding(.horizontal)
 
             Button("Enter manually instead") {
@@ -333,7 +379,144 @@ private struct AnalysisSheet: View {
             .font(.subheadline)
             .foregroundStyle(.secondary)
         }
-        .padding(.horizontal)
+    }
+
+    private var voiceRecorderPrompt: some View {
+        VStack(spacing: 20) {
+            VStack(spacing: 6) {
+                Text("Describe what you ate")
+                    .font(.headline)
+                Text("Say the food and portion size — Claude will use your description and the photo together.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal)
+
+            // Transcript bubble
+            if !speechRecognizer.transcript.isEmpty {
+                Text(speechRecognizer.transcript)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(14)
+                    .background(Color(red: 0.13, green: 0.10, blue: 0.22))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+            }
+
+            // Error message
+            if case .error(let msg) = speechRecognizer.status {
+                Text(msg)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+
+            // Mic button
+            Button {
+                if speechRecognizer.status == .recording {
+                    speechRecognizer.stop()
+                } else {
+                    speechRecognizer.start()
+                }
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(speechRecognizer.status == .recording
+                              ? Color.red.opacity(0.85)
+                              : Color(red: 0.65, green: 0.45, blue: 1.00).opacity(0.85))
+                        .frame(width: 72, height: 72)
+                    Image(systemName: speechRecognizer.status == .recording ? "stop.fill" : "mic.fill")
+                        .font(.system(size: 28, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+            }
+            .buttonStyle(.plain)
+
+            Text(micLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            VStack(spacing: 10) {
+                // Analyze with voice button — shown when there's a transcript
+                if speechRecognizer.status == .done && !speechRecognizer.transcript.isEmpty {
+                    Button {
+                        viewModel.voiceNote = speechRecognizer.transcript
+                        Task { await viewModel.analyzeImageWithVoice() }
+                    } label: {
+                        Label("Analyze with Description", systemImage: "wand.and.stars")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .padding(.horizontal)
+                }
+
+                Button("Back") {
+                    speechRecognizer.reset()
+                    showVoiceRecorder = false
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var micLabel: String {
+        switch speechRecognizer.status {
+        case .idle:              return "Tap to start recording"
+        case .requestingPermission: return "Requesting permission…"
+        case .recording:         return "Listening… tap to stop"
+        case .done:              return speechRecognizer.transcript.isEmpty ? "Nothing heard — try again" : "Tap to re-record"
+        case .error:             return ""
+        }
+    }
+
+    // MARK: - Skeleton (shown while API is in-flight)
+
+    private var skeletonEntryFields: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                ProgressView()
+                    .scaleEffect(0.75)
+                    .tint(Color.purpleHi)
+                Text("Analyzing your photo…")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.50))
+            }
+            .padding(.horizontal)
+
+            VStack(spacing: 12) {
+                skeletonRow(label: "Food",     placeholder: "Identifying food…")
+                skeletonRow(label: "Calories", placeholder: "—— kcal")
+                skeletonRow(label: "Protein",  placeholder: "——g")
+                skeletonRow(label: "Carbs",    placeholder: "——g")
+                skeletonRow(label: "Fat",      placeholder: "——g")
+            }
+            .padding(.horizontal)
+            .opacity(skeletonPulse ? 0.35 : 0.75)
+            .animation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true),
+                       value: skeletonPulse)
+            .onAppear  { skeletonPulse = true  }
+            .onDisappear { skeletonPulse = false }
+        }
+    }
+
+    @ViewBuilder
+    private func skeletonRow(label: String, placeholder: String) -> some View {
+        HStack {
+            Text(label)
+                .frame(width: 80, alignment: .leading)
+                .foregroundStyle(.primary)
+            Spacer()
+            Text(placeholder)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .background(Color(.secondarySystemBackground).opacity(0.5))
+        .cornerRadius(8)
     }
 
     private var entryFields: some View {
@@ -458,8 +641,8 @@ private struct FoodEntryRow: View {
                             .font(.system(size: 13))
                             .foregroundStyle(.red.opacity(0.65))
                     }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
         .padding(12)
@@ -543,11 +726,6 @@ private struct EditEntrySheet: View {
                         if isValid { save() } else { showEditError = true }
                     }
                 }
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") { focus = nil }
-                        .fontWeight(.semibold)
-                }
             }
         }
     }
@@ -609,6 +787,216 @@ private struct CircleFAB: View {
     }
 }
 
+// MARK: - Fuel Log Post Sheet
+
+private struct FuelLogPostSheet: View {
+    let entries:      [FoodEntry]
+    let userSettings: UserSettings
+    let modelContext: ModelContext
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var messageText = ""
+    @FocusState private var focused: Bool
+
+    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
+    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+
+    // Totals
+    private var totalCalories: Double { entries.reduce(0) { $0 + $1.calories } }
+    private var totalProtein:  Double { entries.reduce(0) { $0 + $1.protein  } }
+    private var totalCarbs:    Double { entries.reduce(0) { $0 + $1.carbs    } }
+    private var totalFat:      Double { entries.reduce(0) { $0 + $1.fat      } }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                pageBg.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 16) {
+
+                        // Optional message field
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Add a message (optional)")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.50))
+                            ZStack(alignment: .topLeading) {
+                                if messageText.isEmpty {
+                                    Text("Talk your talk. tell the feed how today went.")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.white.opacity(0.28))
+                                        .padding(14)
+                                }
+                                TextEditor(text: $messageText)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.white)
+                                    .scrollContentBackground(.hidden)
+                                    .frame(minHeight: 90)
+                                    .padding(10)
+                                    .focused($focused)
+                            }
+                            .background(cardBg)
+                            .cornerRadius(12)
+                        }
+
+                        // Fuel log preview
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("Today's Fuel Log")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                                .padding(.bottom, 10)
+
+                            ForEach(entries) { entry in
+                                VStack(spacing: 0) {
+                                    HStack(spacing: 10) {
+                                        if let data = entry.imageData, let img = UIImage(data: data) {
+                                            Image(uiImage: img)
+                                                .resizable()
+                                                .scaledToFill()
+                                                .frame(width: 40, height: 40)
+                                                .clipped()
+                                                .cornerRadius(8)
+                                        } else {
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .fill(Color.white.opacity(0.07))
+                                                .frame(width: 40, height: 40)
+                                                .overlay {
+                                                    Image(systemName: "fork.knife")
+                                                        .font(.system(size: 14))
+                                                        .foregroundStyle(.white.opacity(0.30))
+                                                }
+                                        }
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(entry.foodName)
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(.white)
+                                            Text("\(Int(entry.calories)) kcal · \(Int(entry.protein))g P · \(Int(entry.carbs))g C · \(Int(entry.fat))g F")
+                                                .font(.caption)
+                                                .foregroundStyle(.white.opacity(0.45))
+                                        }
+                                        Spacer()
+                                        Text(entry.loggedAt, style: .time)
+                                            .font(.caption2)
+                                            .foregroundStyle(.white.opacity(0.25))
+                                    }
+                                    .padding(.vertical, 8)
+
+                                    if entry.id != entries.last?.id {
+                                        Divider()
+                                            .background(Color.white.opacity(0.08))
+                                    }
+                                }
+                            }
+
+                            // Totals row
+                            Divider()
+                                .background(purpl.opacity(0.40))
+                                .padding(.top, 4)
+
+                            HStack {
+                                Text("Total")
+                                    .font(.subheadline.weight(.bold))
+                                    .foregroundStyle(.white)
+                                Spacer()
+                                Text("\(Int(totalCalories)) kcal · \(Int(totalProtein))g P · \(Int(totalCarbs))g C · \(Int(totalFat))g F")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(purpl)
+                            }
+                            .padding(.top, 8)
+                        }
+                        .padding(14)
+                        .background(cardBg)
+                        .cornerRadius(16)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 40)
+                }
+            }
+            .preferredColorScheme(.dark)
+            .navigationTitle("Post Fuel Log")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Post") { submit() }
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
+                }
+            }
+        }
+    }
+
+    private func submit() {
+        let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let post = SocialPost(
+            authorID:          userSettings.userID,
+            authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
+            authorDisplayName: userSettings.name,
+            memeEmoji:         "🔥",
+            memeHeadline:      "Today's Fuel Log 🔥",
+            memeSub:           message,
+            macroDate:         Date(),
+            totalCalories: totalCalories, goalCalories: 0,
+            totalProtein:  totalProtein,  goalProtein:  0,
+            totalCarbs:    totalCarbs,    goalCarbs:    0,
+            totalFat:      totalFat,      goalFat:      0
+        )
+        post.isCustomPost           = true
+        post.authorAuraLevel        = userSettings.auraLevel
+        post.authorAuraPoints       = userSettings.auraPoints
+        post.authorLocation         = userSettings.location
+        post.authorStreak           = userSettings.macroStreak
+        post.isAuthorPrivate        = userSettings.isPrivateAccount
+        post.authorProfileImageData = userSettings.profileImageData
+        modelContext.insert(post)
+
+        // Attach a FuelLogEntry for each food item so the feed renders the visual table
+        for (index, entry) in entries.enumerated() {
+            let fle = FuelLogEntry(
+                foodName:  entry.foodName,
+                calories:  entry.calories,
+                protein:   entry.protein,
+                carbs:     entry.carbs,
+                fat:       entry.fat,
+                loggedAt:  entry.loggedAt,
+                sortOrder: index,
+                imageData: entry.imageData
+            )
+            fle.post = post
+            modelContext.insert(fle)
+        }
+
+        dismiss()
+    }
+}
+
+/// MARK: - Coach skeleton
+
+private struct CoachSkeletonView: View {
+    @State private var pulse = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ProgressView().scaleEffect(0.7).tint(Color.purpleHi)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("████████████████████")
+                    .redacted(reason: .placeholder)
+                Text("████████████")
+                    .redacted(reason: .placeholder)
+            }
+            .font(.subheadline)
+            .foregroundStyle(Color.purpleHi.opacity(0.20))
+        }
+        .opacity(pulse ? 0.4 : 1.0)
+        .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: pulse)
+        .onAppear { pulse = true }
+    }
+}
+
 // MARK: - Preview
 
 #Preview {
@@ -617,7 +1005,8 @@ private struct CircleFAB: View {
     return NavigationStack {
         FoodLogView(
             modelContext: container.mainContext,
-            selectedDate: .constant(Calendar.current.startOfDay(for: Date()))
+            selectedDate: .constant(Calendar.current.startOfDay(for: Date())),
+            userSettings: UserSettings()
         )
         .navigationTitle("Food Log")
     }

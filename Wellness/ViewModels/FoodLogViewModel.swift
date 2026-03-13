@@ -33,6 +33,7 @@ enum AnalysisState: Equatable {
     var proteinText = ""
     var carbsText = ""
     var fatText = ""
+    var voiceNote = ""
 
     var todayEntries: [FoodEntry] = []
 
@@ -65,6 +66,22 @@ enum AnalysisState: Equatable {
         analysisState = .analyzing
         do {
             let result = try await service.analyzeFoodImage(image)
+            foodName     = result.food
+            caloriesText = String(format: "%.0f", result.calories)
+            proteinText  = String(format: "%.1f", result.protein)
+            carbsText    = String(format: "%.1f", result.carbs)
+            fatText      = String(format: "%.1f", result.fat)
+            analysisState = .result
+        } catch {
+            analysisState = .error(error.localizedDescription)
+        }
+    }
+
+    func analyzeImageWithVoice() async {
+        guard let image = selectedImage else { return }
+        analysisState = .analyzing
+        do {
+            let result = try await service.analyzeFoodImageWithVoice(image, voiceNote: voiceNote)
             foodName     = result.food
             caloriesText = String(format: "%.0f", result.calories)
             proteinText  = String(format: "%.1f", result.protein)
@@ -141,6 +158,7 @@ enum AnalysisState: Equatable {
         proteinText   = ""
         carbsText     = ""
         fatText       = ""
+        voiceNote     = ""
         analysisState = .idle
     }
 }

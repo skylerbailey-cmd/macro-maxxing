@@ -50,12 +50,13 @@ struct CelebrationView: View {
 
     @Environment(\.modelContext) private var modelContext
 
-    @State private var cardScale:     CGFloat = 0.2
-    @State private var cardOpacity:   Double  = 0
-    @State private var bgOpacity:     Double  = 0
-    @State private var showingShare   = false
-    @State private var postedToFeed   = false
-    @State private var renderedImage: UIImage?
+    @State private var cardScale:      CGFloat = 0.2
+    @State private var cardOpacity:    Double  = 0
+    @State private var bgOpacity:      Double  = 0
+    @State private var showingShare    = false
+    @State private var showingPostEditor = false
+    @State private var postedToFeed    = false
+    @State private var renderedImage:  UIImage?
 
     private let meme = GymMeme.random()
 
@@ -92,12 +93,12 @@ struct CelebrationView: View {
                 VStack(spacing: 10) {
                     // Post to Feed
                     Button {
-                        postToFeed()
+                        showingPostEditor = true
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: postedToFeed ? "checkmark.circle.fill" : "person.2.fill")
                                 .font(.system(size: 14, weight: .semibold))
-                            Text(postedToFeed ? "Posted!" : "Post to Feed")
+                            Text(postedToFeed ? "Posted!" : "Post for Points")
                                 .font(.subheadline.weight(.semibold))
                         }
                         .foregroundStyle(.white)
@@ -174,6 +175,15 @@ struct CelebrationView: View {
                     .presentationDetents([.medium])
             }
         }
+        .sheet(isPresented: $showingPostEditor) {
+            CelebrationPostEditorSheet(
+                meme:         meme,
+                postData:     postData,
+                userSettings: userSettings
+            ) {
+                withAnimation { postedToFeed = true }
+            }
+        }
     }
 
     // MARK: - Macro row
@@ -222,32 +232,6 @@ struct CelebrationView: View {
         renderedImage  = renderer.uiImage
     }
 
-    private func postToFeed() {
-        guard !postedToFeed else { return }
-        let post = SocialPost(
-            authorID:          userSettings.userID,
-            authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
-            authorDisplayName: userSettings.name,
-            memeEmoji:         meme.emoji,
-            memeHeadline:      meme.headline,
-            memeSub:           meme.sub,
-            macroDate:         postData.date,
-            totalCalories:     postData.totalCalories, goalCalories: postData.goalCalories,
-            totalProtein:      postData.totalProtein,  goalProtein:  postData.goalProtein,
-            totalCarbs:        postData.totalCarbs,    goalCarbs:    postData.goalCarbs,
-            totalFat:          postData.totalFat,      goalFat:      postData.goalFat
-        )
-        post.authorAuraLevel = userSettings.auraLevel
-        post.authorAuraPoints = userSettings.auraPoints
-        post.authorProfileImageData = userSettings.profileImageData
-        modelContext.insert(post)
-        withAnimation { postedToFeed = true }
-        userSettings.awardAura(
-            points: 75,
-            reason: "📸 Macro Goal Post",
-            message: "posting your W to the feed — aura farming is real, no cap."
-        )
-    }
 
     private func animatedDismiss() {
         withAnimation(.easeIn(duration: 0.18)) {
@@ -259,6 +243,161 @@ struct CelebrationView: View {
             try? await Task.sleep(for: .seconds(0.2))
             onDismiss()
         }
+    }
+}
+
+// MARK: - Celebration post editor sheet
+
+private struct CelebrationPostEditorSheet: View {
+    let meme:         GymMeme
+    let postData:     CelebrationPostData
+    let userSettings: UserSettings
+    let onPosted:     () -> Void
+
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss)      private var dismiss
+
+    @State private var titleText:   String      = ""
+    @State private var messageText: String      = ""
+    @State private var photos:      [PostPhoto] = []
+    @FocusState private var focus: Field?
+
+    private enum Field: Hashable { case title, message }
+
+    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
+    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                pageBg.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 16) {
+                        // Meme context badge
+                        HStack(spacing: 10) {
+                            Text(meme.emoji)
+                                .font(.system(size: 28))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(meme.headline.replacingOccurrences(of: "\n", with: " "))
+                                    .font(.system(size: 13, weight: .black, design: .rounded))
+                                    .foregroundStyle(.white)
+                                Text(meme.sub)
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.45))
+                            }
+                            Spacer()
+                        }
+                        .padding(12)
+                        .background(cardBg)
+                        .cornerRadius(12)
+
+                        // Status / title field
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Status")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.50))
+                            TextField("", text: $titleText, prompt:
+                                Text("e.g. \"macros crushed. no cap. 🔥\"")
+                                    .foregroundStyle(.white.opacity(0.28))
+                            )
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(12)
+                            .background(cardBg)
+                            .cornerRadius(12)
+                            .focused($focus, equals: .title)
+                            .submitLabel(.next)
+                            .onSubmit { focus = .message }
+                        }
+
+                        // Message / body field
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Message (optional)")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.50))
+                            ZStack(alignment: .topLeading) {
+                                if messageText.isEmpty {
+                                    Text("tell the feed how you locked in today fr.")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.white.opacity(0.28))
+                                        .padding(14)
+                                }
+                                TextEditor(text: $messageText)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.white)
+                                    .scrollContentBackground(.hidden)
+                                    .frame(minHeight: 100)
+                                    .padding(10)
+                                    .focused($focus, equals: .message)
+                            }
+                            .background(cardBg)
+                            .cornerRadius(12)
+                        }
+
+                        // Photos
+                        MultiPhotoSection(photos: $photos)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 40)
+                }
+            }
+            .preferredColorScheme(.dark)
+            .navigationTitle("Post for Points")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                titleText = meme.headline.replacingOccurrences(of: "\n", with: " ")
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Post") {
+                        let t = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !t.isEmpty else { return }
+                        submit(title: t)
+                    }
+                    .fontWeight(.bold)
+                    .foregroundStyle(gold)
+                    .disabled(titleText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+    }
+
+    private func submit(title: String) {
+        let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let post = SocialPost(
+            authorID:          userSettings.userID,
+            authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
+            authorDisplayName: userSettings.name,
+            memeEmoji:         meme.emoji,
+            memeHeadline:      title,
+            memeSub:           message.isEmpty ? meme.sub : message,
+            macroDate:         postData.date,
+            totalCalories:     postData.totalCalories, goalCalories: postData.goalCalories,
+            totalProtein:      postData.totalProtein,  goalProtein:  postData.goalProtein,
+            totalCarbs:        postData.totalCarbs,    goalCarbs:    postData.goalCarbs,
+            totalFat:          postData.totalFat,      goalFat:      postData.goalFat
+        )
+        post.authorAuraLevel        = userSettings.auraLevel
+        post.authorAuraPoints       = userSettings.auraPoints
+        post.authorLocation         = userSettings.location
+        post.authorStreak           = userSettings.macroStreak
+        post.isAuthorPrivate        = userSettings.isPrivateAccount
+        post.authorProfileImageData = userSettings.profileImageData
+        let datas = photos.map { $0.image.jpegData(compressionQuality: 0.8) }
+        post.imageData  = datas.count > 0 ? datas[0] : nil
+        post.imageData2 = datas.count > 1 ? datas[1] : nil
+        post.imageData3 = datas.count > 2 ? datas[2] : nil
+        post.imageData4 = datas.count > 3 ? datas[3] : nil
+        modelContext.insert(post)
+        userSettings.awardAura(points: 50)
+        onPosted()
+        dismiss()
     }
 }
 

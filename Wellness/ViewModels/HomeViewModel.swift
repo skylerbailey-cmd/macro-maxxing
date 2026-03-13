@@ -19,33 +19,67 @@ import SwiftData
     // MARK: - User settings (shared reference)
     let userSettings: UserSettings
 
-    // MARK: - Fasting window (persisted)
+    // MARK: - Fasting window (persisted — always today's editable values)
     var windowStartHour: Int {
-        didSet { UserDefaults.standard.set(windowStartHour, forKey: "windowStartHour") }
+        didSet { UserDefaults.standard.set(windowStartHour, forKey: "windowStartHour"); snapshotTodayWindow() }
     }
     var windowStartMinute: Int {
-        didSet { UserDefaults.standard.set(windowStartMinute, forKey: "windowStartMinute") }
+        didSet { UserDefaults.standard.set(windowStartMinute, forKey: "windowStartMinute"); snapshotTodayWindow() }
     }
     var windowDurationHours: Int {
-        didSet { UserDefaults.standard.set(windowDurationHours, forKey: "windowDurationHours") }
+        didSet { UserDefaults.standard.set(windowDurationHours, forKey: "windowDurationHours"); snapshotTodayWindow() }
+    }
+
+    var isSelectedDateToday: Bool { Calendar.current.isDateInToday(selectedDate) }
+
+    // MARK: - Per-date window snapshots
+    // Displayed properties return the snapshot for past dates, live values for today.
+    var displayedWindowStartHour:   Int { windowForDisplayedDate["startHour"]    ?? windowStartHour }
+    var displayedWindowStartMinute: Int { windowForDisplayedDate["startMinute"]  ?? windowStartMinute }
+    var displayedWindowDuration:    Int { windowForDisplayedDate["durationHours"] ?? windowDurationHours }
+
+    private var windowForDisplayedDate: [String: Int] {
+        if isSelectedDateToday { return ["startHour": windowStartHour, "startMinute": windowStartMinute, "durationHours": windowDurationHours] }
+        return dailyWindowSnapshots[dateKey(selectedDate)] ?? [:]
+    }
+
+    private var dailyWindowSnapshots: [String: [String: Int]] {
+        get { (UserDefaults.standard.dictionary(forKey: "dailyWindowSnapshots") as? [String: [String: Int]]) ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: "dailyWindowSnapshots") }
+    }
+
+    func snapshotTodayWindow() {
+        let key = dateKey(Date())
+        var snapshots = dailyWindowSnapshots
+        snapshots[key] = ["startHour": windowStartHour, "startMinute": windowStartMinute, "durationHours": windowDurationHours]
+        dailyWindowSnapshots = snapshots
+    }
+
+    private func dateKey(_ date: Date) -> String {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        return fmt.string(from: date)
     }
 
     var windowEndHour: Int {
-        let totalMinutes = windowStartHour * 60 + windowStartMinute + windowDurationHours * 60
+        let totalMinutes = displayedWindowStartHour * 60 + displayedWindowStartMinute + displayedWindowDuration * 60
         return (totalMinutes / 60) % 24
     }
     var windowEndMinute: Int {
-        let totalMinutes = windowStartHour * 60 + windowStartMinute + windowDurationHours * 60
+        let totalMinutes = displayedWindowStartHour * 60 + displayedWindowStartMinute + displayedWindowDuration * 60
         return totalMinutes % 60
     }
-    var windowStartFractional: Double { Double(windowStartHour) + Double(windowStartMinute) / 60.0 }
-    var windowEndFractional: Double   { windowStartFractional + Double(windowDurationHours) }
+    var windowStartFractional: Double { Double(displayedWindowStartHour) + Double(displayedWindowStartMinute) / 60.0 }
+    var windowEndFractional: Double   { windowStartFractional + Double(displayedWindowDuration) }
 
     // MARK: - Today's macro totals (for selectedDate)
     var totalCalories: Double = 0
     var totalProtein:  Double = 0
     var totalCarbs:    Double = 0
     var totalFat:      Double = 0
+
+    // MARK: - Meal log times for today (fractional hours, e.g. 12.5 = 12:30)
+    var mealLogTimes: [Double] = []
 
     // MARK: - Macro goals (persisted)
     var goalCalories: Double = 2000 {
@@ -83,7 +117,7 @@ import SwiftData
     }
     var brainstormState: BrainstormState = .idle
 
-    // MARK: - Streak (consecutive days with any food logged, ending yesterday)
+    // MARK: - Streak (consecutive days where ALL macro goals were met, ending yesterday)
     var macroStreak: Int = 0
 
     private let modelContext: ModelContext
@@ -117,6 +151,8 @@ import SwiftData
             self.goalFat = UserDefaults.standard.double(forKey: "goalFat")
         }
 
+        // Ensure today always has a snapshot so past days see their actual recorded window
+        snapshotTodayWindow()
         // Data is loaded lazily from the view's onAppear to avoid blocking init
     }
 
@@ -133,6 +169,17 @@ import SwiftData
         totalProtein  = entries.reduce(0) { $0 + $1.protein }
         totalCarbs    = entries.reduce(0) { $0 + $1.carbs }
         totalFat      = entries.reduce(0) { $0 + $1.fat }
+
+        let cal = Calendar.current
+        mealLogTimes = entries.map { entry in
+            let h = Double(cal.component(.hour,   from: entry.loggedAt))
+            let m = Double(cal.component(.minute, from: entry.loggedAt))
+            return h + m / 60.0
+        }
+
+        // Record whether all macro goals were met today so streak can track it
+        let allMet = totalCalories > 0 && macroGoalsMet.allSatisfy { $0 }
+        userSettings.setGoalsMet(allMet, for: selectedDate)
 
         loadStreak()
     }
@@ -176,43 +223,36 @@ import SwiftData
     // MARK: - Private
 
     private func loadStreak() {
-        // Single bulk query for the last 366 days, then group by day in memory.
-        // This replaces the previous N+1 pattern (up to 365 individual fetches).
-        let calendar = Calendar.current
-        guard let cutoff = calendar.date(byAdding: .day, value: -366, to: Date()) else { return }
-
-        let pred = #Predicate<FoodEntry> { $0.loggedAt >= cutoff }
-        guard let entries = try? modelContext.fetch(FetchDescriptor<FoodEntry>(predicate: pred)) else { return }
-
-        // Build a set of "yyyy-MM-dd" strings for days that have entries
-        let fmt = DateFormatter()
-        fmt.dateFormat = "yyyy-MM-dd"
-        fmt.calendar   = calendar
-        let daysWithFood = Set(entries.map { fmt.string(from: $0.loggedAt) })
+        let calendar    = Calendar.current
+        let goalsMetDates = userSettings.goalsMetDates
+        let fmt         = DateFormatter()
+        fmt.dateFormat  = "yyyy-MM-dd"
+        fmt.calendar    = calendar
 
         var streak = 0
         var offset = 1
         while offset <= 365 {
             guard let day = calendar.date(byAdding: .day, value: -offset, to: Date()) else { break }
-            if daysWithFood.contains(fmt.string(from: day)) { streak += 1 } else { break }
+            if goalsMetDates.contains(fmt.string(from: day)) { streak += 1 } else { break }
             offset += 1
         }
-        macroStreak = streak
+        macroStreak              = streak
+        userSettings.macroStreak = streak
         checkStreakMilestones(streak)
     }
 
     private func checkStreakMilestones(_ streak: Int) {
         let milestones: [(days: Int, pts: Int, reason: String, msg: String)] = [
-            (3,   50,  "🔥 3-Day Streak",   "3 days straight no cap. sigma behavior activated."),
-            (7,   150, "🔥 7-Day Streak",   "one full week of the grind fr fr. you're different."),
-            (14,  300, "🔥 14-Day Streak",  "two weeks locked in. roman emperor energy."),
-            (30,  500, "🔥 30-Day Streak",  "30 days. built different is an understatement bro."),
-            (60,  750, "🔥 60-Day Streak",  "60 days of pure discipline. aura is immaculate."),
-            (100, 1000,"🔥 100-Day Streak", "100 DAYS. final form unlocked. you simply cannot be mogged."),
+            (3,    50,  "🔥 3-Day Streak",   "3 days of hitting every goal. that's discipline."),
+            (7,   150,  "🔥 7-Day Streak",   "one full week of locking in on every macro. keep it going."),
+            (14,  300,  "🔥 14-Day Streak",  "two straight weeks of meeting every goal. real consistency."),
+            (30,  500,  "🔥 30-Day Streak",  "30 days of actually hitting your numbers. that's rare."),
+            (60,  750,  "🔥 60-Day Streak",  "60 days of goal-hitting discipline. the results are showing."),
+            (100, 1000, "🔥 100-Day Streak", "100 days of meeting every macro goal. you're built different."),
         ]
         for m in milestones where streak >= m.days && !userSettings.achievedMilestones.contains(m.days) {
             userSettings.markMilestoneAchieved(m.days)
-            userSettings.awardAura(points: m.pts, reason: m.reason, message: m.msg)
+            userSettings.awardAura(points: m.pts)
         }
     }
 }

@@ -6,22 +6,97 @@
 import SwiftUI
 import SwiftData
 
+// MARK: - Daily rotating prompts (cycles by day of year)
+
+private let dailyStatusPrompts: [String] = [
+    "Day \(Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 1) of the grind 🔥",
+    "Locked in today 💪",
+    "Another day, another W",
+    "Sigma mode: activated",
+    "Built different today fr",
+    "No days off. no cap.",
+    "Mewing + macros = results",
+    "Aura check ✅",
+    "Roman emperor energy today",
+    "The grind never stops",
+    "Discipline > motivation",
+    "Glow up in progress 📈",
+    "Looksmaxxing arc continues",
+    "Ate clean. hit the gym. mogged everyone.",
+    "Peak performance unlocked",
+    "Today's gains hit different",
+    "Full send. no excuses.",
+    "Protein up. fat down. aura skyrocketing.",
+    "Another day I didn't skip",
+    "Consistency is the cheat code",
+    "The body keeps the score fr",
+    "W day incoming",
+    "Main character energy 🎬",
+    "Physique arc loading…",
+    "Macros tracked. mission complete.",
+    "Gains secured 🔒",
+    "Nourished and built 💀",
+    "Today I chose discipline",
+    "One step closer to final form",
+    "No cap this hit different",
+]
+
+private let dailyBodyPrompts: [String] = [
+    "Drop your check-in. macros, lifts, mindset — all of it.",
+    "How'd you eat today? what got tracked, what got crushed?",
+    "Tell the feed what you moved and what you fueled with.",
+    "Give the boys a progress report. numbers, vibes, all that.",
+    "What did you lock in on today? log it for the record.",
+    "Protein count? gym session? mental fortitude? spill.",
+    "Rate your day 1–10 and explain yourself to the feed.",
+    "What meal hit the hardest today? what lift went crazy?",
+    "Mogs achieved today? enemies of the grind defeated?",
+    "Break it down — what did you eat, lift, and conquer?",
+    "Post your W. the feed needs to know.",
+    "Flex on the feed or confess to the feed. either way log it.",
+    "What habits got locked in today? tell the timeline.",
+    "Daily debrief: what went right, what do you build on?",
+    "How's the looksmaxxing arc progressing? update us.",
+    "Physique update. no filter. just results.",
+    "What's the body saying today? fuel report incoming.",
+    "Gym PR? meal PR? life PR? drop it here.",
+    "Accountability check. what did you actually do today?",
+    "Caloric performance + gym performance = today's aura.",
+    "Show the feed your discipline today. they need to see it.",
+    "Real ones log every day. what's today's entry?",
+    "The algorithm rewards consistency. so does your physique.",
+    "Paint the picture. what did the grind look like today?",
+    "Progress > perfection. what moved the needle today?",
+    "Sigma daily log: submit your report to the feed.",
+    "This is your sign to log it before you forget.",
+    "What got tracked today goes on the record forever.",
+    "Grind recap: go.",
+    "One day you'll look back at this. make it count.",
+]
+
+private func dailyIndex(for prompts: [String]) -> Int {
+    let day = Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 1
+    return (day - 1) % prompts.count
+}
+
 struct NewPostView: View {
     let userSettings: UserSettings
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss)      private var dismiss
 
-    @State private var titleText  = ""
-    @State private var bodyText   = ""
-    @State private var image: UIImage?
-    @State private var showCamera = false
+    @State private var titleText = ""
+    @State private var bodyText  = ""
+    @State private var photos: [PostPhoto] = []
     @FocusState private var focus: Field?
 
     private enum Field: Hashable { case title, body }
 
     private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
     private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+
+    private var statusPrompt: String { dailyStatusPrompts[dailyIndex(for: dailyStatusPrompts)] }
+    private var bodyPrompt:   String { dailyBodyPrompts[dailyIndex(for: dailyBodyPrompts)] }
 
     var body: some View {
         NavigationStack {
@@ -30,8 +105,8 @@ struct NewPostView: View {
 
                 ScrollView {
                     VStack(spacing: 14) {
-                        // Title
-                        TextField("Title", text: $titleText)
+                        // Status
+                        TextField(statusPrompt, text: $titleText)
                             .font(.title3.bold())
                             .foregroundStyle(.white)
                             .padding(14)
@@ -44,7 +119,7 @@ struct NewPostView: View {
                         // Body
                         ZStack(alignment: .topLeading) {
                             if bodyText.isEmpty {
-                                Text("What's on your mind?")
+                                Text(bodyPrompt)
                                     .foregroundStyle(.white.opacity(0.30))
                                     .padding(18)
                             }
@@ -58,39 +133,8 @@ struct NewPostView: View {
                         .background(cardBg)
                         .cornerRadius(12)
 
-                        // Photo
-                        if let img = image {
-                            ZStack(alignment: .topTrailing) {
-                                Image(uiImage: img)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 200)
-                                    .clipped()
-                                    .cornerRadius(12)
-                                Button { image = nil } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.title2)
-                                        .foregroundStyle(.white)
-                                        .shadow(radius: 4)
-                                        .padding(10)
-                                }
-                            }
-                        } else {
-                            Button { showCamera = true } label: {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "camera.fill")
-                                    Text("Add Photo")
-                                        .font(.subheadline.weight(.semibold))
-                                }
-                                .foregroundStyle(.white.opacity(0.65))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(cardBg)
-                                .cornerRadius(12)
-                            }
-                            .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
-                        }
+                        // Photos
+                        MultiPhotoSection(photos: $photos)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 10)
@@ -109,14 +153,7 @@ struct NewPostView: View {
                         .fontWeight(.bold)
                         .disabled(titleText.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") { focus = nil }.fontWeight(.semibold)
-                }
             }
-        }
-        .sheet(isPresented: $showCamera) {
-            ImagePickerView(sourceType: .camera, selectedImage: $image)
         }
     }
 
@@ -136,11 +173,18 @@ struct NewPostView: View {
             totalCarbs:    0, goalCarbs:    0,
             totalFat:      0, goalFat:      0
         )
-        post.isCustomPost    = true
-        post.authorAuraLevel = userSettings.auraLevel
-        post.authorAuraPoints = userSettings.auraPoints
+        post.isCustomPost           = true
+        post.authorAuraLevel        = userSettings.auraLevel
+        post.authorAuraPoints       = userSettings.auraPoints
+        post.authorLocation         = userSettings.location
+        post.authorStreak           = userSettings.macroStreak
+        post.isAuthorPrivate        = userSettings.isPrivateAccount
         post.authorProfileImageData = userSettings.profileImageData
-        post.imageData       = image?.jpegData(compressionQuality: 0.8)
+        let datas = photos.map { $0.image.jpegData(compressionQuality: 0.8) }
+        post.imageData  = datas.count > 0 ? datas[0] : nil
+        post.imageData2 = datas.count > 1 ? datas[1] : nil
+        post.imageData3 = datas.count > 2 ? datas[2] : nil
+        post.imageData4 = datas.count > 3 ? datas[3] : nil
         modelContext.insert(post)
         dismiss()
     }
