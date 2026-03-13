@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import CoreLocation
 
 // MARK: - Daily rotating prompts (cycles by day of year)
 
@@ -81,6 +82,7 @@ private func dailyIndex(for prompts: [String]) -> Int {
 
 struct NewPostView: View {
     let userSettings: UserSettings
+    @Environment(LocationManager.self) private var locationManager
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss)      private var dismiss
@@ -176,7 +178,9 @@ struct NewPostView: View {
         post.isCustomPost           = true
         post.authorAuraLevel        = userSettings.auraLevel
         post.authorAuraPoints       = userSettings.auraPoints
-        post.authorLocation         = userSettings.location
+        post.authorLocation         = locationManager.city.isEmpty ? userSettings.location : locationManager.city
+        post.authorLatitude         = locationManager.coordinate?.latitude  ?? 0
+        post.authorLongitude        = locationManager.coordinate?.longitude ?? 0
         post.authorStreak           = userSettings.macroStreak
         post.isAuthorPrivate        = userSettings.isPrivateAccount
         post.authorProfileImageData = userSettings.profileImageData

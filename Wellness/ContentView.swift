@@ -10,8 +10,9 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @State private var selectedDate  = Calendar.current.startOfDay(for: Date())
-    @State private var userSettings  = UserSettings()
+    @State private var selectedDate     = Calendar.current.startOfDay(for: Date())
+    @State private var userSettings     = UserSettings()
+    @State private var locationManager  = LocationManager()
 
     @Query(sort: \SocialPost.postedAt, order: .reverse) private var allPosts: [SocialPost]
 
@@ -45,6 +46,7 @@ struct ContentView: View {
             .tabItem { Label("Mog Board", systemImage: "crown.fill") }
             .tag(3)
         }
+        .environment(locationManager)
         .onAppear { checkLeaderboardAward() }
         .gesture(
             DragGesture(minimumDistance: 50)

@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import CoreLocation
 
 // MARK: - Data model
 
@@ -15,6 +16,8 @@ struct LeaderboardEntry: Identifiable, Hashable {
     let profileImageData: Data?
     let auraLevel:       Int
     let location:        String
+    let latitude:        Double
+    let longitude:       Double
     let score:           Int      // primary sort key
     let reps:            Int      // engagement board only
     let comments:        Int      // engagement board only
@@ -35,6 +38,7 @@ struct LeaderboardEntry: Identifiable, Hashable {
 struct LeaderboardView: View {
     let userSettings: UserSettings
 
+    @Environment(LocationManager.self) private var locationManager
     @Query(sort: \SocialPost.postedAt, order: .reverse) private var allPosts: [SocialPost]
     @Query private var friends: [Friend]
 
@@ -90,7 +94,13 @@ struct LeaderboardView: View {
         .preferredColorScheme(.dark)
         .navigationTitle("Mog Board")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { userSettings.checkWeeklyReset() }
+        .onAppear {
+            userSettings.checkWeeklyReset()
+            if selectedScope == .local { locationManager.requestLocationIfNeeded() }
+        }
+        .onChange(of: selectedScope) { _, scope in
+            if scope == .local { locationManager.requestLocationIfNeeded() }
+        }
         .navigationDestination(item: $selectedProfile) { entry in
             if entry.isCurrentUser {
                 ProfileView(
@@ -134,16 +144,28 @@ struct LeaderboardView: View {
                     .foregroundStyle(.white.opacity(0.30))
             }
             if entries.isEmpty {
-                let noLocation = selectedScope == .local && userSettings.location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                Text(selectedScope == .team
-                     ? "Add friends to see The Team leaderboard"
-                     : noLocation
-                     ? "Go to Settings → Account to set your city"
-                     : "No local data yet")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.28))
-                    .padding(.vertical, 16)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                let noLocation = selectedScope == .local && locationManager.coordinate == nil
+                VStack(spacing: 10) {
+                    Text(selectedScope == .team
+                         ? "Add friends to see The Team leaderboard"
+                         : noLocation
+                         ? "Enable location access to see the local board"
+                         : "No local data yet")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.28))
+                        .multilineTextAlignment(.center)
+                    if noLocation {
+                        Button("Open Settings") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(purpl)
+                    }
+                }
+                .padding(.vertical, 16)
+                .frame(maxWidth: .infinity, alignment: .center)
             } else {
                 VStack(spacing: 8) {
                     ForEach(Array(entries.enumerated()), id: \.element.id) { rank, entry in
@@ -182,16 +204,16 @@ struct LeaderboardView: View {
     }
 
     private var allStreakEntries: [LeaderboardEntry] {
-        // Current user uses real-time streak from UserSettings.
-        // Other users: use the highest authorStreak ever seen in their posts.
-        var data: [String: (name: String, username: String, imgData: Data?, level: Int, streak: Int, location: String)] = [:]
+        var data: [String: (name: String, username: String, imgData: Data?, level: Int, streak: Int, location: String, lat: Double, lon: Double)] = [:]
 
         let selfName = userSettings.name.isEmpty ? userSettings.username : userSettings.name
         data[userSettings.userID] = (selfName, userSettings.username,
                                      userSettings.profileImageData,
                                      userSettings.auraLevel,
                                      userSettings.macroStreak,
-                                     userSettings.location)
+                                     userSettings.location,
+                                     locationManager.coordinate?.latitude  ?? 0,
+                                     locationManager.coordinate?.longitude ?? 0)
 
         for post in allPosts where post.authorID != userSettings.userID {
             let name = post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName
@@ -201,14 +223,18 @@ struct LeaderboardView: View {
                                            post.authorProfileImageData,
                                            post.authorAuraLevel,
                                            post.authorStreak,
-                                           post.authorLocation)
+                                           post.authorLocation,
+                                           post.authorLatitude,
+                                           post.authorLongitude)
                 }
             } else {
                 data[post.authorID] = (name, post.authorUsername,
                                        post.authorProfileImageData,
                                        post.authorAuraLevel,
                                        post.authorStreak,
-                                       post.authorLocation)
+                                       post.authorLocation,
+                                       post.authorLatitude,
+                                       post.authorLongitude)
             }
         }
 
@@ -218,32 +244,22 @@ struct LeaderboardView: View {
                 : (allPosts.first { $0.authorID == id }?.isAuthorPrivate ?? false)
             return LeaderboardEntry(id: id, displayName: d.name, username: d.username,
                              profileImageData: d.imgData, auraLevel: d.level,
-                             location: d.location, score: d.streak, reps: 0, comments: 0,
+                             location: d.location, latitude: d.lat, longitude: d.lon,
+                             score: d.streak, reps: 0, comments: 0,
                              isCurrentUser: id == userSettings.userID, isPrivate: isPrivate)
         }
         .sorted { $0.score != $1.score ? $0.score > $1.score : $0.displayName < $1.displayName }
     }
 
-    private var localWeeklyAuraEntries: [LeaderboardEntry] {
-        let myLocation = userSettings.location.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !myLocation.isEmpty else { return allWeeklyAuraEntries }
-        return allWeeklyAuraEntries.filter {
-            $0.isCurrentUser ||
-            $0.location.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == myLocation
-        }
-    }
-
     private var allWeeklyAuraEntries: [LeaderboardEntry] {
         var scores: [String: (name: String, username: String, imgData: Data?, level: Int, score: Int)] = [:]
 
-        // Current user — use real tracked weekly aura
         let selfName = userSettings.name.isEmpty ? userSettings.username : userSettings.name
         scores[userSettings.userID] = (selfName, userSettings.username,
                                        userSettings.profileImageData,
                                        userSettings.auraLevel,
                                        userSettings.weeklyAuraPoints)
 
-        // Other post authors this week — approximate 50 pts per celebration post, 10 per other
         let weekStart = UserSettings.currentWeekStart()
         for post in allPosts where post.postedAt >= weekStart && post.authorID != userSettings.userID {
             let pts = post.goalCalories > 0 ? 50 : 10
@@ -261,11 +277,16 @@ struct LeaderboardView: View {
         return scores.map { id, d in
             let loc = id == userSettings.userID ? userSettings.location
                 : (allPosts.first { $0.authorID == id }?.authorLocation ?? "")
+            let lat = id == userSettings.userID ? (locationManager.coordinate?.latitude  ?? 0)
+                : (allPosts.first { $0.authorID == id }?.authorLatitude  ?? 0)
+            let lon = id == userSettings.userID ? (locationManager.coordinate?.longitude ?? 0)
+                : (allPosts.first { $0.authorID == id }?.authorLongitude ?? 0)
             let isPrivate = id == userSettings.userID
                 ? userSettings.isPrivateAccount
                 : (allPosts.first { $0.authorID == id }?.isAuthorPrivate ?? false)
             return LeaderboardEntry(id: id, displayName: d.name, username: d.username,
                              profileImageData: d.imgData, auraLevel: d.level, location: loc,
+                             latitude: lat, longitude: lon,
                              score: d.score, reps: 0, comments: 0,
                              isCurrentUser: id == userSettings.userID, isPrivate: isPrivate)
         }
@@ -275,7 +296,6 @@ struct LeaderboardView: View {
     private var allEngagementEntries: [LeaderboardEntry] {
         var data: [String: (name: String, username: String, imgData: Data?, level: Int, reps: Int, comments: Int)] = [:]
 
-        // Seed current user so they appear even with zero
         let selfName = userSettings.name.isEmpty ? userSettings.username : userSettings.name
         data[userSettings.userID] = (selfName, userSettings.username,
                                      userSettings.profileImageData,
@@ -298,16 +318,23 @@ struct LeaderboardView: View {
         return data.map { id, d in
             let loc = id == userSettings.userID ? userSettings.location
                 : (allPosts.first { $0.authorID == id }?.authorLocation ?? "")
+            let lat = id == userSettings.userID ? (locationManager.coordinate?.latitude  ?? 0)
+                : (allPosts.first { $0.authorID == id }?.authorLatitude  ?? 0)
+            let lon = id == userSettings.userID ? (locationManager.coordinate?.longitude ?? 0)
+                : (allPosts.first { $0.authorID == id }?.authorLongitude ?? 0)
             let isPrivate = id == userSettings.userID
                 ? userSettings.isPrivateAccount
                 : (allPosts.first { $0.authorID == id }?.isAuthorPrivate ?? false)
             return LeaderboardEntry(id: id, displayName: d.name, username: d.username,
                              profileImageData: d.imgData, auraLevel: d.level, location: loc,
+                             latitude: lat, longitude: lon,
                              score: d.reps + d.comments, reps: d.reps, comments: d.comments,
                              isCurrentUser: id == userSettings.userID, isPrivate: isPrivate)
         }
         .sorted { $0.score != $1.score ? $0.score > $1.score : $0.displayName < $1.displayName }
     }
+
+    private static let localRadiusMeters: Double = 160_934 // 100 miles
 
     private func scopeFiltered(_ entries: [LeaderboardEntry]) -> [LeaderboardEntry] {
         let friendUsernames = Set(friends.map { $0.username.lowercased() })
@@ -315,28 +342,19 @@ struct LeaderboardView: View {
         case .team:
             return entries.filter { $0.isCurrentUser || friendUsernames.contains($0.username.lowercased()) }
         case .local:
-            let myCity = cityKey(userSettings.location)
-            guard !myCity.isEmpty else { return [] }
-            return entries.filter {
-                $0.isCurrentUser ||
-                (cityKey($0.location) == myCity && visibleEntry($0, friendUsernames: friendUsernames))
+            guard let coord = locationManager.coordinate else { return [] }
+            let userLoc = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
+            let nearby = entries.filter {
+                if $0.isCurrentUser { return true }
+                if $0.isPrivate { return false }
+                guard $0.latitude != 0 || $0.longitude != 0 else { return false }
+                return CLLocation(latitude: $0.latitude, longitude: $0.longitude)
+                    .distance(from: userLoc) <= Self.localRadiusMeters
             }
+            return Array(nearby.prefix(500))
         case .arena:
-            return entries.filter { $0.isCurrentUser || visibleEntry($0, friendUsernames: friendUsernames) }
+            return entries.filter { $0.isCurrentUser || !$0.isPrivate }
         }
-    }
-
-    /// Private accounts are hidden from arena/local unless they are already a friend.
-    private func visibleEntry(_ entry: LeaderboardEntry, friendUsernames: Set<String>) -> Bool {
-        guard entry.isPrivate else { return true }
-        return friendUsernames.contains(entry.username.lowercased())
-    }
-
-    /// Normalizes a location string to just the city name for loose matching.
-    private func cityKey(_ location: String) -> String {
-        (location.split(separator: ",", maxSplits: 1).first ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
     }
 
     // MARK: - Helpers

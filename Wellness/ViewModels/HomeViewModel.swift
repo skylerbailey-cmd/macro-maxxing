@@ -34,17 +34,33 @@ import SwiftData
 
     // MARK: - Per-date window snapshots
     // Displayed properties return the snapshot for past dates, live values for today.
-    var displayedWindowStartHour:   Int { windowForDisplayedDate["startHour"]    ?? windowStartHour }
-    var displayedWindowStartMinute: Int { windowForDisplayedDate["startMinute"]  ?? windowStartMinute }
+    // Past dates with no snapshot return 0/0/0 — callers should check hasWindowForSelectedDate first.
+    var displayedWindowStartHour:   Int { windowForDisplayedDate["startHour"]     ?? windowStartHour }
+    var displayedWindowStartMinute: Int { windowForDisplayedDate["startMinute"]   ?? windowStartMinute }
     var displayedWindowDuration:    Int { windowForDisplayedDate["durationHours"] ?? windowDurationHours }
 
     private var windowForDisplayedDate: [String: Int] {
         if isSelectedDateToday { return ["startHour": windowStartHour, "startMinute": windowStartMinute, "durationHours": windowDurationHours] }
-        return dailyWindowSnapshots[dateKey(selectedDate)] ?? [:]
+        // Use snapshot if one exists; fall back to current setting for dates before snapshots existed
+        return dailyWindowSnapshots[dateKey(selectedDate)] ?? ["startHour": windowStartHour, "startMinute": windowStartMinute, "durationHours": windowDurationHours]
     }
 
     private var dailyWindowSnapshots: [String: [String: Int]] {
-        get { (UserDefaults.standard.dictionary(forKey: "dailyWindowSnapshots") as? [String: [String: Int]]) ?? [:] }
+        get {
+            guard let outer = UserDefaults.standard.dictionary(forKey: "dailyWindowSnapshots") else { return [:] }
+            // UserDefaults stores Int as NSNumber, so cast each value explicitly
+            var result: [String: [String: Int]] = [:]
+            for (dateKey, value) in outer {
+                guard let inner = value as? [String: Any] else { continue }
+                var innerInts: [String: Int] = [:]
+                for (k, v) in inner {
+                    if let i = v as? Int { innerInts[k] = i }
+                    else if let n = v as? NSNumber { innerInts[k] = n.intValue }
+                }
+                result[dateKey] = innerInts
+            }
+            return result
+        }
         set { UserDefaults.standard.set(newValue, forKey: "dailyWindowSnapshots") }
     }
 
@@ -150,6 +166,18 @@ import SwiftData
         if UserDefaults.standard.object(forKey: "goalFat") != nil {
             self.goalFat = UserDefaults.standard.double(forKey: "goalFat")
         }
+
+        // Backfill any past days that have no snapshot with the current (pre-edit) window
+        // values, so that editing today can't retroactively change how past days look.
+        let currentSnapshot = ["startHour": windowStartHour, "startMinute": windowStartMinute, "durationHours": windowDurationHours]
+        var snapshots = dailyWindowSnapshots
+        let today = Date()
+        for offset in 1...90 {
+            guard let day = Calendar.current.date(byAdding: .day, value: -offset, to: today) else { break }
+            let key = dateKey(day)
+            if snapshots[key] == nil { snapshots[key] = currentSnapshot }
+        }
+        dailyWindowSnapshots = snapshots
 
         // Ensure today always has a snapshot so past days see their actual recorded window
         snapshotTodayWindow()

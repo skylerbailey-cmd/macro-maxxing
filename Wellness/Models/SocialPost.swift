@@ -35,6 +35,8 @@ import SwiftData
     var authorAuraLevel:   Int    = 0
     var authorAuraPoints:  Int    = 0
     var authorLocation:    String = ""
+    var authorLatitude:    Double = 0.0
+    var authorLongitude:   Double = 0.0
     var authorStreak:      Int    = 0
     var isAuthorPrivate:   Bool   = false
     @Attribute(.externalStorage) var authorProfileImageData: Data?

@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import CoreLocation
 
 // MARK: - GymMeme (internal so ShareCardView can also use it)
 
@@ -256,6 +257,7 @@ private struct CelebrationPostEditorSheet: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss)      private var dismiss
+    @Environment(LocationManager.self) private var locationManager
 
     @State private var titleText:   String      = ""
     @State private var messageText: String      = ""
@@ -385,7 +387,9 @@ private struct CelebrationPostEditorSheet: View {
         )
         post.authorAuraLevel        = userSettings.auraLevel
         post.authorAuraPoints       = userSettings.auraPoints
-        post.authorLocation         = userSettings.location
+        post.authorLocation         = locationManager.city.isEmpty ? userSettings.location : locationManager.city
+        post.authorLatitude         = locationManager.coordinate?.latitude  ?? 0
+        post.authorLongitude        = locationManager.coordinate?.longitude ?? 0
         post.authorStreak           = userSettings.macroStreak
         post.isAuthorPrivate        = userSettings.isPrivateAccount
         post.authorProfileImageData = userSettings.profileImageData

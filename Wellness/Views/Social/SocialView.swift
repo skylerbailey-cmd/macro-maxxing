@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import CoreLocation
 import Contacts
 import ContactsUI
 
@@ -21,6 +22,7 @@ private extension Color {
 struct SocialView: View {
     let userSettings: UserSettings
 
+    @Environment(LocationManager.self) private var locationManager
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SocialPost.postedAt, order: .reverse) private var posts: [SocialPost]
     @Query(sort: \Friend.addedAt,      order: .reverse) private var friends: [Friend]
@@ -45,25 +47,38 @@ struct SocialView: View {
         }
     }
 
-    private var localPosts: [SocialPost] {
-        let myCity = cityKey(userSettings.location)
-        guard !myCity.isEmpty else { return [] }
-        return posts.filter { post in
-            post.authorID == userSettings.userID ||
-            (cityKey(post.authorLocation) == myCity && isVisible(post))
-        }
-    }
+    private static let localRadiusMeters: Double = 160_934 // 100 miles
 
-    /// Normalizes a location string to just the city name for loose matching.
-    /// "Austin, Texas, United States" and "Austin, TX" both become "austin".
-    private func cityKey(_ location: String) -> String {
-        (location.split(separator: ",", maxSplits: 1).first ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
+    private var localPosts: [SocialPost] {
+        guard let coord = locationManager.coordinate else { return [] }
+        let userLoc = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
+
+        // Filter to visible posts within 100 miles (own posts always included)
+        let nearby = posts.filter { post in
+            guard isVisible(post) else { return false }
+            if post.authorID == userSettings.userID { return true }
+            guard post.authorLatitude != 0 || post.authorLongitude != 0 else { return false }
+            return CLLocation(latitude: post.authorLatitude, longitude: post.authorLongitude)
+                .distance(from: userLoc) <= Self.localRadiusMeters
+        }
+
+        // Deduplicate authors, keep 500 closest, then return all their posts
+        var authorDist: [String: Double] = [:]
+        for post in nearby {
+            guard authorDist[post.authorID] == nil else { continue }
+            if post.authorID == userSettings.userID {
+                authorDist[post.authorID] = 0
+            } else {
+                authorDist[post.authorID] = CLLocation(latitude: post.authorLatitude, longitude: post.authorLongitude)
+                    .distance(from: userLoc)
+            }
+        }
+        let top500 = Set(authorDist.sorted { $0.value < $1.value }.prefix(500).map(\.key))
+        return nearby.filter { top500.contains($0.authorID) }
     }
 
     private var arenaPosts: [SocialPost] {
-        posts.filter { $0.authorID == userSettings.userID || isVisible($0) }
+        posts.filter { isVisible($0) }
     }
 
     private var displayedPosts: [SocialPost] {
@@ -74,12 +89,11 @@ struct SocialView: View {
         }
     }
 
-    /// Returns true if a post from another user should be visible to the current user.
-    /// Private-account posts are hidden unless the author is already on the current user's team.
+    /// Returns true if a post should be visible in local/arena feeds.
+    /// Private accounts (including your own) are hidden from local and arena entirely.
     private func isVisible(_ post: SocialPost) -> Bool {
-        guard post.isAuthorPrivate else { return true }
-        let friendUsernames = Set(friends.map { $0.username.lowercased() })
-        return friendUsernames.contains(post.authorUsername.lowercased())
+        if post.authorID == userSettings.userID { return !userSettings.isPrivateAccount }
+        return !post.isAuthorPrivate
     }
 
     /// Ranks posts by a blend of engagement and recency.
@@ -112,6 +126,12 @@ struct SocialView: View {
                 .pickerStyle(.segmented)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
+                .onAppear {
+                    if selectedFeed == .local { locationManager.requestLocationIfNeeded() }
+                }
+                .onChange(of: selectedFeed) { _, feed in
+                    if feed == .local { locationManager.requestLocationIfNeeded() }
+                }
 
                 if displayedPosts.isEmpty {
                     emptyFeed
@@ -177,15 +197,15 @@ struct SocialView: View {
 
     @ViewBuilder
     private var emptyFeed: some View {
-        let noLocation = selectedFeed == .local && userSettings.location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let noLocation = selectedFeed == .local && locationManager.coordinate == nil
         VStack(spacing: 14) {
             Image(systemName: selectedFeed == .team
                   ? "person.2" : selectedFeed == .local
-                  ? "mappin.circle" : "figure.strengthtraining.traditional")
+                  ? "location.circle" : "figure.strengthtraining.traditional")
                 .font(.system(size: 48))
                 .foregroundStyle(.white.opacity(0.15))
             Text(selectedFeed == .team ? "The Team is quiet"
-                 : noLocation ? "No location set"
+                 : noLocation ? "Location access needed"
                  : selectedFeed == .local ? "No local posts yet"
                  : "The Arena is empty")
                 .font(.headline)
@@ -193,13 +213,23 @@ struct SocialView: View {
             Text(selectedFeed == .team
                  ? "Add friends from the + button above, then their posts will appear here."
                  : noLocation
-                 ? "Go to Settings → Account to set your city. Local shows posts from people in your area."
+                 ? "Enable location access in Settings so we can show posts from people near you."
                  : selectedFeed == .local ? "No one in your area has posted yet. Be the first."
                  : "Hit all your macro goals and post from the celebration screen, or tap ✏️ to drop a post.")
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.22))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
+            if noLocation {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
+                .padding(.top, 4)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

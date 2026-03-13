@@ -255,6 +255,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Wellness uses your camera to photograph food for macro estimation.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Wellness uses your location to show posts and leaderboards from people near you.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Wellness uses your microphone so you can describe what you ate and have the AI estimate your macros from your voice and photo.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Wellness uses speech recognition to transcribe your food description so the AI can estimate your macros from both your voice and photo.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -291,6 +292,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Wellness uses your camera to photograph food for macro estimation.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Wellness uses your location to show posts and leaderboards from people near you.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Wellness uses your microphone so you can describe what you ate and have the AI estimate your macros from your voice and photo.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Wellness uses speech recognition to transcribe your food description so the AI can estimate your macros from both your voice and photo.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
