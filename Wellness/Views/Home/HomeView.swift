@@ -177,37 +177,12 @@ struct HomeView: View {
     }
     
     private var greetingHeader: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(greetingText)
-                    .font(.title2.bold())
-                    .foregroundStyle(.white)
-
-                if viewModel.userSettings.auraPoints > 0 {
-                    auraBadge
-                }
-            }
-            Spacer()
-            Button { showingProfile = true } label: {
-                if let data = viewModel.userSettings.profileImageData,
-                   let uiImg = UIImage(data: data) {
-                    Image(uiImage: uiImg)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 44, height: 44)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color(red: 0.65, green: 0.45, blue: 1.00), lineWidth: 2))
-                } else {
-                    ZStack {
-                        Circle()
-                            .fill(Color(red: 0.13, green: 0.10, blue: 0.22))
-                            .frame(width: 44, height: 44)
-                            .overlay(Circle().stroke(Color(red: 0.65, green: 0.45, blue: 1.00), lineWidth: 2))
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 20))
-                            .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
-                    }
-                }
+        VStack(alignment: .leading, spacing: 6) {
+            Text(greetingText)
+                .font(.title2.bold())
+                .foregroundStyle(.white)
+            if viewModel.userSettings.auraPoints > 0 {
+                auraBadge
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -216,7 +191,7 @@ struct HomeView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .navigationBarTrailing) {
-            HStack(spacing: 12) {
+            HStack(spacing: 14) {
                 Button { showingShare = true } label: {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 15, weight: .semibold))
@@ -226,6 +201,35 @@ struct HomeView: View {
                     Image(systemName: "gearshape.fill")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
+                }
+                Button { showingProfile = true } label: {
+                    profileAvatarIcon
+                }
+            }
+        }
+    }
+
+    private var profileAvatarIcon: some View {
+        let purpl = Color(red: 0.65, green: 0.45, blue: 1.00)
+        let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+        return Group {
+            if let data = viewModel.userSettings.profileImageData,
+               let uiImg = UIImage(data: data) {
+                Image(uiImage: uiImg)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 30, height: 30)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(purpl, lineWidth: 1.5))
+            } else {
+                ZStack {
+                    Circle()
+                        .fill(cardBg)
+                        .frame(width: 30, height: 30)
+                        .overlay(Circle().stroke(purpl, lineWidth: 1.5))
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(purpl)
                 }
             }
         }
@@ -306,10 +310,11 @@ struct HomeView: View {
     }
     
     private func handleMacrosMetChange(_ oldVal: Int, _ newVal: Int) {
-        // Only celebrate when all 4 are newly hit on today's date
-        if newVal == 4 && oldVal < 4 && Calendar.current.isDateInToday(viewModel.selectedDate) {
-            showCelebration = true
-        }
+        guard newVal == 4 && oldVal < 4 && Calendar.current.isDateInToday(viewModel.selectedDate) else { return }
+        // Show at most once per calendar day
+        guard !Calendar.current.isDateInToday(viewModel.userSettings.lastCelebrationDate) else { return }
+        viewModel.userSettings.lastCelebrationDate = Date()
+        showCelebration = true
     }
 
     private var goalsTitle: String {
@@ -405,7 +410,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Eating Window")
+                    Text("Intermittent Fasting Window")
                         .font(.headline).foregroundStyle(.white)
                     Text(
                         "\(timeString(hour: viewModel.displayedWindowStartHour, minute: viewModel.displayedWindowStartMinute))" +
@@ -839,7 +844,7 @@ private struct WindowPickerSheet: View {
                 }
             }
             .onAppear { durationText = "\(windowDurationHours)" }
-            .navigationTitle("Eating Window")
+            .navigationTitle("Intermittent Fasting Window")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

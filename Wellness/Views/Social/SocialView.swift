@@ -29,14 +29,16 @@ struct SocialView: View {
 
     @State private var showingAddFriend = false
     @State private var showingNewPost   = false
-    @State private var selectedPost: SocialPost?
-    @State private var selectedFeed: Feed = .team
-    @State private var viewingProfile: SocialPost? = nil
+    @State private var selectedPost:    SocialPost?
+    @State private var selectedFeed:    Feed        = .team
+    @State private var viewingProfile:  SocialPost? = nil
+    @State private var showingSettings  = false
+    @State private var showingOwnProfile = false
 
     enum Feed: String, CaseIterable {
-        case team  = "The Team"
+        case team  = "Team"
         case local = "Local"
-        case arena = "The Arena"
+        case arena = "Arena"
     }
 
     private var teamPosts: [SocialPost] {
@@ -133,6 +135,9 @@ struct SocialView: View {
                     if feed == .local { locationManager.requestLocationIfNeeded() }
                 }
 
+                if userSettings.isPrivateAccount && (selectedFeed == .local || selectedFeed == .arena) {
+                    privateAccountBanner
+                }
                 if displayedPosts.isEmpty {
                     emptyFeed
                 } else {
@@ -144,10 +149,26 @@ struct SocialView: View {
                                 .contentShape(Rectangle())
                                 .onTapGesture { selectedPost = post }
                                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
-                                        modelContext.delete(post)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
+                                    if post.authorID == userSettings.userID {
+                                        Button(role: .destructive) {
+                                            let fbID   = post.firebasePostID
+                                            let userID = post.authorID
+                                            modelContext.delete(post)
+                                            if !fbID.isEmpty {
+                                                Task {
+                                                    do {
+                                                        try await PostService.shared.deletePostByID(
+                                                            postID: fbID,
+                                                            userID: userID
+                                                        )
+                                                    } catch {
+                                                        print("[SocialView] Firebase delete failed: \(error.localizedDescription)")
+                                                    }
+                                                }
+                                            }
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
                                     }
                                 }
                                 .listRowBackground(Color.clear)
@@ -161,22 +182,49 @@ struct SocialView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .navigationTitle("Aura Stream")
-        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                Button { showingNewPost = true } label: {
-                    Image(systemName: "square.and.pencil").foregroundStyle(Color.purpleHi)
+                Button { showingAddFriend = true } label: {
+                    Image(systemName: "person.badge.plus").foregroundStyle(Color.purpleHi)
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button { showingAddFriend = true } label: {
-                    Image(systemName: "person.badge.plus").foregroundStyle(Color.purpleHi)
+                HStack(spacing: 14) {
+                    Button { showingNewPost = true } label: {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
+                    }
+                    Button { showingSettings = true } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Color.purpleHi)
+                    }
+                    Button { showingOwnProfile = true } label: {
+                        socialProfileAvatarIcon
+                    }
                 }
             }
         }
         .sheet(isPresented: $showingNewPost) { NewPostView(userSettings: userSettings) }
         .sheet(isPresented: $showingAddFriend) { AddFriendView(userSettings: userSettings, friends: friends) }
+        .sheet(isPresented: $showingSettings) {
+            NavigationStack { SettingsView(userSettings: userSettings) }
+        }
+        .sheet(isPresented: $showingOwnProfile) {
+            NavigationStack {
+                ProfileView(
+                    profileUserID:      userSettings.userID,
+                    profileUsername:    userSettings.username,
+                    profileDisplayName: userSettings.name,
+                    profileAuraLevel:   userSettings.auraLevel,
+                    profileAuraPoints:  userSettings.auraPoints,
+                    profileImageData:   userSettings.profileImageData,
+                    profileLocation:    userSettings.location,
+                    ownUserSettings:    userSettings
+                )
+            }
+        }
         .sheet(item: $selectedPost) { post in PostDetailView(post: post, userSettings: userSettings) }
         .sheet(item: $viewingProfile) { post in
             NavigationStack {
@@ -195,6 +243,54 @@ struct SocialView: View {
         }
     }
 
+    private var socialProfileAvatarIcon: some View {
+        Group {
+            if let data = userSettings.profileImageData, let uiImg = UIImage(data: data) {
+                Image(uiImage: uiImg)
+                    .resizable().scaledToFill()
+                    .frame(width: 30, height: 30)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.purpleHi, lineWidth: 1.5))
+            } else {
+                ZStack {
+                    Circle().fill(Color.cardBg).frame(width: 30, height: 30)
+                        .overlay(Circle().stroke(Color.purpleHi, lineWidth: 1.5))
+                    Image(systemName: "person.fill").font(.system(size: 14)).foregroundStyle(Color.purpleHi)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var privateAccountBanner: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 22))
+                .foregroundStyle(Color.purpleHi)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("You're hidden from this feed")
+                    .font(.system(size: 14, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("Private accounts don't appear in Local or Arena. Switch to a public profile in Settings to join the conversation.")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.50))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color.cardBg)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(Color.purpleHi.opacity(0.30), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal, 16)
+        .padding(.top, 4)
+    }
+
     @ViewBuilder
     private var emptyFeed: some View {
         let noLocation = selectedFeed == .local && locationManager.coordinate == nil
@@ -204,10 +300,10 @@ struct SocialView: View {
                   ? "location.circle" : "figure.strengthtraining.traditional")
                 .font(.system(size: 48))
                 .foregroundStyle(.white.opacity(0.15))
-            Text(selectedFeed == .team ? "The Team is quiet"
+            Text(selectedFeed == .team ? "Team is quiet"
                  : noLocation ? "Location access needed"
                  : selectedFeed == .local ? "No local posts yet"
-                 : "The Arena is empty")
+                 : "Arena is empty")
                 .font(.headline)
                 .foregroundStyle(.white.opacity(0.35))
             Text(selectedFeed == .team

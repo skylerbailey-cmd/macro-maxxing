@@ -63,8 +63,7 @@ import MapKit
             
             do {
                 let mapItems = try await request.mapItems
-                self.city = mapItems.first?.placemark.locality ?? ""
-            } catch {
+                self.city = mapItems.first?.placemark.locality ?? ""            } catch {
                 // Silently handle geocoding errors
                 self.city = ""
             }

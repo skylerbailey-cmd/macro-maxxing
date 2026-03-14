@@ -117,6 +117,10 @@ struct AuraGain: Identifiable, Equatable {
     private var goalsMetDatesRaw: String = "" {
         didSet { UserDefaults.standard.set(goalsMetDatesRaw, forKey: "goalsMetDates") }
     }
+    /// The calendar date on which the macro-goals celebration was last shown (once per day).
+    var lastCelebrationDate: Date = .distantPast {
+        didSet { UserDefaults.standard.set(lastCelebrationDate.timeIntervalSince1970, forKey: "lastCelebrationDate") }
+    }
 
     var goalsMetDates: Set<String> {
         Set(goalsMetDatesRaw.split(separator: ",").map { String($0) })
@@ -293,6 +297,8 @@ struct AuraGain: Identifiable, Equatable {
             ? Date(timeIntervalSince1970: storedLBDate) : .distantPast
         self.achievedMilestonesRaw = UserDefaults.standard.string(forKey: "achievedMilestones") ?? ""
         self.goalsMetDatesRaw      = UserDefaults.standard.string(forKey: "goalsMetDates") ?? ""
+        let storedCelebDate = UserDefaults.standard.double(forKey: "lastCelebrationDate")
+        self.lastCelebrationDate = storedCelebDate > 0 ? Date(timeIntervalSince1970: storedCelebDate) : .distantPast
         self.macroStreak           = UserDefaults.standard.integer(forKey: "macroStreak")
         self.brainstormUsageCount  = UserDefaults.standard.integer(forKey: "brainstormUsageCount")
         let storedBSDate = UserDefaults.standard.double(forKey: "brainstormUsageDate")

@@ -27,9 +27,9 @@ struct ProfileView: View {
     @Query(sort: \SocialPost.repsCount, order: .reverse) private var allPosts: [SocialPost]
     @Query private var friends: [Friend]
 
-    @State private var showingCamera = false
-    @State private var newProfileImage: UIImage?
-    @State private var selectedPost: SocialPost?
+    @State private var showingCamera       = false
+    @State private var newProfileImage:    UIImage?
+    @State private var selectedPost:       SocialPost?
     @State private var showingProfileShare = false
 
     private var isOwnProfile: Bool { ownUserSettings != nil }
@@ -49,7 +49,6 @@ struct ProfileView: View {
         profileDisplayName.isEmpty ? profileUsername : profileDisplayName
     }
 
-    /// Resolved UIImage for the avatar — uses UIImage directly to avoid JPEG round-trips.
     private var resolvedAvatarImage: UIImage? {
         if isOwnProfile {
             if let img = newProfileImage { return img }
@@ -60,35 +59,39 @@ struct ProfileView: View {
         return nil
     }
 
-    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+    // MARK: - Palette
+    private let pageBg  = Color(red: 0.04, green: 0.03, blue: 0.08)
+    private let cardBg  = Color(red: 0.10, green: 0.08, blue: 0.18)
+    private let purpl   = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let gold    = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private let neon    = Color(red: 0.35, green: 1.00, blue: 0.60)
 
     var body: some View {
         ZStack {
             pageBg.ignoresSafeArea()
-            ScrollView {
-                VStack(spacing: 20) {
-                    profileHeader
-                    postsSection
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    headerBanner
+                    statsBar
+                    rankBadge
+                    socialLinks
+                    if !isOwnProfile { addToTeamButton }
+                    postsGrid
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
                 .padding(.bottom, 40)
             }
         }
         .preferredColorScheme(.dark)
-        .navigationTitle(isOwnProfile ? "My Profile" : displayName)
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if isOwnProfile {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showingProfileShare = true
-                    } label: {
+                    Button { showingProfileShare = true } label: {
                         Image(systemName: "square.and.arrow.up")
                             .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(gold)
                     }
                 }
             }
@@ -113,143 +116,317 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - Header
+    // MARK: - Header Banner
 
-    private var profileHeader: some View {
-        VStack(spacing: 16) {
-            // Avatar
-            Button {
-                if isOwnProfile { showingCamera = true }
-            } label: {
-                avatarView(size: 90)
-                    .overlay(alignment: .bottomTrailing) {
+    private var headerBanner: some View {
+        ZStack(alignment: .bottom) {
+            // Gradient banner background
+            LinearGradient(
+                colors: [
+                    Color(red: 0.18, green: 0.08, blue: 0.40),
+                    Color(red: 0.08, green: 0.04, blue: 0.20),
+                    pageBg
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 200)
+
+            // Decorative glow orb
+            Ellipse()
+                .fill(purpl.opacity(0.18))
+                .frame(width: 260, height: 120)
+                .blur(radius: 40)
+                .offset(y: -30)
+
+            VStack(spacing: 12) {
+                // Avatar
+                Button {
+                    if isOwnProfile { showingCamera = true }
+                } label: {
+                    ZStack {
+                        // Outer glow ring (gradient)
+                        Circle()
+                            .fill(
+                                AngularGradient(
+                                    colors: [gold, purpl, neon, gold],
+                                    center: .center
+                                )
+                            )
+                            .frame(width: 114, height: 114)
+                            .blur(radius: 3)
+
+                        avatarView(size: 104)
+
                         if isOwnProfile {
-                            Image(systemName: "camera.fill")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .padding(6)
-                                .background(purpl)
-                                .clipShape(Circle())
-                                .offset(x: 4, y: 4)
+                            VStack {
+                                Spacer()
+                                HStack {
+                                    Spacer()
+                                    Image(systemName: "camera.fill")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundStyle(.black)
+                                        .padding(6)
+                                        .background(gold)
+                                        .clipShape(Circle())
+                                        .offset(x: 4, y: 4)
+                                }
+                            }
+                            .frame(width: 104, height: 104)
                         }
                     }
-            }
-            .buttonStyle(.plain)
-            .disabled(!isOwnProfile)
-
-            // Name + handle + location
-            VStack(spacing: 4) {
-                Text(displayName)
-                    .font(.title2.bold())
-                    .foregroundStyle(.white)
-                if !profileUsername.isEmpty {
-                    Text("@\(profileUsername)")
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.45))
                 }
-                if !profileLocation.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: "mappin.circle.fill")
-                            .font(.system(size: 11))
-                            .foregroundStyle(purpl.opacity(0.60))
-                        Text(profileLocation)
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.50))
+                .buttonStyle(.plain)
+                .disabled(!isOwnProfile)
+                .padding(.top, 24)
+
+                // Name + handle
+                VStack(spacing: 3) {
+                    Text(displayName)
+                        .font(.system(size: 24, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+
+                    HStack(spacing: 6) {
+                        if !profileUsername.isEmpty {
+                            Text("@\(profileUsername)")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.45))
+                        }
+                        if !profileLocation.isEmpty {
+                            Text("·")
+                                .foregroundStyle(.white.opacity(0.25))
+                            Image(systemName: "mappin.fill")
+                                .font(.system(size: 9))
+                                .foregroundStyle(purpl.opacity(0.70))
+                            Text(profileLocation)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white.opacity(0.40))
+                        }
                     }
                 }
+                .padding(.bottom, 16)
             }
+        }
+    }
 
-            // Aura badge
-            if profileAuraPoints > 0 {
-                HStack(spacing: 8) {
-                    Text("⭐")
-                    VStack(spacing: 2) {
-                        Text("Lv \(profileAuraLevel)\(auraTitleString.isEmpty ? "" : " · \(auraTitleString)")")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(gold)
-                        Text("\(profileAuraPoints) aura pts")
-                            .font(.caption2)
-                            .foregroundStyle(.white.opacity(0.40))
+    // MARK: - Stats Bar
+
+    private var statsBar: some View {
+        HStack(spacing: 0) {
+            statCell(value: "\(userPosts.count)", label: "POSTS")
+            statDivider
+            statCell(value: auraPointsFormatted, label: "AURA")
+            statDivider
+            statCell(value: "Lv \(profileAuraLevel)", label: "LEVEL")
+        }
+        .padding(.vertical, 14)
+        .background(cardBg)
+        .overlay(
+            RoundedRectangle(cornerRadius: 0)
+                .stroke(purpl.opacity(0.15), lineWidth: 1)
+        )
+    }
+
+    private func statCell(value: String, label: String) -> some View {
+        VStack(spacing: 3) {
+            Text(value)
+                .font(.system(size: 20, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+            Text(label)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.white.opacity(0.35))
+                .tracking(1.5)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var statDivider: some View {
+        Rectangle()
+            .fill(purpl.opacity(0.20))
+            .frame(width: 1, height: 32)
+    }
+
+    private var auraPointsFormatted: String {
+        if profileAuraPoints >= 1000 {
+            return String(format: "%.1fk", Double(profileAuraPoints) / 1000)
+        }
+        return "\(profileAuraPoints)"
+    }
+
+    // MARK: - Rank Badge
+
+    @ViewBuilder
+    private var rankBadge: some View {
+        if !auraTitleString.isEmpty {
+            HStack(spacing: 8) {
+                Text(rankEmoji)
+                    .font(.system(size: 16))
+                Text(auraTitleString.uppercased())
+                    .font(.system(size: 11, weight: .black))
+                    .tracking(2)
+                    .foregroundStyle(gold)
+                Text(rankEmoji)
+                    .font(.system(size: 16))
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+            .background(
+                LinearGradient(
+                    colors: [gold.opacity(0.12), purpl.opacity(0.12)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .overlay(
+                Capsule()
+                    .stroke(
+                        LinearGradient(colors: [gold.opacity(0.50), purpl.opacity(0.50)],
+                                       startPoint: .leading, endPoint: .trailing),
+                        lineWidth: 1
+                    )
+            )
+            .clipShape(Capsule())
+            .padding(.top, 14)
+        }
+    }
+
+    // MARK: - Social Links
+
+    @ViewBuilder
+    private var socialLinks: some View {
+        if isOwnProfile {
+            let ig = ownUserSettings?.instagramHandle.trimmingCharacters(in: .whitespaces) ?? ""
+            let tt = ownUserSettings?.tiktokHandle.trimmingCharacters(in: .whitespaces) ?? ""
+            if !ig.isEmpty || !tt.isEmpty {
+                HStack(spacing: 10) {
+                    if !ig.isEmpty {
+                        Button {
+                            let appURL = URL(string: "instagram://user?username=\(ig)")!
+                            let webURL = URL(string: "https://instagram.com/\(ig)")!
+                            if UIApplication.shared.canOpenURL(appURL) {
+                                UIApplication.shared.open(appURL)
+                            } else {
+                                UIApplication.shared.open(webURL)
+                            }
+                        } label: {
+                            socialBadge(
+                                icon: "camera.fill", label: "@\(ig)",
+                                gradient: [Color(red: 1.0, green: 0.55, blue: 0.0),
+                                           Color(red: 0.95, green: 0.2, blue: 0.55),
+                                           Color(red: 0.55, green: 0.15, blue: 0.9)]
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    if !tt.isEmpty {
+                        Button {
+                            let appURL = URL(string: "tiktok://user?username=\(tt)")!
+                            let webURL = URL(string: "https://www.tiktok.com/@\(tt)")!
+                            if UIApplication.shared.canOpenURL(appURL) {
+                                UIApplication.shared.open(appURL)
+                            } else {
+                                UIApplication.shared.open(webURL)
+                            }
+                        } label: {
+                            socialBadge(
+                                icon: "music.note", label: "@\(tt)",
+                                gradient: [Color(red: 0.1, green: 0.1, blue: 0.1),
+                                           Color(red: 0.28, green: 0.28, blue: 0.28)]
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.top, 12)
+            }
+        }
+    }
+
+    // MARK: - Add to Team
+
+    private var addToTeamButton: some View {
+        Button { addFriend() } label: {
+            HStack(spacing: 8) {
+                Image(systemName: isAlreadyFriend ? "checkmark.seal.fill" : "person.badge.plus")
+                    .font(.system(size: 14, weight: .bold))
+                Text(isAlreadyFriend ? "On Your Team" : "Add to Team")
+                    .font(.system(size: 15, weight: .black))
+            }
+            .foregroundStyle(isAlreadyFriend ? neon : .black)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                Group {
+                    if isAlreadyFriend {
+                        AnyView(neon.opacity(0.15))
+                    } else {
+                        AnyView(
+                            LinearGradient(
+                                colors: [gold, Color(red: 1.0, green: 0.60, blue: 0.10)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                    }
+                }
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(isAlreadyFriend ? neon.opacity(0.40) : Color.clear, lineWidth: 1)
+            )
+            .cornerRadius(14)
+        }
+        .disabled(isAlreadyFriend)
+        .padding(.horizontal, 16)
+        .padding(.top, 14)
+    }
+
+    // MARK: - Posts Grid
+
+    private var postsGrid: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("POSTS")
+                    .font(.system(size: 11, weight: .black))
+                    .tracking(2)
+                    .foregroundStyle(.white.opacity(0.35))
+                Spacer()
+                Text("\(userPosts.count)")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(purpl.opacity(0.60))
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 20)
+
+            if userPosts.isEmpty {
+                VStack(spacing: 8) {
+                    Text("💀")
+                        .font(.system(size: 36))
+                    Text("No posts yet.")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.25))
+                    Text("Post your first W to the feed.")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.15))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+            } else {
+                LazyVGrid(
+                    columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
+                    spacing: 8
+                ) {
+                    ForEach(userPosts) { post in
+                        ProfilePostCard(post: post)
+                            .onTapGesture { selectedPost = post }
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(cardBg)
-                .cornerRadius(12)
-            }
-
-            // Social links (own profile only, shown when set)
-            if isOwnProfile {
-                let ig = ownUserSettings?.instagramHandle.trimmingCharacters(in: .whitespaces) ?? ""
-                let tt = ownUserSettings?.tiktokHandle.trimmingCharacters(in: .whitespaces) ?? ""
-                if !ig.isEmpty || !tt.isEmpty {
-                    HStack(spacing: 12) {
-                        if !ig.isEmpty {
-                            Button {
-                                let appURL  = URL(string: "instagram://user?username=\(ig)")!
-                                let webURL  = URL(string: "https://instagram.com/\(ig)")!
-                                if UIApplication.shared.canOpenURL(appURL) {
-                                    UIApplication.shared.open(appURL)
-                                } else {
-                                    UIApplication.shared.open(webURL)
-                                }
-                            } label: {
-                                socialBadge(
-                                    icon: "camera.fill",
-                                    label: "@\(ig)",
-                                    gradient: [Color(red: 1.0, green: 0.55, blue: 0.0),
-                                               Color(red: 0.95, green: 0.2, blue: 0.55),
-                                               Color(red: 0.55, green: 0.15, blue: 0.9)]
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        if !tt.isEmpty {
-                            Button {
-                                let appURL  = URL(string: "tiktok://user?username=\(tt)")!
-                                let webURL  = URL(string: "https://www.tiktok.com/@\(tt)")!
-                                if UIApplication.shared.canOpenURL(appURL) {
-                                    UIApplication.shared.open(appURL)
-                                } else {
-                                    UIApplication.shared.open(webURL)
-                                }
-                            } label: {
-                                socialBadge(
-                                    icon: "music.note",
-                                    label: "@\(tt)",
-                                    gradient: [Color(red: 0.1, green: 0.1, blue: 0.1),
-                                               Color(red: 0.25, green: 0.25, blue: 0.25)]
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-            }
-
-            // Add to Team (only on others' profiles)
-            if !isOwnProfile {
-                Button {
-                    addFriend()
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: isAlreadyFriend ? "checkmark.circle.fill" : "person.badge.plus")
-                        Text(isAlreadyFriend ? "On Your Team" : "Add to Team")
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(isAlreadyFriend ? Color.green.opacity(0.30) : purpl.opacity(0.80))
-                    .cornerRadius(14)
-                }
-                .disabled(isAlreadyFriend)
             }
         }
-        .padding(18)
-        .background(cardBg)
-        .cornerRadius(18)
     }
+
+    // MARK: - Helpers
 
     private var auraTitleString: String {
         switch profileAuraLevel {
@@ -264,50 +441,17 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - Posts
-
-    private var postsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Posts")
-                .font(.headline)
-                .foregroundStyle(.white)
-
-            if userPosts.isEmpty {
-                Text("No posts yet.")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.30))
-                    .padding(.vertical, 20)
-                    .frame(maxWidth: .infinity)
-            } else {
-                ForEach(userPosts) { post in
-                    ProfilePostRow(post: post, userID: profileUserID)
-                        .onTapGesture { selectedPost = post }
-                }
-            }
+    private var rankEmoji: String {
+        switch profileAuraLevel {
+        case 0:       return ""
+        case 1...9:   return "🔥"
+        case 10...24: return "⚡️"
+        case 25...39: return "💪"
+        case 40...59: return "👑"
+        case 60...79: return "🐐"
+        default:      return "🗿"
         }
     }
-
-    // MARK: - Social badge helper
-
-    @ViewBuilder
-    private func socialBadge(icon: String, label: String, gradient: [Color]) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 11, weight: .semibold))
-            Text(label)
-                .font(.system(size: 12, weight: .semibold))
-                .lineLimit(1)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        .background(
-            LinearGradient(colors: gradient, startPoint: .leading, endPoint: .trailing)
-        )
-        .cornerRadius(20)
-    }
-
-    // MARK: - Avatar helper
 
     @ViewBuilder
     func avatarView(size: CGFloat) -> some View {
@@ -319,14 +463,36 @@ struct ProfileView: View {
                 .clipShape(Circle())
         } else {
             Circle()
-                .fill(purpl.opacity(0.25))
+                .fill(
+                    LinearGradient(
+                        colors: [purpl.opacity(0.40), Color(red: 0.30, green: 0.10, blue: 0.60)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
                 .frame(width: size, height: size)
                 .overlay {
                     Text(String(displayName.prefix(1)).uppercased())
-                        .font(.system(size: size * 0.40, weight: .bold, design: .rounded))
-                        .foregroundStyle(purpl)
+                        .font(.system(size: size * 0.40, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
                 }
         }
+    }
+
+    @ViewBuilder
+    private func socialBadge(icon: String, label: String, gradient: [Color]) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+            Text(label)
+                .font(.system(size: 12, weight: .semibold))
+                .lineLimit(1)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(LinearGradient(colors: gradient, startPoint: .leading, endPoint: .trailing))
+        .cornerRadius(20)
     }
 
     // MARK: - Actions
@@ -347,50 +513,69 @@ struct ProfileView: View {
     }
 }
 
-// MARK: - Compact post row for profile
+// MARK: - Post card for profile grid
 
-private struct ProfilePostRow: View {
-    @Bindable var post: SocialPost
-    let userID: String
+private struct ProfilePostCard: View {
+    let post: SocialPost
 
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+    private let cardBg = Color(red: 0.10, green: 0.08, blue: 0.18)
+    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Post images (up to 4)
-            if !post.allImageDatas.isEmpty {
-                PostImagesView(imageDatas: post.allImageDatas)
+        VStack(alignment: .leading, spacing: 0) {
+            // Thumbnail
+            if let data = post.imageData, let img = UIImage(data: data) {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 130)
+                    .clipped()
+            } else {
+                // No-photo placeholder with gradient
+                ZStack {
+                    LinearGradient(
+                        colors: [Color(red: 0.18, green: 0.08, blue: 0.35),
+                                 Color(red: 0.08, green: 0.05, blue: 0.18)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .frame(height: 90)
+
+                    Text(post.memeEmoji.isEmpty ? "🔥" : post.memeEmoji)
+                        .font(.system(size: 30))
+                }
             }
 
-            HStack {
-                if post.isCustomPost {
-                    Text(post.memeHeadline)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                } else {
-                    Text(post.memeEmoji + "  " + post.memeHeadline.replacingOccurrences(of: "\n", with: " "))
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                }
-                Spacer()
-                HStack(spacing: 4) {
-                    Text("💪").font(.system(size: 13))
-                    Text("\(post.repsCount)").font(.caption.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.60))
-                }
-            }
-            if !post.memeSub.isEmpty {
-                Text(post.memeSub)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.45))
+            // Text content
+            VStack(alignment: .leading, spacing: 4) {
+                Text(post.memeHeadline)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white)
                     .lineLimit(2)
+
+                HStack(spacing: 4) {
+                    Text("💪")
+                        .font(.system(size: 10))
+                    Text("\(post.repsCount)")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.50))
+                    Spacer()
+                    Text(post.postedAt, style: .date)
+                        .font(.system(size: 9))
+                        .foregroundStyle(.white.opacity(0.25))
+                }
             }
-            Text(post.postedAt, style: .date)
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(0.25))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
         }
-        .padding(12)
         .background(cardBg)
         .cornerRadius(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(purpl.opacity(0.12), lineWidth: 1)
+        )
+        .clipped()
     }
 }

@@ -38,17 +38,29 @@ struct LeaderboardEntry: Identifiable, Hashable {
 struct LeaderboardView: View {
     let userSettings: UserSettings
 
+    @Environment(\.modelContext) private var modelContext
     @Environment(LocationManager.self) private var locationManager
     @Query(sort: \SocialPost.postedAt, order: .reverse) private var allPosts: [SocialPost]
     @Query private var friends: [Friend]
 
-    @State private var selectedScope:   Scope = .team
-    @State private var selectedProfile: LeaderboardEntry? = nil
+    @State private var selectedScope:    Scope            = .team
+    @State private var selectedProfile:  LeaderboardEntry? = nil
+    @State private var showingSettings   = false
+    @State private var showingProfile    = false
+    @State private var showPostPicker    = false
+    @State private var previewBoard:     ShareableBoard?  = nil
 
     enum Scope: String, CaseIterable {
-        case team  = "The Team"
+        case team  = "Team"
         case local = "Local"
-        case arena = "The Arena"
+        case arena = "Arena"
+    }
+
+    struct ShareableBoard: Identifiable {
+        let id = UUID()
+        let title: String
+        let scoreLabel: String
+        let entries: [LeaderboardEntry]
     }
 
     private let pageBg  = Color(red: 0.07, green: 0.05, blue: 0.12)
@@ -63,6 +75,9 @@ struct LeaderboardView: View {
                 scopePicker
                 ScrollView {
                     VStack(spacing: 24) {
+                        if userSettings.isPrivateAccount && (selectedScope == .local || selectedScope == .arena) {
+                            privateAccountBanner
+                        }
                         boardSection(
                             title: "Weekly Aura",
                             icon: "bolt.fill",
@@ -92,14 +107,72 @@ struct LeaderboardView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .navigationTitle("Mog Board")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 14) {
+                    Button { showPostPicker = true } label: {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(gold)
+                    }
+                    Button { showingSettings = true } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(purpl)
+                    }
+                    Button { showingProfile = true } label: {
+                        leaderboardProfileAvatarIcon
+                    }
+                }
+            }
+        }
+        .confirmationDialog("Post a Board", isPresented: $showPostPicker, titleVisibility: .visible) {
+            Button("Weekly Aura") {
+                previewBoard = ShareableBoard(title: "Weekly Aura", scoreLabel: "pts",
+                                             entries: weeklyAuraDisplayed)
+            }
+            Button("Engagement") {
+                previewBoard = ShareableBoard(title: "Engagement", scoreLabel: "score",
+                                             entries: engagementDisplayed)
+            }
+            Button("Streak") {
+                previewBoard = ShareableBoard(title: "Streak", scoreLabel: "days",
+                                             entries: streakDisplayed)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Choose which board to post to the feed")
+        }
+        .sheet(item: $previewBoard) { board in
+            BoardPreviewSheet(
+                board:  board,
+                scope:  selectedScope.rawValue,
+                onPost: { postBoardToFeed(board: board) }
+            )
+        }
         .onAppear {
             userSettings.checkWeeklyReset()
             if selectedScope == .local { locationManager.requestLocationIfNeeded() }
         }
         .onChange(of: selectedScope) { _, scope in
             if scope == .local { locationManager.requestLocationIfNeeded() }
+        }
+        .sheet(isPresented: $showingSettings) {
+            NavigationStack { SettingsView(userSettings: userSettings) }
+        }
+        .sheet(isPresented: $showingProfile) {
+            NavigationStack {
+                ProfileView(
+                    profileUserID:      userSettings.userID,
+                    profileUsername:    userSettings.username,
+                    profileDisplayName: userSettings.name,
+                    profileAuraLevel:   userSettings.auraLevel,
+                    profileAuraPoints:  userSettings.auraPoints,
+                    profileImageData:   userSettings.profileImageData,
+                    profileLocation:    userSettings.location,
+                    ownUserSettings:    userSettings
+                )
+            }
         }
         .navigationDestination(item: $selectedProfile) { entry in
             if entry.isCurrentUser {
@@ -127,9 +200,116 @@ struct LeaderboardView: View {
         }
     }
 
+    private var leaderboardProfileAvatarIcon: some View {
+        Group {
+            if let data = userSettings.profileImageData, let uiImg = UIImage(data: data) {
+                Image(uiImage: uiImg)
+                    .resizable().scaledToFill()
+                    .frame(width: 30, height: 30)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(purpl, lineWidth: 1.5))
+            } else {
+                ZStack {
+                    Circle().fill(cardBg).frame(width: 30, height: 30)
+                        .overlay(Circle().stroke(purpl, lineWidth: 1.5))
+                    Image(systemName: "person.fill").font(.system(size: 14)).foregroundStyle(purpl)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func postBoardToFeed(board: ShareableBoard) {
+        // Render the board card to a UIImage
+        let card = MogBoardShareCard(
+            boardTitle:  board.title,
+            scope:       selectedScope.rawValue,
+            scoreLabel:  board.scoreLabel,
+            entries:     board.entries
+        )
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3.0
+        guard let image = renderer.uiImage else { return }
+
+        let title   = "\(selectedScope.rawValue) · \(board.title) Board 👑"
+        let caption = "Check out who's topping the \(board.title.lowercased()) board! 🏆"
+        let fbPostID = UUID().uuidString
+
+        // Save locally to SwiftData
+        let post = SocialPost(
+            authorID:          userSettings.userID,
+            authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
+            authorDisplayName: userSettings.name,
+            memeEmoji:         "👑",
+            memeHeadline:      title,
+            memeSub:           caption,
+            macroDate:         Date(),
+            totalCalories: 0, goalCalories: 0,
+            totalProtein:  0, goalProtein:  0,
+            totalCarbs:    0, goalCarbs:    0,
+            totalFat:      0, goalFat:      0
+        )
+        post.isCustomPost           = true
+        post.authorAuraLevel        = userSettings.auraLevel
+        post.authorAuraPoints       = userSettings.auraPoints
+        post.authorLocation         = userSettings.location
+        post.authorLatitude         = locationManager.coordinate?.latitude  ?? 0
+        post.authorLongitude        = locationManager.coordinate?.longitude ?? 0
+        post.authorStreak           = userSettings.macroStreak
+        post.isAuthorPrivate        = userSettings.isPrivateAccount
+        post.authorProfileImageData = userSettings.profileImageData
+        post.imageData              = image.jpegData(compressionQuality: 0.85)
+        post.firebasePostID         = fbPostID
+        modelContext.insert(post)
+
+        // Mirror to Firebase
+        let author = PostService.PostAuthor(
+            userID:              userSettings.userID,
+            username:            userSettings.username.isEmpty ? "me" : userSettings.username,
+            whoName:             userSettings.name,
+            userProfilePhotoURL: "",
+            auraLevel:           userSettings.auraLevel,
+            auraPoints:          userSettings.auraPoints,
+            streak:              userSettings.macroStreak,
+            memeType:            "",
+            isPublic:            !userSettings.isPrivateAccount
+        )
+        Task {
+            do {
+                try await PostService.shared.createCustomPost(
+                    photos:  [image],
+                    author:  author,
+                    title:   title,
+                    caption: caption,
+                    postID:  fbPostID
+                )
+            } catch {
+                print("[LeaderboardView] Firebase post failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    @MainActor
+    private func presentShareSheet(board: ShareableBoard) {
+        let card = MogBoardShareCard(
+            boardTitle:  board.title,
+            scope:       selectedScope.rawValue,
+            scoreLabel:  board.scoreLabel,
+            entries:     board.entries
+        )
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3.0
+        guard let image = renderer.uiImage else { return }
+        let av = UIActivityViewController(activityItems: [image], applicationActivities: nil)
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.windows.first?.rootViewController?.present(av, animated: true)
+    }
+
     @ViewBuilder
     private func boardSection(title: String, icon: String, subtitle: String,
                                entries: [LeaderboardEntry], board: Board) -> some View {
+        let scoreLabel = board == .streak ? "days" : board == .engagement ? "score" : "pts"
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
@@ -142,12 +322,23 @@ struct LeaderboardView: View {
                 Text(subtitle)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.white.opacity(0.30))
+                Button {
+                    let sb = ShareableBoard(title: title, scoreLabel: scoreLabel, entries: entries)
+                    presentShareSheet(board: sb)
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(gold.opacity(0.80))
+                        .padding(6)
+                        .background(gold.opacity(0.12))
+                        .clipShape(Circle())
+                }
             }
             if entries.isEmpty {
                 let noLocation = selectedScope == .local && locationManager.coordinate == nil
                 VStack(spacing: 10) {
                     Text(selectedScope == .team
-                         ? "Add friends to see The Team leaderboard"
+                         ? "Add friends to see the Team leaderboard"
                          : noLocation
                          ? "Enable location access to see the local board"
                          : "No local data yet")
@@ -187,6 +378,36 @@ struct LeaderboardView: View {
         .pickerStyle(.segmented)
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+    }
+
+    // MARK: - Private account banner
+
+    private var privateAccountBanner: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 22))
+                .foregroundStyle(purpl)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("You're off the board")
+                    .font(.system(size: 14, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("Private accounts don't appear on Local or Arena boards. Switch to a public profile in Settings to get ranked.")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.50))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(cardBg)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(purpl.opacity(0.30), lineWidth: 1)
+                )
+        )
+
     }
 
     // MARK: - Displayed entries
@@ -345,7 +566,7 @@ struct LeaderboardView: View {
             guard let coord = locationManager.coordinate else { return [] }
             let userLoc = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
             let nearby = entries.filter {
-                if $0.isCurrentUser { return true }
+                if $0.isCurrentUser { return !userSettings.isPrivateAccount }
                 if $0.isPrivate { return false }
                 guard $0.latitude != 0 || $0.longitude != 0 else { return false }
                 return CLLocation(latitude: $0.latitude, longitude: $0.longitude)
@@ -353,7 +574,7 @@ struct LeaderboardView: View {
             }
             return Array(nearby.prefix(500))
         case .arena:
-            return entries.filter { $0.isCurrentUser || !$0.isPrivate }
+            return entries.filter { $0.isCurrentUser ? !userSettings.isPrivateAccount : !$0.isPrivate }
         }
     }
 
@@ -367,6 +588,262 @@ struct LeaderboardView: View {
         let f = DateFormatter()
         f.dateFormat = "MMM d"
         return f.string(from: nextMonday)
+    }
+}
+
+// MARK: - Share card rendered to image
+
+private struct MogBoardShareCard: View {
+    let boardTitle:  String
+    let scope:       String
+    let scoreLabel:  String
+    let entries:     [LeaderboardEntry]
+
+    private let purpl = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let gold  = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private let bg    = Color(red: 0.04, green: 0.03, blue: 0.08)
+    private let card  = Color(red: 0.10, green: 0.08, blue: 0.18)
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(red: 0.12, green: 0.06, blue: 0.25), bg],
+                startPoint: .top, endPoint: .bottom
+            )
+
+            VStack(spacing: 0) {
+                // Header
+                VStack(spacing: 4) {
+                    Text("MACRO MAXXING")
+                        .font(.system(size: 11, weight: .black))
+                        .tracking(3)
+                        .foregroundStyle(purpl.opacity(0.70))
+
+                    Text(boardTitle.uppercased())
+                        .font(.system(size: 28, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+
+                    Text(scope.uppercased())
+                        .font(.system(size: 11, weight: .bold))
+                        .tracking(2)
+                        .foregroundStyle(gold.opacity(0.80))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                        .background(gold.opacity(0.10))
+                        .clipShape(Capsule())
+                }
+                .padding(.top, 32)
+                .padding(.bottom, 20)
+
+                // Entries
+                VStack(spacing: 6) {
+                    ForEach(Array(entries.prefix(10).enumerated()), id: \.offset) { idx, entry in
+                        HStack(spacing: 12) {
+                            // Rank
+                            Text(rankEmoji(idx + 1))
+                                .font(.system(size: 18))
+                                .frame(width: 30)
+
+                            // Avatar placeholder
+                            if let data = entry.profileImageData, let img = UIImage(data: data) {
+                                Image(uiImage: img)
+                                    .resizable().scaledToFill()
+                                    .frame(width: 32, height: 32)
+                                    .clipShape(Circle())
+                                    .overlay(Circle().stroke(purpl.opacity(0.40), lineWidth: 1))
+                            } else {
+                                Circle()
+                                    .fill(purpl.opacity(0.20))
+                                    .frame(width: 32, height: 32)
+                                    .overlay {
+                                        Text(String(entry.displayName.prefix(1)).uppercased())
+                                            .font(.system(size: 13, weight: .bold))
+                                            .foregroundStyle(purpl)
+                                    }
+                            }
+
+                            // Name
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(entry.displayName.isEmpty ? entry.username : entry.displayName)
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(entry.isCurrentUser ? gold : .white)
+                                    .lineLimit(1)
+                                if !entry.username.isEmpty {
+                                    Text("@\(entry.username)")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.white.opacity(0.35))
+                                }
+                            }
+
+                            Spacer()
+
+                            // Score
+                            Text("\(entry.score) \(scoreLabel)")
+                                .font(.system(size: 13, weight: .black, design: .rounded))
+                                .foregroundStyle(entry.isCurrentUser ? gold : purpl)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(entry.isCurrentUser ? gold.opacity(0.08) : card)
+                        )
+                    }
+                }
+                .padding(.horizontal, 16)
+
+                Spacer()
+
+                // Footer
+                Text("macrxmaxxing.app")
+                    .font(.system(size: 10, weight: .medium))
+                    .tracking(1)
+                    .foregroundStyle(.white.opacity(0.20))
+                    .padding(.bottom, 24)
+            }
+        }
+        .frame(width: 390, height: 700)
+        .preferredColorScheme(.dark)
+    }
+
+    private func rankEmoji(_ rank: Int) -> String {
+        switch rank {
+        case 1: return "🥇"
+        case 2: return "🥈"
+        case 3: return "🥉"
+        default: return "\(rank)."
+        }
+    }
+}
+
+// MARK: - Board preview sheet
+
+private struct BoardPreviewSheet: View {
+    let board:  LeaderboardView.ShareableBoard
+    let scope:  String
+    let onPost: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var isPosting = false
+    @State private var didPost   = false
+
+    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
+    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                pageBg.ignoresSafeArea()
+
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Section label
+                        Text("Your post will look like this")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.40))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+
+                        // Scaled-down board card preview
+                        MogBoardShareCard(
+                            boardTitle: board.title,
+                            scope:      scope,
+                            scoreLabel: board.scoreLabel,
+                            entries:    board.entries
+                        )
+                        .scaleEffect(0.75)
+                        .frame(height: 525)   // 700 × 0.75
+                        .cornerRadius(20)
+                        .shadow(color: .black.opacity(0.50), radius: 20)
+
+                        // Post caption preview
+                        VStack(spacing: 6) {
+                            Text("\(scope) · \(board.title) Board 👑")
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(.white)
+                            Text("Posted to your Aura Stream and the global feed")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.40))
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(.horizontal, 32)
+
+                        // Confirm / post button
+                        Button(action: handlePost) {
+                            ZStack {
+                                if didPost {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(.green)
+                                        Text("Posted!")
+                                            .font(.headline.weight(.bold))
+                                            .foregroundStyle(.white)
+                                    }
+                                } else if isPosting {
+                                    HStack(spacing: 10) {
+                                        ProgressView().tint(.white)
+                                        Text("Posting…")
+                                            .font(.headline)
+                                            .foregroundStyle(.white)
+                                    }
+                                } else {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "paperplane.fill")
+                                        Text("Post to Feed")
+                                            .font(.headline.weight(.bold))
+                                    }
+                                    .foregroundStyle(.white)
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                Group {
+                                    if didPost {
+                                        AnyView(Color.green.opacity(0.25))
+                                    } else if isPosting {
+                                        AnyView(purpl.opacity(0.30))
+                                    } else {
+                                        AnyView(LinearGradient(
+                                            colors: [purpl, Color(red: 0.45, green: 0.25, blue: 0.90)],
+                                            startPoint: .leading,
+                                            endPoint:   .trailing
+                                        ))
+                                    }
+                                }
+                            )
+                            .cornerRadius(16)
+                            .animation(.easeInOut(duration: 0.2), value: didPost)
+                            .animation(.easeInOut(duration: 0.2), value: isPosting)
+                        }
+                        .disabled(isPosting || didPost)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 32)
+                    }
+                }
+            }
+            .preferredColorScheme(.dark)
+            .navigationTitle("Post Preview")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .disabled(isPosting)
+                }
+            }
+        }
+    }
+
+    private func handlePost() {
+        guard !isPosting && !didPost else { return }
+        isPosting = true
+        onPost()
+        isPosting = false
+        withAnimation { didPost = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { dismiss() }
     }
 }
 

@@ -17,7 +17,6 @@ struct ContentView: View {
     @Query(sort: \SocialPost.postedAt, order: .reverse) private var allPosts: [SocialPost]
 
     @State private var selectedTab = 0
-    private let tabCount = 4
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -29,7 +28,6 @@ struct ContentView: View {
 
             NavigationStack {
                 FoodLogView(modelContext: modelContext, selectedDate: $selectedDate, userSettings: userSettings)
-                    .navigationTitle("Fuel Log")
             }
             .tabItem { Label("Fuel Log", systemImage: "flame.fill") }
             .tag(1)
@@ -48,19 +46,6 @@ struct ContentView: View {
         }
         .environment(locationManager)
         .onAppear { checkLeaderboardAward() }
-        .gesture(
-            DragGesture(minimumDistance: 50)
-                .onEnded { value in
-                    let horizontal = value.translation.width
-                    let vertical   = abs(value.translation.height)
-                    guard abs(horizontal) > vertical else { return }
-                    if horizontal < 0 {
-                        selectedTab = min(selectedTab + 1, tabCount - 1)
-                    } else {
-                        selectedTab = max(selectedTab - 1, 0)
-                    }
-                }
-        )
     }
 
     // MARK: - Leaderboard award on app open

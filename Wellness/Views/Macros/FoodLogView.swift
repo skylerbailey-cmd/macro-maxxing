@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import CoreLocation
 
 // MARK: - Color palette (matches HomeView)
 
@@ -25,6 +26,8 @@ struct FoodLogView: View {
     @State private var showingAnalysisSheet  = false
     @State private var editingEntry: FoodEntry? = nil
     @State private var showingFuelLogPost    = false
+    @State private var showingSettings       = false
+    @State private var showingProfile        = false
 
     @Environment(\.modelContext) private var modelContext
 
@@ -112,19 +115,43 @@ struct FoodLogView: View {
         }
         .preferredColorScheme(.dark)
         .toolbar {
-            if isToday && !viewModel.todayEntries.isEmpty {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showingFuelLogPost = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "square.and.arrow.up")
-                            Text("Post Fuel Log")
-                                .font(.subheadline.weight(.semibold))
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 14) {
+                    if isToday && !viewModel.todayEntries.isEmpty {
+                        Button {
+                            showingFuelLogPost = true
+                        } label: {
+                            Image(systemName: "square.and.pencil")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
                         }
                     }
-                    .tint(.purpleHi)
+                    Button { showingSettings = true } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Color.purpleHi)
+                    }
+                    Button { showingProfile = true } label: {
+                        profileAvatarIcon
+                    }
                 }
+            }
+        }
+        .sheet(isPresented: $showingSettings) {
+            NavigationStack { SettingsView(userSettings: userSettings) }
+        }
+        .sheet(isPresented: $showingProfile) {
+            NavigationStack {
+                ProfileView(
+                    profileUserID:      userSettings.userID,
+                    profileUsername:    userSettings.username,
+                    profileDisplayName: userSettings.name,
+                    profileAuraLevel:   userSettings.auraLevel,
+                    profileAuraPoints:  userSettings.auraPoints,
+                    profileImageData:   userSettings.profileImageData,
+                    profileLocation:    userSettings.location,
+                    ownUserSettings:    userSettings
+                )
             }
         }
         .onAppear {
@@ -167,6 +194,26 @@ struct FoodLogView: View {
                 userSettings: userSettings,
                 modelContext: modelContext
             )
+        }
+    }
+
+    private var profileAvatarIcon: some View {
+        let purpl  = Color.purpleHi
+        let cardBg = Color.cardBg
+        return Group {
+            if let data = userSettings.profileImageData, let uiImg = UIImage(data: data) {
+                Image(uiImage: uiImg)
+                    .resizable().scaledToFill()
+                    .frame(width: 30, height: 30)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(purpl, lineWidth: 1.5))
+            } else {
+                ZStack {
+                    Circle().fill(cardBg).frame(width: 30, height: 30)
+                        .overlay(Circle().stroke(purpl, lineWidth: 1.5))
+                    Image(systemName: "person.fill").font(.system(size: 14)).foregroundStyle(purpl)
+                }
+            }
         }
     }
 
@@ -795,6 +842,7 @@ private struct FuelLogPostSheet: View {
     let modelContext: ModelContext
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(LocationManager.self) private var locationManager
     @State private var messageText = ""
     @FocusState private var focused: Bool
 
@@ -931,6 +979,7 @@ private struct FuelLogPostSheet: View {
 
     private func submit() {
         let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fbPostID = UUID().uuidString   // shared ID for SwiftData ↔ Firestore link
 
         let post = SocialPost(
             authorID:          userSettings.userID,
@@ -948,10 +997,13 @@ private struct FuelLogPostSheet: View {
         post.isCustomPost           = true
         post.authorAuraLevel        = userSettings.auraLevel
         post.authorAuraPoints       = userSettings.auraPoints
-        post.authorLocation         = userSettings.location
+        post.authorLocation         = locationManager.city.isEmpty ? userSettings.location : locationManager.city
+        post.authorLatitude         = locationManager.coordinate?.latitude  ?? 0
+        post.authorLongitude        = locationManager.coordinate?.longitude ?? 0
         post.authorStreak           = userSettings.macroStreak
         post.isAuthorPrivate        = userSettings.isPrivateAccount
         post.authorProfileImageData = userSettings.profileImageData
+        post.firebasePostID         = fbPostID
         modelContext.insert(post)
 
         // Attach a FuelLogEntry for each food item so the feed renders the visual table
@@ -968,6 +1020,43 @@ private struct FuelLogPostSheet: View {
             )
             fle.post = post
             modelContext.insert(fle)
+        }
+
+        // Mirror to Firebase in the background
+        let locationName = locationManager.city.isEmpty ? userSettings.location : locationManager.city
+        let latitude     = locationManager.coordinate?.latitude  ?? 0
+        let longitude    = locationManager.coordinate?.longitude ?? 0
+        let caption      = message
+        let author: PostService.PostAuthor = PostService.PostAuthor(
+            userID:              userSettings.userID,
+            username:            userSettings.username.isEmpty ? "me" : userSettings.username,
+            whoName:             userSettings.name,
+            userProfilePhotoURL: "",
+            auraLevel:           userSettings.auraLevel,
+            auraPoints:          userSettings.auraPoints,
+            streak:              userSettings.macroStreak,
+            memeType:            "",
+            isPublic:            !userSettings.isPrivateAccount
+        )
+        // Collect food-item photos (up to 4) to upload alongside the post
+        let entryPhotos: [UIImage] = entries
+            .compactMap { $0.imageData.flatMap { UIImage(data: $0) } }
+
+        Task {
+            do {
+                try await PostService.shared.createCustomPost(
+                    photos:       entryPhotos,
+                    author:       author,
+                    title:        "Today's Fuel Log 🔥",
+                    caption:      caption,
+                    locationName: locationName,
+                    latitude:     latitude,
+                    longitude:    longitude,
+                    postID:       fbPostID
+                )
+            } catch {
+                print("Failed to mirror fuel log post to Firebase: \(error)")
+            }
         }
 
         dismiss()

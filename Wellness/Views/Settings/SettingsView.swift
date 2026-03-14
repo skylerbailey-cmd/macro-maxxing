@@ -249,13 +249,13 @@ struct SettingsView: View {
 
             // MARK: Intermittent Fasting
             Section {
-                Toggle("Track Eating Window", isOn: $userSettings.fastingEnabled)
+                Toggle("Track Intermittent Fasting Window", isOn: $userSettings.fastingEnabled)
             } header: {
                 Text("Intermittent Fasting")
             } footer: {
                 Text(userSettings.fastingEnabled
-                     ? "Your eating window is shown on the Home screen. Tap Edit to adjust the start time and duration."
-                     : "Enable to track your daily eating window on the Home screen.")
+                     ? "Your intermittent fasting window is shown on the Home screen. Tap Edit to adjust the start time and duration."
+                     : "Enable to track your daily intermittent fasting window on the Home screen.")
             }
         }
         .onAppear {

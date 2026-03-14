@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		881BD8032F64841E003E41BE /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 881BD8022F64841E003E41BE /* FirebaseAuth */; };
+		881BD8052F64841E003E41BE /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 881BD8042F64841E003E41BE /* FirebaseFirestore */; };
+		881BD8072F64841E003E41BE /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 881BD8062F64841E003E41BE /* FirebaseStorage */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		881BD6732F620203003E41BE /* Macro Maxxing.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Macro Maxxing.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +29,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				881BD8032F64841E003E41BE /* FirebaseAuth in Frameworks */,
+				881BD8052F64841E003E41BE /* FirebaseFirestore in Frameworks */,
+				881BD8072F64841E003E41BE /* FirebaseStorage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +74,9 @@
 			);
 			name = "Macro Maxxing";
 			packageProductDependencies = (
+				881BD8022F64841E003E41BE /* FirebaseAuth */,
+				881BD8042F64841E003E41BE /* FirebaseFirestore */,
+				881BD8062F64841E003E41BE /* FirebaseStorage */,
 			);
 			productName = Wellness;
 			productReference = 881BD6732F620203003E41BE /* Macro Maxxing.app */;
@@ -94,6 +106,9 @@
 			);
 			mainGroup = 881BD66A2F620203003E41BE;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				881BD8012F64841E003E41BE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 881BD6742F620203003E41BE /* Products */;
 			projectDirPath = "";
@@ -254,6 +269,7 @@
 				DEVELOPMENT_TEAM = G22DFJHK4M;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Wellness uses your camera to photograph food for macro estimation.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Wellness uses your location to show posts and leaderboards from people near you.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Wellness uses your microphone so you can describe what you ate and have the AI estimate your macros from your voice and photo.";
@@ -291,6 +307,7 @@
 				DEVELOPMENT_TEAM = G22DFJHK4M;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Wellness uses your camera to photograph food for macro estimation.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Wellness uses your location to show posts and leaderboards from people near you.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Wellness uses your microphone so you can describe what you ate and have the AI estimate your macros from your voice and photo.";
@@ -340,6 +357,35 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		881BD8012F64841E003E41BE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		881BD8022F64841E003E41BE /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 881BD8012F64841E003E41BE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		881BD8042F64841E003E41BE /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 881BD8012F64841E003E41BE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		881BD8062F64841E003E41BE /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 881BD8012F64841E003E41BE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 881BD66B2F620203003E41BE /* Project object */;
 }

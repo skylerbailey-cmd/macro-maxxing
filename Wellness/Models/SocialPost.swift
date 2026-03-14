@@ -20,7 +20,8 @@ import SwiftData
     var totalProtein:  Double = 0; var goalProtein:  Double = 0
     var totalCarbs:    Double = 0; var goalCarbs:    Double = 0
     var totalFat:      Double = 0; var goalFat:      Double = 0
-    var isCustomPost:  Bool   = false
+    var isCustomPost:    Bool   = false
+    var firebasePostID:  String = ""   // Firestore document ID — empty until Firebase confirms
     @Attribute(.externalStorage) var imageData:  Data?
     @Attribute(.externalStorage) var imageData2: Data?
     @Attribute(.externalStorage) var imageData3: Data?

@@ -372,6 +372,7 @@ private struct CelebrationPostEditorSheet: View {
 
     private func submit(title: String) {
         let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fbPostID = UUID().uuidString   // shared ID for SwiftData ↔ Firestore link
         let post = SocialPost(
             authorID:          userSettings.userID,
             authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
@@ -397,9 +398,45 @@ private struct CelebrationPostEditorSheet: View {
         post.imageData  = datas.count > 0 ? datas[0] : nil
         post.imageData2 = datas.count > 1 ? datas[1] : nil
         post.imageData3 = datas.count > 2 ? datas[2] : nil
-        post.imageData4 = datas.count > 3 ? datas[3] : nil
+        post.imageData4     = datas.count > 3 ? datas[3] : nil
+        post.firebasePostID = fbPostID
         modelContext.insert(post)
         userSettings.awardAura(points: 50)
+
+        // Mirror to Firebase in the background
+        let images       = photos.map { $0.image }
+        let locationName = locationManager.city.isEmpty ? userSettings.location : locationManager.city
+        let latitude     = locationManager.coordinate?.latitude  ?? 0
+        let longitude    = locationManager.coordinate?.longitude ?? 0
+        let caption      = message.isEmpty ? meme.sub : message
+        let author = PostService.PostAuthor(
+            userID:              userSettings.userID,
+            username:            userSettings.username.isEmpty ? "me" : userSettings.username,
+            whoName:             userSettings.name,
+            userProfilePhotoURL: "",
+            auraLevel:           userSettings.auraLevel,
+            auraPoints:          userSettings.auraPoints,
+            streak:              userSettings.macroStreak,
+            memeType:            "",
+            isPublic:            !userSettings.isPrivateAccount
+        )
+        Task {
+            do {
+                try await PostService.shared.createCustomPost(
+                    photos:       images,
+                    author:       author,
+                    title:        title,
+                    caption:      caption,
+                    locationName: locationName,
+                    latitude:     latitude,
+                    longitude:    longitude,
+                    postID:       fbPostID
+                )
+            } catch {
+                print("[CelebrationView] Firebase sync failed: \(error.localizedDescription)")
+            }
+        }
+
         onPosted()
         dismiss()
     }
