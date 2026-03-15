@@ -25,7 +25,9 @@ struct SocialView: View {
     @Environment(LocationManager.self) private var locationManager
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SocialPost.postedAt, order: .reverse) private var posts: [SocialPost]
-    @Query(sort: \Friend.addedAt,      order: .reverse) private var friends: [Friend]
+
+    /// Firestore-loaded set of userIDs the current user follows.
+    @State private var followingIDs: Set<String> = []
 
     @State private var showingAddFriend  = false
     @State private var showingNewPost    = false
@@ -43,10 +45,10 @@ struct SocialView: View {
     }
 
     private var teamPosts: [SocialPost] {
-        let friendUsernames = Set(friends.map { $0.username.lowercased() })
-        return posts.filter { post in
+        // Include own posts plus posts from everyone the current user follows.
+        posts.filter { post in
             post.authorID == userSettings.userID ||
-            friendUsernames.contains(post.authorUsername.lowercased())
+            followingIDs.contains(post.authorID)
         }
     }
 
@@ -132,7 +134,9 @@ struct SocialView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 8)
                                 .background(
-                                    Capsule().fill(selectedFeed == feed ? Color.purpleHi : Color.clear)
+                                    Capsule().fill(selectedFeed == feed
+                                        ? Color(red: 1.00, green: 0.80, blue: 0.20)
+                                        : Color.clear)
                                 )
                         }
                         .buttonStyle(.plain)
@@ -197,6 +201,7 @@ struct SocialView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .task { await loadFollowingIDs() }
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 HStack(spacing: 14) {
@@ -288,6 +293,15 @@ struct SocialView: View {
         }
     }
 
+    // MARK: - Following IDs
+
+    private func loadFollowingIDs() async {
+        guard !userSettings.userID.isEmpty else { return }
+        if let entries = try? await FollowService.shared.fetchFollowing(userID: userSettings.userID) {
+            followingIDs = Set(entries.map { $0.userID })
+        }
+    }
+
     @ViewBuilder
     private var privateAccountBanner: some View {
         HStack(spacing: 14) {
@@ -324,12 +338,12 @@ struct SocialView: View {
         let icon = selectedFeed == .team ? "person.2.fill"
             : selectedFeed == .local ? "location.circle.fill"
             : "bolt.circle.fill"
-        let headline = selectedFeed == .team ? "Team is quiet"
+        let headline = selectedFeed == .team ? "Nobody you follow has posted"
             : noLocation ? "Location needed"
             : selectedFeed == .local ? "No local posts yet"
             : "Arena is empty"
         let body = selectedFeed == .team
-            ? "Add friends with the + button above — their posts will appear here."
+            ? "Follow people using the search button above — their posts will appear here."
             : noLocation
             ? "Enable location in Settings so we can show posts from people near you."
             : selectedFeed == .local ? "No one in your area has posted yet. Be the first."

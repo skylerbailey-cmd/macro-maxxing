@@ -42,7 +42,9 @@ struct LeaderboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(LocationManager.self) private var locationManager
     @Query(sort: \SocialPost.postedAt, order: .reverse) private var allPosts: [SocialPost]
-    @Query private var friends: [Friend]
+
+    /// Firestore-loaded set of userIDs the current user follows.
+    @State private var followingIDs:     Set<String>       = []
 
     @State private var selectedScope:    Scope            = .arena
     @State private var selectedProfile:  LeaderboardEntry? = nil
@@ -108,6 +110,7 @@ struct LeaderboardView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .task { await loadFollowingIDs() }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 14) {
@@ -428,12 +431,12 @@ struct LeaderboardView: View {
                     .font(.system(size: full ? 32 : 22))
                     .foregroundStyle(purpl)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(full ? "No teammates yet" : "Your team is small")
+                    Text(full ? "Nobody you follow yet" : "Your team is small")
                         .font(.system(size: 14, weight: .black, design: .rounded))
                         .foregroundStyle(.white)
                     Text(full
-                         ? "Add friends to start competing as a team. Invite them to join Macro Maxxing!"
-                         : "You have fewer than 5 friends competing. Invite more to heat up the team board!")
+                         ? "Follow people to start competing as a team. Use the search button in the Aura Stream to find others."
+                         : "You're following fewer than 5 people. Follow more to heat up the team board!")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.55))
                         .fixedSize(horizontal: false, vertical: true)
@@ -743,10 +746,10 @@ struct LeaderboardView: View {
     private static let localRadiusMeters: Double = 160_934 // 100 miles
 
     private func scopeFiltered(_ entries: [LeaderboardEntry]) -> [LeaderboardEntry] {
-        let friendUsernames = Set(friends.map { $0.username.lowercased() })
         switch selectedScope {
         case .team:
-            return entries.filter { $0.isCurrentUser || friendUsernames.contains($0.username.lowercased()) }
+            // Show the current user plus everyone they follow (matched by userID)
+            return entries.filter { $0.isCurrentUser || followingIDs.contains($0.id) }
         case .local:
             guard let coord = locationManager.coordinate else { return [] }
             let userLoc = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
@@ -760,6 +763,15 @@ struct LeaderboardView: View {
             return Array(nearby.prefix(500))
         case .arena:
             return entries.filter { $0.isCurrentUser ? !userSettings.isPrivateAccount : !$0.isPrivate }
+        }
+    }
+
+    // MARK: - Following IDs
+
+    private func loadFollowingIDs() async {
+        guard !userSettings.userID.isEmpty else { return }
+        if let entries = try? await FollowService.shared.fetchFollowing(userID: userSettings.userID) {
+            followingIDs = Set(entries.map { $0.userID })
         }
     }
 

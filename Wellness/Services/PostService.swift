@@ -437,6 +437,49 @@ final class PostService {
             }
     }
 
+    // MARK: - 8. Fetch Posts by Authors (Team Feed)
+
+    /// Fetches the most recent public posts from a set of author userIDs.
+    ///
+    /// Firestore's `in` operator accepts at most 30 values per query.
+    /// When `authorIDs` exceeds 30, we chunk the list and fire parallel
+    /// queries, then merge and sort by `createdAt` descending.
+    ///
+    /// Include the current user's own ID in `authorIDs` to show their posts too.
+    func fetchPostsByAuthors(
+        authorIDs: [String],
+        limit:     Int = 50
+    ) async throws -> [FeedPost] {
+        guard !authorIDs.isEmpty else { return [] }
+
+        let chunks = authorIDs.chunked(into: 30)
+        var allPosts: [FeedPost] = []
+
+        try await withThrowingTaskGroup(of: [FeedPost].self) { group in
+            for chunk in chunks {
+                group.addTask {
+                    let snapshot = try await self.db.collection(self.collectionName)
+                        .whereField("userID",   in: chunk)
+                        .whereField("isPublic", isEqualTo: true)
+                        .order(by: "createdAt", descending: true)
+                        .limit(to: limit)
+                        .getDocuments()
+                    return snapshot.documents.compactMap { FeedPost(document: $0) }
+                }
+            }
+            for try await batch in group {
+                allPosts.append(contentsOf: batch)
+            }
+        }
+
+        // Merge batches → sort by date → apply global limit
+        return Array(
+            allPosts
+                .sorted { ($0.createdAtDate ?? .distantPast) > ($1.createdAtDate ?? .distantPast) }
+                .prefix(limit)
+        )
+    }
+
     // MARK: - Helpers
 
     /// Convenience: fetch a single post by ID.
@@ -511,5 +554,16 @@ final class PostService {
         let renderer = UIGraphicsImageRenderer(size: newSize)
         let resized  = renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
         return resized.jpegData(compressionQuality: 0.85)
+    }
+}
+
+// MARK: - Array chunking helper (used for Firestore `in` batching)
+
+private extension Array {
+    /// Splits the array into consecutive sub-arrays of at most `size` elements.
+    func chunked(into size: Int) -> [[Element]] {
+        stride(from: 0, to: count, by: size).map {
+            Array(self[$0 ..< Swift.min($0 + size, count)])
+        }
     }
 }
