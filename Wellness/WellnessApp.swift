@@ -75,14 +75,10 @@ struct WellnessApp: App {
     @State private var showSplash = true
 
     let modelContainer: ModelContainer = {
-        do {
-            return try ModelContainer(
-                for: FoodEntry.self, SocialPost.self, SocialComment.self, FuelLogEntry.self,
-                migrationPlan: AppMigrationPlan.self
-            )
-        } catch {
-            fatalError("Failed to create ModelContainer: \(error)")
-        }
+        let schema = Schema([FoodEntry.self, SocialPost.self, SocialComment.self, FuelLogEntry.self])
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        do { return try ModelContainer(for: schema, configurations: [config]) }
+        catch { fatalError("Failed to create ModelContainer: \(error)") }
     }()
 
     var body: some Scene {

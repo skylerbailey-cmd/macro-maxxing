@@ -12,7 +12,7 @@ import SwiftData
     var authorUsername:    String = ""
     var authorDisplayName: String = ""
     var text:              String = ""
-    @Attribute(.externalStorage) var imageData: Data? = nil
+    var imageData: Data? = nil
     var postedAt:          Date   = Date()
 
     // 💪 Reps (likes)
