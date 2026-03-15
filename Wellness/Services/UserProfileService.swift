@@ -60,7 +60,25 @@ final class UserProfileService {
         return profile
     }
 
-    // MARK: - 3. Update Profile Fields
+    // MARK: - 3. Username Availability
+
+    /// Returns true if `username` is already claimed by a different user.
+    /// Pass the current user's ID so their own username is never flagged as taken.
+    func isUsernameTaken(_ username: String, excludingUserID: String) async -> Bool {
+        guard !username.isEmpty else { return false }
+        do {
+            let snapshot = try await db.collection(collectionName)
+                .whereField("username", isEqualTo: username)
+                .getDocuments()
+            // Available if no documents found, or the only match is the current user
+            return snapshot.documents.contains { $0.documentID != excludingUserID }
+        } catch {
+            print("[UserProfileService] Username check failed: \(error.localizedDescription)")
+            return false // fail open so the user isn't blocked by a network error
+        }
+    }
+
+    // MARK: - 4. Update Profile Fields
 
     /// Merges `fields` into the existing user document.
     /// Pass only the keys you want to change, e.g. `["username": "newname", "auraPoints": 500]`.

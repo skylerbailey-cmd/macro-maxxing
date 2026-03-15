@@ -109,6 +109,11 @@ struct SettingsView: View {
     @State private var activePicker: ActivePicker? = nil
     @State private var showCitySearch = false
 
+    // Username availability
+    private enum UsernameState { case idle, checking, available, taken }
+    @State private var usernameState: UsernameState = .idle
+    @State private var usernameCheckTask: Task<Void, Never>? = nil
+
     var body: some View {
         Form {
             // MARK: Profile
@@ -139,16 +144,41 @@ struct SettingsView: View {
                 HStack {
                     Text("Username")
                     Spacer()
-                    HStack(spacing: 2) {
-                        Text("@").foregroundStyle(.secondary)
-                        TextField("handle", text: $usernameText)
-                            .multilineTextAlignment(.trailing)
-                            .autocorrectionDisabled()
-                            .textInputAutocapitalization(.never)
-                            .focused($nameFocused)
-                            .submitLabel(.done)
-                            .onSubmit { commitAll(); nameFocused = false }
+                    HStack(spacing: 6) {
+                        HStack(spacing: 2) {
+                            Text("@").foregroundStyle(.secondary)
+                            TextField("handle", text: $usernameText)
+                                .multilineTextAlignment(.trailing)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                                .focused($nameFocused)
+                                .submitLabel(.done)
+                                .onSubmit { commitAll(); nameFocused = false }
+                                .onChange(of: usernameText) { _, newValue in
+                                    scheduleUsernameCheck(newValue)
+                                }
+                        }
+                        // Availability indicator
+                        switch usernameState {
+                        case .checking:
+                            ProgressView().scaleEffect(0.7)
+                        case .available:
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .font(.system(size: 14))
+                        case .taken:
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.red)
+                                .font(.system(size: 14))
+                        case .idle:
+                            EmptyView()
+                        }
                     }
+                }
+                if usernameState == .taken {
+                    Text("Username already taken")
+                        .font(.caption)
+                        .foregroundStyle(.red)
                 }
                 Button { showCitySearch = true } label: {
                     HStack {
@@ -304,6 +334,8 @@ struct SettingsView: View {
     }
 
     private func commitAll() {
+        // Block save if the username is confirmed taken
+        guard usernameState != .taken else { return }
         userSettings.name     = nameText.trimmingCharacters(in: .whitespaces)
         userSettings.username = usernameText
             .trimmingCharacters(in: .whitespaces)
@@ -314,6 +346,35 @@ struct SettingsView: View {
         userSettings.proteinPerLb  = proteinPerLbVal
         // Sync profile fields to Firestore whenever the user saves settings
         Task { await UserProfileService.shared.syncProfile(from: userSettings) }
+    }
+
+    private func scheduleUsernameCheck(_ raw: String) {
+        let cleaned = raw.trimmingCharacters(in: .whitespaces).lowercased()
+            .replacingOccurrences(of: "@", with: "")
+
+        // If unchanged from what's already saved, no need to check
+        if cleaned == userSettings.username {
+            usernameState = .idle
+            usernameCheckTask?.cancel()
+            return
+        }
+        if cleaned.isEmpty {
+            usernameState = .idle
+            usernameCheckTask?.cancel()
+            return
+        }
+
+        usernameCheckTask?.cancel()
+        usernameState = .checking
+        usernameCheckTask = Task {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s debounce
+            guard !Task.isCancelled else { return }
+            let taken = await UserProfileService.shared.isUsernameTaken(
+                cleaned, excludingUserID: userSettings.userID)
+            await MainActor.run {
+                usernameState = taken ? .taken : .available
+            }
+        }
     }
 }
 
