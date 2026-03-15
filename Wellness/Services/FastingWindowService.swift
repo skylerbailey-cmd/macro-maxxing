@@ -30,32 +30,37 @@ final class FastingWindowService {
 
     // MARK: - 1. Log Today's Window
 
-    /// Builds a FastingSnapshot from the current window preferences and logged meal times,
-    /// then merges it into today's macroHistory document (creating the document if needed).
+    /// Fetches today's meal timestamps directly from the Firestore fuelLog, classifies
+    /// each meal as inside or outside the eating window, then merges the result into
+    /// today's macroHistory document without touching the macro fields.
     ///
     /// Call this every time macros are reloaded so the fasting snapshot stays current.
-    ///
-    /// - Parameters:
-    ///   - startHour:       Eating window open hour (0–23)
-    ///   - startMinute:     Eating window open minute (0–59)
-    ///   - durationHours:   Eating window length in whole hours
-    ///   - fastingEnabled:  Whether fasting tracking is on
-    ///   - mealLogTimes:    Fractional hours of each logged meal (e.g. 12.5 = 12:30 PM)
     func logTodaysWindow(
         userID:         String,
         startHour:      Int,
         startMinute:    Int,
         durationHours:  Int,
-        fastingEnabled: Bool,
-        mealLogTimes:   [Double]
+        fastingEnabled: Bool
     ) async {
         guard !userID.isEmpty else { return }
 
-        let today       = Date()
-        let cal         = Calendar.current
-        let startOfDay  = cal.startOfDay(for: today)
+        let today      = Date()
+        let cal        = Calendar.current
+        let startOfDay = cal.startOfDay(for: today)
+        let dateKey    = MacroHistoryService.dateString(for: today)
 
-        // Compute exact start and end timestamps for the eating window
+        // Fetch actual meal timestamps from the Firestore fuelLog — the source of truth
+        let fuelLogRef = db.collection("users").document(userID)
+            .collection("fuelLog").document(dateKey)
+        let mealDates: [Date]
+        if let snap = try? await fuelLogRef.getDocument(),
+           let log  = FuelLog(document: snap) {
+            mealDates = log.meals.map { $0.timestampDate }
+        } else {
+            mealDates = []
+        }
+
+        // Compute exact eating window start/end as Dates
         let windowStartTime = startOfDay
             .addingTimeInterval(Double(startHour) * 3600 + Double(startMinute) * 60)
         let windowEndTime   = windowStartTime
@@ -64,23 +69,21 @@ final class FastingWindowService {
         let startFrac = Double(startHour) + Double(startMinute) / 60.0
         let endFrac   = startFrac + Double(durationHours)
 
-        // Classify meals as within or outside the eating window
+        // Classify each meal using its actual timestamp
         var within = 0, outside = 0
-        for t in mealLogTimes {
-            if isWithinWindow(mealFrac: t, startFrac: startFrac, endFrac: endFrac) {
+        for mealDate in mealDates {
+            let h = Double(cal.component(.hour,   from: mealDate))
+            let m = Double(cal.component(.minute, from: mealDate))
+            let frac = h + m / 60.0
+            if isWithinWindow(mealFrac: frac, startFrac: startFrac, endFrac: endFrac) {
                 within  += 1
             } else {
                 outside += 1
             }
         }
 
-        // Reconstruct first/last meal timestamps from fractional hours
-        let firstMealTime: Timestamp? = mealLogTimes.min().map {
-            Timestamp(date: fractionalHourToDate($0, on: today))
-        }
-        let lastMealTime: Timestamp? = mealLogTimes.max().map {
-            Timestamp(date: fractionalHourToDate($0, on: today))
-        }
+        let firstMealTime: Timestamp? = mealDates.min().map { Timestamp(date: $0) }
+        let lastMealTime:  Timestamp? = mealDates.max().map { Timestamp(date: $0) }
 
         let snapshot = FastingSnapshot(
             fastingEnabled:      fastingEnabled,
@@ -92,17 +95,13 @@ final class FastingWindowService {
             lastMealTime:        lastMealTime,
             mealsWithinWindow:   within,
             mealsOutsideWindow:  outside,
-            isCompleted:         fastingEnabled && !mealLogTimes.isEmpty && outside == 0,
+            isCompleted:         fastingEnabled && !mealDates.isEmpty && outside == 0,
             isLocked:            false
         )
 
         do {
             let encoded = try Firestore.Encoder().encode(snapshot)
-            // Merge so we don't overwrite the macro fields in the same document
-            try await todayDocRef(userID: userID).setData(
-                ["fasting": encoded],
-                merge: true
-            )
+            try await todayDocRef(userID: userID).setData(["fasting": encoded], merge: true)
         } catch {
             print("[FastingWindowService] logTodaysWindow failed: \(error.localizedDescription)")
         }
@@ -180,16 +179,6 @@ final class FastingWindowService {
         }
     }
 
-    /// Converts a fractional hour (e.g. 13.5 = 1:30 PM) back to a Date on the given day.
-    private func fractionalHourToDate(_ fractionalHour: Double, on date: Date) -> Date {
-        let hour   = Int(fractionalHour)
-        let minute = Int((fractionalHour - Double(hour)) * 60)
-        var comps  = Calendar.current.dateComponents([.year, .month, .day], from: date)
-        comps.hour   = hour
-        comps.minute = minute
-        comps.second = 0
-        return Calendar.current.date(from: comps) ?? date
-    }
 }
 
 // MARK: - Array chunking helper

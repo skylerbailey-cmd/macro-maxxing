@@ -245,8 +245,7 @@ import SwiftData
                     startHour:      windowStartHour,
                     startMinute:    windowStartMinute,
                     durationHours:  windowDurationHours,
-                    fastingEnabled: userSettings.fastingEnabled,
-                    mealLogTimes:   mealLogTimes
+                    fastingEnabled: userSettings.fastingEnabled
                 )
             }
             MacroHistoryService.shared.updateTodaysMacros(
