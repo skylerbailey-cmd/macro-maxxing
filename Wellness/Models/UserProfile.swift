@@ -35,6 +35,30 @@ struct UserProfile: Codable, Identifiable {
     // MARK: - Identifiable
 
     var id: String { userID ?? UUID().uuidString }
+
+    // MARK: - Init
+
+    init(
+        userID:          String? = nil,
+        username:        String,
+        name:            String,
+        location:        String,
+        profilePhotoURL: String,
+        auraPoints:      Int,
+        streakDays:      Int,
+        friendCount:     Int,
+        joinDate:        Int
+    ) {
+        self._userID        = DocumentID(wrappedValue: userID)
+        self.username        = username
+        self.name            = name
+        self.location        = location
+        self.profilePhotoURL = profilePhotoURL
+        self.auraPoints      = auraPoints
+        self.streakDays      = streakDays
+        self.friendCount     = friendCount
+        self.joinDate        = joinDate
+    }
 }
 
 // MARK: - Firestore Helpers

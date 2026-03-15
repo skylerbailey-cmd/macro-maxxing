@@ -528,6 +528,10 @@ struct ProfileView: View {
     private func saveNewPhoto() {
         guard let img = newProfileImage, let data = img.jpegData(compressionQuality: 0.75) else { return }
         ownUserSettings?.profileImageData = data
+        // Upload to Firebase Storage and update the Firestore profile URL
+        if let settings = ownUserSettings {
+            Task { try? await UserProfileService.shared.updateProfilePhoto(userID: settings.userID, image: img) }
+        }
     }
 
     private func addFriend() {

@@ -69,7 +69,73 @@ final class UserProfileService {
         print("[UserProfileService] Updated fields \(fields.keys.joined(separator: ", ")) for \(userID)")
     }
 
-    // MARK: - 4. Update Profile Photo
+    // MARK: - 4. Sync Profile Fields (convenience)
+
+    /// Pushes the current local UserSettings values to Firestore.
+    /// Fire-and-forget — errors are logged but not rethrown.
+    func syncProfile(from userSettings: UserSettings) async {
+        let userID = userSettings.userID
+        guard !userID.isEmpty else { return }
+        let fields: [String: Any] = [
+            "username":   userSettings.username,
+            "name":       userSettings.name,
+            "location":   userSettings.location,
+            "auraPoints": userSettings.auraPoints,
+            "streakDays": userSettings.macroStreak,
+        ]
+        do {
+            try await updateProfile(userID: userID, fields: fields)
+        } catch {
+            print("[UserProfileService] syncProfile failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - 5. One-Time Migration
+
+    /// Reads all local UserSettings data and pushes it to Firestore once.
+    /// Subsequent calls are a no-op (guarded by a UserDefaults flag).
+    /// After migration, new profile saves happen automatically via syncProfile / updateProfilePhoto.
+    func migrateIfNeeded(userSettings: UserSettings) async {
+        let migrationKey = "firestoreProfileMigrated_v1"
+        guard !UserDefaults.standard.bool(forKey: migrationKey) else { return }
+
+        let userID = userSettings.userID
+        guard !userID.isEmpty else { return }
+
+        print("[UserProfileService] Running one-time Firestore profile migration for \(userID)")
+
+        // Fetch any existing profile so we don't overwrite fields already in Firestore
+        let existing = try? await fetchProfile(userID: userID)
+
+        // Upload local profile photo to Storage if Firestore has no URL yet
+        var photoURL = existing?.profilePhotoURL ?? ""
+        if photoURL.isEmpty, let imageData = userSettings.profileImageData, let image = UIImage(data: imageData) {
+            photoURL = (try? await updateProfilePhoto(userID: userID, image: image)) ?? ""
+        }
+
+        let profile = UserProfile(
+            userID:          userID,
+            username:        userSettings.username,
+            name:            userSettings.name,
+            location:        userSettings.location,
+            profilePhotoURL: photoURL,
+            auraPoints:      userSettings.auraPoints,
+            streakDays:      userSettings.macroStreak,
+            friendCount:     existing?.friendCount ?? 0,
+            joinDate:        existing?.joinDate ?? Int(Date().timeIntervalSince1970)
+        )
+
+        do {
+            try await createProfile(profile)
+            UserDefaults.standard.set(true, forKey: migrationKey)
+            print("[UserProfileService] Migration complete.")
+        } catch {
+            // Don't mark as done so it retries next launch
+            print("[UserProfileService] Migration failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - 6. Update Profile Photo
 
     /// Uploads `image` to Storage at `profile_photos/{userID}.jpg`,
     /// then saves the download URL back to the Firestore profile document.

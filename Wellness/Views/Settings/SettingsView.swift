@@ -312,6 +312,8 @@ struct SettingsView: View {
         userSettings.currentWeight = currentWeightVal
         userSettings.goalWeight    = goalWeightVal
         userSettings.proteinPerLb  = proteinPerLbVal
+        // Sync profile fields to Firestore whenever the user saves settings
+        Task { await UserProfileService.shared.syncProfile(from: userSettings) }
     }
 }
 
