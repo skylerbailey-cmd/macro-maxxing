@@ -236,6 +236,23 @@ import SwiftData
         userSettings.setGoalsMet(allMet, for: selectedDate)
 
         loadStreak()
+
+        // Persist today's macro snapshot to Firestore history (only for today, only when there's data)
+        if isSelectedDateToday {
+            MacroHistoryService.shared.updateTodaysMacros(
+                userID:        userSettings.userID,
+                totalCalories: totalCalories,
+                totalProtein:  totalProtein,
+                totalCarbs:    totalCarbs,
+                totalFat:      totalFat,
+                goalCalories:  goalCalories,
+                goalProtein:   goalProtein,
+                goalCarbs:     goalCarbs,
+                goalFat:       goalFat,
+                mealCount:     entries.count,
+                streakDay:     macroStreak
+            )
+        }
     }
 
     // MARK: - Brainstorm
