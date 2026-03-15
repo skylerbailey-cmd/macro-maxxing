@@ -199,6 +199,14 @@ struct AuraGain: Identifiable, Equatable {
         if auraPopupsEnabled && !silent {
             pendingAuraGain = AuraGain(pointsEarned: points)
         }
+        let id = userID
+        let pts = auraPoints
+        Task {
+            try? await UserProfileService.shared.updateProfile(
+                userID: id,
+                fields: ["auraPoints": pts]
+            )
+        }
     }
 
     func checkWeeklyReset() {

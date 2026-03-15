@@ -316,6 +316,13 @@ import SwiftData
         macroStreak              = streak
         userSettings.macroStreak = streak
         checkStreakMilestones(streak)
+        let id = userSettings.userID
+        Task {
+            try? await UserProfileService.shared.updateProfile(
+                userID: id,
+                fields: ["streakDays": streak]
+            )
+        }
     }
 
     private func checkStreakMilestones(_ streak: Int) {
