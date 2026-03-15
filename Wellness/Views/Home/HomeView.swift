@@ -390,6 +390,8 @@ struct HomeView: View {
         viewModel.selectedDate = selectedDate
         // Defer the DB fetch to after the first frame so the UI renders immediately
         Task { viewModel.loadTodayTotals() }
+        // One-time migration of local SwiftData / UserDefaults data to Firestore
+        Task { await viewModel.runDataMigrationIfNeeded() }
     }
     
     private func handleDateChange(_ newDate: Date) {

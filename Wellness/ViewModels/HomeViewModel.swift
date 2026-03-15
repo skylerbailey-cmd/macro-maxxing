@@ -277,6 +277,16 @@ import SwiftData
 
     func resetBrainstorm() { brainstormState = .idle }
 
+    // MARK: - Data Migration
+
+    /// Runs the one-time local → Firestore data migration if it hasn't completed yet.
+    func runDataMigrationIfNeeded() async {
+        await DataMigrationService.shared.migrateIfNeeded(
+            userSettings: userSettings,
+            modelContext: modelContext
+        )
+    }
+
     // MARK: - Macro recalculation from goal weight
 
     func recalculateMacrosFromGoalWeight() {
