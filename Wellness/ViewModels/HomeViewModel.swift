@@ -208,9 +208,6 @@ import SwiftData
         }
 
         // Data is loaded lazily from the view's onAppear to avoid blocking init
-
-        // One-time migration: push existing local profile data to Firestore
-        Task { await UserProfileService.shared.migrateIfNeeded(userSettings: userSettings) }
     }
 
     func loadTodayTotals() {
