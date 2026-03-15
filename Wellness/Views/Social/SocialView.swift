@@ -30,7 +30,7 @@ struct SocialView: View {
     @State private var showingAddFriend = false
     @State private var showingNewPost   = false
     @State private var selectedPost:    SocialPost?
-    @State private var selectedFeed:    Feed        = .team
+    @State private var selectedFeed:    Feed        = .arena
     @State private var viewingProfile:  SocialPost? = nil
     @State private var showingSettings  = false
     @State private var showingOwnProfile = false
@@ -236,6 +236,7 @@ struct SocialView: View {
                     profileAuraPoints:  post.authorAuraPoints,
                     profileImageData:   post.authorProfileImageData,
                     profileLocation:    post.authorLocation,
+                    profileStreak:      post.authorStreak,
                     ownUserSettings:    post.authorID == userSettings.userID ? userSettings : nil
                 )
             }

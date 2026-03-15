@@ -17,6 +17,7 @@ struct ProfileView: View {
     let profileAuraPoints:   Int
     let profileImageData:    Data?
     var profileLocation:     String = ""
+    var profileStreak:       Int    = 0
 
     /// Non-nil only when viewing your own profile (enables photo editing)
     var ownUserSettings: UserSettings? = nil
@@ -33,6 +34,12 @@ struct ProfileView: View {
     @State private var showingProfileShare = false
 
     private var isOwnProfile: Bool { ownUserSettings != nil }
+
+    private var resolvedStreak: Int {
+        if let own = ownUserSettings { return own.macroStreak }
+        // For other users derive from the highest authorStreak seen on their posts
+        return userPosts.map { $0.authorStreak }.max() ?? profileStreak
+    }
 
     private var userPosts: [SocialPost] {
         allPosts.filter {
@@ -218,6 +225,8 @@ struct ProfileView: View {
             statCell(value: auraPointsFormatted, label: "AURA")
             statDivider
             statCell(value: "Lv \(profileAuraLevel)", label: "LEVEL")
+            statDivider
+            streakCell
         }
         .padding(.vertical, 14)
         .background(cardBg)
@@ -244,6 +253,25 @@ struct ProfileView: View {
         Rectangle()
             .fill(purpl.opacity(0.20))
             .frame(width: 1, height: 32)
+    }
+
+    private var streakCell: some View {
+        VStack(spacing: 3) {
+            HStack(spacing: 3) {
+                Text("🔥")
+                    .font(.system(size: 14))
+                Text(resolvedStreak > 0 ? "\(resolvedStreak)" : "—")
+                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .foregroundStyle(resolvedStreak > 0
+                        ? Color(red: 1.00, green: 0.60, blue: 0.15)
+                        : .white.opacity(0.30))
+            }
+            Text("STREAK")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.white.opacity(0.35))
+                .tracking(1.5)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var auraPointsFormatted: String {

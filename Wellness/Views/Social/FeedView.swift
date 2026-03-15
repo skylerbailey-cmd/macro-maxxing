@@ -252,7 +252,7 @@ struct FeedPostCard: View {
                     }
 
                     if post.streak > 0 {
-                        Text("🔥 \(post.streak)")
+                        Text("🔥 \(post.streak)d streak")
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
                             .foregroundStyle(Color(red: 1.0, green: 0.60, blue: 0.20))
                     }

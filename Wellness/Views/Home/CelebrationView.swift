@@ -88,6 +88,27 @@ struct CelebrationView: View {
                     .foregroundStyle(.white.opacity(0.60))
                     .multilineTextAlignment(.center)
 
+                // Streak badge
+                if userSettings.macroStreak > 0 {
+                    HStack(spacing: 6) {
+                        Text("🔥")
+                            .font(.system(size: 20))
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("\(userSettings.macroStreak)-day streak")
+                                .font(.system(size: 14, weight: .black, design: .rounded))
+                                .foregroundStyle(Color(red: 1.00, green: 0.60, blue: 0.15))
+                            Text("goals met \(userSettings.macroStreak) day\(userSettings.macroStreak == 1 ? "" : "s") in a row")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.45))
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color(red: 1.00, green: 0.45, blue: 0.10).opacity(0.15))
+                    .cornerRadius(12)
+                }
+
                 // Macro met indicators
                 macroRow
                     .padding(.top, 4)
@@ -228,7 +249,8 @@ struct CelebrationView: View {
         let card = CelebrationShareCard(
             meme: meme,
             macroGoalsMet: macroGoalsMet,
-            userName: userName
+            userName: userName,
+            streak: userSettings.macroStreak
         )
         let renderer   = ImageRenderer(content: card)
         renderer.scale = 3.0
@@ -548,6 +570,7 @@ private struct CelebrationShareCard: View {
     let meme:          GymMeme
     let macroGoalsMet: [Bool]
     let userName:      String
+    var streak:        Int = 0
 
     private let purpl = Color(red: 0.65, green: 0.45, blue: 1.00)
     private let gold  = Color(red: 1.00, green: 0.80, blue: 0.20)
@@ -643,6 +666,16 @@ private struct CelebrationShareCard: View {
                 Text("all macros crushed 🔥")
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(gold.opacity(0.80))
+
+                if streak > 0 {
+                    Text("🔥 \(streak)-day streak")
+                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .foregroundStyle(Color(red: 1.00, green: 0.60, blue: 0.15))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5)
+                        .background(Color(red: 1.00, green: 0.45, blue: 0.10).opacity(0.20))
+                        .cornerRadius(8)
+                }
 
                 Spacer()
 

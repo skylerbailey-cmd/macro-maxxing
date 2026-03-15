@@ -117,7 +117,7 @@ struct FoodLogView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 14) {
-                    if isToday && !viewModel.todayEntries.isEmpty {
+                    if !viewModel.todayEntries.isEmpty {
                         Button {
                             showingFuelLogPost = true
                         } label: {
@@ -191,6 +191,7 @@ struct FoodLogView: View {
         .sheet(isPresented: $showingFuelLogPost) {
             FuelLogPostSheet(
                 entries:      viewModel.todayEntries,
+                logDate:      selectedDate,
                 userSettings: userSettings,
                 modelContext: modelContext
             )
@@ -838,6 +839,7 @@ private struct CircleFAB: View {
 
 private struct FuelLogPostSheet: View {
     let entries:      [FoodEntry]
+    let logDate:      Date
     let userSettings: UserSettings
     let modelContext: ModelContext
 
@@ -981,14 +983,22 @@ private struct FuelLogPostSheet: View {
         let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         let fbPostID = UUID().uuidString   // shared ID for SwiftData ↔ Firestore link
 
+        let isToday = Calendar.current.isDateInToday(logDate)
+        let dateLabel: String = {
+            if isToday { return "Today's Fuel Log 🔥" }
+            let fmt = DateFormatter()
+            fmt.dateFormat = "MMM d"
+            return "\(fmt.string(from: logDate)) Fuel Log 🔥"
+        }()
+
         let post = SocialPost(
             authorID:          userSettings.userID,
             authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
             authorDisplayName: userSettings.name,
             memeEmoji:         "🔥",
-            memeHeadline:      "Today's Fuel Log 🔥",
+            memeHeadline:      dateLabel,
             memeSub:           message,
-            macroDate:         Date(),
+            macroDate:         logDate,
             totalCalories: totalCalories, goalCalories: 0,
             totalProtein:  totalProtein,  goalProtein:  0,
             totalCarbs:    totalCarbs,    goalCarbs:    0,
@@ -1047,7 +1057,7 @@ private struct FuelLogPostSheet: View {
                 try await PostService.shared.createCustomPost(
                     photos:       entryPhotos,
                     author:       author,
-                    title:        "Today's Fuel Log 🔥",
+                    title:        dateLabel,
                     caption:      caption,
                     locationName: locationName,
                     latitude:     latitude,

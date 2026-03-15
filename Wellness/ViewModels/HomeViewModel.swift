@@ -257,6 +257,7 @@ import SwiftData
         fmt.dateFormat  = "yyyy-MM-dd"
         fmt.calendar    = calendar
 
+        // Count consecutive completed past days
         var streak = 0
         var offset = 1
         while offset <= 365 {
@@ -264,6 +265,9 @@ import SwiftData
             if goalsMetDates.contains(fmt.string(from: day)) { streak += 1 } else { break }
             offset += 1
         }
+        // Include today immediately once its goals are met
+        if goalsMetDates.contains(fmt.string(from: Date())) { streak += 1 }
+
         macroStreak              = streak
         userSettings.macroStreak = streak
         checkStreakMilestones(streak)

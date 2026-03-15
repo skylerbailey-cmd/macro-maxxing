@@ -21,6 +21,7 @@ struct LeaderboardEntry: Identifiable, Hashable {
     let score:           Int      // primary sort key
     let reps:            Int      // engagement board only
     let comments:        Int      // engagement board only
+    let streak:          Int      // macro streak days
     let isCurrentUser:   Bool
     let isPrivate:       Bool
     
@@ -43,7 +44,7 @@ struct LeaderboardView: View {
     @Query(sort: \SocialPost.postedAt, order: .reverse) private var allPosts: [SocialPost]
     @Query private var friends: [Friend]
 
-    @State private var selectedScope:    Scope            = .team
+    @State private var selectedScope:    Scope            = .arena
     @State private var selectedProfile:  LeaderboardEntry? = nil
     @State private var showingSettings   = false
     @State private var showingProfile    = false
@@ -194,7 +195,8 @@ struct LeaderboardView: View {
                     profileAuraLevel:   entry.auraLevel,
                     profileAuraPoints:  entry.score,
                     profileImageData:   entry.profileImageData,
-                    profileLocation:    entry.location
+                    profileLocation:    entry.location,
+                    profileStreak:      entry.streak
                 )
             }
         }
@@ -345,11 +347,12 @@ struct LeaderboardView: View {
                 if selectedScope == .local && !noLocation {
                     // Local tab, location available, but zero users found → invite banner
                     localInviteBanner(full: true)
+                } else if selectedScope == .team {
+                    // Team tab with no friends → invite banner
+                    teamInviteBanner(full: true)
                 } else {
                     VStack(spacing: 10) {
-                        Text(selectedScope == .team
-                             ? "Add friends to see the Team leaderboard"
-                             : noLocation
+                        Text(noLocation
                              ? "Enable location access to see the local board"
                              : "No local data yet")
                             .font(.subheadline)
@@ -380,8 +383,61 @@ struct LeaderboardView: View {
                 if selectedScope == .local && entries.count < 10 {
                     localInviteBanner(full: false)
                 }
+                // Fewer than 5 team members → invite nudge below the rows
+                if selectedScope == .team && entries.count < 5 {
+                    teamInviteBanner(full: false)
+                }
             }
         }
+    }
+
+    /// Banner shown on the Team tab when fewer than 5 friends are competing.
+    /// `full` = true when there are zero entries (replaces the section body).
+    @ViewBuilder
+    private func teamInviteBanner(full: Bool) -> some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: "person.2.badge.plus")
+                    .font(.system(size: full ? 32 : 22))
+                    .foregroundStyle(purpl)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(full ? "No teammates yet" : "Your team is small")
+                        .font(.system(size: 14, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text(full
+                         ? "Add friends to start competing as a team. Invite them to join Macro Maxxing!"
+                         : "You have fewer than 5 friends competing. Invite more to heat up the team board!")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.55))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button(action: presentInviteSheet) {
+                HStack(spacing: 6) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text("Invite Friends")
+                        .font(.system(size: 14, weight: .bold))
+                }
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 11)
+                .background(gold)
+                .cornerRadius(12)
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(cardBg)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(gold.opacity(0.30), lineWidth: 1)
+                )
+        )
+        .padding(.top, full ? 0 : 4)
     }
 
     /// Banner shown on the Local tab when fewer than 10 nearby users exist.
@@ -549,7 +605,7 @@ struct LeaderboardView: View {
             return LeaderboardEntry(id: id, displayName: d.name, username: d.username,
                              profileImageData: d.imgData, auraLevel: d.level,
                              location: d.location, latitude: d.lat, longitude: d.lon,
-                             score: d.streak, reps: 0, comments: 0,
+                             score: d.streak, reps: 0, comments: 0, streak: d.streak,
                              isCurrentUser: id == userSettings.userID, isPrivate: isPrivate)
         }
         .sorted { $0.score != $1.score ? $0.score > $1.score : $0.displayName < $1.displayName }
@@ -588,10 +644,12 @@ struct LeaderboardView: View {
             let isPrivate = id == userSettings.userID
                 ? userSettings.isPrivateAccount
                 : (allPosts.first { $0.authorID == id }?.isAuthorPrivate ?? false)
+            let entryStreak = id == userSettings.userID ? userSettings.macroStreak
+                : (allPosts.filter { $0.authorID == id }.map { $0.authorStreak }.max() ?? 0)
             return LeaderboardEntry(id: id, displayName: d.name, username: d.username,
                              profileImageData: d.imgData, auraLevel: d.level, location: loc,
                              latitude: lat, longitude: lon,
-                             score: d.score, reps: 0, comments: 0,
+                             score: d.score, reps: 0, comments: 0, streak: entryStreak,
                              isCurrentUser: id == userSettings.userID, isPrivate: isPrivate)
         }
         .sorted { $0.score != $1.score ? $0.score > $1.score : $0.displayName < $1.displayName }
@@ -629,10 +687,13 @@ struct LeaderboardView: View {
             let isPrivate = id == userSettings.userID
                 ? userSettings.isPrivateAccount
                 : (allPosts.first { $0.authorID == id }?.isAuthorPrivate ?? false)
+            let entryStreak = id == userSettings.userID ? userSettings.macroStreak
+                : (allPosts.filter { $0.authorID == id }.map { $0.authorStreak }.max() ?? 0)
             return LeaderboardEntry(id: id, displayName: d.name, username: d.username,
                              profileImageData: d.imgData, auraLevel: d.level, location: loc,
                              latitude: lat, longitude: lon,
                              score: d.reps + d.comments, reps: d.reps, comments: d.comments,
+                             streak: entryStreak,
                              isCurrentUser: id == userSettings.userID, isPrivate: isPrivate)
         }
         .sorted { $0.score != $1.score ? $0.score > $1.score : $0.displayName < $1.displayName }

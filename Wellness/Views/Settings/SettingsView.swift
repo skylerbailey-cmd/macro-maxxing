@@ -25,8 +25,8 @@ private let faqItems: [FAQItem] = [
         calories, protein, carbs, and fat. Simply logging food does not count.
 
         To see if you're on track, open the Hub tab and check the macro rings under \
-        your daily goal summary. All four need to be at or above 85% of their targets \
-        by end of day for that day to count toward your streak.
+        your daily goal summary. All four need to be at or above 85% of their targets — \
+        the streak updates immediately once all four goals are met.
 
         Fuel Log:
         Every food entry must be logged with a photo. The camera and photo library \

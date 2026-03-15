@@ -65,6 +65,7 @@ struct PostDetailView: View {
                         profileAuraPoints:  post.authorAuraPoints,
                         profileImageData:   post.authorProfileImageData,
                         profileLocation:    post.authorLocation,
+                        profileStreak:      post.authorStreak,
                         ownUserSettings:    post.authorID == userSettings.userID ? userSettings : nil
                     )
                 }
