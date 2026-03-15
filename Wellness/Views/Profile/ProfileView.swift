@@ -29,7 +29,6 @@ struct ProfileView: View {
     @Environment(\.dismiss)      private var dismiss
 
     @Query(sort: \SocialPost.repsCount, order: .reverse) private var allPosts: [SocialPost]
-    @Query private var friends: [Friend]
 
     @State private var showingCamera       = false
     @State private var newProfileImage:    UIImage?
@@ -59,10 +58,6 @@ struct ProfileView: View {
             $0.authorID == profileUserID ||
             $0.authorUsername.lowercased() == profileUsername.lowercased()
         }
-    }
-
-    private var isAlreadyFriend: Bool {
-        friends.contains { $0.username.lowercased() == profileUsername.lowercased() }
     }
 
     private var displayName: String {
@@ -580,16 +575,6 @@ struct ProfileView: View {
         if let settings = ownUserSettings {
             Task { try? await UserProfileService.shared.updateProfilePhoto(userID: settings.userID, image: img) }
         }
-    }
-
-    private func addFriend() {
-        guard !isAlreadyFriend else { return }
-        let friend = Friend(
-            userID:      profileUserID,
-            username:    profileUsername,
-            displayName: profileDisplayName
-        )
-        modelContext.insert(friend)
     }
 
     private func loadFollowState() async {

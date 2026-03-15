@@ -6,8 +6,6 @@
 import SwiftUI
 import SwiftData
 import CoreLocation
-import Contacts
-import ContactsUI
 
 // MARK: - Color palette
 
@@ -25,12 +23,10 @@ struct SocialView: View {
     @Environment(LocationManager.self) private var locationManager
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SocialPost.postedAt, order: .reverse) private var posts: [SocialPost]
-    @Query(sort: \Friend.addedAt,      order: .reverse) private var friends: [Friend]
 
     /// Firestore-loaded set of userIDs the current user follows.
     @State private var followingIDs: Set<String> = []
 
-    @State private var showingAddFriend  = false
     @State private var showingNewPost    = false
     @State private var selectedPost:     SocialPost?
     @State private var selectedFeed:     Feed        = .arena
@@ -205,13 +201,8 @@ struct SocialView: View {
         .task { await loadFollowingIDs() }
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                HStack(spacing: 14) {
-                    Button { showingAddFriend = true } label: {
-                        Image(systemName: "person.badge.plus").foregroundStyle(Color.purpleHi)
-                    }
-                    Button { showingSearch = true } label: {
-                        Image(systemName: "magnifyingglass").foregroundStyle(Color.purpleHi)
-                    }
+                Button { showingSearch = true } label: {
+                    Image(systemName: "magnifyingglass").foregroundStyle(Color.purpleHi)
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -233,7 +224,6 @@ struct SocialView: View {
             }
         }
         .sheet(isPresented: $showingNewPost) { NewPostView(userSettings: userSettings) }
-        .sheet(isPresented: $showingAddFriend) { AddFriendView(userSettings: userSettings, friends: friends) }
         .sheet(isPresented: $showingSettings) {
             NavigationStack { SettingsView(userSettings: userSettings) }
         }
@@ -802,123 +792,3 @@ struct PostImageViewerSheet: View {
     }
 }
 
-// MARK: - Add Friend sheet
-
-struct AddFriendView: View {
-    let userSettings: UserSettings
-    let friends: [Friend]
-
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss)      private var dismiss
-
-    @State private var usernameInput  = ""
-    @State private var showContacts   = false
-    @State private var errorMessage: String?
-
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.pageBg.ignoresSafeArea()
-                VStack(spacing: 20) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Add by Username")
-                            .font(.headline).foregroundStyle(.white)
-                        HStack(spacing: 10) {
-                            TextField("@username", text: $usernameInput)
-                                .textFieldStyle(.roundedBorder)
-                                .autocorrectionDisabled()
-                                .textInputAutocapitalization(.never)
-                            Button("Add") { addByUsername() }
-                                .buttonStyle(.borderedProminent)
-                                .tint(Color.purpleHi)
-                        }
-                        if let err = errorMessage {
-                            Text(err).font(.caption).foregroundStyle(.red)
-                        }
-                    }
-                    .padding(16).background(Color.cardBg).cornerRadius(14)
-
-                    Button { showContacts = true } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "person.crop.circle")
-                            Text("Add from Contacts").font(.subheadline.weight(.semibold))
-                        }
-                        .frame(maxWidth: .infinity).padding(.vertical, 14)
-                        .background(Color.cardBg).foregroundStyle(.white).cornerRadius(14)
-                    }
-
-                    if !friends.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Friends (\(friends.count))")
-                                .font(.headline).foregroundStyle(.white)
-                            ForEach(friends) { friend in
-                                HStack {
-                                    Circle().fill(Color.purpleHi.opacity(0.2))
-                                        .frame(width: 32, height: 32)
-                                        .overlay {
-                                            Text(String(friend.displayName.prefix(1)).uppercased())
-                                                .font(.system(size: 13, weight: .bold))
-                                                .foregroundStyle(Color.purpleHi)
-                                        }
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(friend.displayName).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
-                                        Text("@\(friend.username)").font(.caption2).foregroundStyle(.white.opacity(0.40))
-                                    }
-                                    Spacer()
-                                    Button(role: .destructive) { modelContext.delete(friend) } label: {
-                                        Image(systemName: "person.badge.minus").foregroundStyle(.red.opacity(0.65))
-                                    }
-                                }
-                                .padding(10).background(Color.cardBg).cornerRadius(12)
-                            }
-                        }
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 16).padding(.top, 16)
-            }
-            .preferredColorScheme(.dark)
-            .navigationTitle("Friends").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-        }
-        .sheet(isPresented: $showContacts) {
-            ContactPickerView { name in
-                addFriend(username: name.lowercased().replacingOccurrences(of: " ", with: ""),
-                          displayName: name)
-            }
-        }
-    }
-
-    private func addByUsername() {
-        let handle = usernameInput.trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased().replacingOccurrences(of: "@", with: "")
-        guard !handle.isEmpty else { errorMessage = "Enter a username."; return }
-        if handle == userSettings.username { errorMessage = "That's you!"; return }
-        if friends.contains(where: { $0.username == handle }) { errorMessage = "Already added."; return }
-        addFriend(username: handle, displayName: handle)
-        usernameInput = ""; errorMessage = nil
-    }
-
-    private func addFriend(username: String, displayName: String) {
-        modelContext.insert(Friend(username: username, displayName: displayName))
-    }
-}
-
-// MARK: - Contacts picker
-
-private struct ContactPickerView: UIViewControllerRepresentable {
-    let onSelect: (String) -> Void
-    func makeCoordinator() -> Coordinator { Coordinator(onSelect: onSelect) }
-    func makeUIViewController(context: Context) -> CNContactPickerViewController {
-        let p = CNContactPickerViewController(); p.delegate = context.coordinator; return p
-    }
-    func updateUIViewController(_: CNContactPickerViewController, context: Context) {}
-    class Coordinator: NSObject, CNContactPickerDelegate {
-        let onSelect: (String) -> Void
-        init(onSelect: @escaping (String) -> Void) { self.onSelect = onSelect }
-        func contactPicker(_: CNContactPickerViewController, didSelect c: CNContact) {
-            let name = [c.givenName, c.familyName].filter { !$0.isEmpty }.joined(separator: " ")
-            onSelect(name.isEmpty ? "Friend" : name)
-        }
-    }
-}
