@@ -51,6 +51,12 @@ struct DailyMacros: Codable, Identifiable {
     /// The user's macro streak value at the end of this day.
     var streakDay: Int
 
+    // MARK: - Fasting Window
+
+    /// Fasting window snapshot for this day. Nil if logTodaysWindow has not been called yet.
+    /// Stored as a nested Firestore map — existing documents without this field decode fine.
+    var fasting: FastingSnapshot?
+
     // MARK: - Identifiable
 
     var id: String { dateString ?? UUID().uuidString }
@@ -104,6 +110,62 @@ struct DailyMacros: Codable, Identifiable {
         let fatMet     = goalFat     > 0 && totalFat     >= goalFat     * 0.85
         self.allGoalsMet = calMet && proteinMet && carbsMet && fatMet
     }
+}
+
+// MARK: - FastingSnapshot
+
+/// Fasting window data for one calendar day. Stored as a nested map inside
+/// the macroHistory document under the key "fasting".
+struct FastingSnapshot: Codable {
+
+    // MARK: Window definition (from user preferences on that day)
+
+    /// Whether fasting tracking was enabled on this day.
+    var fastingEnabled: Bool
+
+    /// Exact date+time the eating window opened (e.g., today at 9:00 AM).
+    var windowStartTime: Timestamp
+
+    /// Exact date+time the eating window closed (e.g., today at 5:00 PM).
+    var windowEndTime: Timestamp
+
+    /// Length of the eating window in hours (e.g., 8.0).
+    var windowDurationHours: Double
+
+    /// Length of the fasting period in hours (24 − windowDurationHours).
+    var fastingHours: Double
+
+    // MARK: Actual eating behavior
+
+    /// Time of the first meal logged today. Nil if no meals were logged.
+    var firstMealTime: Timestamp?
+
+    /// Time of the last meal logged today. Nil if no meals were logged.
+    var lastMealTime: Timestamp?
+
+    /// Number of meals logged inside the eating window.
+    var mealsWithinWindow: Int
+
+    /// Number of meals logged outside the eating window.
+    /// > 0 means the user broke their fast early or ate after the window closed.
+    var mealsOutsideWindow: Int
+
+    // MARK: Status
+
+    /// True when all meals were logged within the eating window and fasting was enabled.
+    /// Auto-computed by FastingWindowService; can also be set manually via markWindowCompleted.
+    var isCompleted: Bool
+
+    /// True once the calendar day has passed. Set by lockPastWindows on app launch.
+    /// Locked windows can no longer be edited.
+    var isLocked: Bool
+
+    // MARK: Computed helpers
+
+    var windowStartDate: Date { windowStartTime.dateValue() }
+    var windowEndDate:   Date { windowEndTime.dateValue() }
+    var firstMealDate:   Date? { firstMealTime?.dateValue() }
+    var lastMealDate:    Date? { lastMealTime?.dateValue() }
 }
 
 // MARK: - Firestore Helpers

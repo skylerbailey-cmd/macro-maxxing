@@ -186,28 +186,73 @@ final class DataMigrationService {
         }
     }
 
-    // MARK: - 3. Fasting Window Migration (UserDefaults → users/{userID})
+    // MARK: - 3. Fasting Window Migration (UserDefaults dailyWindowSnapshots → macroHistory)
 
     private func migrateFastingWindow(userID: String) async {
-        let startHour   = UserDefaults.standard.integer(forKey: "windowStartHour")
-        let startMinute = UserDefaults.standard.integer(forKey: "windowStartMinute")
-        let duration    = UserDefaults.standard.integer(forKey: "windowDurationHours")
-        let enabled     = UserDefaults.standard.bool(forKey: "fastingEnabled")
+        let enabled       = UserDefaults.standard.bool(forKey: "fastingEnabled")
+        let currentHour   = UserDefaults.standard.integer(forKey: "windowStartHour")
+        let currentMinute = UserDefaults.standard.integer(forKey: "windowStartMinute")
+        let currentDur    = UserDefaults.standard.integer(forKey: "windowDurationHours")
 
-        let fields: [String: Any] = [
+        // Write current fasting settings to the user profile document
+        let profileFields: [String: Any] = [
             "fastingEnabled":             enabled,
-            "fastingWindowStartHour":     startHour,
-            "fastingWindowStartMinute":   startMinute,
-            "fastingWindowDurationHours": duration
+            "fastingWindowStartHour":     currentHour,
+            "fastingWindowStartMinute":   currentMinute,
+            "fastingWindowDurationHours": currentDur
         ]
+        try? await db.collection("users").document(userID).setData(profileFields, merge: true)
 
-        do {
-            try await UserProfileService.shared.updateProfile(userID: userID, fields: fields)
-            print("[DataMigration] Fasting window written to users/\(userID)")
-        } catch {
-            // Document may not exist yet — fall back to setData(merge:true)
-            try? await db.collection("users").document(userID).setData(fields, merge: true)
+        // Backfill per-day fasting snapshots from dailyWindowSnapshots into macroHistory
+        guard let outer = UserDefaults.standard.dictionary(forKey: "dailyWindowSnapshots"),
+              !outer.isEmpty else {
+            print("[DataMigration] No dailyWindowSnapshots to migrate.")
+            return
         }
+
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.calendar   = Calendar.current
+        let cal = Calendar.current
+
+        var count = 0
+        for (dateKey, value) in outer {
+            guard let inner   = value as? [String: Any],
+                  let date    = fmt.date(from: dateKey),
+                  let sHour   = (inner["startHour"]     as? NSNumber).map({ $0.intValue }),
+                  let sMin    = (inner["startMinute"]   as? NSNumber).map({ $0.intValue }),
+                  let dur     = (inner["durationHours"] as? NSNumber).map({ $0.intValue })
+            else { continue }
+
+            let startOfDay     = cal.startOfDay(for: date)
+            let windowStart    = startOfDay.addingTimeInterval(Double(sHour) * 3600 + Double(sMin) * 60)
+            let windowEnd      = windowStart.addingTimeInterval(Double(dur) * 3600)
+
+            let snapshot = FastingSnapshot(
+                fastingEnabled:      enabled,
+                windowStartTime:     Timestamp(date: windowStart),
+                windowEndTime:       Timestamp(date: windowEnd),
+                windowDurationHours: Double(dur),
+                fastingHours:        24.0 - Double(dur),
+                firstMealTime:       nil,
+                lastMealTime:        nil,
+                mealsWithinWindow:   0,
+                mealsOutsideWindow:  0,
+                isCompleted:         false,
+                isLocked:            true   // all migrated past days are locked
+            )
+
+            do {
+                let encoded = try Firestore.Encoder().encode(snapshot)
+                try await db.collection("users").document(userID)
+                    .collection("macroHistory").document(dateKey)
+                    .setData(["fasting": encoded], merge: true)
+                count += 1
+            } catch {
+                print("[DataMigration] fastingWindow/\(dateKey) FAILED: \(error.localizedDescription)")
+            }
+        }
+        print("[DataMigration] Migrated fasting snapshots for \(count) past day(s)")
     }
 
     // MARK: - Private Helpers

@@ -392,6 +392,8 @@ struct HomeView: View {
         Task { viewModel.loadTodayTotals() }
         // One-time migration of local SwiftData / UserDefaults data to Firestore
         Task { await viewModel.runDataMigrationIfNeeded() }
+        // Lock any past fasting windows that haven't been locked yet
+        Task { await FastingWindowService.shared.lockPastWindows(userID: viewModel.userSettings.userID) }
     }
     
     private func handleDateChange(_ newDate: Date) {

@@ -237,8 +237,18 @@ import SwiftData
 
         loadStreak()
 
-        // Persist today's macro snapshot to Firestore history (only for today, only when there's data)
+        // Persist today's macro snapshot and fasting window to Firestore (today only)
         if isSelectedDateToday {
+            Task {
+                await FastingWindowService.shared.logTodaysWindow(
+                    userID:         userSettings.userID,
+                    startHour:      windowStartHour,
+                    startMinute:    windowStartMinute,
+                    durationHours:  windowDurationHours,
+                    fastingEnabled: userSettings.fastingEnabled,
+                    mealLogTimes:   mealLogTimes
+                )
+            }
             MacroHistoryService.shared.updateTodaysMacros(
                 userID:        userSettings.userID,
                 totalCalories: totalCalories,
