@@ -28,7 +28,8 @@ final class DataMigrationService {
     private var db:      Firestore        { FirebaseManager.shared.db }
     private var storage: StorageReference { FirebaseManager.shared.storage }
 
-    private let migrationKey = "localDataMigrated_v1"
+    private let migrationKey            = "localDataMigrated_v1"
+    private let fastingMigrationKey     = "fastingWindowHistoryMigrated_v1"
 
     // MARK: - Entry Point
 
@@ -50,6 +51,21 @@ final class DataMigrationService {
 
         UserDefaults.standard.set(true, forKey: migrationKey)
         print("[DataMigration] Migration complete.")
+    }
+
+    // MARK: - Fasting Window History Entry Point
+
+    /// Migrates existing dailyWindowSnapshots from UserDefaults into
+    /// their corresponding macroHistory Firestore documents as FastingSnapshot records.
+    /// Runs exactly once, independently of the main migration flag.
+    func migrateFastingWindowHistoryIfNeeded(userID: String) async {
+        guard !UserDefaults.standard.bool(forKey: fastingMigrationKey) else { return }
+        guard !userID.isEmpty else { return }
+
+        print("[DataMigration] Starting fasting window history migration for \(userID)")
+        await migrateFastingWindow(userID: userID)
+        UserDefaults.standard.set(true, forKey: fastingMigrationKey)
+        print("[DataMigration] Fasting window history migration complete.")
     }
 
     // MARK: - 1. Fuel Log Migration (FuelLogEntry → fuelLog subcollection)

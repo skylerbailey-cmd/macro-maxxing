@@ -295,6 +295,9 @@ import SwiftData
             userSettings: userSettings,
             modelContext: modelContext
         )
+        await DataMigrationService.shared.migrateFastingWindowHistoryIfNeeded(
+            userID: userSettings.userID
+        )
     }
 
     // MARK: - Macro recalculation from goal weight
