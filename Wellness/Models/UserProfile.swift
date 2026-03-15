@@ -23,9 +23,13 @@ struct UserProfile: Codable, Identifiable {
 
     // MARK: - Stats
 
-    var auraPoints:  Int
-    var streakDays:  Int
-    var friendCount: Int
+    var auraPoints:     Int
+    var streakDays:     Int
+    var friendCount:    Int
+    /// Number of users this account is following. Kept in sync by FollowService.
+    var followingCount: Int
+    /// Number of users following this account. Kept in sync by FollowService.
+    var followerCount:  Int
 
     // MARK: - Dates
 
@@ -47,9 +51,11 @@ struct UserProfile: Codable, Identifiable {
         auraPoints:      Int,
         streakDays:      Int,
         friendCount:     Int,
+        followingCount:  Int = 0,
+        followerCount:   Int = 0,
         joinDate:        Int
     ) {
-        self._userID        = DocumentID(wrappedValue: userID)
+        self._userID         = DocumentID(wrappedValue: userID)
         self.username        = username
         self.name            = name
         self.location        = location
@@ -57,6 +63,8 @@ struct UserProfile: Codable, Identifiable {
         self.auraPoints      = auraPoints
         self.streakDays      = streakDays
         self.friendCount     = friendCount
+        self.followingCount  = followingCount
+        self.followerCount   = followerCount
         self.joinDate        = joinDate
     }
 }

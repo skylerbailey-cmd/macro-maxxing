@@ -22,6 +22,9 @@ struct ProfileView: View {
     /// Non-nil only when viewing your own profile (enables photo editing)
     var ownUserSettings: UserSettings? = nil
 
+    /// Non-nil when viewing someone else's profile — provides the viewer's identity for follow actions
+    var currentUserSettings: UserSettings? = nil
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss)      private var dismiss
 
@@ -32,6 +35,14 @@ struct ProfileView: View {
     @State private var newProfileImage:    UIImage?
     @State private var selectedPost:       SocialPost?
     @State private var showingProfileShare = false
+
+    // Follow state
+    @State private var isFollowing:          Bool   = false
+    @State private var followerCount:        Int    = 0
+    @State private var followingCount:       Int    = 0
+    @State private var followLoading:        Bool   = false
+    @State private var viewerProfilePhotoURL:  String = ""
+    @State private var targetProfilePhotoURL: String = ""
 
     private var isOwnProfile: Bool { ownUserSettings != nil }
 
@@ -103,6 +114,7 @@ struct ProfileView: View {
                 }
             }
         }
+        .task { await loadFollowState() }
         .sheet(isPresented: $showingCamera, onDismiss: saveNewPhoto) {
             ImagePickerView(sourceType: .camera, selectedImage: $newProfileImage)
         }
@@ -222,9 +234,9 @@ struct ProfileView: View {
         HStack(spacing: 0) {
             statCell(value: "\(userPosts.count)", label: "POSTS")
             statDivider
-            statCell(value: auraPointsFormatted, label: "AURA")
+            statCell(value: "\(followerCount)", label: "FOLLOWERS")
             statDivider
-            statCell(value: "Lv \(profileAuraLevel)", label: "LEVEL")
+            statCell(value: auraPointsFormatted, label: "AURA")
             statDivider
             streakCell
         }
@@ -370,22 +382,28 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - Add to Team
+    // MARK: - Follow / Unfollow Button
 
     private var addToTeamButton: some View {
-        Button { addFriend() } label: {
+        Button {
+            Task { await toggleFollow() }
+        } label: {
             HStack(spacing: 8) {
-                Image(systemName: isAlreadyFriend ? "checkmark.seal.fill" : "person.badge.plus")
-                    .font(.system(size: 14, weight: .bold))
-                Text(isAlreadyFriend ? "On Your Team" : "Add to Team")
-                    .font(.system(size: 15, weight: .black))
+                if followLoading {
+                    ProgressView().scaleEffect(0.8)
+                } else {
+                    Image(systemName: isFollowing ? "checkmark.seal.fill" : "person.badge.plus")
+                        .font(.system(size: 14, weight: .bold))
+                    Text(isFollowing ? "Following" : "Follow")
+                        .font(.system(size: 15, weight: .black))
+                }
             }
-            .foregroundStyle(isAlreadyFriend ? neon : .black)
+            .foregroundStyle(isFollowing ? neon : .black)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .background(
                 Group {
-                    if isAlreadyFriend {
+                    if isFollowing {
                         AnyView(neon.opacity(0.15))
                     } else {
                         AnyView(
@@ -400,11 +418,11 @@ struct ProfileView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
-                    .stroke(isAlreadyFriend ? neon.opacity(0.40) : Color.clear, lineWidth: 1)
+                    .stroke(isFollowing ? neon.opacity(0.40) : Color.clear, lineWidth: 1)
             )
             .cornerRadius(14)
         }
-        .disabled(isAlreadyFriend)
+        .disabled(followLoading)
         .padding(.horizontal, 16)
         .padding(.top, 14)
     }
@@ -542,6 +560,56 @@ struct ProfileView: View {
             displayName: profileDisplayName
         )
         modelContext.insert(friend)
+    }
+
+    private func loadFollowState() async {
+        guard !isOwnProfile else { return }
+        let viewer = currentUserSettings ?? ownUserSettings
+        guard let viewerID = viewer?.userID, !viewerID.isEmpty else { return }
+
+        async let followingCheck  = FollowService.shared.isFollowing(currentUserID: viewerID, targetUserID: profileUserID)
+        async let targetProfile   = UserProfileService.shared.fetchProfile(userID: profileUserID)
+        async let viewerProfile   = UserProfileService.shared.fetchProfile(userID: viewerID)
+
+        if let following = try? await followingCheck { isFollowing = following }
+        if let profile = try? await targetProfile {
+            followerCount         = profile.followerCount
+            followingCount        = profile.followingCount
+            targetProfilePhotoURL = profile.profilePhotoURL
+        }
+        if let vp = try? await viewerProfile { viewerProfilePhotoURL = vp.profilePhotoURL }
+    }
+
+    private func toggleFollow() async {
+        let viewer = currentUserSettings ?? ownUserSettings
+        guard let viewerSettings = viewer, !viewerSettings.userID.isEmpty else { return }
+
+        followLoading = true
+        defer { followLoading = false }
+
+        do {
+            if isFollowing {
+                try await FollowService.shared.unfollowUser(
+                    currentUserID: viewerSettings.userID,
+                    targetUserID:  profileUserID
+                )
+                isFollowing   = false
+                followerCount = max(0, followerCount - 1)
+            } else {
+                try await FollowService.shared.followUser(
+                    currentUserID:          viewerSettings.userID,
+                    currentUsername:        viewerSettings.username,
+                    currentProfilePhotoURL: viewerProfilePhotoURL,
+                    targetUserID:           profileUserID,
+                    targetUsername:         profileUsername,
+                    targetProfilePhotoURL:  targetProfilePhotoURL
+                )
+                isFollowing   = true
+                followerCount += 1
+            }
+        } catch {
+            print("[ProfileView] toggleFollow error: \(error)")
+        }
     }
 }
 
