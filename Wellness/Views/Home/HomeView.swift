@@ -390,8 +390,6 @@ struct HomeView: View {
         viewModel.selectedDate = selectedDate
         // Defer the DB fetch to after the first frame so the UI renders immediately
         Task { viewModel.loadTodayTotals() }
-        // One-time migration of local SwiftData / UserDefaults data to Firestore
-        Task { await viewModel.runDataMigrationIfNeeded() }
         // Lock any past fasting windows that haven't been locked yet
         Task { await FastingWindowService.shared.lockPastWindows(userID: viewModel.userSettings.userID) }
     }
