@@ -319,23 +319,31 @@ struct CreatePostView: View {
     // MARK: - Caption Field
 
     private var captionField: some View {
-        ZStack(alignment: .topLeading) {
-            if caption.isEmpty {
-                Text("Add a caption… (optional)")
-                    .foregroundStyle(.white.opacity(0.28))
-                    .padding(.top, 18)
-                    .padding(.leading, 16)
+        VStack(alignment: .trailing, spacing: 4) {
+            ZStack(alignment: .topLeading) {
+                if caption.isEmpty {
+                    Text("Add a caption… (optional)")
+                        .foregroundStyle(.white.opacity(0.28))
+                        .padding(.top, 18)
+                        .padding(.leading, 16)
+                }
+                TextEditor(text: $caption)
+                    .foregroundStyle(.white)
+                    .scrollContentBackground(.hidden)
+                    .frame(minHeight: 80, maxHeight: 130)
+                    .padding(10)
+                    .focused($captionFocused)
+                    .onChange(of: caption) { _, v in
+                        if v.count > 300 { caption = String(v.prefix(300)) }
+                    }
             }
-            TextEditor(text: $caption)
-                .foregroundStyle(.white)
-                .scrollContentBackground(.hidden)
-                .frame(minHeight: 80, maxHeight: 130)
-                .padding(10)
-                .focused($captionFocused)
+            .background(cardBg)
+            .cornerRadius(16)
+            .onTapGesture { captionFocused = true }
+            Text("\(caption.count)/300")
+                .font(.system(size: 11))
+                .foregroundStyle(caption.count >= 300 ? .red : caption.count >= 240 ? Color.orange : .white.opacity(0.25))
         }
-        .background(cardBg)
-        .cornerRadius(16)
-        .onTapGesture { captionFocused = true }
     }
 
     // MARK: - Meal Type Picker

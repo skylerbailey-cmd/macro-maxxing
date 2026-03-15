@@ -44,6 +44,22 @@ struct AuraGain: Identifiable, Equatable {
         didSet { UserDefaults.standard.set(macroStreak, forKey: "macroStreak") }
     }
 
+    // MARK: - Brainstorm result persistence
+
+    /// The AI meal-planner result text from the most recent brainstorm run.
+    var lastBrainstormResult: String = "" {
+        didSet { UserDefaults.standard.set(lastBrainstormResult, forKey: "lastBrainstormResult") }
+    }
+    /// The calendar day on which `lastBrainstormResult` was generated.
+    var lastBrainstormDate: Date = .distantPast {
+        didSet { UserDefaults.standard.set(lastBrainstormDate.timeIntervalSince1970, forKey: "lastBrainstormDate") }
+    }
+
+    /// True if the stored brainstorm result was generated today and is still valid.
+    var hasTodayBrainstormResult: Bool {
+        !lastBrainstormResult.isEmpty && Calendar.current.isDateInToday(lastBrainstormDate)
+    }
+
     // MARK: - Brainstorm daily limit
 
     private static let brainstormDailyLimit = 2
@@ -80,7 +96,17 @@ struct AuraGain: Identifiable, Equatable {
 
     // MARK: - Body
     var fastingEnabled: Bool = false {
-        didSet { UserDefaults.standard.set(fastingEnabled, forKey: "fastingEnabled") }
+        didSet {
+            UserDefaults.standard.set(fastingEnabled, forKey: "fastingEnabled")
+            if fastingEnabled {
+                let hour   = UserDefaults.standard.integer(forKey: "windowStartHour")
+                let minute = UserDefaults.standard.integer(forKey: "windowStartMinute")
+                NotificationService.shared.scheduleFastingWindowNotification(
+                    windowStartHour: hour, windowStartMinute: minute)
+            } else {
+                NotificationService.shared.cancelFastingWindowNotification()
+            }
+        }
     }
     var currentWeight: Double = 160 {
         didSet { UserDefaults.standard.set(currentWeight, forKey: "currentWeight") }
@@ -303,6 +329,9 @@ struct AuraGain: Identifiable, Equatable {
         self.brainstormUsageCount  = UserDefaults.standard.integer(forKey: "brainstormUsageCount")
         let storedBSDate = UserDefaults.standard.double(forKey: "brainstormUsageDate")
         self.brainstormUsageDate   = storedBSDate > 0 ? Date(timeIntervalSince1970: storedBSDate) : .distantPast
+        self.lastBrainstormResult  = UserDefaults.standard.string(forKey: "lastBrainstormResult") ?? ""
+        let storedBSResultDate = UserDefaults.standard.double(forKey: "lastBrainstormDate")
+        self.lastBrainstormDate    = storedBSResultDate > 0 ? Date(timeIntervalSince1970: storedBSResultDate) : .distantPast
         let storedPopups = UserDefaults.standard.object(forKey: "auraPopupsEnabled")
         self.auraPopupsEnabled = storedPopups != nil
             ? UserDefaults.standard.bool(forKey: "auraPopupsEnabled") : true

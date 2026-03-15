@@ -318,18 +318,28 @@ struct LeaderboardView: View {
     private func boardSection(title: String, icon: String, subtitle: String,
                                entries: [LeaderboardEntry], board: Board) -> some View {
         let scoreLabel = board == .streak ? "days" : board == .engagement ? "score" : "pts"
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
+        let iconColor: Color = board == .weeklyAura ? purpl
+            : board == .engagement ? Color(red: 1.0, green: 0.45, blue: 0.55)
+            : .orange
+
+        VStack(alignment: .leading, spacing: 0) {
+            // Card header
+            HStack(spacing: 10) {
                 Image(systemName: icon)
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(purpl)
-                Text(title)
-                    .font(.system(size: 15, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(iconColor)
+                    .frame(width: 30, height: 30)
+                    .background(iconColor.opacity(0.15))
+                    .clipShape(Circle())
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .font(.system(size: 15, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text(subtitle)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.35))
+                }
                 Spacer()
-                Text(subtitle)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.30))
                 Button {
                     let sb = ShareableBoard(title: title, scoreLabel: scoreLabel, entries: entries)
                     presentShareSheet(board: sb)
@@ -338,57 +348,74 @@ struct LeaderboardView: View {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(gold.opacity(0.80))
                         .padding(6)
-                        .background(gold.opacity(0.12))
+                        .background(gold.opacity(0.10))
                         .clipShape(Circle())
                 }
             }
+            .padding(14)
+
+            Rectangle()
+                .fill(Color.white.opacity(0.06))
+                .frame(height: 1)
+
             if entries.isEmpty {
                 let noLocation = selectedScope == .local && locationManager.coordinate == nil
-                if selectedScope == .local && !noLocation {
-                    // Local tab, location available, but zero users found → invite banner
-                    localInviteBanner(full: true)
-                } else if selectedScope == .team {
-                    // Team tab with no friends → invite banner
-                    teamInviteBanner(full: true)
-                } else {
-                    VStack(spacing: 10) {
-                        Text(noLocation
-                             ? "Enable location access to see the local board"
-                             : "No local data yet")
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.28))
-                            .multilineTextAlignment(.center)
-                        if noLocation {
-                            Button("Open Settings") {
-                                if let url = URL(string: UIApplication.openSettingsURLString) {
-                                    UIApplication.shared.open(url)
+                Group {
+                    if selectedScope == .local && !noLocation {
+                        localInviteBanner(full: true)
+                    } else if selectedScope == .team {
+                        teamInviteBanner(full: true)
+                    } else {
+                        VStack(spacing: 10) {
+                            Text(noLocation
+                                 ? "Enable location access to see the local board"
+                                 : "No local data yet")
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.28))
+                                .multilineTextAlignment(.center)
+                            if noLocation {
+                                Button("Open Settings") {
+                                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                                        UIApplication.shared.open(url)
+                                    }
                                 }
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(purpl)
                             }
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(purpl)
                         }
+                        .padding(.vertical, 16)
+                        .frame(maxWidth: .infinity, alignment: .center)
                     }
-                    .padding(.vertical, 16)
-                    .frame(maxWidth: .infinity, alignment: .center)
                 }
+                .padding(12)
             } else {
-                VStack(spacing: 8) {
+                VStack(spacing: 6) {
                     ForEach(Array(entries.enumerated()), id: \.element.id) { rank, entry in
                         LeaderboardRow(rank: rank + 1, entry: entry, board: board,
                                        isCurrentUser: entry.isCurrentUser)
                             .onTapGesture { selectedProfile = entry }
                     }
                 }
-                // Fewer than 10 local competitors → invite nudge below the rows
+                .padding(12)
+
                 if selectedScope == .local && entries.count < 10 {
                     localInviteBanner(full: false)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 12)
                 }
-                // Fewer than 5 team members → invite nudge below the rows
                 if selectedScope == .team && entries.count < 5 {
                     teamInviteBanner(full: false)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 12)
                 }
             }
         }
+        .background(cardBg)
+        .cornerRadius(18)
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(Color.white.opacity(0.07), lineWidth: 1)
+        )
     }
 
     /// Banner shown on the Team tab when fewer than 5 friends are competing.
@@ -511,12 +538,26 @@ struct LeaderboardView: View {
     enum Board { case weeklyAura, engagement, streak }
 
     private var scopePicker: some View {
-        Picker("Scope", selection: $selectedScope) {
-            ForEach(Scope.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+        HStack(spacing: 0) {
+            ForEach(Scope.allCases, id: \.self) { scope in
+                Button { selectedScope = scope } label: {
+                    Text(scope.rawValue)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(selectedScope == scope ? .black : .white.opacity(0.55))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule().fill(selectedScope == scope ? gold : Color.clear)
+                        )
+                }
+                .buttonStyle(.plain)
+                .animation(.spring(duration: 0.2), value: selectedScope)
+            }
         }
-        .pickerStyle(.segmented)
+        .padding(4)
+        .background(Capsule().fill(cardBg))
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.vertical, 8)
     }
 
     // MARK: - Private account banner
@@ -1054,7 +1095,6 @@ private struct LeaderboardRow: View {
     let board:         LeaderboardView.Board
     let isCurrentUser: Bool
 
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
     private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
     private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
     private let silver = Color(red: 0.75, green: 0.75, blue: 0.82)
@@ -1068,16 +1108,21 @@ private struct LeaderboardRow: View {
             Spacer()
             scoreStack
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 12)
                 .fill(isCurrentUser
                       ? purpl.opacity(0.12)
-                      : cardBg)
+                      : rank <= 3 ? rankColor.opacity(0.05) : Color(red: 0.10, green: 0.08, blue: 0.18))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(isCurrentUser ? purpl.opacity(0.35) : Color.clear, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(
+                            isCurrentUser ? purpl.opacity(0.30)
+                            : rank <= 3 ? rankColor.opacity(0.22)
+                            : Color.white.opacity(0.04),
+                            lineWidth: 1
+                        )
                 )
         )
     }
@@ -1088,36 +1133,36 @@ private struct LeaderboardRow: View {
             case 1:
                 Circle()
                     .fill(gold.opacity(0.20))
-                    .frame(width: 32, height: 32)
+                    .frame(width: 34, height: 34)
                 Text("👑")
-                    .font(.system(size: 16))
+                    .font(.system(size: 17))
             case 2:
                 Circle()
                     .fill(silver.opacity(0.18))
-                    .frame(width: 32, height: 32)
+                    .frame(width: 34, height: 34)
                 Text("🥈")
-                    .font(.system(size: 16))
+                    .font(.system(size: 17))
             case 3:
                 Circle()
                     .fill(bronze.opacity(0.18))
-                    .frame(width: 32, height: 32)
+                    .frame(width: 34, height: 34)
                 Text("🥉")
-                    .font(.system(size: 16))
+                    .font(.system(size: 17))
             default:
                 Circle()
                     .fill(Color.white.opacity(0.06))
-                    .frame(width: 32, height: 32)
+                    .frame(width: 34, height: 34)
                 Text("\(rank)")
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.35))
             }
         }
-        .frame(width: 32)
+        .frame(width: 34)
     }
 
     private var avatarView: some View {
         ZStack(alignment: .bottomTrailing) {
-            avatarCircle(size: 40, data: entry.profileImageData, initial: entry.displayName)
+            avatarCircle(size: 44, data: entry.profileImageData, initial: entry.displayName)
             if entry.auraLevel > 0 {
                 Text("⭐")
                     .font(.system(size: 9))
@@ -1143,7 +1188,7 @@ private struct LeaderboardRow: View {
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
                         .background(purpl.opacity(0.18))
-                        .cornerRadius(4)
+                        .clipShape(Capsule())
                 }
             }
             HStack(spacing: 4) {
@@ -1160,47 +1205,60 @@ private struct LeaderboardRow: View {
     }
 
     private var scoreStack: some View {
-        VStack(alignment: .trailing, spacing: 2) {
+        VStack(alignment: .trailing, spacing: 3) {
             switch board {
             case .weeklyAura:
                 Text("\(entry.score.formatted())")
-                    .font(.system(size: 16, weight: .black, design: .rounded))
+                    .font(.system(size: 15, weight: .black, design: .rounded))
                     .foregroundStyle(rankColor)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(rankColor.opacity(0.12))
+                    .clipShape(Capsule())
                 Text("pts")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.30))
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.28))
             case .engagement:
                 Text("\(entry.score)")
-                    .font(.system(size: 16, weight: .black, design: .rounded))
+                    .font(.system(size: 15, weight: .black, design: .rounded))
                     .foregroundStyle(rankColor)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(rankColor.opacity(0.12))
+                    .clipShape(Capsule())
                 HStack(spacing: 4) {
                     Text("💪\(entry.reps)")
                         .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.40))
+                        .foregroundStyle(.white.opacity(0.38))
                     Text("·")
                         .foregroundStyle(.white.opacity(0.20))
                         .font(.system(size: 9))
                     Text("💬\(entry.comments)")
                         .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.40))
+                        .foregroundStyle(.white.opacity(0.38))
                 }
             case .streak:
                 Text("\(entry.score)")
-                    .font(.system(size: 16, weight: .black, design: .rounded))
+                    .font(.system(size: 15, weight: .black, design: .rounded))
                     .foregroundStyle(rankColor)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(rankColor.opacity(0.12))
+                    .clipShape(Capsule())
                 Text(entry.score == 1 ? "day" : "days")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.30))
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.28))
             }
         }
     }
 
     private var rankColor: Color {
+        if isCurrentUser { return purpl }
         switch rank {
         case 1: return Color(red: 1.00, green: 0.80, blue: 0.20)
         case 2: return Color(red: 0.75, green: 0.75, blue: 0.82)
         case 3: return Color(red: 0.80, green: 0.50, blue: 0.20)
-        default: return .white
+        default: return Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.75)
         }
     }
 }

@@ -140,17 +140,23 @@ final class ClaudeAnalysisService {
         - Carbs:    \(carbPct)% (\(Int(input.totalCarbs))g / \(Int(input.goalCarbs))g)
         - Fat:      \(fatPct)%  (\(Int(input.totalFat))g / \(Int(input.goalFat))g)
 
-        Identify which macro(s) are most under-represented relative to the others \
-        and suggest ONE specific meal or snack that addresses that imbalance \
-        (e.g. if protein and fat are at 70% but carbs are at 20%, go carb-heavy). \
-        Be very specific (e.g. "**2 cups white rice + 100g chicken breast**" not just "rice"). \
-        No bullet list, no intro sentence — one suggestion + one sentence on why it fits \
-        the current distribution. Keep it specific and motivating.
+        Give exactly 3 suggestions that all address the same macro gap but use completely different foods:
+        1. A full meal option
+        2. A quick snack option
+        3. A second snack option using a different food group than option 2
+
+        Rules:
+        - Each option must use a DIFFERENT primary ingredient / protein source — no repeating proteins across options
+        - Draw from the full range of real foods: chicken, beef, fish, eggs, Greek yogurt, \
+          cottage cheese, tofu, turkey, tuna, lentils, oats, rice, fruit, nuts, seeds, etc.
+        - Be very specific with amounts (e.g. "200g ground beef + sweet potato" not just "beef and potato")
+        - Format: bold the food name, then one short sentence on why it fits the macro gap
+        - No intro line, no outro — just the 3 numbered options
         """
 
         let body = RequestBody(
             model: model,
-            maxTokens: 600,
+            maxTokens: 800,
             messages: [RequestBody.Message(role: "user", content: prompt)]
         )
         var req = URLRequest(url: endpoint)

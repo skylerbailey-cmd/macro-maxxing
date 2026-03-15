@@ -336,6 +336,15 @@ struct CelebrationPostEditorSheet: View {
                             .focused($focus, equals: .title)
                             .submitLabel(.next)
                             .onSubmit { focus = .message }
+                            .onChange(of: titleText) { _, v in
+                                if v.count > 80 { titleText = String(v.prefix(80)) }
+                            }
+                            HStack {
+                                Spacer()
+                                Text("\(titleText.count)/80")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(titleText.count >= 80 ? .red : titleText.count >= 64 ? Color.orange : .white.opacity(0.25))
+                            }
                         }
 
                         // Message / body field
@@ -357,9 +366,18 @@ struct CelebrationPostEditorSheet: View {
                                     .frame(minHeight: 100)
                                     .padding(10)
                                     .focused($focus, equals: .message)
+                                    .onChange(of: messageText) { _, v in
+                                        if v.count > 300 { messageText = String(v.prefix(300)) }
+                                    }
                             }
                             .background(cardBg)
                             .cornerRadius(12)
+                            HStack {
+                                Spacer()
+                                Text("\(messageText.count)/300")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(messageText.count >= 300 ? .red : messageText.count >= 240 ? Color.orange : .white.opacity(0.25))
+                            }
                         }
 
                         // Photos

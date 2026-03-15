@@ -108,32 +108,48 @@ struct NewPostView: View {
                 ScrollView {
                     VStack(spacing: 14) {
                         // Status
-                        TextField(statusPrompt, text: $titleText)
-                            .font(.title3.bold())
-                            .foregroundStyle(.white)
-                            .padding(14)
-                            .background(cardBg)
-                            .cornerRadius(12)
-                            .focused($focus, equals: .title)
-                            .submitLabel(.next)
-                            .onSubmit { focus = .body }
+                        VStack(alignment: .trailing, spacing: 4) {
+                            TextField(statusPrompt, text: $titleText)
+                                .font(.title3.bold())
+                                .foregroundStyle(.white)
+                                .padding(14)
+                                .background(cardBg)
+                                .cornerRadius(12)
+                                .focused($focus, equals: .title)
+                                .submitLabel(.next)
+                                .onSubmit { focus = .body }
+                                .onChange(of: titleText) { _, v in
+                                    if v.count > 80 { titleText = String(v.prefix(80)) }
+                                }
+                            Text("\(titleText.count)/80")
+                                .font(.system(size: 11))
+                                .foregroundStyle(titleText.count >= 80 ? .red : titleText.count >= 64 ? Color.orange : .white.opacity(0.25))
+                        }
 
                         // Body
-                        ZStack(alignment: .topLeading) {
-                            if bodyText.isEmpty {
-                                Text(bodyPrompt)
-                                    .foregroundStyle(.white.opacity(0.30))
-                                    .padding(18)
+                        VStack(alignment: .trailing, spacing: 4) {
+                            ZStack(alignment: .topLeading) {
+                                if bodyText.isEmpty {
+                                    Text(bodyPrompt)
+                                        .foregroundStyle(.white.opacity(0.30))
+                                        .padding(18)
+                                }
+                                TextEditor(text: $bodyText)
+                                    .foregroundStyle(.white)
+                                    .scrollContentBackground(.hidden)
+                                    .frame(minHeight: 130)
+                                    .padding(10)
+                                    .focused($focus, equals: .body)
+                                    .onChange(of: bodyText) { _, v in
+                                        if v.count > 300 { bodyText = String(v.prefix(300)) }
+                                    }
                             }
-                            TextEditor(text: $bodyText)
-                                .foregroundStyle(.white)
-                                .scrollContentBackground(.hidden)
-                                .frame(minHeight: 130)
-                                .padding(10)
-                                .focused($focus, equals: .body)
+                            .background(cardBg)
+                            .cornerRadius(12)
+                            Text("\(bodyText.count)/300")
+                                .font(.system(size: 11))
+                                .foregroundStyle(bodyText.count >= 300 ? .red : bodyText.count >= 240 ? Color.orange : .white.opacity(0.25))
                         }
-                        .background(cardBg)
-                        .cornerRadius(12)
 
                         // Photos
                         MultiPhotoSection(photos: $photos)

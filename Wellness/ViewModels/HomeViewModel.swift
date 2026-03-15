@@ -21,10 +21,24 @@ import SwiftData
 
     // MARK: - Fasting window (persisted — always today's editable values)
     var windowStartHour: Int {
-        didSet { UserDefaults.standard.set(windowStartHour, forKey: "windowStartHour"); snapshotTodayWindow() }
+        didSet {
+            UserDefaults.standard.set(windowStartHour, forKey: "windowStartHour")
+            snapshotTodayWindow()
+            if userSettings.fastingEnabled {
+                NotificationService.shared.scheduleFastingWindowNotification(
+                    windowStartHour: windowStartHour, windowStartMinute: windowStartMinute)
+            }
+        }
     }
     var windowStartMinute: Int {
-        didSet { UserDefaults.standard.set(windowStartMinute, forKey: "windowStartMinute"); snapshotTodayWindow() }
+        didSet {
+            UserDefaults.standard.set(windowStartMinute, forKey: "windowStartMinute")
+            snapshotTodayWindow()
+            if userSettings.fastingEnabled {
+                NotificationService.shared.scheduleFastingWindowNotification(
+                    windowStartHour: windowStartHour, windowStartMinute: windowStartMinute)
+            }
+        }
     }
     var windowDurationHours: Int {
         didSet { UserDefaults.standard.set(windowDurationHours, forKey: "windowDurationHours"); snapshotTodayWindow() }
@@ -181,6 +195,18 @@ import SwiftData
 
         // Ensure today always has a snapshot so past days see their actual recorded window
         snapshotTodayWindow()
+
+        // Schedule fasting window notification if enabled
+        if userSettings.fastingEnabled {
+            NotificationService.shared.scheduleFastingWindowNotification(
+                windowStartHour: windowStartHour, windowStartMinute: windowStartMinute)
+        }
+
+        // Restore today's brainstorm result if it was generated today
+        if userSettings.hasTodayBrainstormResult {
+            brainstormState = .result(userSettings.lastBrainstormResult)
+        }
+
         // Data is loaded lazily from the view's onAppear to avoid blocking init
     }
 
@@ -225,6 +251,8 @@ import SwiftData
         do {
             let result = try await ClaudeAnalysisService().brainstorm(input)
             brainstormState = .result(result)
+            userSettings.lastBrainstormResult = result
+            userSettings.lastBrainstormDate   = Date()
         } catch {
             brainstormState = .error(error.localizedDescription)
         }

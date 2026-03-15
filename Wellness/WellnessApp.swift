@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 import FirebaseCore
 import BackgroundTasks
+import UserNotifications
 
 class AppDelegate: NSObject, UIApplicationDelegate {
 
@@ -17,6 +18,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         FirebaseApp.configure()
+        NotificationService.shared.requestAuthorization()
 
         // 50 MB memory + 200 MB disk cache so food photos survive across sessions
         URLCache.shared = URLCache(

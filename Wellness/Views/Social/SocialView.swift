@@ -122,12 +122,26 @@ struct SocialView: View {
             Color.pageBg.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                Picker("Feed", selection: $selectedFeed) {
-                    ForEach(Feed.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                HStack(spacing: 0) {
+                    ForEach(Feed.allCases, id: \.self) { feed in
+                        Button { selectedFeed = feed } label: {
+                            Text(feed.rawValue)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(selectedFeed == feed ? .black : .white.opacity(0.55))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(
+                                    Capsule().fill(selectedFeed == feed ? Color.purpleHi : Color.clear)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .animation(.spring(duration: 0.2), value: selectedFeed)
+                    }
                 }
-                .pickerStyle(.segmented)
+                .padding(4)
+                .background(Capsule().fill(Color.cardBg))
                 .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.vertical, 8)
                 .onAppear {
                     if selectedFeed == .local { locationManager.requestLocationIfNeeded() }
                 }
@@ -295,28 +309,40 @@ struct SocialView: View {
     @ViewBuilder
     private var emptyFeed: some View {
         let noLocation = selectedFeed == .local && locationManager.coordinate == nil
-        VStack(spacing: 14) {
-            Image(systemName: selectedFeed == .team
-                  ? "person.2" : selectedFeed == .local
-                  ? "location.circle" : "figure.strengthtraining.traditional")
-                .font(.system(size: 48))
-                .foregroundStyle(.white.opacity(0.15))
-            Text(selectedFeed == .team ? "Team is quiet"
-                 : noLocation ? "Location access needed"
-                 : selectedFeed == .local ? "No local posts yet"
-                 : "Arena is empty")
-                .font(.headline)
-                .foregroundStyle(.white.opacity(0.35))
-            Text(selectedFeed == .team
-                 ? "Add friends from the + button above, then their posts will appear here."
-                 : noLocation
-                 ? "Enable location access in Settings so we can show posts from people near you."
-                 : selectedFeed == .local ? "No one in your area has posted yet. Be the first."
-                 : "Hit all your macro goals and post from the celebration screen, or tap ✏️ to drop a post.")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.22))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
+        let icon = selectedFeed == .team ? "person.2.fill"
+            : selectedFeed == .local ? "location.circle.fill"
+            : "bolt.circle.fill"
+        let headline = selectedFeed == .team ? "Team is quiet"
+            : noLocation ? "Location needed"
+            : selectedFeed == .local ? "No local posts yet"
+            : "Arena is empty"
+        let body = selectedFeed == .team
+            ? "Add friends with the + button above — their posts will appear here."
+            : noLocation
+            ? "Enable location in Settings so we can show posts from people near you."
+            : selectedFeed == .local ? "No one in your area has posted yet. Be the first."
+            : "Hit your macro goals and post from the celebration screen, or tap ✏️ to drop a post."
+
+        VStack(spacing: 18) {
+            ZStack {
+                Circle()
+                    .fill(Color.purpleHi.opacity(0.10))
+                    .frame(width: 88, height: 88)
+                Image(systemName: icon)
+                    .font(.system(size: 40))
+                    .foregroundStyle(Color.purpleHi.opacity(0.45))
+            }
+            VStack(spacing: 6) {
+                Text(headline)
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.65))
+                Text(body)
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.32))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(2)
+                    .padding(.horizontal, 32)
+            }
             if noLocation {
                 Button("Open Settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -324,7 +350,7 @@ struct SocialView: View {
                     }
                 }
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
+                .foregroundStyle(Color.purpleHi)
                 .padding(.top, 4)
             }
         }
@@ -376,7 +402,7 @@ struct PostCard: View {
             }
 
             // Reps + comments (right-aligned)
-            HStack(spacing: 16) {
+            HStack(spacing: 8) {
                 Spacer()
                 // 💪 Rep button
                 Button {
@@ -388,37 +414,54 @@ struct PostCard: View {
                 } label: {
                     HStack(spacing: 5) {
                         Text("💪")
-                            .font(.system(size: 14))
-                        Text("\(post.repsCount)")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 12))
+                        Text(post.repsCount > 0 ? "\(post.repsCount)" : "Rep")
+                            .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(
                                 post.hasRepped(userID: userID)
                                     ? Color(red: 1.0, green: 0.75, blue: 0.2)
-                                    : .white.opacity(0.35)
-                            )
-                        Text("Reps")
-                            .font(.caption)
-                            .foregroundStyle(
-                                post.hasRepped(userID: userID)
-                                    ? Color(red: 1.0, green: 0.75, blue: 0.2)
-                                    : .white.opacity(0.35)
+                                    : .white.opacity(0.70)
                             )
                     }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(
+                        post.hasRepped(userID: userID)
+                            ? Color(red: 1.0, green: 0.75, blue: 0.2).opacity(0.14)
+                            : Color.white.opacity(0.06)
+                    )
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule().stroke(
+                            post.hasRepped(userID: userID)
+                                ? Color(red: 1.0, green: 0.75, blue: 0.2).opacity(0.35)
+                                : Color.clear,
+                            lineWidth: 1
+                        )
+                    )
                 }
                 .buttonStyle(.plain)
 
-                HStack(spacing: 4) {
-                    Image(systemName: "bubble.left")
-                        .font(.system(size: 12))
+                HStack(spacing: 5) {
+                    Image(systemName: "bubble.left.fill")
+                        .font(.system(size: 11))
                     Text("\(post.comments.count)")
-                        .font(.caption)
+                        .font(.system(size: 12, weight: .bold))
                 }
                 .foregroundStyle(.white.opacity(0.35))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(Color.white.opacity(0.05))
+                .clipShape(Capsule())
             }
         }
         .padding(14)
         .background(Color.cardBg)
         .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+        )
         .sheet(isPresented: $showingImageViewer) {
             PostImageViewerSheet(imageDatas: post.allImageDatas)
         }
@@ -438,9 +481,17 @@ struct PostCard: View {
                     Text(post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName)
                         .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
                     if post.authorAuraPoints > 0 {
-                        Text("⭐ Lv \(post.authorAuraLevel) · \(post.authorAuraPoints) pts")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+                        HStack(spacing: 3) {
+                            Text("⭐")
+                                .font(.system(size: 9))
+                            Text("Lv \(post.authorAuraLevel)")
+                                .font(.system(size: 10, weight: .black, design: .rounded))
+                        }
+                        .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(Color(red: 1.0, green: 0.80, blue: 0.20).opacity(0.12))
+                        .clipShape(Capsule())
                     }
                 }
                 Text("@\(post.authorUsername)  ·  \(post.postedAt, format: .dateTime.month(.abbreviated).day().hour().minute())")
@@ -546,35 +597,39 @@ struct PostCard: View {
             ("Carb", post.totalCarbs,    post.goalCarbs,    Color(red: 0.40, green: 0.90, blue: 0.72)),
             ("Fat",  post.totalFat,      post.goalFat,      Color(red: 1.00, green: 0.50, blue: 0.72)),
         ]
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                 let (label, actual, goal, color) = item
                 let met: Bool = label == "Cal"
                     ? actual >= goal * 0.85 && actual <= goal * 1.15
                     : actual >= goal * 0.85
-                VStack(spacing: 3) {
-                    ZStack {
-                        Circle()
-                            .fill(met ? color.opacity(0.20) : Color.white.opacity(0.06))
-                            .frame(width: 30, height: 30)
-                        if met {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(color)
-                        } else {
-                            Text("\(Int((actual / max(goal, 1)) * 100))%")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.40))
-                        }
+                HStack(spacing: 3) {
+                    if met {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 7, weight: .black))
                     }
                     Text(label)
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.40))
+                        .font(.system(size: 10, weight: .semibold))
                 }
+                .foregroundStyle(met ? color : .white.opacity(0.32))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(met ? color.opacity(0.14) : Color.white.opacity(0.05))
+                .clipShape(Capsule())
             }
             Spacer()
         }
         .padding(.top, 4)
+    }
+
+    private func fuelBadge(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 
     // Fuel log post: visual meal table matching the preview
@@ -627,9 +682,12 @@ struct PostCard: View {
                             Text(entry.foodName)
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.white)
-                            Text("\(Int(entry.calories)) kcal · \(Int(entry.protein))g P · \(Int(entry.carbs))g C · \(Int(entry.fat))g F")
-                                .font(.caption)
-                                .foregroundStyle(.white.opacity(0.45))
+                            HStack(spacing: 4) {
+                                fuelBadge("\(Int(entry.calories)) kcal", color: Color(red: 1.00, green: 0.55, blue: 0.15))
+                                fuelBadge("\(Int(entry.protein))g P",    color: Color(red: 0.35, green: 0.75, blue: 1.00))
+                                fuelBadge("\(Int(entry.carbs))g C",      color: Color(red: 0.40, green: 0.90, blue: 0.72))
+                                fuelBadge("\(Int(entry.fat))g F",        color: Color(red: 1.00, green: 0.50, blue: 0.72))
+                            }
                         }
                         Spacer()
                         Text(entry.loggedAt, style: .time)
@@ -654,9 +712,12 @@ struct PostCard: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.white)
                 Spacer()
-                Text("\(Int(totalCal)) kcal · \(Int(totalPro))g P · \(Int(totalCarb))g C · \(Int(totalFat))g F")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(purpl)
+                HStack(spacing: 4) {
+                    fuelBadge("\(Int(totalCal)) kcal", color: Color(red: 1.00, green: 0.55, blue: 0.15))
+                    fuelBadge("\(Int(totalPro))g P",   color: Color(red: 0.35, green: 0.75, blue: 1.00))
+                    fuelBadge("\(Int(totalCarb))g C",  color: Color(red: 0.40, green: 0.90, blue: 0.72))
+                    fuelBadge("\(Int(totalFat))g F",   color: Color(red: 1.00, green: 0.50, blue: 0.72))
+                }
             }
             .padding(.top, 8)
         }

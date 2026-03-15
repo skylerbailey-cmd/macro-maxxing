@@ -61,6 +61,14 @@ struct FoodLogView: View {
                         if viewModel.todayEntries.isEmpty {
                             emptyState
                         } else {
+                            macroSummaryBanner
+
+                            Text("\(viewModel.todayEntries.count) Meal\(viewModel.todayEntries.count == 1 ? "" : "s")")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.30))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, 2)
+
                             ForEach(viewModel.todayEntries) { entry in
                                 FoodEntryRow(entry: entry,
                                              onEdit:   isToday ? { editingEntry = entry } : {},
@@ -93,24 +101,31 @@ struct FoodLogView: View {
 
             // FABs — only shown for today
             if isToday {
-                VStack {
-                    Spacer()
-                    HStack {
-                        CircleFAB(icon: "photo.on.rectangle", color: .macroBlue) {
+                VStack(spacing: 0) {
+                    LinearGradient(
+                        colors: [Color.pageBg.opacity(0), Color.pageBg],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                    .frame(height: 48)
+                    .allowsHitTesting(false)
+
+                    HStack(spacing: 40) {
+                        fabWithLabel(icon: "photo.on.rectangle", label: "Library", color: .macroBlue) {
                             viewModel.showingPhotoLibrary = true
                         }
-                        Spacer()
-                        CircleFAB(
-                            icon: "camera.fill",
+                        fabWithLabel(
+                            icon: "camera.fill", label: "Camera",
                             color: .purpleHi,
                             disabled: !UIImagePickerController.isSourceTypeAvailable(.camera)
                         ) {
                             viewModel.showingCamera = true
                         }
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 16)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color.pageBg)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             }
         }
         .preferredColorScheme(.dark)
@@ -218,23 +233,111 @@ struct FoodLogView: View {
         }
     }
 
+    // MARK: - Macro summary banner
+
+    @ViewBuilder
+    private var macroSummaryBanner: some View {
+        let entries = viewModel.todayEntries
+        let cal  = entries.reduce(0.0) { $0 + $1.calories }
+        let pro  = entries.reduce(0.0) { $0 + $1.protein }
+        let carb = entries.reduce(0.0) { $0 + $1.carbs }
+        let fat  = entries.reduce(0.0) { $0 + $1.fat }
+
+        HStack(alignment: .center, spacing: 0) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text("\(Int(cal))")
+                        .font(.system(size: 30, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text("kcal")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.orange.opacity(0.80))
+                }
+                Text("\(entries.count) meal\(entries.count == 1 ? "" : "s") logged today")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.38))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Rectangle()
+                .fill(Color.white.opacity(0.08))
+                .frame(width: 1, height: 40)
+
+            HStack(spacing: 0) {
+                summaryMacroStat(value: pro,  label: "Protein", color: .macroBlue)
+                summaryMacroStat(value: carb, label: "Carbs",   color: Color(red: 0.40, green: 0.90, blue: 0.72))
+                summaryMacroStat(value: fat,  label: "Fat",     color: Color(red: 1.00, green: 0.50, blue: 0.72))
+            }
+            .padding(.leading, 12)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(Color(red: 0.11, green: 0.08, blue: 0.20))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.purpleHi.opacity(0.12), lineWidth: 1)
+        )
+    }
+
+    private func summaryMacroStat(value: Double, label: String, color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text("\(Int(value))g")
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+            Text(label)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(.white.opacity(0.38))
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - FAB with label
+
+    private func fabWithLabel(icon: String, label: String, color: Color, disabled: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 54, height: 54)
+                    .background(disabled ? Color.white.opacity(0.08) : color.opacity(0.85))
+                    .clipShape(Circle())
+                    .shadow(color: disabled ? .clear : color.opacity(0.45), radius: 10, y: 4)
+                Text(label)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white.opacity(disabled ? 0.20 : 0.50))
+            }
+        }
+        .disabled(disabled)
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Empty state (compact, inline in scroll)
 
     private var emptyState: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "fork.knife.circle")
-                .font(.system(size: 40))
-                .foregroundStyle(.white.opacity(0.15))
-            Text("No food logged")
-                .font(.headline)
-                .foregroundStyle(.white.opacity(0.35))
-            Text("Tap the camera or photo button below to log a meal.")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.22))
-                .multilineTextAlignment(.center)
+        VStack(spacing: 18) {
+            ZStack {
+                Circle()
+                    .fill(Color.purpleHi.opacity(0.10))
+                    .frame(width: 84, height: 84)
+                Image(systemName: "fork.knife.circle.fill")
+                    .font(.system(size: 40))
+                    .foregroundStyle(Color.purpleHi.opacity(0.45))
+            }
+            VStack(spacing: 6) {
+                Text("No fuel logged")
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.65))
+                Text("Tap Camera or Library below\nto log your first meal.")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.32))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(2)
+            }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 32)
+        .padding(.vertical, 48)
     }
 
     // MARK: - Log Meals (AI Nutrition Coach) section
@@ -646,58 +749,128 @@ private struct FoodEntryRow: View {
     let onDelete: () -> Void
     var canEdit:  Bool = true
 
+    @State private var offset: CGFloat = 0
+    private let deleteReveal: CGFloat = 78
+
     var body: some View {
-        HStack(spacing: 12) {
-            if let data = entry.imageData, let uiImage = UIImage(data: data) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 52, height: 52)
-                    .clipped()
-                    .cornerRadius(10)
-            } else {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.white.opacity(0.07))
-                    .frame(width: 52, height: 52)
-                    .overlay {
-                        Image(systemName: "fork.knife")
-                            .foregroundStyle(.white.opacity(0.30))
+        ZStack(alignment: .trailing) {
+            // Red delete button revealed on swipe (today only)
+            if canEdit {
+                Button {
+                    withAnimation(.spring(response: 0.25)) { offset = 0 }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { onDelete() }
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: "trash.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text("Delete")
+                            .font(.system(size: 10, weight: .semibold))
                     }
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(entry.foodName)
-                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
-                Text("\(Int(entry.calories)) kcal  ·  \(Int(entry.protein))g P  ·  \(Int(entry.carbs))g C  ·  \(Int(entry.fat))g F")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.45))
+                    .frame(width: deleteReveal)
+                    .frame(maxHeight: .infinity)
+                    .background(Color.red.opacity(0.85))
+                    .cornerRadius(16)
+                }
+                .buttonStyle(.plain)
             }
 
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 8) {
-                Text(entry.loggedAt, style: .time)
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.30))
-
-                if canEdit {
-                    Button(role: .destructive) {
-                        onDelete()
-                    } label: {
-                        Image(systemName: "trash")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.red.opacity(0.65))
+            if canEdit {
+                // Today: swipeable + tappable to edit
+                rowContent
+                    .offset(x: offset)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.75), value: offset)
+                    .gesture(
+                        DragGesture(minimumDistance: 10)
+                            .onChanged { value in
+                                let x = value.translation.width
+                                if x < 0 {
+                                    offset = max(x, -deleteReveal)
+                                } else if offset < 0 {
+                                    offset = min(0, offset + x)
+                                }
+                            }
+                            .onEnded { value in
+                                withAnimation(.spring(response: 0.3)) {
+                                    offset = value.translation.width < -(deleteReveal / 2) ? -deleteReveal : 0
+                                }
+                            }
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if offset != 0 {
+                            withAnimation(.spring(response: 0.25)) { offset = 0 }
+                        } else {
+                            onEdit()
+                        }
                     }
-                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
+                        Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
+                    }
+            } else {
+                // Past date: no gesture attached, scroll passes through freely
+                rowContent
+            }
+        }
+        .clipped()
+    }
+
+    private var rowContent: some View {
+        HStack(spacing: 12) {
+            Group {
+                if let data = entry.imageData, let uiImage = UIImage(data: data) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Color.white.opacity(0.06)
+                        .overlay {
+                            Image(systemName: "fork.knife")
+                                .font(.system(size: 20))
+                                .foregroundStyle(.white.opacity(0.25))
+                        }
+                }
+            }
+            .frame(width: 62, height: 62)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            VStack(alignment: .leading, spacing: 7) {
+                HStack {
+                    Text(entry.foodName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    Spacer()
+                    Text(entry.loggedAt, style: .time)
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.28))
+                }
+                HStack(spacing: 5) {
+                    macroBadge("\(Int(entry.calories)) kcal", color: .orange)
+                    macroBadge("\(Int(entry.protein))g P",    color: Color(red: 0.35, green: 0.75, blue: 1.00))
+                    macroBadge("\(Int(entry.carbs))g C",      color: Color(red: 0.40, green: 0.90, blue: 0.72))
+                    macroBadge("\(Int(entry.fat))g F",        color: Color(red: 1.00, green: 0.50, blue: 0.72))
                 }
             }
         }
-        .padding(12)
+        .padding(14)
         .background(Color.cardBg)
-        .cornerRadius(14)
-        .contentShape(Rectangle())
-        .onTapGesture { onEdit() }
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+        )
+    }
+
+    private func macroBadge(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(color.opacity(0.13))
+            .clipShape(RoundedRectangle(cornerRadius: 5))
     }
 }
 
@@ -813,28 +986,6 @@ private struct EditEntrySheet: View {
     }
 }
 
-// MARK: - Circle FAB
-
-private struct CircleFAB: View {
-    let icon: String
-    let color: Color
-    var disabled: Bool = false
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 58, height: 58)
-                .background(disabled ? Color.white.opacity(0.15) : color)
-                .clipShape(Circle())
-                .shadow(color: disabled ? .clear : color.opacity(0.55), radius: 10, y: 4)
-        }
-        .disabled(disabled)
-    }
-}
-
 // MARK: - Fuel Log Post Sheet
 
 private struct FuelLogPostSheet: View {
@@ -884,9 +1035,18 @@ private struct FuelLogPostSheet: View {
                                     .frame(minHeight: 90)
                                     .padding(10)
                                     .focused($focused)
+                                    .onChange(of: messageText) { _, v in
+                                        if v.count > 300 { messageText = String(v.prefix(300)) }
+                                    }
                             }
                             .background(cardBg)
                             .cornerRadius(12)
+                            HStack {
+                                Spacer()
+                                Text("\(messageText.count)/300")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(messageText.count >= 300 ? .red : messageText.count >= 240 ? Color.orange : .white.opacity(0.25))
+                            }
                         }
 
                         // Fuel log preview

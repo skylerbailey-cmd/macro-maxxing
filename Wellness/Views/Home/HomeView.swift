@@ -49,39 +49,33 @@ struct HomeView: View {
 
     // MARK: - Greeting
 
-    private var greetingText: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        let name = viewModel.userSettings.name.trimmingCharacters(in: .whitespaces)
-        let timeGreeting: String
-        switch hour {
-        case 5..<12: timeGreeting = "Good Morning"
-        case 12..<17: timeGreeting = "Good Afternoon"
-        default: timeGreeting = "Good Evening"
-        }
-        return name.isEmpty ? timeGreeting : "\(timeGreeting), \(name)"
-    }
+    private static let greetingPhrases: [String] = [
+        "Stay Locked In",
+        "Stay Disciplined",
+        "Stay Sharp",
+        "Stay Strong",
+        "Stay Consistent",
+        "Stay Hungry",
+        "Keep Maxxing",
+        "Keep Grinding",
+        "Keep Pushing",
+        "Trust the Process",
+        "No Days Off",
+        "Eyes on the Prize",
+        "Rise and Grind",
+        "Level Up",
+        "Mog the Competition",
+        "Fueled and Focused",
+        "Optimize Everything",
+        "Maximum Effort",
+    ]
 
-    private var auraBadge: some View {
-        let s = viewModel.userSettings
-        return HStack(spacing: 6) {
-            Text("⭐")
-                .font(.system(size: 11))
-            Text("Lv \(s.auraLevel)")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
-            if !s.auraTitle.isEmpty {
-                Text("·")
-                    .foregroundStyle(.white.opacity(0.30))
-                Text(s.auraTitle)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0))
-            }
-            Text("·")
-                .foregroundStyle(.white.opacity(0.30))
-            Text("\(s.auraPoints) aura pts")
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.40))
-        }
+    private var greetingText: String {
+        // Rotate daily so it feels fresh but stays stable throughout the day
+        let dayOfYear = Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 1
+        let name = viewModel.userSettings.name.trimmingCharacters(in: .whitespaces)
+        let phrase = Self.greetingPhrases[dayOfYear % Self.greetingPhrases.count]
+        return name.isEmpty ? phrase : "\(phrase), \(name)"
     }
 
     private var windowStartDate: Binding<Date> {
@@ -180,15 +174,85 @@ struct HomeView: View {
     }
     
     private var greetingHeader: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(greetingText)
-                .font(.title2.bold())
-                .foregroundStyle(.white)
-            if viewModel.userSettings.auraPoints > 0 {
-                auraBadge
+        ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color(red: 0.11, green: 0.08, blue: 0.20))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.purpleHi.opacity(0.20), lineWidth: 1)
+                )
+                .overlay(alignment: .topLeading) {
+                    Circle()
+                        .fill(Color.purpleHi.opacity(0.13))
+                        .frame(width: 220, height: 220)
+                        .offset(x: -40, y: -90)
+                        .blur(radius: 50)
+                        .allowsHitTesting(false)
+                        .clipped()
+                }
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(greetingText)
+                        .font(.system(size: 26, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                    HStack(spacing: 4) {
+                        ForEach(0..<3, id: \.self) { i in
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Color.purpleHi.opacity(i == 0 ? 1.0 : i == 1 ? 0.35 : 0.12))
+                                .frame(width: i == 0 ? 28 : i == 1 ? 16 : 10, height: 3)
+                        }
+                    }
+                }
+                HStack(spacing: 0) {
+                    headerStat(icon: "flame.fill", iconColor: .orange,
+                               value: "\(viewModel.macroStreak)",
+                               label: "day streak")
+                    if viewModel.userSettings.auraLevel > 0 {
+                        headerStatDivider
+                        headerStat(icon: "bolt.fill",
+                                   iconColor: Color(red: 1.0, green: 0.80, blue: 0.20),
+                                   value: "Lv \(viewModel.userSettings.auraLevel)",
+                                   label: viewModel.userSettings.auraTitle.isEmpty ? "aura" : viewModel.userSettings.auraTitle.lowercased())
+                    }
+                    if viewModel.userSettings.currentWeight > 0 {
+                        headerStatDivider
+                        headerStat(icon: "scalemass.fill", iconColor: .purpleHi,
+                                   value: "\(Int(viewModel.userSettings.currentWeight)) lbs",
+                                   label: viewModel.userSettings.goalWeight > 0
+                                       ? "→ \(Int(viewModel.userSettings.goalWeight)) lbs"
+                                       : "current weight")
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .clipped()
+    }
+
+    private func headerStat(icon: String, iconColor: Color, value: String, label: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(iconColor)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(value)
+                    .font(.system(size: 13, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                Text(label)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.white.opacity(0.38))
+                    .lineLimit(1)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.trailing, 16)
+    }
+
+    private var headerStatDivider: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.12))
+            .frame(width: 1, height: 22)
+            .padding(.trailing, 16)
     }
     
     @ToolbarContentBuilder
@@ -362,16 +426,22 @@ struct HomeView: View {
 
     private var goalsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(goalsTitle)
-                .font(.title2.bold())
-                .foregroundStyle(.white)
-
+            HStack {
+                Text(goalsTitle)
+                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                Spacer()
+                let met = viewModel.macrosMetToday
+                Text("\(met)/4 macros")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(met == 4 ? Color.macroMint : .white.opacity(0.35))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background(met == 4 ? Color.macroMint.opacity(0.14) : Color.white.opacity(0.07))
+                    .cornerRadius(8)
+            }
             HStack(spacing: 10) {
-                GoalKPICard(
-                    title: "WEIGHT",
-                    icon: "scalemass.fill",
-                    iconColor: .purpleHi
-                ) {
+                GoalKPICard(title: "WEIGHT", icon: "scalemass.fill", iconColor: .purpleHi) {
                     if viewModel.userSettings.goalWeight > 0 {
                         VStack(alignment: .leading, spacing: 2) {
                             HStack(alignment: .lastTextBaseline, spacing: 3) {
@@ -388,8 +458,6 @@ struct HomeView: View {
                             .foregroundStyle(.white.opacity(0.30))
                     }
                 }
-
-                // Streak — consecutive days with food logged
                 GoalKPICard(title: "STREAK", icon: "flame.fill", iconColor: .orange) {
                     HStack(alignment: .lastTextBaseline, spacing: 3) {
                         Text("\(viewModel.macroStreak)")
@@ -397,13 +465,7 @@ struct HomeView: View {
                         Text("days").font(.caption).foregroundStyle(.white.opacity(0.45))
                     }
                 }
-
-                // Macros met today
-                GoalKPICard(
-                    title: "MACROS",
-                    icon: "checkmark.seal.fill",
-                    iconColor: macrosKPIColor
-                ) {
+                GoalKPICard(title: "MACROS", icon: "checkmark.seal.fill", iconColor: macrosKPIColor) {
                     macroIndicatorGrid
                 }
             }
@@ -439,27 +501,44 @@ struct HomeView: View {
     // MARK: - Eating window card
 
     private var eatingWindowCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Intermittent Fasting Window")
-                        .font(.headline).foregroundStyle(.white)
-                    Text(
-                        "\(timeString(hour: viewModel.displayedWindowStartHour, minute: viewModel.displayedWindowStartMinute))" +
-                        " – " +
-                        "\(timeString(hour: viewModel.windowEndHour, minute: viewModel.windowEndMinute))" +
-                        " · \(viewModel.displayedWindowDuration)h"
-                    )
-                    .font(.subheadline).foregroundStyle(.white.opacity(0.50))
+                HStack(spacing: 10) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 9)
+                            .fill(Color.purpleHi.opacity(0.18))
+                            .frame(width: 30, height: 30)
+                        Image(systemName: "moon.stars.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.purpleHi)
+                    }
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Fasting Window")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                        Text(
+                            "\(timeString(hour: viewModel.displayedWindowStartHour, minute: viewModel.displayedWindowStartMinute))" +
+                            " – " +
+                            "\(timeString(hour: viewModel.windowEndHour, minute: viewModel.windowEndMinute))" +
+                            " · \(viewModel.displayedWindowDuration)h"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.45))
+                    }
                 }
                 Spacer()
                 if viewModel.isSelectedDateToday {
                     Button("Edit") { showingWindowPicker = true }
-                        .buttonStyle(.bordered).controlSize(.small).tint(.purpleHi)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.purpleHi)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.purpleHi.opacity(0.14))
+                        .cornerRadius(8)
                 } else {
                     Text("Locked")
                         .font(.caption)
-                        .foregroundStyle(.white.opacity(0.30))
+                        .foregroundStyle(.white.opacity(0.25))
                 }
             }
             FastingTimelineView(
@@ -468,19 +547,24 @@ struct HomeView: View {
                 mealLogTimes: viewModel.mealLogTimes
             )
         }
-        .padding()
-        .background(Color.cardBg)
-        .cornerRadius(16)
+        .padding(16)
+        .background(Color(red: 0.11, green: 0.08, blue: 0.20))
+        .cornerRadius(18)
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(Color.purpleHi.opacity(0.18), lineWidth: 1)
+        )
     }
 
     // MARK: - Macros section
 
     private var macrosSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Today's Macros")
-                .font(.title2.bold()).foregroundStyle(.white)
+                .font(.system(size: 20, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 MacroGaugeCard(label: "Calories", value: viewModel.totalCalories,
                                goal: viewModel.goalCalories, unit: "kcal",
                                format: "%.0f", color: .orange,
@@ -516,14 +600,24 @@ struct HomeView: View {
     // MARK: - Brainstorm section
 
     private var brainstormSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "lightbulb.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
-                Text("Brainstorm next meal")
-                    .font(.headline)
-                    .foregroundStyle(.white)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(Color(red: 1.0, green: 0.80, blue: 0.20).opacity(0.16))
+                        .frame(width: 30, height: 30)
+                    Image(systemName: "lightbulb.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("AI Meal Planner")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("Personalized to your macro gaps")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.35))
+                }
             }
 
             switch viewModel.brainstormState {
@@ -532,13 +626,10 @@ struct HomeView: View {
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.50))
                     .lineSpacing(2)
-
             case .loading:
                 BrainstormSkeletonView()
-
             case .result(let text):
                 brainstormResult(text)
-
             case .error(let msg):
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -558,14 +649,14 @@ struct HomeView: View {
                     if viewModel.userSettings.brainstormLimitReached {
                         Text("Daily limit reached (2/2)")
                     } else {
-                        Text(viewModel.brainstormState == .idle ? "Brainstorm next meal" : "Re-Brainstorm next meal")
+                        Text(viewModel.brainstormState == .idle ? "Brainstorm next meal" : "Re-Brainstorm")
                         Text("(\(viewModel.userSettings.brainstormUsesRemaining) left today)")
                             .opacity(0.65)
                     }
                 }
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
+                .padding(.vertical, 11)
             }
             .buttonStyle(.borderedProminent)
             .tint(viewModel.userSettings.brainstormLimitReached
@@ -595,8 +686,12 @@ struct HomeView: View {
             }
         }
         .padding(16)
-        .background(Color.cardBg)
-        .cornerRadius(16)
+        .background(Color(red: 0.11, green: 0.08, blue: 0.20))
+        .cornerRadius(18)
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(Color(red: 1.0, green: 0.80, blue: 0.20).opacity(0.14), lineWidth: 1)
+        )
     }
 
     @ViewBuilder
@@ -745,28 +840,37 @@ private struct GoalKPICard<Content: View>: View {
 
     @ViewBuilder
     private var cardBody: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 5) {
-                Image(systemName: icon)
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(iconColor)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                ZStack {
+                    Circle()
+                        .fill(iconColor.opacity(0.16))
+                        .frame(width: 22, height: 22)
+                    Image(systemName: icon)
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(iconColor)
+                }
                 Text(title)
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.45))
+                    .foregroundStyle(.white.opacity(0.40))
                     .tracking(0.8)
                 if action != nil {
                     Spacer()
-                    Image(systemName: "pencil.circle.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.28))
+                    Image(systemName: "pencil")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.white.opacity(0.18))
                 }
             }
             content().frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.cardBg)
+        .background(Color(red: 0.11, green: 0.08, blue: 0.20))
         .cornerRadius(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.white.opacity(0.07), lineWidth: 1)
+        )
     }
 }
 
@@ -786,62 +890,89 @@ private struct MacroGaugeCard: View {
         guard goal > 0 else { return 0 }
         return min(value / goal, 1.0)
     }
+    private var isGoalMet: Bool { progress >= 0.85 }
     private let trackFraction: Double = 0.75
-    private let lineWidth: CGFloat   = 11
+    private let lineWidth: CGFloat = 12
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             ZStack {
                 Circle()
                     .trim(from: 0, to: trackFraction)
-                    .stroke(color.opacity(0.13), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .stroke(color.opacity(0.12), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(135))
                 Circle()
                     .trim(from: 0, to: progress * trackFraction)
                     .stroke(
                         LinearGradient(
-                            stops: [.init(color: color.opacity(0.55), location: 0), .init(color: color, location: 1)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
+                            stops: [
+                                .init(color: color.opacity(0.55), location: 0),
+                                .init(color: color, location: 1)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         ),
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                     )
                     .rotationEffect(.degrees(135))
-                    .animation(.easeOut(duration: 0.55), value: progress)
-                VStack(spacing: 2) {
+                    .animation(.easeOut(duration: 0.6), value: progress)
+                    .shadow(color: isGoalMet ? color.opacity(0.55) : .clear, radius: 8)
+                VStack(spacing: 1) {
+                    if isGoalMet {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 9, weight: .black))
+                            .foregroundStyle(color)
+                    }
                     Text(String(format: format, value))
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .font(.system(size: isGoalMet ? 15 : 18, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                     Text(unit)
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.40))
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.35))
                 }
             }
-            .frame(width: 112, height: 112)
+            .frame(width: 118, height: 118)
             .padding(.top, 4)
             VStack(spacing: 3) {
-                Text(label).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
-                Text("Goal: \(String(format: format, goal)) \(unit)")
-                    .font(.caption2).foregroundStyle(.white.opacity(0.32))
+                Text(label)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                Text(isGoalMet
+                     ? "Goal: \(String(format: format, goal)) \(unit) ✓"
+                     : "Goal: \(String(format: format, goal)) \(unit)")
+                    .font(.caption2)
+                    .foregroundStyle(isGoalMet ? color.opacity(0.85) : .white.opacity(0.45))
                 if let rangeText {
-                    Text(rangeText)
+                    Text("Range: \(rangeText) \(unit)")
                         .font(.system(size: 9))
-                        .foregroundStyle(.white.opacity(0.20))
+                        .foregroundStyle(.white.opacity(0.35))
                 }
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
+        .padding(.vertical, 18)
         .padding(.horizontal, 8)
-        .background(Color.cardBg)
-        .cornerRadius(16)
+        .background(
+            ZStack {
+                Color(red: 0.11, green: 0.08, blue: 0.20)
+                if isGoalMet {
+                    color.opacity(0.06)
+                }
+            }
+        )
+        .cornerRadius(18)
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(isGoalMet ? color.opacity(0.28) : Color.white.opacity(0.07), lineWidth: 1)
+        )
         .contentShape(Rectangle())
         .onTapGesture { action?() }
         .overlay(alignment: .topTrailing) {
             if action != nil {
                 Image(systemName: "chart.line.uptrend.xyaxis")
                     .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(color.opacity(0.55))
-                    .padding(8)
+                    .foregroundStyle(color.opacity(0.40))
+                    .padding(10)
             }
         }
     }
