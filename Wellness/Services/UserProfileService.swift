@@ -96,7 +96,7 @@ final class UserProfileService {
     /// Subsequent calls are a no-op (guarded by a UserDefaults flag).
     /// After migration, new profile saves happen automatically via syncProfile / updateProfilePhoto.
     func migrateIfNeeded(userSettings: UserSettings) async {
-        let migrationKey = "firestoreProfileMigrated_v1"
+        let migrationKey = "firestoreProfileMigrated_v2"
         guard !UserDefaults.standard.bool(forKey: migrationKey) else { return }
 
         let userID = userSettings.userID
@@ -156,9 +156,10 @@ final class UserProfileService {
         let downloadURL = try await fetchDownloadURL(for: ref)
         print("[UserProfileService] Profile photo upload succeeded: \(downloadURL)")
 
-        try await db.collection(collectionName).document(userID).updateData([
+        // Use setData(merge:true) so this works whether or not the document exists yet
+        try await db.collection(collectionName).document(userID).setData([
             "profilePhotoURL": downloadURL.absoluteString
-        ])
+        ], merge: true)
 
         return downloadURL.absoluteString
     }
