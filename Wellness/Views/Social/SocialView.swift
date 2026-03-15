@@ -25,6 +25,7 @@ struct SocialView: View {
     @Environment(LocationManager.self) private var locationManager
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SocialPost.postedAt, order: .reverse) private var posts: [SocialPost]
+    @Query(sort: \Friend.addedAt,      order: .reverse) private var friends: [Friend]
 
     /// Firestore-loaded set of userIDs the current user follows.
     @State private var followingIDs: Set<String> = []
