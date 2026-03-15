@@ -68,6 +68,9 @@ struct FeedPost: Codable, Identifiable {
     /// Meme badge key (e.g. "sigma", "gigachad", "roman"). Matches asset names.
     var memeType: String
 
+    /// Fasting window at time of posting, e.g. "9:00 AM – 5:00 PM · 8h window". Empty if not applicable.
+    var fastingWindowDisplay: String
+
     // MARK: - Location
 
     /// Human-readable city/region string shown on the post card.
@@ -144,7 +147,8 @@ struct FeedPost: Codable, Identifiable {
         latitude:            Double = 0,
         longitude:           Double = 0,
         isPublic:            Bool   = true,
-        macroDate:           Date?  = nil
+        macroDate:           Date?  = nil,
+        fastingWindowDisplay: String = ""
     ) {
         self.userID              = userID
         self.username            = username
@@ -169,11 +173,12 @@ struct FeedPost: Codable, Identifiable {
         self.auraPoints          = auraPoints
         self.streak              = streak
         self.memeType            = memeType
-        self.locationName        = locationName
-        self.latitude            = latitude
-        self.longitude           = longitude
-        self.isPublic            = isPublic
-        self.macroDate           = macroDate.map { Timestamp(date: $0) }
+        self.locationName         = locationName
+        self.latitude             = latitude
+        self.longitude            = longitude
+        self.isPublic             = isPublic
+        self.macroDate            = macroDate.map { Timestamp(date: $0) }
+        self.fastingWindowDisplay = fastingWindowDisplay
     }
 }
 

@@ -29,6 +29,8 @@ struct HomeView: View {
     @State private var pendingAuraGain: AuraGain? = nil
     @State private var showingSettings    = false
     @State private var showingProfile     = false
+    @State private var showingGoalPost    = false
+    @State private var goalPostMeme       = GymMeme.random()
     @State private var brainstormAlert: BrainstormAlert? = nil
 
     private enum BrainstormAlert: Identifiable {
@@ -151,6 +153,7 @@ struct HomeView: View {
         return contentWithOverlays
             .sheet(isPresented: $showingWindowPicker) { windowPickerSheet() }
             .sheet(item: $selectedMacro) { macro in macroHistorySheet(macro: macro) }
+            .sheet(isPresented: $showingGoalPost) { goalPostSheet() }
     }
     
     // MARK: - Body Helpers
@@ -196,6 +199,14 @@ struct HomeView: View {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
+                }
+                Button {
+                    goalPostMeme   = GymMeme.random()
+                    showingGoalPost = true
+                } label: {
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
                 }
                 Button { showingSettings = true } label: {
                     Image(systemName: "gearshape.fill")
@@ -268,7 +279,10 @@ struct HomeView: View {
                     totalProtein:  viewModel.totalProtein,  goalProtein:  viewModel.goalProtein,
                     totalCarbs:    viewModel.totalCarbs,    goalCarbs:    viewModel.goalCarbs,
                     totalFat:      viewModel.totalFat,      goalFat:      viewModel.goalFat,
-                    date:          viewModel.selectedDate
+                    date:          viewModel.selectedDate,
+                    fastingWindowDisplay: viewModel.userSettings.fastingEnabled
+                        ? "\(timeString(hour: viewModel.windowStartHour, minute: viewModel.windowStartMinute)) – \(timeString(hour: viewModel.windowEndHour, minute: viewModel.windowEndMinute)) · \(viewModel.windowDurationHours)h window"
+                        : ""
                 ),
                 onDismiss: { showCelebration = false }
             )
@@ -276,6 +290,24 @@ struct HomeView: View {
         }
     }
     
+    private func goalPostSheet() -> some View {
+        CelebrationPostEditorSheet(
+            meme: goalPostMeme,
+            postData: CelebrationPostData(
+                totalCalories: viewModel.totalCalories, goalCalories: viewModel.goalCalories,
+                totalProtein:  viewModel.totalProtein,  goalProtein:  viewModel.goalProtein,
+                totalCarbs:    viewModel.totalCarbs,    goalCarbs:    viewModel.goalCarbs,
+                totalFat:      viewModel.totalFat,      goalFat:      viewModel.goalFat,
+                date:          viewModel.selectedDate,
+                fastingWindowDisplay: viewModel.userSettings.fastingEnabled
+                    ? "\(timeString(hour: viewModel.windowStartHour, minute: viewModel.windowStartMinute)) – \(timeString(hour: viewModel.windowEndHour, minute: viewModel.windowEndMinute)) · \(viewModel.windowDurationHours)h window"
+                    : ""
+            ),
+            userSettings: viewModel.userSettings,
+            onPosted: {}
+        )
+    }
+
     private func windowPickerSheet() -> some View {
         @Bindable var bvm = viewModel
         return WindowPickerSheet(

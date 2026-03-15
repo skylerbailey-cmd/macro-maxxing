@@ -147,7 +147,7 @@ struct LeaderboardView: View {
             BoardPreviewSheet(
                 board:  board,
                 scope:  selectedScope.rawValue,
-                onPost: { postBoardToFeed(board: board) }
+                onPost: { image in postBoardToFeed(board: board, overrideImage: image) }
             )
         }
         .onAppear {
@@ -219,17 +219,23 @@ struct LeaderboardView: View {
     }
 
     @MainActor
-    private func postBoardToFeed(board: ShareableBoard) {
-        // Render the board card to a UIImage
-        let card = MogBoardShareCard(
-            boardTitle:  board.title,
-            scope:       selectedScope.rawValue,
-            scoreLabel:  board.scoreLabel,
-            entries:     board.entries
-        )
-        let renderer = ImageRenderer(content: card)
-        renderer.scale = 3.0
-        guard let image = renderer.uiImage else { return }
+    private func postBoardToFeed(board: ShareableBoard, overrideImage: UIImage? = nil) {
+        // Use provided (cropped) image or re-render from the share card
+        let image: UIImage
+        if let img = overrideImage {
+            image = img
+        } else {
+            let card = MogBoardShareCard(
+                boardTitle:  board.title,
+                scope:       selectedScope.rawValue,
+                scoreLabel:  board.scoreLabel,
+                entries:     board.entries
+            )
+            let renderer = ImageRenderer(content: card)
+            renderer.scale = 3.0
+            guard let rendered = renderer.uiImage else { return }
+            image = rendered
+        }
 
         let title   = "\(selectedScope.rawValue) · \(board.title) Board 👑"
         let caption = "Check out who's topping the \(board.title.lowercased()) board! 🏆"
@@ -336,27 +342,32 @@ struct LeaderboardView: View {
             }
             if entries.isEmpty {
                 let noLocation = selectedScope == .local && locationManager.coordinate == nil
-                VStack(spacing: 10) {
-                    Text(selectedScope == .team
-                         ? "Add friends to see the Team leaderboard"
-                         : noLocation
-                         ? "Enable location access to see the local board"
-                         : "No local data yet")
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.28))
-                        .multilineTextAlignment(.center)
-                    if noLocation {
-                        Button("Open Settings") {
-                            if let url = URL(string: UIApplication.openSettingsURLString) {
-                                UIApplication.shared.open(url)
+                if selectedScope == .local && !noLocation {
+                    // Local tab, location available, but zero users found → invite banner
+                    localInviteBanner(full: true)
+                } else {
+                    VStack(spacing: 10) {
+                        Text(selectedScope == .team
+                             ? "Add friends to see the Team leaderboard"
+                             : noLocation
+                             ? "Enable location access to see the local board"
+                             : "No local data yet")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.28))
+                            .multilineTextAlignment(.center)
+                        if noLocation {
+                            Button("Open Settings") {
+                                if let url = URL(string: UIApplication.openSettingsURLString) {
+                                    UIApplication.shared.open(url)
+                                }
                             }
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(purpl)
                         }
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(purpl)
                     }
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity, alignment: .center)
                 }
-                .padding(.vertical, 16)
-                .frame(maxWidth: .infinity, alignment: .center)
             } else {
                 VStack(spacing: 8) {
                     ForEach(Array(entries.enumerated()), id: \.element.id) { rank, entry in
@@ -365,8 +376,80 @@ struct LeaderboardView: View {
                             .onTapGesture { selectedProfile = entry }
                     }
                 }
+                // Fewer than 10 local competitors → invite nudge below the rows
+                if selectedScope == .local && entries.count < 10 {
+                    localInviteBanner(full: false)
+                }
             }
         }
+    }
+
+    /// Banner shown on the Local tab when fewer than 10 nearby users exist.
+    /// `full` = true when there are zero entries (replaces the section body).
+    @ViewBuilder
+    private func localInviteBanner(full: Bool) -> some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: "person.2.badge.plus")
+                    .font(.system(size: full ? 32 : 22))
+                    .foregroundStyle(gold)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(full ? "No local competitors yet" : "Not enough local competitors")
+                        .font(.system(size: 14, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text(full
+                         ? "You're the first one here! Invite friends in your area to join and compete on the local board."
+                         : "There are fewer than 10 people competing near you. Invite friends to join and climb the ranks!")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.55))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button(action: presentInviteSheet) {
+                HStack(spacing: 6) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text("Invite Friends")
+                        .font(.system(size: 14, weight: .bold))
+                }
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 11)
+                .background(gold)
+                .cornerRadius(12)
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(cardBg)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(gold.opacity(0.30), lineWidth: 1)
+                )
+        )
+        .padding(.top, full ? 0 : 4)
+    }
+
+    @MainActor
+    private func presentInviteSheet() {
+        let text = "Hey! 💪 I've been crushing my macro goals on Macro Maxxing. Join me and compete on the local leaderboard! Download the app here: https://apps.apple.com/app/macro-maxxing"
+        let av = UIActivityViewController(
+            activityItems: [text],
+            applicationActivities: nil
+        )
+        // Limit to Messages and WhatsApp if available; otherwise show all options.
+        av.excludedActivityTypes = [
+            .postToFacebook, .postToTwitter, .postToWeibo,
+            .postToFlickr, .postToVimeo, .postToTencentWeibo,
+            .saveToCameraRoll, .addToReadingList, .assignToContact,
+            .openInIBooks, .print, .copyToPasteboard, .markupAsPDF
+        ]
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.windows.first?.rootViewController?.present(av, animated: true)
     }
 
     enum Board { case weeklyAura, engagement, streak }
@@ -721,11 +804,13 @@ private struct MogBoardShareCard: View {
 private struct BoardPreviewSheet: View {
     let board:  LeaderboardView.ShareableBoard
     let scope:  String
-    let onPost: () -> Void
+    let onPost: (UIImage?) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var isPosting = false
-    @State private var didPost   = false
+    @State private var isPosting    = false
+    @State private var didPost      = false
+    @State private var renderedImage: UIImage?  = nil
+    @State private var showCrop     = false
 
     private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
     private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
@@ -747,17 +832,44 @@ private struct BoardPreviewSheet: View {
                             .padding(.horizontal, 16)
                             .padding(.top, 8)
 
-                        // Scaled-down board card preview
-                        MogBoardShareCard(
-                            boardTitle: board.title,
-                            scope:      scope,
-                            scoreLabel: board.scoreLabel,
-                            entries:    board.entries
-                        )
-                        .scaleEffect(0.75)
-                        .frame(height: 525)   // 700 × 0.75
-                        .cornerRadius(20)
-                        .shadow(color: .black.opacity(0.50), radius: 20)
+                        // Preview: cropped image if available, otherwise rendered card
+                        ZStack(alignment: .bottomTrailing) {
+                            if let img = renderedImage {
+                                Image(uiImage: img)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxWidth: .infinity)
+                                    .cornerRadius(20)
+                                    .shadow(color: .black.opacity(0.50), radius: 20)
+                            } else {
+                                MogBoardShareCard(
+                                    boardTitle: board.title,
+                                    scope:      scope,
+                                    scoreLabel: board.scoreLabel,
+                                    entries:    board.entries
+                                )
+                                .scaleEffect(0.75)
+                                .frame(height: 525)   // 700 × 0.75
+                                .cornerRadius(20)
+                                .shadow(color: .black.opacity(0.50), radius: 20)
+                            }
+
+                            // Crop button overlay
+                            Button { showCrop = true } label: {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "crop")
+                                        .font(.system(size: 12, weight: .semibold))
+                                    Text("Crop")
+                                        .font(.caption.weight(.semibold))
+                                }
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 7)
+                                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+                            }
+                            .padding(12)
+                        }
+                        .padding(.horizontal, 16)
 
                         // Post caption preview
                         VStack(spacing: 6) {
@@ -834,13 +946,39 @@ private struct BoardPreviewSheet: View {
                         .disabled(isPosting)
                 }
             }
+            .onAppear { renderCardImage() }
+            .fullScreenCover(isPresented: $showCrop) {
+                if let img = renderedImage {
+                    CropImageView(
+                        image: img,
+                        onCrop: { cropped in
+                            renderedImage = cropped
+                            showCrop = false
+                        },
+                        onCancel: { showCrop = false }
+                    )
+                }
+            }
         }
+    }
+
+    @MainActor
+    private func renderCardImage() {
+        let card = MogBoardShareCard(
+            boardTitle:  board.title,
+            scope:       scope,
+            scoreLabel:  board.scoreLabel,
+            entries:     board.entries
+        )
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3.0
+        renderedImage = renderer.uiImage
     }
 
     private func handlePost() {
         guard !isPosting && !didPost else { return }
         isPosting = true
-        onPost()
+        onPost(renderedImage)
         isPosting = false
         withAnimation { didPost = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { dismiss() }

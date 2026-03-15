@@ -18,9 +18,10 @@ struct PostPhoto: Identifiable {
 struct MultiPhotoSection: View {
     @Binding var photos: [PostPhoto]
 
-    @State private var newImage:   UIImage? = nil
-    @State private var showCamera  = false
-    @State private var showLibrary = false
+    @State private var newImage:      UIImage?   = nil
+    @State private var showCamera     = false
+    @State private var showLibrary    = false
+    @State private var croppingPhoto: PostPhoto? = nil
 
     private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
 
@@ -88,6 +89,18 @@ struct MultiPhotoSection: View {
         .sheet(isPresented: $showLibrary) {
             ImagePickerView(sourceType: .photoLibrary, selectedImage: $newImage)
         }
+        .fullScreenCover(item: $croppingPhoto) { photo in
+            CropImageView(
+                image: photo.image,
+                onCrop: { cropped in
+                    if let idx = photos.firstIndex(where: { $0.id == photo.id }) {
+                        photos[idx] = PostPhoto(image: cropped)
+                    }
+                    croppingPhoto = nil
+                },
+                onCancel: { croppingPhoto = nil }
+            )
+        }
     }
 
     // MARK: Thumbnail strip
@@ -103,6 +116,8 @@ struct MultiPhotoSection: View {
                             .frame(width: 80, height: 80)
                             .clipped()
                             .cornerRadius(10)
+
+                        // Delete button (top-right)
                         Button {
                             photos.removeAll { $0.id == photo.id }
                         } label: {
@@ -112,6 +127,19 @@ struct MultiPhotoSection: View {
                                 .shadow(color: .black.opacity(0.5), radius: 2)
                                 .padding(4)
                         }
+
+                        // Crop button (bottom-left)
+                        Button {
+                            croppingPhoto = photo
+                        } label: {
+                            Image(systemName: "crop")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(5)
+                                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
+                                .padding(4)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                     }
                 }
             }
@@ -149,10 +177,8 @@ struct PostImagesView: View {
     private func singleImage(_ img: UIImage) -> some View {
         Image(uiImage: img)
             .resizable()
-            .scaledToFill()
+            .scaledToFit()
             .frame(maxWidth: .infinity)
-            .frame(height: 180)
-            .clipped()
             .cornerRadius(10)
     }
 

@@ -39,6 +39,7 @@ struct CreatePostView: View {
     @State private var errorMessage:     String?  = nil
     @State private var showCamera:       Bool     = false
     @State private var showLibrary:      Bool     = false
+    @State private var showCrop:         Bool     = false
     @FocusState private var captionFocused: Bool
 
     // MARK: - Design tokens (matches rest of app)
@@ -134,6 +135,18 @@ struct CreatePostView: View {
             .sheet(isPresented: $showLibrary) {
                 ImagePickerView(sourceType: .photoLibrary, selectedImage: $pickerImage)
             }
+            .fullScreenCover(isPresented: $showCrop) {
+                if let img = photo {
+                    CropImageView(
+                        image: img,
+                        onCrop: { cropped in
+                            photo    = cropped
+                            showCrop = false
+                        },
+                        onCancel: { showCrop = false }
+                    )
+                }
+            }
         }
     }
 
@@ -168,33 +181,51 @@ struct CreatePostView: View {
                     .onTapGesture { showLibrary = true }
             }
 
-            // Camera / library picker overlay button
-            Menu {
-                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+            HStack(spacing: 8) {
+                // Camera / library picker button
+                Menu {
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        Button {
+                            showCamera = true
+                        } label: {
+                            Label("Take Photo", systemImage: "camera.fill")
+                        }
+                    }
                     Button {
-                        showCamera = true
+                        showLibrary = true
                     } label: {
-                        Label("Take Photo", systemImage: "camera.fill")
+                        Label("Choose from Library", systemImage: "photo.on.rectangle")
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text(photo == nil ? "Add Photo" : "Change")
+                            .font(.caption.weight(.semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+                }
+
+                // Crop button (only when a photo is set)
+                if photo != nil {
+                    Button { showCrop = true } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "crop")
+                                .font(.system(size: 12, weight: .semibold))
+                            Text("Crop")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
                     }
                 }
-                Button {
-                    showLibrary = true
-                } label: {
-                    Label("Choose from Library", systemImage: "photo.on.rectangle")
-                }
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "camera.fill")
-                        .font(.system(size: 12, weight: .semibold))
-                    Text(photo == nil ? "Add Photo" : "Change")
-                        .font(.caption.weight(.semibold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
-                .padding(10)
             }
+            .padding(10)
         }
     }
 

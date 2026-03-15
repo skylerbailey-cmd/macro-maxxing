@@ -32,6 +32,9 @@ import SwiftData
         [imageData, imageData2, imageData3, imageData4].compactMap { $0 }
     }
 
+    /// Fasting window at time of posting, e.g. "9:00 AM – 5:00 PM · 8h window". Empty if not applicable.
+    var fastingWindowDisplay: String = ""
+
     // Author aura + profile picture + location + streak + privacy at time of posting
     var authorAuraLevel:   Int    = 0
     var authorAuraPoints:  Int    = 0

@@ -40,6 +40,8 @@ struct CelebrationPostData {
     let totalCarbs:    Double; let goalCarbs:    Double
     let totalFat:      Double; let goalFat:      Double
     let date: Date
+    /// Formatted fasting window string, e.g. "9:00 AM – 5:00 PM · 8h window". Empty if disabled.
+    let fastingWindowDisplay: String
 }
 
 struct CelebrationView: View {
@@ -249,7 +251,7 @@ struct CelebrationView: View {
 
 // MARK: - Celebration post editor sheet
 
-private struct CelebrationPostEditorSheet: View {
+struct CelebrationPostEditorSheet: View {
     let meme:         GymMeme
     let postData:     CelebrationPostData
     let userSettings: UserSettings
@@ -394,6 +396,7 @@ private struct CelebrationPostEditorSheet: View {
         post.authorStreak           = userSettings.macroStreak
         post.isAuthorPrivate        = userSettings.isPrivateAccount
         post.authorProfileImageData = userSettings.profileImageData
+        post.fastingWindowDisplay   = postData.fastingWindowDisplay
         let datas = photos.map { $0.image.jpegData(compressionQuality: 0.8) }
         post.imageData  = datas.count > 0 ? datas[0] : nil
         post.imageData2 = datas.count > 1 ? datas[1] : nil
@@ -423,14 +426,15 @@ private struct CelebrationPostEditorSheet: View {
         Task {
             do {
                 try await PostService.shared.createCustomPost(
-                    photos:       images,
-                    author:       author,
-                    title:        title,
-                    caption:      caption,
-                    locationName: locationName,
-                    latitude:     latitude,
-                    longitude:    longitude,
-                    postID:       fbPostID
+                    photos:               images,
+                    author:               author,
+                    title:                title,
+                    caption:              caption,
+                    locationName:         locationName,
+                    latitude:             latitude,
+                    longitude:            longitude,
+                    fastingWindowDisplay: postData.fastingWindowDisplay,
+                    postID:               fbPostID
                 )
             } catch {
                 print("[CelebrationView] Firebase sync failed: \(error.localizedDescription)")

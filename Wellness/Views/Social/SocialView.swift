@@ -360,6 +360,7 @@ struct PostCard: View {
     let userSettings: UserSettings
     var onAvatarTap: (() -> Void)? = nil
 
+    @State private var showingImageViewer = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -417,6 +418,9 @@ struct PostCard: View {
         .padding(14)
         .background(Color.cardBg)
         .cornerRadius(16)
+        .sheet(isPresented: $showingImageViewer) {
+            PostImageViewerSheet(imageDatas: post.allImageDatas)
+        }
     }
 
     private var authorHeader: some View {
@@ -458,7 +462,7 @@ struct PostCard: View {
     @ViewBuilder
     private var customBody: some View {
         if !post.allImageDatas.isEmpty {
-            PostImagesView(imageDatas: post.allImageDatas)
+            imageThumbnailStrip
         }
         Text(post.memeHeadline)
             .font(.subheadline.weight(.bold))
@@ -475,7 +479,7 @@ struct PostCard: View {
     @ViewBuilder
     private var achievementBody: some View {
         if !post.allImageDatas.isEmpty {
-            PostImagesView(imageDatas: post.allImageDatas)
+            imageThumbnailStrip
         }
         Text(post.memeHeadline.replacingOccurrences(of: "\n", with: " "))
             .font(.system(size: 15, weight: .black, design: .rounded))
@@ -485,6 +489,51 @@ struct PostCard: View {
 
         if post.goalCalories > 0 {
             macroSummaryRow
+        }
+
+        if !post.fastingWindowDisplay.isEmpty {
+            HStack(spacing: 6) {
+                Image(systemName: "moon.zzz.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
+                Text(post.fastingWindowDisplay)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.60))
+            }
+            .padding(.top, 2)
+        }
+    }
+
+    /// Fixed-height thumbnail strip shown in the feed card. Tap opens full-screen viewer.
+    @ViewBuilder
+    private var imageThumbnailStrip: some View {
+        let datas = post.allImageDatas
+        let images = datas.compactMap { UIImage(data: $0) }
+        if !images.isEmpty {
+            Button(action: { showingImageViewer = true }) {
+                ZStack(alignment: .bottomTrailing) {
+                    if images.count == 1 {
+                        Image(uiImage: images[0])
+                            .resizable()
+                            .scaledToFill()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 160)
+                            .clipped()
+                            .cornerRadius(10)
+                    } else {
+                        PostImagesView(imageDatas: datas)
+                    }
+
+                    // Expand hint badge
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(5)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
+                        .padding(6)
+                }
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -610,6 +659,57 @@ struct PostCard: View {
             }
             .padding(.top, 8)
         }
+    }
+}
+
+// MARK: - Full-screen image viewer
+
+struct PostImageViewerSheet: View {
+    let imageDatas: [Data]
+
+    @Environment(\.dismiss) private var dismiss
+
+    private var images: [UIImage] { imageDatas.compactMap { UIImage(data: $0) } }
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            if images.isEmpty {
+                Text("No images").foregroundStyle(.white.opacity(0.40))
+            } else if images.count == 1 {
+                Image(uiImage: images[0])
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                TabView {
+                    ForEach(Array(images.enumerated()), id: \.offset) { _, img in
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                }
+                .tabViewStyle(.page)
+                .indexViewStyle(.page(backgroundDisplayMode: .always))
+            }
+
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(.white.opacity(0.80))
+                            .shadow(radius: 4)
+                    }
+                    .padding(20)
+                }
+                Spacer()
+            }
+        }
+        .preferredColorScheme(.dark)
     }
 }
 

@@ -296,10 +296,8 @@ struct FeedPostCard: View {
                 url: URL(string: post.foodPhotoURL),
                 content: { image in
                     image.resizable()
-                        .scaledToFill()
+                        .scaledToFit()
                         .frame(maxWidth: .infinity)
-                        .frame(height: 220)
-                        .clipped()
                 },
                 placeholder: { photoPlaceholder(loading: true) }
             )

@@ -344,14 +344,15 @@ final class PostService {
     /// Each image is stored at: posts/{userID}/{postID}_0.jpg, _1.jpg, etc.
     @discardableResult
     public func createCustomPost(
-        photos:       [UIImage],
-        author:       PostAuthor,
-        title:        String,
-        caption:      String,
-        locationName: String = "",
-        latitude:     Double = 0,
-        longitude:    Double = 0,
-        postID:       String = UUID().uuidString
+        photos:               [UIImage],
+        author:               PostAuthor,
+        title:                String,
+        caption:              String,
+        locationName:         String = "",
+        latitude:             Double = 0,
+        longitude:            Double = 0,
+        fastingWindowDisplay: String = "",
+        postID:               String = UUID().uuidString
     ) async throws -> String {
         let postID = postID
         let docRef = db.collection(collectionName).document(postID)
@@ -384,26 +385,27 @@ final class PostService {
         }
 
         var post = FeedPost(
-            userID:              author.userID,
-            username:            author.username,
-            whoName:             author.whoName,
-            userProfilePhotoURL: author.userProfilePhotoURL,
-            foodPhotoURL:        primaryURL,
-            additionalPhotoURLs: additionalURLs,
-            caption:             caption,
-            title:               title,
-            calories:            0,
-            protein:             0,
-            carbs:               0,
-            fat:                 0,
-            auraLevel:           author.auraLevel,
-            auraPoints:          author.auraPoints,
-            streak:              author.streak,
-            memeType:            author.memeType,
-            locationName:        locationName,
-            latitude:            latitude,
-            longitude:           longitude,
-            isPublic:            author.isPublic
+            userID:               author.userID,
+            username:             author.username,
+            whoName:              author.whoName,
+            userProfilePhotoURL:  author.userProfilePhotoURL,
+            foodPhotoURL:         primaryURL,
+            additionalPhotoURLs:  additionalURLs,
+            caption:              caption,
+            title:                title,
+            calories:             0,
+            protein:              0,
+            carbs:                0,
+            fat:                  0,
+            auraLevel:            author.auraLevel,
+            auraPoints:           author.auraPoints,
+            streak:               author.streak,
+            memeType:             author.memeType,
+            locationName:         locationName,
+            latitude:             latitude,
+            longitude:            longitude,
+            isPublic:             author.isPublic,
+            fastingWindowDisplay: fastingWindowDisplay
         )
 
         let data = try post.firestoreData()
