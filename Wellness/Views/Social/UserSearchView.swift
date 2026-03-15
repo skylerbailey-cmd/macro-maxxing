@@ -142,7 +142,7 @@ struct UserSearchView: View {
                 sectionHeader(title: "RESULTS", subtitle: nil)
 
                 if results.isEmpty {
-                    emptyState(message: "No users found for "\(searchText)"")
+                    emptyState(message: "No users found for \"\(searchText)\"")
                 } else {
                     ForEach(results) { profile in
                         userRow(profile: profile)
