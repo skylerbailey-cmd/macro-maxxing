@@ -27,13 +27,14 @@ struct SocialView: View {
     @Query(sort: \SocialPost.postedAt, order: .reverse) private var posts: [SocialPost]
     @Query(sort: \Friend.addedAt,      order: .reverse) private var friends: [Friend]
 
-    @State private var showingAddFriend = false
-    @State private var showingNewPost   = false
-    @State private var selectedPost:    SocialPost?
-    @State private var selectedFeed:    Feed        = .arena
-    @State private var viewingProfile:  SocialPost? = nil
-    @State private var showingSettings  = false
+    @State private var showingAddFriend  = false
+    @State private var showingNewPost    = false
+    @State private var selectedPost:     SocialPost?
+    @State private var selectedFeed:     Feed        = .arena
+    @State private var viewingProfile:   SocialPost? = nil
+    @State private var showingSettings   = false
     @State private var showingOwnProfile = false
+    @State private var showingSearch     = false
 
     enum Feed: String, CaseIterable {
         case team  = "Team"
@@ -198,8 +199,13 @@ struct SocialView: View {
         .preferredColorScheme(.dark)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                Button { showingAddFriend = true } label: {
-                    Image(systemName: "person.badge.plus").foregroundStyle(Color.purpleHi)
+                HStack(spacing: 14) {
+                    Button { showingAddFriend = true } label: {
+                        Image(systemName: "person.badge.plus").foregroundStyle(Color.purpleHi)
+                    }
+                    Button { showingSearch = true } label: {
+                        Image(systemName: "magnifyingglass").foregroundStyle(Color.purpleHi)
+                    }
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -243,18 +249,24 @@ struct SocialView: View {
         .sheet(item: $viewingProfile) { post in
             NavigationStack {
                 ProfileView(
-                    profileUserID:      post.authorID,
-                    profileUsername:    post.authorUsername,
-                    profileDisplayName: post.authorDisplayName,
-                    profileAuraLevel:   post.authorAuraLevel,
-                    profileAuraPoints:  post.authorAuraPoints,
-                    profileImageData:   post.authorProfileImageData,
-                    profileLocation:    post.authorLocation,
-                    profileStreak:      post.authorStreak,
-                    ownUserSettings:    post.authorID == userSettings.userID ? userSettings : nil
+                    profileUserID:       post.authorID,
+                    profileUsername:     post.authorUsername,
+                    profileDisplayName:  post.authorDisplayName,
+                    profileAuraLevel:    post.authorAuraLevel,
+                    profileAuraPoints:   post.authorAuraPoints,
+                    profileImageData:    post.authorProfileImageData,
+                    profileLocation:     post.authorLocation,
+                    profileStreak:       post.authorStreak,
+                    ownUserSettings:     post.authorID == userSettings.userID ? userSettings : nil,
+                    currentUserSettings: post.authorID == userSettings.userID ? nil : userSettings
                 )
             }
             .presentationDetents([.large])
+        }
+        .sheet(isPresented: $showingSearch) {
+            NavigationStack {
+                UserSearchView(currentUserSettings: userSettings)
+            }
         }
     }
 

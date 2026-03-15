@@ -37,12 +37,14 @@ struct ProfileView: View {
     @State private var showingProfileShare = false
 
     // Follow state
-    @State private var isFollowing:          Bool   = false
-    @State private var followerCount:        Int    = 0
-    @State private var followingCount:       Int    = 0
-    @State private var followLoading:        Bool   = false
-    @State private var viewerProfilePhotoURL:  String = ""
+    @State private var isFollowing:           Bool   = false
+    @State private var followerCount:         Int    = 0
+    @State private var followingCount:        Int    = 0
+    @State private var followLoading:         Bool   = false
+    @State private var viewerProfilePhotoURL: String = ""
     @State private var targetProfilePhotoURL: String = ""
+    @State private var showingFollowersList:  Bool   = false
+    @State private var showingFollowingList:  Bool   = false
 
     private var isOwnProfile: Bool { ownUserSettings != nil }
 
@@ -115,6 +117,24 @@ struct ProfileView: View {
             }
         }
         .task { await loadFollowState() }
+        .sheet(isPresented: $showingFollowersList) {
+            NavigationStack {
+                FollowListView(
+                    userID:              profileUserID,
+                    mode:                .followers,
+                    currentUserSettings: currentUserSettings ?? ownUserSettings
+                )
+            }
+        }
+        .sheet(isPresented: $showingFollowingList) {
+            NavigationStack {
+                FollowListView(
+                    userID:              profileUserID,
+                    mode:                .following,
+                    currentUserSettings: currentUserSettings ?? ownUserSettings
+                )
+            }
+        }
         .sheet(isPresented: $showingCamera, onDismiss: saveNewPhoto) {
             ImagePickerView(sourceType: .camera, selectedImage: $newProfileImage)
         }
@@ -234,7 +254,17 @@ struct ProfileView: View {
         HStack(spacing: 0) {
             statCell(value: "\(userPosts.count)", label: "POSTS")
             statDivider
-            statCell(value: "\(followerCount)", label: "FOLLOWERS")
+            // Tappable: opens followers list
+            Button { showingFollowersList = true } label: {
+                statCell(value: "\(followerCount)", label: "FOLLOWERS")
+            }
+            .buttonStyle(.plain)
+            statDivider
+            // Tappable: opens following list
+            Button { showingFollowingList = true } label: {
+                statCell(value: "\(followingCount)", label: "FOLLOWING")
+            }
+            .buttonStyle(.plain)
             statDivider
             statCell(value: auraPointsFormatted, label: "AURA")
             statDivider
