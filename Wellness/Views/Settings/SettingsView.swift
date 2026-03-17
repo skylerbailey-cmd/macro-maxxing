@@ -120,6 +120,11 @@ struct SettingsView: View {
     /// Firestore document after an account switch.
     @State private var sessionUID: String = ""
 
+    /// True once the user has edited any text field in this session.
+    /// While false, incoming userSettings changes (from the async Firestore fetch)
+    /// are allowed to refresh the local state vars.
+    @State private var isDirty = false
+
     // Username availability
     private enum UsernameState { case idle, checking, available, taken }
     @State private var usernameState: UsernameState = .idle
@@ -151,6 +156,7 @@ struct SettingsView: View {
                         .focused($nameFocused)
                         .submitLabel(.next)
                         .onSubmit { nameFocused = false }
+                        .onChange(of: nameText) { _, _ in isDirty = true }
                 }
                 HStack {
                     Text("Username")
@@ -166,6 +172,7 @@ struct SettingsView: View {
                                 .submitLabel(.done)
                                 .onSubmit { Task { await commitAll() }; nameFocused = false }
                                 .onChange(of: usernameText) { _, newValue in
+                                    isDirty = true
                                     scheduleUsernameCheck(newValue)
                                 }
                         }
@@ -339,12 +346,26 @@ struct SettingsView: View {
             }
         }
         .onAppear {
+            isDirty          = false
             sessionUID       = userSettings.userID
             nameText         = userSettings.name
             usernameText     = userSettings.username
             currentWeightVal = userSettings.currentWeight > 0 ? userSettings.currentWeight : 160
             goalWeightVal    = userSettings.goalWeight    > 0 ? userSettings.goalWeight    : 160
             proteinPerLbVal  = userSettings.proteinPerLb
+        }
+        // syncUserSettings fetches the Firestore profile asynchronously after login.
+        // If the user opens Settings before that fetch completes, onAppear captures
+        // empty values. This watcher detects when the profile arrives and refreshes
+        // local state — but only if the user hasn't started typing yet (isDirty).
+        .onChange(of: userSettings.username) { _, newValue in
+            guard !isDirty, !newValue.isEmpty else { return }
+            nameText         = userSettings.name
+            usernameText     = userSettings.username
+            currentWeightVal = userSettings.currentWeight > 0 ? userSettings.currentWeight : 160
+            goalWeightVal    = userSettings.goalWeight    > 0 ? userSettings.goalWeight    : 160
+            proteinPerLbVal  = userSettings.proteinPerLb
+            sessionUID       = userSettings.userID
         }
         .onDisappear { Task { await commitAll() } }
         .navigationTitle("Account")
@@ -404,6 +425,16 @@ struct SettingsView: View {
     private func commitAll() async {
         // Block save if the username is confirmed taken
         guard usernameState != .taken else { return }
+
+        // Don't write to Firestore if username is still empty — that means the
+        // Firestore profile fetch (syncUserSettings) hasn't completed yet and the
+        // local state was never populated. Writing now would overwrite real Firestore
+        // data with blank values.
+        let trimmedUsernameEarlyCheck = usernameText
+            .trimmingCharacters(in: .whitespaces)
+            .lowercased()
+            .replacingOccurrences(of: "@", with: "")
+        guard !trimmedUsernameEarlyCheck.isEmpty else { return }
 
         // Use the UID captured at onAppear time (sessionUID), not userSettings.userID.
         // If .onDisappear fires late — after an account switch has already changed
