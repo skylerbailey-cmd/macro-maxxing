@@ -621,7 +621,7 @@ struct PostCard: View {
                 }
             }
             Spacer()
-            if !isOwnPost {
+            if !isOwnPost && !isFollowing {
                 followButton
             }
         }
