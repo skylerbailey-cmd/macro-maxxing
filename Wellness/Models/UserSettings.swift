@@ -278,6 +278,73 @@ struct AuraGain: Identifiable, Equatable {
         achievedMilestonesRaw = set.map { String($0) }.joined(separator: ",")
     }
 
+    // MARK: - Account Switch
+
+    /// Clears ALL user data from memory and UserDefaults.
+    /// Call this on sign-out so no prior user's data survives into the next session.
+    func clearAllUserData() {
+        // Identity
+        userID           = ""
+        username         = ""
+        name             = ""
+        location         = ""
+        instagramHandle  = ""
+        tiktokHandle     = ""
+        isPrivateAccount = false
+        // Health / goals / streaks
+        fastingEnabled           = false
+        currentWeight            = 160
+        goalWeight               = 160
+        proteinPerLb             = 0.9
+        auraPoints               = 0
+        weeklyAuraPoints         = 0
+        weeklyAuraWeekStart      = .distantPast
+        lastLeaderboardAwardDate = .distantPast
+        achievedMilestonesRaw    = ""
+        goalsMetDatesRaw         = ""
+        lastCelebrationDate      = .distantPast
+        macroStreak              = 0
+        // Brainstorm
+        lastBrainstormResult  = ""
+        lastBrainstormDate    = .distantPast
+        brainstormUsageCount  = 0
+        brainstormUsageDate   = .distantPast
+        // UI state
+        auraPopupsEnabled = true
+        pendingAuraGain   = nil
+        // Profile image
+        profileImageData  = nil
+        // Pure-UserDefaults keys not backed by in-memory properties
+        let extraKeys = ["goalCalories", "goalProtein", "goalCarbs", "goalFat",
+                         "windowStartHour", "windowStartMinute", "windowDurationHours",
+                         "dailyWindowSnapshots"]
+        extraKeys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
+    }
+
+    /// Resets all health, goal, and streak data to defaults.
+    func resetHealthData() {
+        fastingEnabled   = false
+        currentWeight    = 160
+        goalWeight       = 160
+        proteinPerLb     = 0.9
+        auraPoints       = 0
+        weeklyAuraPoints = 0
+        macroStreak      = 0
+        achievedMilestonesRaw  = ""
+        goalsMetDatesRaw       = ""
+        lastCelebrationDate    = .distantPast
+        lastBrainstormResult   = ""
+        lastBrainstormDate     = .distantPast
+        brainstormUsageCount   = 0
+        brainstormUsageDate    = .distantPast
+
+        // Clear macro goals and fasting window — HomeViewModel reads these from UserDefaults on init
+        let keys = ["goalCalories", "goalProtein", "goalCarbs", "goalFat",
+                    "windowStartHour", "windowStartMinute", "windowDurationHours",
+                    "dailyWindowSnapshots"]
+        keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
+    }
+
     // MARK: - Init
 
     /// Profile picture — persisted as a JPEG file in the Documents directory.
@@ -293,13 +360,9 @@ struct AuraGain: Identifiable, Equatable {
             .appendingPathComponent("profile_image.jpg")
 
     init() {
-        if let saved = UserDefaults.standard.string(forKey: "userID"), !saved.isEmpty {
-            self.userID = saved
-        } else {
-            let id = UUID().uuidString
-            self.userID = id
-            UserDefaults.standard.set(id, forKey: "userID")
-        }
+        // userID is now set to the Firebase Auth uid via WellnessApp once auth resolves.
+        // Fall back to any previously stored value (e.g. upgrading from pre-auth builds).
+        self.userID = UserDefaults.standard.string(forKey: "userID") ?? ""
         self.username = UserDefaults.standard.string(forKey: "username") ?? ""
         self.name     = UserDefaults.standard.string(forKey: "userName") ?? ""
         self.location         = UserDefaults.standard.string(forKey: "userLocation")     ?? ""

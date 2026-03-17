@@ -20,7 +20,7 @@ final class AuthViewModel {
 
     // MARK: - Auth State
 
-    enum AuthState {
+    enum AuthState: Equatable {
         case unknown            // resolving Firebase token on launch
         case unauthenticated
         case authenticated(uid: String)
