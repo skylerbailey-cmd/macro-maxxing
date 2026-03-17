@@ -23,24 +23,31 @@ struct FoodLogView: View {
     @State private var analyzeVM:    AnalyzeViewModel
     @Binding var selectedDate: Date
     let userSettings: UserSettings
+    @Binding var externalImage: UIImage?
+    @Environment(NotificationState.self) private var notificationState
     @State private var showingAnalysisSheet  = false
     @State private var editingEntry: FoodEntry? = nil
     @State private var showingFuelLogPost    = false
-    @State private var showingSettings       = false
     @State private var showingProfile        = false
+    @State private var showingNotifications  = false
+
+    @State private var logTab = 0     // 0 = Fuel, 1 = Duel
 
     @Environment(\.modelContext) private var modelContext
 
-    init(modelContext: ModelContext, selectedDate: Binding<Date>, userSettings: UserSettings) {
+    init(modelContext: ModelContext, selectedDate: Binding<Date>, userSettings: UserSettings,
+         externalImage: Binding<UIImage?> = .constant(nil)) {
         _viewModel  = State(wrappedValue: FoodLogViewModel(
             modelContext: modelContext,
-            selectedDate: selectedDate.wrappedValue
+            selectedDate: selectedDate.wrappedValue,
+            userID: userSettings.userID
         ))
         _analyzeVM  = State(wrappedValue: AnalyzeViewModel(
             modelContext: modelContext,
             selectedDate: selectedDate.wrappedValue
         ))
-        _selectedDate = selectedDate
+        _selectedDate  = selectedDate
+        _externalImage = externalImage
         self.userSettings = userSettings
     }
 
@@ -51,109 +58,87 @@ struct FoodLogView: View {
             Color.pageBg.ignoresSafeArea()
 
             VStack(spacing: 0) {
+                // Custom header (nav bar is hidden)
+                HStack {
+                    Text("Fuel Log")
+                        .font(.system(size: 22, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    HStack(spacing: 14) {
+                        BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
+                        Button { showingProfile = true } label: {
+                            profileAvatarIcon
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+
                 DateNavigatorView(selectedDate: $selectedDate)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
 
-                ScrollView {
-                    LazyVStack(spacing: 10) {
-                        // Food entries or compact empty state
-                        if viewModel.todayEntries.isEmpty {
-                            emptyState
-                        } else {
-                            macroSummaryBanner
-
-                            Text("\(viewModel.todayEntries.count) Meal\(viewModel.todayEntries.count == 1 ? "" : "s")")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.white.opacity(0.30))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.top, 2)
-
-                            ForEach(viewModel.todayEntries) { entry in
-                                FoodEntryRow(entry: entry,
-                                             onEdit:   isToday ? { editingEntry = entry } : {},
-                                             onDelete: { viewModel.deleteEntry(entry) },
-                                             canEdit:  isToday)
-                            }
-                        }
-
-                        // Past-date read-only notice
-                        if !isToday {
-                            HStack(spacing: 6) {
-                                Image(systemName: "lock.fill")
-                                    .font(.caption)
-                                Text("Past dates are view-only. Navigate to today to log or edit.")
-                                    .font(.caption)
-                            }
-                            .foregroundStyle(.white.opacity(0.30))
-                            .padding(.vertical, 4)
-                        }
-
-                        // AI Coach section — always visible below the list
-                        analyzeSection
-                            .padding(.top, 8)
-                    }
+                // MARK: Fuel / Duel tab bar
+                logTabBar
                     .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .padding(.bottom, 100)
-                }
-            }
+                    .padding(.bottom, 8)
 
-            // FABs — only shown for today
-            if isToday {
-                VStack(spacing: 0) {
-                    LinearGradient(
-                        colors: [Color.pageBg.opacity(0), Color.pageBg],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                    .frame(height: 48)
-                    .allowsHitTesting(false)
+                if logTab == 0 {
+                    // MARK: Fuel tab — existing food log content
+                    ScrollView {
+                        LazyVStack(spacing: 10) {
+                            // Food entries or compact empty state
+                            if viewModel.todayEntries.isEmpty {
+                                emptyState
+                            } else {
+                                macroSummaryBanner
 
-                    HStack(spacing: 40) {
-                        fabWithLabel(icon: "photo.on.rectangle", label: "Library", color: .macroBlue) {
-                            viewModel.showingPhotoLibrary = true
+                                Text("\(viewModel.todayEntries.count) Meal\(viewModel.todayEntries.count == 1 ? "" : "s")")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.30))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.top, 2)
+
+                                ForEach(viewModel.todayEntries) { entry in
+                                    FoodEntryRow(entry: entry,
+                                                 onEdit:   isToday ? { editingEntry = entry } : {},
+                                                 onDelete: { viewModel.deleteEntry(entry) },
+                                                 canEdit:  isToday)
+                                }
+                            }
+
+                            // Past-date read-only notice
+                            if !isToday {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "lock.fill")
+                                        .font(.caption)
+                                    Text("Past dates are view-only. Navigate to today to log or edit.")
+                                        .font(.caption)
+                                }
+                                .foregroundStyle(.white.opacity(0.30))
+                                .padding(.vertical, 4)
+                            }
+
+                            // AI Coach section — always visible below the list
+                            analyzeSection
+                                .padding(.top, 8)
                         }
-                        fabWithLabel(
-                            icon: "camera.fill", label: "Camera",
-                            color: .purpleHi,
-                            disabled: !UIImagePickerController.isSourceTypeAvailable(.camera)
-                        ) {
-                            viewModel.showingCamera = true
-                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+                        .padding(.bottom, 100)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(Color.pageBg)
+                } else {
+                    // MARK: Duel tab
+                    duelTab
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             }
+
         }
         .preferredColorScheme(.dark)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 14) {
-                    if !viewModel.todayEntries.isEmpty {
-                        Button {
-                            showingFuelLogPost = true
-                        } label: {
-                            Image(systemName: "square.and.pencil")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
-                        }
-                    }
-                    Button { showingSettings = true } label: {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Color.purpleHi)
-                    }
-                    Button { showingProfile = true } label: {
-                        profileAvatarIcon
-                    }
-                }
-            }
-        }
-        .sheet(isPresented: $showingSettings) {
-            NavigationStack { SettingsView(userSettings: userSettings) }
+        .navigationBarHidden(true)
+        .sheet(isPresented: $showingNotifications) {
+            NotificationsView(userSettings: userSettings, notificationState: notificationState)
         }
         .sheet(isPresented: $showingProfile) {
             NavigationStack {
@@ -165,7 +150,8 @@ struct FoodLogView: View {
                     profileAuraPoints:  userSettings.auraPoints,
                     profileImageData:   userSettings.profileImageData,
                     profileLocation:    userSettings.location,
-                    ownUserSettings:    userSettings
+                    ownUserSettings:    userSettings,
+                    isDismissable:      true
                 )
             }
         }
@@ -180,6 +166,11 @@ struct FoodLogView: View {
         }
         .onChange(of: viewModel.selectedImage) { _, newValue in
             if newValue != nil { showingAnalysisSheet = true }
+        }
+        .onChange(of: externalImage) { _, image in
+            guard let img = image else { return }
+            viewModel.selectedImage = img
+            externalImage = nil
         }
         .sheet(isPresented: $viewModel.showingCamera) {
             ImagePickerView(sourceType: .camera, selectedImage: $viewModel.selectedImage)
@@ -368,7 +359,7 @@ struct FoodLogView: View {
                             .foregroundStyle(.white.opacity(0.50))
                     }
                 } else {
-                    Text("Tap Log Meals to get a personalised one-meal swap suggestion based on what you've logged today. Can only be run once per day.")
+                    Text("Tap Analyze Meals to get a personalised one-meal swap suggestion based on what you've logged today. Can only be run once per day.")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.50))
                         .lineSpacing(2)
@@ -393,7 +384,7 @@ struct FoodLogView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: analyzeVM.hasRunToday ? "checkmark.circle.fill" : "wand.and.stars")
-                    Text(analyzeVM.hasRunToday ? "Logged Today" : "Log Meals")
+                    Text(analyzeVM.hasRunToday ? "Analyzed Today" : "Analyze Meals")
                 }
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity)
@@ -402,7 +393,7 @@ struct FoodLogView: View {
             .buttonStyle(.borderedProminent)
             .tint(analyzeVM.hasRunToday ? .gray : Color.purpleHi)
             .disabled(analyzeVM.state == .analyzing || analyzeVM.hasRunToday)
-            .alert("Log Meals?", isPresented: $showLogMealsConfirm) {
+            .alert("Analyze Meals?", isPresented: $showLogMealsConfirm) {
                 Button("Run It", role: .none) { Task { await analyzeVM.analyze() } }
                 Button("Cancel", role: .cancel) {}
             } message: {
@@ -434,6 +425,64 @@ struct FoodLogView: View {
                 .lineSpacing(3)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    // MARK: - Fuel / Duel tab bar
+
+    private var logTabBar: some View {
+        HStack(spacing: 0) {
+            logTabButton(title: "Fuel",  tag: 0)
+            logTabButton(title: "Duel",  tag: 1)
+        }
+        .background(Color.cardBg)
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(Color.purpleHi.opacity(0.15), lineWidth: 1))
+    }
+
+    private func logTabButton(title: String, tag: Int) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) { logTab = tag }
+        } label: {
+            Text(title)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundStyle(logTab == tag ? .black : .white.opacity(0.45))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(
+                    logTab == tag
+                        ? Color.purpleHi
+                        : Color.clear,
+                    in: Capsule()
+                )
+                .padding(3)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Duel tab placeholder
+
+    private var duelTab: some View {
+        VStack(spacing: 18) {
+            Spacer()
+            ZStack {
+                Circle()
+                    .fill(Color.purpleHi.opacity(0.10))
+                    .frame(width: 84, height: 84)
+                Image(systemName: "bolt.shield.fill")
+                    .font(.system(size: 40))
+                    .foregroundStyle(Color.purpleHi.opacity(0.50))
+            }
+            VStack(spacing: 6) {
+                Text("Duel")
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.65))
+                Text("Coming soon")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.32))
+            }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -1204,6 +1253,7 @@ private struct FuelLogPostSheet: View {
             userProfilePhotoURL: "",
             auraLevel:           userSettings.auraLevel,
             auraPoints:          userSettings.auraPoints,
+            auraTitle:           userSettings.auraTitle,
             streak:              userSettings.macroStreak,
             memeType:            "",
             isPublic:            !userSettings.isPrivateAccount
