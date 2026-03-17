@@ -122,8 +122,8 @@ struct WellnessApp: App {
                     }
                 }
             }
-            .onChange(of: authViewModel.authState) { _, newState in
-                if case .unauthenticated = newState {
+            .onChange(of: authViewModel.authState) { oldState, newState in
+                if case .authenticated = oldState, case .unauthenticated = newState {
                     userSettings.clearAllUserData()
                 }
             }
