@@ -470,6 +470,7 @@ struct PostCard: View {
 
     @State private var showingImageViewer = false
     @State private var followLoading      = false
+    @State private var showCheckmark      = false
 
     private var isFollowing: Bool { followingIDs.contains(post.authorID) }
     private var isOwnPost:   Bool { post.authorID == userID }
@@ -621,41 +622,42 @@ struct PostCard: View {
                 }
             }
             Spacer()
-            if !isOwnPost && !isFollowing {
+            if !isOwnPost && (!isFollowing || showCheckmark) {
                 followButton
             }
         }
     }
 
+    private let neon = Color(red: 0.35, green: 1.00, blue: 0.60)
+    private let gold = Color(red: 1.00, green: 0.80, blue: 0.20)
+
     private var followButton: some View {
-        Button {
-            Task { await toggleFollow() }
-        } label: {
-            ZStack {
-                Circle()
-                    .fill(isFollowing
-                        ? Color(red: 0.35, green: 1.00, blue: 0.60).opacity(0.15)
-                        : Color(red: 1.00, green: 0.80, blue: 0.20).opacity(0.15))
-                    .frame(width: 28, height: 28)
-                    .overlay(Circle().stroke(
-                        isFollowing
-                            ? Color(red: 0.35, green: 1.00, blue: 0.60).opacity(0.40)
-                            : Color(red: 1.00, green: 0.80, blue: 0.20).opacity(0.40),
-                        lineWidth: 1
-                    ))
-                if followLoading {
-                    ProgressView().scaleEffect(0.55)
-                } else {
-                    Image(systemName: isFollowing ? "checkmark" : "plus")
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundStyle(isFollowing
-                            ? Color(red: 0.35, green: 1.00, blue: 0.60)
-                            : Color(red: 1.00, green: 0.80, blue: 0.20))
-                }
+        ZStack {
+            Circle()
+                .fill(showCheckmark ? neon.opacity(0.15) : gold.opacity(0.15))
+                .frame(width: 28, height: 28)
+                .overlay(Circle().stroke(
+                    showCheckmark ? neon.opacity(0.45) : gold.opacity(0.45),
+                    lineWidth: 1
+                ))
+            if followLoading {
+                ProgressView().scaleEffect(0.55)
+            } else if showCheckmark {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 11, weight: .black))
+                    .foregroundStyle(neon)
+                    .transition(.scale.combined(with: .opacity))
+            } else {
+                Image(systemName: "plus")
+                    .font(.system(size: 11, weight: .black))
+                    .foregroundStyle(gold)
             }
         }
-        .buttonStyle(.plain)
-        .disabled(followLoading)
+        .animation(.easeInOut(duration: 0.2), value: showCheckmark)
+        .onTapGesture {
+            guard !followLoading && !showCheckmark else { return }
+            Task { await toggleFollow() }
+        }
     }
 
     private func toggleFollow() async {
@@ -678,12 +680,15 @@ struct PostCard: View {
                     targetProfilePhotoURL:  ""
                 )
                 followingIDs.insert(post.authorID)
+                withAnimation { showCheckmark = true }
                 await InAppNotificationService.shared.sendFollow(
                     to:               post.authorID,
                     actorID:          userSettings.userID,
                     actorUsername:    userSettings.username,
                     actorDisplayName: userSettings.name
                 )
+                try? await Task.sleep(for: .seconds(2))
+                withAnimation { showCheckmark = false }
             }
         } catch {
             print("[PostCard] toggleFollow error: \(error)")
