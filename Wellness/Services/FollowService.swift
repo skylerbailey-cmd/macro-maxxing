@@ -52,7 +52,7 @@ final class FollowService {
         targetUsername:         String,
         targetProfilePhotoURL:  String
     ) async throws {
-        guard currentUserID != targetUserID else { return }
+        guard !currentUserID.isEmpty, !targetUserID.isEmpty, currentUserID != targetUserID else { return }
 
         // Check for mutual follow before batching (determines if friendship is created)
         let becomesFriends = (try? await isFollowing(
@@ -112,6 +112,7 @@ final class FollowService {
     /// Deletes both relationship documents and decrements the counts atomically.
     /// If the two users were mutual friends, friendCount is also decremented on both.
     func unfollowUser(currentUserID: String, targetUserID: String) async throws {
+        guard !currentUserID.isEmpty, !targetUserID.isEmpty else { return }
         // Check for mutual follow before batching (determines if friendship is broken)
         let wasFriends = (try? await isFollowing(
             currentUserID: targetUserID, targetUserID: currentUserID)) ?? false
@@ -157,6 +158,7 @@ final class FollowService {
     /// Returns true if `currentUserID` is currently following `targetUserID`.
     /// Checks by document existence — no full read required.
     func isFollowing(currentUserID: String, targetUserID: String) async throws -> Bool {
+        guard !currentUserID.isEmpty, !targetUserID.isEmpty else { return false }
         let doc = try await db.collection("users").document(currentUserID)
             .collection("following").document(targetUserID)
             .getDocument()

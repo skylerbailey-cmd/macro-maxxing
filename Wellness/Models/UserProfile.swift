@@ -13,8 +13,8 @@ struct UserProfile: Codable, Identifiable {
 
     // MARK: - Identity
 
-    /// Populated by Firestore on read; matches the document ID.
-    @DocumentID var userID: String?
+    /// Stored as a plain field in Firestore so it survives encode/decode round-trips.
+    var userID: String
 
     var username:        String
     var name:            String
@@ -49,12 +49,12 @@ struct UserProfile: Codable, Identifiable {
 
     // MARK: - Identifiable
 
-    var id: String { userID ?? UUID().uuidString }
+    var id: String { userID }
 
     // MARK: - Init
 
     init(
-        userID:           String? = nil,
+        userID:           String = "",
         username:         String,
         name:             String,
         location:         String,
@@ -74,7 +74,7 @@ struct UserProfile: Codable, Identifiable {
         auraPopupsEnabled: Bool  = true,
         joinDate:         Int
     ) {
-        self._userID          = DocumentID(wrappedValue: userID)
+        self.userID           = userID
         self.username         = username
         self.name             = name
         self.location         = location
@@ -106,6 +106,9 @@ extension UserProfile {
     init?(document: DocumentSnapshot) {
         guard document.exists else { return nil }
         var data = document.data() ?? [:]
+        // Inject the document ID as the userID field so the plain String property
+        // is always populated regardless of whether it was stored as a field.
+        data["userID"] = document.documentID
         // Default values for fields added after initial schema — prevents decode failure
         // on documents written before these fields existed.
         let intDefaults: [String: Any] = [

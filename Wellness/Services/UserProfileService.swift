@@ -63,6 +63,7 @@ final class UserProfileService {
 
     /// Fetches the user document for `userID` and decodes it into a `UserProfile`.
     func fetchProfile(userID: String) async throws -> UserProfile {
+        guard !userID.isEmpty else { throw UserProfileError.profileNotFound }
         let doc = try await db.collection(collectionName).document(userID).getDocument()
         guard let profile = UserProfile(document: doc) else {
             throw UserProfileError.profileNotFound
@@ -93,6 +94,7 @@ final class UserProfileService {
     /// Merges `fields` into the existing user document.
     /// Pass only the keys you want to change, e.g. `["username": "newname", "auraPoints": 500]`.
     func updateProfile(userID: String, fields: [String: Any]) async throws {
+        guard !userID.isEmpty else { return }
         try await db.collection(collectionName).document(userID).setData(fields, merge: true)
         print("[UserProfileService] Updated fields \(fields.keys.joined(separator: ", ")) for \(userID)")
     }
@@ -133,6 +135,7 @@ final class UserProfileService {
     /// Returns the new download URL string.
     @discardableResult
     func updateProfilePhoto(userID: String, image: UIImage) async throws -> String {
+        guard !userID.isEmpty else { return "" }
         guard let imageData = compress(image) else {
             throw UserProfileError.imageCompressionFailed
         }

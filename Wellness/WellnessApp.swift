@@ -5,6 +5,7 @@
 //  Created by Skyler Bailey on 3/11/26.
 //
 
+import UIKit
 import SwiftUI
 import SwiftData
 import FirebaseCore
