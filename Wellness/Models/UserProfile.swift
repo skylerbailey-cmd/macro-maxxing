@@ -31,6 +31,17 @@ struct UserProfile: Codable, Identifiable {
     /// Number of users following this account. Kept in sync by FollowService.
     var followerCount:  Int
 
+    // MARK: - Settings (persisted so they survive sign-out / device switches)
+
+    var instagramHandle:  String
+    var tiktokHandle:     String
+    var isPrivateAccount: Bool
+    var currentWeight:    Double
+    var goalWeight:       Double
+    var proteinPerLb:     Double
+    var fastingEnabled:   Bool
+    var auraPopupsEnabled: Bool
+
     // MARK: - Dates
 
     /// Unix timestamp (seconds) of when the profile was created.
@@ -43,29 +54,45 @@ struct UserProfile: Codable, Identifiable {
     // MARK: - Init
 
     init(
-        userID:          String? = nil,
-        username:        String,
-        name:            String,
-        location:        String,
-        profilePhotoURL: String,
-        auraPoints:      Int,
-        streakDays:      Int,
-        friendCount:     Int,
-        followingCount:  Int = 0,
-        followerCount:   Int = 0,
-        joinDate:        Int
+        userID:           String? = nil,
+        username:         String,
+        name:             String,
+        location:         String,
+        profilePhotoURL:  String,
+        auraPoints:       Int,
+        streakDays:       Int,
+        friendCount:      Int,
+        followingCount:   Int    = 0,
+        followerCount:    Int    = 0,
+        instagramHandle:  String = "",
+        tiktokHandle:     String = "",
+        isPrivateAccount: Bool   = false,
+        currentWeight:    Double = 160,
+        goalWeight:       Double = 160,
+        proteinPerLb:     Double = 0.9,
+        fastingEnabled:   Bool   = false,
+        auraPopupsEnabled: Bool  = true,
+        joinDate:         Int
     ) {
-        self._userID         = DocumentID(wrappedValue: userID)
-        self.username        = username
-        self.name            = name
-        self.location        = location
-        self.profilePhotoURL = profilePhotoURL
-        self.auraPoints      = auraPoints
-        self.streakDays      = streakDays
-        self.friendCount     = friendCount
-        self.followingCount  = followingCount
-        self.followerCount   = followerCount
-        self.joinDate        = joinDate
+        self._userID          = DocumentID(wrappedValue: userID)
+        self.username         = username
+        self.name             = name
+        self.location         = location
+        self.profilePhotoURL  = profilePhotoURL
+        self.auraPoints       = auraPoints
+        self.streakDays       = streakDays
+        self.friendCount      = friendCount
+        self.followingCount   = followingCount
+        self.followerCount    = followerCount
+        self.instagramHandle  = instagramHandle
+        self.tiktokHandle     = tiktokHandle
+        self.isPrivateAccount = isPrivateAccount
+        self.currentWeight    = currentWeight
+        self.goalWeight       = goalWeight
+        self.proteinPerLb     = proteinPerLb
+        self.fastingEnabled   = fastingEnabled
+        self.auraPopupsEnabled = auraPopupsEnabled
+        self.joinDate         = joinDate
     }
 }
 
@@ -74,10 +101,53 @@ struct UserProfile: Codable, Identifiable {
 extension UserProfile {
 
     /// Decodes a UserProfile from a Firestore DocumentSnapshot.
+    /// Pre-fills any fields that may be absent from older documents so decoding
+    /// never silently drops a user (e.g. friendCount added after initial launch).
     init?(document: DocumentSnapshot) {
         guard document.exists else { return nil }
+        var data = document.data() ?? [:]
+        // Default values for fields added after initial schema — prevents decode failure
+        // on documents written before these fields existed.
+        let intDefaults: [String: Any] = [
+            "friendCount":    0,
+            "followerCount":  0,
+            "followingCount": 0,
+            "streakDays":     0,
+            "auraPoints":     0,
+            "joinDate":       0,
+        ]
+        for (key, value) in intDefaults where data[key] == nil {
+            data[key] = value
+        }
+        let doubleDefaults: [String: Any] = [
+            "currentWeight": 160.0,
+            "goalWeight":    160.0,
+            "proteinPerLb":  0.9,
+        ]
+        for (key, value) in doubleDefaults where data[key] == nil {
+            data[key] = value
+        }
+        let boolDefaults: [String: Any] = [
+            "isPrivateAccount":  false,
+            "fastingEnabled":    false,
+            "auraPopupsEnabled": true,
+        ]
+        for (key, value) in boolDefaults where data[key] == nil {
+            data[key] = value
+        }
+        let stringDefaults: [String: Any] = [
+            "profilePhotoURL": "",
+            "location":        "",
+            "name":            "",
+            "username":        "",   // guard against missing field causing decode failure
+            "instagramHandle": "",
+            "tiktokHandle":    "",
+        ]
+        for (key, value) in stringDefaults where data[key] == nil {
+            data[key] = value
+        }
         do {
-            self = try Firestore.Decoder().decode(UserProfile.self, from: document.data() ?? [:])
+            self = try Firestore.Decoder().decode(UserProfile.self, from: data)
         } catch {
             print("[UserProfile] Decode error – \(document.documentID): \(error)")
             return nil

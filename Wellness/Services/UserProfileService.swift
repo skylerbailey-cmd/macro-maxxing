@@ -51,6 +51,16 @@ final class UserProfileService {
 
     // MARK: - 2. Fetch Profile
 
+    /// Returns true if a Firestore document exists for `userID`, regardless of whether
+    /// it can be fully decoded into a UserProfile. Use this instead of fetchProfile()
+    /// when you only need to know whether the document is present (e.g. before creating
+    /// a new profile to avoid overwriting an existing one).
+    func profileExists(userID: String) async -> Bool {
+        guard !userID.isEmpty else { return false }
+        return (try? await db.collection(collectionName).document(userID)
+            .getDocument())?.exists == true
+    }
+
     /// Fetches the user document for `userID` and decodes it into a `UserProfile`.
     func fetchProfile(userID: String) async throws -> UserProfile {
         let doc = try await db.collection(collectionName).document(userID).getDocument()
