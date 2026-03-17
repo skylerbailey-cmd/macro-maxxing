@@ -25,8 +25,9 @@ struct NotificationsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var notifications: [AppNotification] = []
     @State private var loading = true
-    @State private var followingIDs:  Set<String> = []
-    @State private var followLoading: Set<String> = []
+    @State private var followingIDs:   Set<String> = []
+    @State private var checkmarkedIDs: Set<String> = []
+    @State private var followLoading:  Set<String> = []
 
     private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
     private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
@@ -123,12 +124,16 @@ struct NotificationsView: View {
 
             Spacer()
 
-            // Follow-back button for follow notifications
+            // Follow-back button / checkmark for follow notifications
             if notif.type == .follow,
                !notif.actorID.isEmpty,
                notif.actorID != userSettings.userID,
                !followingIDs.contains(notif.actorID) {
-                followBackButton(actorID: notif.actorID)
+                if checkmarkedIDs.contains(notif.actorID) {
+                    followCheckmark
+                } else {
+                    followBackButton(actorID: notif.actorID)
+                }
             }
 
             if !notif.isRead {
@@ -141,6 +146,20 @@ struct NotificationsView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .background(notif.isRead ? Color.clear : purpl.opacity(0.04))
+    }
+
+    private var followCheckmark: some View {
+        ZStack {
+            Circle()
+                .fill(Color(red: 0.35, green: 1.00, blue: 0.60).opacity(0.15))
+                .frame(width: 30, height: 30)
+                .overlay(Circle().stroke(Color(red: 0.35, green: 1.00, blue: 0.60).opacity(0.45), lineWidth: 1))
+            Image(systemName: "checkmark")
+                .font(.system(size: 11, weight: .black))
+                .foregroundStyle(Color(red: 0.35, green: 1.00, blue: 0.60))
+        }
+        .transition(.scale.combined(with: .opacity))
+        .padding(.top, 4)
     }
 
     @ViewBuilder
@@ -276,7 +295,8 @@ struct NotificationsView: View {
             targetUsername:         actorProfile?.username ?? "",
             targetProfilePhotoURL:  actorProfile?.profilePhotoURL ?? ""
         )
-        followingIDs.insert(actorID)
+        // Show checkmark on just this actor's button; other buttons are unaffected
+        withAnimation(.easeInOut(duration: 0.2)) { checkmarkedIDs.insert(actorID) }
 
         await InAppNotificationService.shared.sendFollow(
             to:               actorID,
@@ -285,6 +305,13 @@ struct NotificationsView: View {
             actorDisplayName: userSettings.name,
             actorPhotoURL:    userSettings.profilePhotoURL
         )
+
+        // After 2.5s remove the checkmark and permanently hide the button
+        try? await Task.sleep(for: .seconds(2.5))
+        withAnimation(.easeOut(duration: 0.2)) {
+            checkmarkedIDs.remove(actorID)
+            followingIDs.insert(actorID)
+        }
     }
 
     // MARK: - Time formatter
