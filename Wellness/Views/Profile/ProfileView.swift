@@ -34,6 +34,8 @@ struct ProfileView: View {
     @Query(sort: \SocialPost.repsCount, order: .reverse) private var allPosts: [SocialPost]
 
     @State private var showingCamera       = false
+    @State private var showingLibrary      = false
+    @State private var showingPhotoSource  = false
     @State private var newProfileImage:    UIImage?
     @State private var selectedPost:       SocialPost?
     @State private var showingProfileShare = false
@@ -166,8 +168,18 @@ struct ProfileView: View {
                 NavigationStack { SettingsView(userSettings: settings) }
             }
         }
+        .confirmationDialog("Change Profile Photo", isPresented: $showingPhotoSource, titleVisibility: .visible) {
+            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                Button("Take Photo") { showingCamera = true }
+            }
+            Button("Choose from Library") { showingLibrary = true }
+            Button("Cancel", role: .cancel) { }
+        }
         .sheet(isPresented: $showingCamera, onDismiss: saveNewPhoto) {
             ImagePickerView(sourceType: .camera, selectedImage: $newProfileImage)
+        }
+        .sheet(isPresented: $showingLibrary, onDismiss: saveNewPhoto) {
+            ImagePickerView(sourceType: .photoLibrary, selectedImage: $newProfileImage)
         }
         .sheet(isPresented: $showingProfileShare) {
             ProfileShareView(
@@ -212,7 +224,7 @@ struct ProfileView: View {
             VStack(spacing: 12) {
                 // Avatar
                 Button {
-                    if isOwnProfile { showingCamera = true }
+                    if isOwnProfile { showingPhotoSource = true }
                 } label: {
                     ZStack {
                         // Outer glow ring (gradient)
