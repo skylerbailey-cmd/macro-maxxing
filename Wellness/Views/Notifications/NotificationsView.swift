@@ -25,6 +25,8 @@ struct NotificationsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var notifications: [AppNotification] = []
     @State private var loading = true
+    @State private var followingIDs:  Set<String> = []
+    @State private var followLoading: Set<String> = []
 
     private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
     private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
@@ -121,6 +123,14 @@ struct NotificationsView: View {
 
             Spacer()
 
+            // Follow-back button for follow notifications
+            if notif.type == .follow,
+               !notif.actorID.isEmpty,
+               notif.actorID != userSettings.userID,
+               !followingIDs.contains(notif.actorID) {
+                followBackButton(actorID: notif.actorID)
+            }
+
             if !notif.isRead {
                 Circle()
                     .fill(purpl)
@@ -131,6 +141,30 @@ struct NotificationsView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .background(notif.isRead ? Color.clear : purpl.opacity(0.04))
+    }
+
+    @ViewBuilder
+    private func followBackButton(actorID: String) -> some View {
+        Button {
+            Task { await followBack(actorID: actorID) }
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(gold.opacity(0.15))
+                    .frame(width: 30, height: 30)
+                    .overlay(Circle().stroke(gold.opacity(0.45), lineWidth: 1))
+                if followLoading.contains(actorID) {
+                    ProgressView().scaleEffect(0.55).tint(gold)
+                } else {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .black))
+                        .foregroundStyle(gold)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(followLoading.contains(actorID))
+        .padding(.top, 4)
     }
 
     // MARK: - Avatar
@@ -210,7 +244,12 @@ struct NotificationsView: View {
 
     private func loadNotifications() async {
         loading = true
-        notifications = (try? await InAppNotificationService.shared.fetch(userID: userSettings.userID)) ?? []
+        async let notifFetch   = InAppNotificationService.shared.fetch(userID: userSettings.userID)
+        async let followFetch  = FollowService.shared.fetchFollowing(userID: userSettings.userID)
+        notifications = (try? await notifFetch) ?? []
+        if let entries = try? await followFetch {
+            followingIDs = Set(entries.map { $0.userID })
+        }
         loading = false
         // Mark all read after 1 second
         try? await Task.sleep(for: .seconds(1))
@@ -221,6 +260,31 @@ struct NotificationsView: View {
         try? await InAppNotificationService.shared.markAllRead(userID: userSettings.userID)
         for i in notifications.indices { notifications[i].isRead = true }
         notificationState.unreadCount = 0
+    }
+
+    private func followBack(actorID: String) async {
+        guard !actorID.isEmpty, !userSettings.userID.isEmpty else { return }
+        followLoading.insert(actorID)
+        defer { followLoading.remove(actorID) }
+
+        let actorProfile = try? await UserProfileService.shared.fetchProfile(userID: actorID)
+        try? await FollowService.shared.followUser(
+            currentUserID:          userSettings.userID,
+            currentUsername:        userSettings.username,
+            currentProfilePhotoURL: userSettings.profilePhotoURL,
+            targetUserID:           actorID,
+            targetUsername:         actorProfile?.username ?? "",
+            targetProfilePhotoURL:  actorProfile?.profilePhotoURL ?? ""
+        )
+        followingIDs.insert(actorID)
+
+        await InAppNotificationService.shared.sendFollow(
+            to:               actorID,
+            actorID:          userSettings.userID,
+            actorUsername:    userSettings.username,
+            actorDisplayName: userSettings.name,
+            actorPhotoURL:    userSettings.profilePhotoURL
+        )
     }
 
     // MARK: - Time formatter
