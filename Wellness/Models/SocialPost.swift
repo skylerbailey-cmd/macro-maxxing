@@ -34,10 +34,14 @@ import SwiftData
 
     /// Fasting window at time of posting, e.g. "9:00 AM – 5:00 PM · 8h window". Empty if not applicable.
     var fastingWindowDisplay: String = ""
+    var postLabel:            String = ""  // PostLabel.rawValue, empty = no label
+    var mogBoardScope:        String = ""  // "Team" | "Local" | "Arena"
+    var mogBoardType:         String = ""  // "Weekly Aura" | "Engagement" | "Streak"
 
     // Author aura + profile picture + location + streak + privacy at time of posting
     var authorAuraLevel:   Int    = 0
     var authorAuraPoints:  Int    = 0
+    var authorAuraTitle:   String = ""
     var authorLocation:    String = ""
     var authorLatitude:    Double = 0.0
     var authorLongitude:   Double = 0.0

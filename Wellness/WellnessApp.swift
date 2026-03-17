@@ -73,9 +73,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 struct WellnessApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
-    @State private var showSplash    = true
-    @State private var authViewModel: AuthViewModel
-    @State private var userSettings  = UserSettings()
+    @State private var showSplash   = true
+    @State private var session:     SessionManager
+    @State private var userSettings: UserSettings
 
     init() {
         // Configure Firebase before any Firebase service (Auth, Firestore) is touched.
@@ -83,7 +83,13 @@ struct WellnessApp: App {
         if let clientID = FirebaseApp.app()?.options.clientID {
             GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
         }
-        _authViewModel = State(initialValue: AuthViewModel())
+
+        // Wire SessionManager ↔ UserSettings before either is stored in @State.
+        let settings = UserSettings()
+        let mgr = SessionManager()
+        mgr.userSettings = settings
+        _userSettings = State(initialValue: settings)
+        _session = State(initialValue: mgr)
     }
 
     let modelContainer: ModelContainer = {
@@ -100,59 +106,25 @@ struct WellnessApp: App {
                     SplashView(onComplete: { showSplash = false })
                         .preferredColorScheme(.dark)
                 } else {
-                    switch authViewModel.authState {
+                    switch session.authState {
                     case .unknown:
                         // Briefly shown while Firebase resolves the auth token
                         Color.black.ignoresSafeArea()
 
                     case .unauthenticated:
                         AuthView()
-                            .environment(authViewModel)
+                            .environment(session)
                             .preferredColorScheme(.dark)
 
-                    case .authenticated(let uid):
+                    case .authenticated:
                         ContentView()
                             .modelContainer(modelContainer)
-                            .environment(authViewModel)
+                            .environment(session)
                             .environment(userSettings)
                             .preferredColorScheme(.dark)
-                            .task(id: uid) {
-                                await syncUserSettings(uid: uid)
-                            }
                     }
                 }
             }
-            .onChange(of: authViewModel.authState) { oldState, newState in
-                if case .authenticated = oldState, case .unauthenticated = newState {
-                    userSettings.clearAllUserData()
-                }
-            }
-        }
-    }
-
-    // MARK: - Profile Sync
-
-    /// Called whenever the authenticated uid changes.
-    /// UserDefaults is guaranteed clean at this point (cleared on sign-out),
-    /// so we just stamp the uid and fetch the profile from Firestore.
-    @MainActor
-    private func syncUserSettings(uid: String) async {
-        userSettings.userID = uid
-
-        if let profile = try? await UserProfileService.shared.fetchProfile(userID: uid) {
-            userSettings.username          = profile.username
-            userSettings.name              = profile.name
-            userSettings.location          = profile.location
-            userSettings.auraPoints        = profile.auraPoints
-            userSettings.macroStreak       = profile.streakDays
-            userSettings.instagramHandle   = profile.instagramHandle
-            userSettings.tiktokHandle      = profile.tiktokHandle
-            userSettings.isPrivateAccount  = profile.isPrivateAccount
-            userSettings.currentWeight     = profile.currentWeight
-            userSettings.goalWeight        = profile.goalWeight
-            userSettings.proteinPerLb      = profile.proteinPerLb
-            userSettings.fastingEnabled    = profile.fastingEnabled
-            userSettings.auraPopupsEnabled = profile.auraPopupsEnabled
         }
     }
 }

@@ -10,6 +10,8 @@
 		881BD8032F64841E003E41BE /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 881BD8022F64841E003E41BE /* FirebaseAuth */; };
 		881BD8052F64841E003E41BE /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 881BD8042F64841E003E41BE /* FirebaseFirestore */; };
 		881BD8072F64841E003E41BE /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 881BD8062F64841E003E41BE /* FirebaseStorage */; };
+		881BDADC2F67A1A2003E41BE /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 881BDADB2F67A1A2003E41BE /* GoogleSignIn */; };
+		881BDADE2F67A1A2003E41BE /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 881BDADD2F67A1A2003E41BE /* GoogleSignInSwift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,7 +31,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				881BDADE2F67A1A2003E41BE /* GoogleSignInSwift in Frameworks */,
 				881BD8032F64841E003E41BE /* FirebaseAuth in Frameworks */,
+				881BDADC2F67A1A2003E41BE /* GoogleSignIn in Frameworks */,
 				881BD8052F64841E003E41BE /* FirebaseFirestore in Frameworks */,
 				881BD8072F64841E003E41BE /* FirebaseStorage in Frameworks */,
 			);
@@ -77,6 +81,8 @@
 				881BD8022F64841E003E41BE /* FirebaseAuth */,
 				881BD8042F64841E003E41BE /* FirebaseFirestore */,
 				881BD8062F64841E003E41BE /* FirebaseStorage */,
+				881BDADB2F67A1A2003E41BE /* GoogleSignIn */,
+				881BDADD2F67A1A2003E41BE /* GoogleSignInSwift */,
 			);
 			productName = Wellness;
 			productReference = 881BD6732F620203003E41BE /* Macro Maxxing.app */;
@@ -108,6 +114,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				881BD8012F64841E003E41BE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				881BDADA2F67A1A2003E41BE /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 881BD6742F620203003E41BE /* Products */;
@@ -278,6 +285,8 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_BackgroundColor = LaunchBackground;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Image = LaunchLogo;
+				INFOPLIST_KEY_UILaunchScreen_ImageRespectsSafeAreaInsets = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -316,6 +325,8 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_BackgroundColor = LaunchBackground;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Image = LaunchLogo;
+				INFOPLIST_KEY_UILaunchScreen_ImageRespectsSafeAreaInsets = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -367,6 +378,14 @@
 				minimumVersion = 12.10.0;
 			};
 		};
+		881BDADA2F67A1A2003E41BE /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.1.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -384,6 +403,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 881BD8012F64841E003E41BE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;
+		};
+		881BDADB2F67A1A2003E41BE /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 881BDADA2F67A1A2003E41BE /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		881BDADD2F67A1A2003E41BE /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 881BDADA2F67A1A2003E41BE /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

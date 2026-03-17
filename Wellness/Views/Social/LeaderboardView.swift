@@ -41,6 +41,7 @@ struct LeaderboardView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(LocationManager.self) private var locationManager
+    @Environment(NotificationState.self) private var notificationState
     @Query(sort: \SocialPost.postedAt, order: .reverse) private var allPosts: [SocialPost]
 
     /// Firestore-loaded set of userIDs the current user follows.
@@ -48,9 +49,9 @@ struct LeaderboardView: View {
 
     @State private var selectedScope:    Scope            = .arena
     @State private var selectedProfile:  LeaderboardEntry? = nil
-    @State private var showingSettings   = false
     @State private var showingProfile    = false
     @State private var showPostPicker    = false
+    @State private var showingNotifications = false
     @State private var previewBoard:     ShareableBoard?  = nil
 
     enum Scope: String, CaseIterable {
@@ -75,6 +76,23 @@ struct LeaderboardView: View {
         ZStack {
             pageBg.ignoresSafeArea()
             VStack(spacing: 0) {
+                // Custom header (nav bar is hidden)
+                HStack {
+                    Text("Mog Board")
+                        .font(.system(size: 22, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    HStack(spacing: 14) {
+                        BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
+                        Button { showingProfile = true } label: {
+                            leaderboardProfileAvatarIcon
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+
                 scopePicker
                 ScrollView {
                     VStack(spacing: 24) {
@@ -84,7 +102,7 @@ struct LeaderboardView: View {
                         boardSection(
                             title: "Weekly Aura",
                             icon: "bolt.fill",
-                            subtitle: "Resets \(nextMondayString)",
+                            subtitle: "Resets \(nextSundayString)",
                             entries: weeklyAuraDisplayed,
                             board: .weeklyAura
                         )
@@ -110,26 +128,8 @@ struct LeaderboardView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .navigationBarHidden(true)
         .task { await loadFollowingIDs() }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 14) {
-                    Button { showPostPicker = true } label: {
-                        Image(systemName: "square.and.pencil")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(gold)
-                    }
-                    Button { showingSettings = true } label: {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(purpl)
-                    }
-                    Button { showingProfile = true } label: {
-                        leaderboardProfileAvatarIcon
-                    }
-                }
-            }
-        }
         .confirmationDialog("Post a Board", isPresented: $showPostPicker, titleVisibility: .visible) {
             Button("Weekly Aura") {
                 previewBoard = ShareableBoard(title: "Weekly Aura", scoreLabel: "pts",
@@ -161,8 +161,12 @@ struct LeaderboardView: View {
         .onChange(of: selectedScope) { _, scope in
             if scope == .local { locationManager.requestLocationIfNeeded() }
         }
-        .sheet(isPresented: $showingSettings) {
-            NavigationStack { SettingsView(userSettings: userSettings) }
+        .onChange(of: selectedProfile) { old, new in
+            // Refresh team following list when returning from a user profile
+            if new == nil && old != nil { Task { await loadFollowingIDs() } }
+        }
+        .sheet(isPresented: $showingNotifications) {
+            NotificationsView(userSettings: userSettings, notificationState: notificationState)
         }
         .sheet(isPresented: $showingProfile) {
             NavigationStack {
@@ -174,7 +178,8 @@ struct LeaderboardView: View {
                     profileAuraPoints:  userSettings.auraPoints,
                     profileImageData:   userSettings.profileImageData,
                     profileLocation:    userSettings.location,
-                    ownUserSettings:    userSettings
+                    ownUserSettings:    userSettings,
+                    isDismissable:      true
                 )
             }
         }
@@ -199,7 +204,8 @@ struct LeaderboardView: View {
                     profileAuraPoints:  entry.score,
                     profileImageData:   entry.profileImageData,
                     profileLocation:    entry.location,
-                    profileStreak:      entry.streak
+                    profileStreak:      entry.streak,
+                    currentUserSettings: userSettings
                 )
             }
         }
@@ -281,6 +287,7 @@ struct LeaderboardView: View {
             userProfilePhotoURL: "",
             auraLevel:           userSettings.auraLevel,
             auraPoints:          userSettings.auraPoints,
+            auraTitle:           userSettings.auraTitle,
             streak:              userSettings.macroStreak,
             memeType:            "",
             isPublic:            !userSettings.isPrivateAccount
@@ -343,17 +350,6 @@ struct LeaderboardView: View {
                         .foregroundStyle(.white.opacity(0.35))
                 }
                 Spacer()
-                Button {
-                    let sb = ShareableBoard(title: title, scoreLabel: scoreLabel, entries: entries)
-                    presentShareSheet(board: sb)
-                } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(gold.opacity(0.80))
-                        .padding(6)
-                        .background(gold.opacity(0.10))
-                        .clipShape(Circle())
-                }
             }
             .padding(14)
 
@@ -361,8 +357,10 @@ struct LeaderboardView: View {
                 .fill(Color.white.opacity(0.06))
                 .frame(height: 1)
 
-            if entries.isEmpty {
-                let noLocation = selectedScope == .local && locationManager.coordinate == nil
+            let noLocation = selectedScope == .local && locationManager.coordinate == nil
+            let localTooFew = selectedScope == .local && !noLocation && entries.count < 10
+
+            if entries.isEmpty || localTooFew {
                 Group {
                     if selectedScope == .local && !noLocation {
                         localInviteBanner(full: true)
@@ -401,11 +399,6 @@ struct LeaderboardView: View {
                 }
                 .padding(12)
 
-                if selectedScope == .local && entries.count < 10 {
-                    localInviteBanner(full: false)
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 12)
-                }
                 if selectedScope == .team && entries.count < 5 {
                     teamInviteBanner(full: false)
                         .padding(.horizontal, 12)
@@ -664,7 +657,7 @@ struct LeaderboardView: View {
                                        userSettings.auraLevel,
                                        userSettings.weeklyAuraPoints)
 
-        let weekStart = UserSettings.currentWeekStart()
+        let weekStart = UserSettings.lastSundayAwardCutoff() ?? Date.distantPast
         for post in allPosts where post.postedAt >= weekStart && post.authorID != userSettings.userID {
             let pts = post.goalCalories > 0 ? 50 : 10
             let name = post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName
@@ -707,7 +700,8 @@ struct LeaderboardView: View {
                                      userSettings.profileImageData,
                                      userSettings.auraLevel, 0, 0)
 
-        for post in allPosts {
+        let engagementWeekStart = UserSettings.lastSundayAwardCutoff() ?? Date.distantPast
+        for post in allPosts where post.postedAt >= engagementWeekStart {
             let name = post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName
             if var existing = data[post.authorID] {
                 existing.reps     += post.repsCount
@@ -777,14 +771,14 @@ struct LeaderboardView: View {
 
     // MARK: - Helpers
 
-    private var nextMondayString: String {
-        let weekStart = UserSettings.currentWeekStart()
-        guard let nextMonday = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: weekStart) else {
-            return "Monday"
+    private var nextSundayString: String {
+        let lastSunday = UserSettings.lastSundayAwardCutoff() ?? Date()
+        guard let nextSunday = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: lastSunday) else {
+            return "Sunday"
         }
         let f = DateFormatter()
         f.dateFormat = "MMM d"
-        return f.string(from: nextMonday)
+        return f.string(from: nextSunday)
     }
 }
 

@@ -25,6 +25,9 @@ struct ProfileView: View {
     /// Non-nil when viewing someone else's profile — provides the viewer's identity for follow actions
     var currentUserSettings: UserSettings? = nil
 
+    /// Set true when ProfileView is presented as a sheet so an X dismiss button is shown.
+    var isDismissable: Bool = false
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss)      private var dismiss
 
@@ -34,16 +37,19 @@ struct ProfileView: View {
     @State private var newProfileImage:    UIImage?
     @State private var selectedPost:       SocialPost?
     @State private var showingProfileShare = false
+    @State private var showingSettings     = false
 
     // Follow state
     @State private var isFollowing:           Bool   = false
     @State private var followerCount:         Int    = 0
     @State private var followingCount:        Int    = 0
+    @State private var friendCount:           Int    = 0
     @State private var followLoading:         Bool   = false
     @State private var viewerProfilePhotoURL: String = ""
     @State private var targetProfilePhotoURL: String = ""
     @State private var showingFollowersList:  Bool   = false
     @State private var showingFollowingList:  Bool   = false
+    @State private var showingFriendsList:    Bool   = false
 
     private var isOwnProfile: Bool { ownUserSettings != nil }
 
@@ -90,6 +96,7 @@ struct ProfileView: View {
                     headerBanner
                     statsBar
                     rankBadge
+                    auraLevelCard
                     socialLinks
                     if !isOwnProfile { addToTeamButton }
                     postsGrid
@@ -101,12 +108,28 @@ struct ProfileView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            if isDismissable {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.70))
+                    }
+                }
+            }
             if isOwnProfile {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { showingProfileShare = true } label: {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(gold)
+                    HStack(spacing: 14) {
+                        Button { showingProfileShare = true } label: {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(gold)
+                        }
+                        Button { showingSettings = true } label: {
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(purpl)
+                        }
                     }
                 }
             }
@@ -128,6 +151,19 @@ struct ProfileView: View {
                     mode:                .following,
                     currentUserSettings: currentUserSettings ?? ownUserSettings
                 )
+            }
+        }
+        .sheet(isPresented: $showingFriendsList) {
+            NavigationStack {
+                FriendsListView(
+                    userID:              profileUserID,
+                    currentUserSettings: currentUserSettings ?? ownUserSettings
+                )
+            }
+        }
+        .sheet(isPresented: $showingSettings) {
+            if let settings = ownUserSettings {
+                NavigationStack { SettingsView(userSettings: settings) }
             }
         }
         .sheet(isPresented: $showingCamera, onDismiss: saveNewPhoto) {
@@ -249,15 +285,18 @@ struct ProfileView: View {
         HStack(spacing: 0) {
             statCell(value: "\(userPosts.count)", label: "POSTS")
             statDivider
-            // Tappable: opens followers list
             Button { showingFollowersList = true } label: {
                 statCell(value: "\(followerCount)", label: "FOLLOWERS")
             }
             .buttonStyle(.plain)
             statDivider
-            // Tappable: opens following list
             Button { showingFollowingList = true } label: {
                 statCell(value: "\(followingCount)", label: "FOLLOWING")
+            }
+            .buttonStyle(.plain)
+            statDivider
+            Button { showingFriendsList = true } label: {
+                statCell(value: "\(friendCount)", label: "FRIENDS")
             }
             .buttonStyle(.plain)
             statDivider
@@ -351,6 +390,87 @@ struct ProfileView: View {
                     )
             )
             .clipShape(Capsule())
+            .padding(.top, 14)
+        }
+    }
+
+    // MARK: - Aura Level Card
+
+    @ViewBuilder
+    private var auraLevelCard: some View {
+        if profileAuraPoints > 0 || profileAuraLevel > 0 {
+            let pts      = profileAuraPoints
+            let level    = min(pts / 1000, 100)
+            let inLevel  = level >= 100 ? 1000 : pts % 1000
+            let progress = Double(inLevel) / 1000.0
+            let pctText  = level >= 100 ? "MAX" : "\(Int(progress * 100))%"
+
+            VStack(spacing: 10) {
+                HStack(spacing: 0) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(gold)
+                        Text("Level \(max(1, level))")
+                            .font(.system(size: 15, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
+                        if !auraTitleString.isEmpty {
+                            Text("·")
+                                .foregroundStyle(.white.opacity(0.20))
+                            Text(auraTitleString)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(gold.opacity(0.80))
+                        }
+                    }
+                    Spacer()
+                    Text(pctText)
+                        .font(.system(size: 13, weight: .black, design: .rounded))
+                        .foregroundStyle(gold)
+                }
+
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.white.opacity(0.08))
+                            .frame(height: 8)
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [gold, purpl],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: max(8, geo.size.width * progress), height: 8)
+                            .animation(.easeOut(duration: 0.6), value: progress)
+                    }
+                }
+                .frame(height: 8)
+
+                HStack {
+                    Text("\(inLevel) / 1,000 pts")
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.30))
+                    Spacer()
+                    if level < 100 {
+                        Text("\(1000 - inLevel) pts to Level \(level + 1)")
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.30))
+                    } else {
+                        Text("Maximum level reached")
+                            .font(.caption2)
+                            .foregroundStyle(gold.opacity(0.60))
+                    }
+                }
+            }
+            .padding(14)
+            .background(cardBg)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(gold.opacity(0.15), lineWidth: 1)
+            )
+            .padding(.horizontal, 16)
             .padding(.top, 14)
         }
     }
@@ -578,7 +698,15 @@ struct ProfileView: View {
     }
 
     private func loadFollowState() async {
-        guard !isOwnProfile else { return }
+        if isOwnProfile {
+            if let uid = ownUserSettings?.userID, !uid.isEmpty,
+               let profile = try? await UserProfileService.shared.fetchProfile(userID: uid) {
+                followerCount  = profile.followerCount
+                followingCount = profile.followingCount
+                friendCount    = profile.friendCount
+            }
+            return
+        }
         let viewer = currentUserSettings ?? ownUserSettings
         guard let viewerID = viewer?.userID, !viewerID.isEmpty else { return }
 
@@ -590,6 +718,7 @@ struct ProfileView: View {
         if let profile = try? await targetProfile {
             followerCount         = profile.followerCount
             followingCount        = profile.followingCount
+            friendCount           = profile.friendCount
             targetProfilePhotoURL = profile.profilePhotoURL
         }
         if let vp = try? await viewerProfile { viewerProfilePhotoURL = vp.profilePhotoURL }
@@ -621,6 +750,12 @@ struct ProfileView: View {
                 )
                 isFollowing   = true
                 followerCount += 1
+                await InAppNotificationService.shared.sendFollow(
+                    to:               profileUserID,
+                    actorID:          viewerSettings.userID,
+                    actorUsername:    viewerSettings.username,
+                    actorDisplayName: viewerSettings.name
+                )
             }
         } catch {
             print("[ProfileView] toggleFollow error: \(error)")

@@ -10,41 +10,53 @@ import Foundation
 struct AuraGain: Identifiable, Equatable {
     let id           = UUID()
     let pointsEarned: Int
-    
+
     static func == (lhs: AuraGain, rhs: AuraGain) -> Bool {
         lhs.id == rhs.id && lhs.pointsEarned == rhs.pointsEarned
     }
 }
 
 @Observable final class UserSettings {
-    // MARK: - Identity
-    var userID: String = "" {
-        didSet { UserDefaults.standard.set(userID, forKey: "userID") }
+
+    // MARK: - Identity (in-memory only — populated by SessionManager from Firestore)
+
+    var userID:           String = ""
+    var username:         String = ""
+    var name:             String = ""
+    var location:         String = ""
+    var instagramHandle:  String = ""
+    var tiktokHandle:     String = ""
+    var isPrivateAccount: Bool   = false
+
+    // MARK: - Body (in-memory only)
+
+    var currentWeight: Double = 160
+    var goalWeight:    Double = 160
+    var proteinPerLb:  Double = 0.9
+
+    // MARK: - Fasting (side-effect only, no UserDefaults write)
+
+    var fastingEnabled: Bool = false {
+        didSet {
+            if fastingEnabled {
+                let hour   = UserDefaults.standard.integer(forKey: "windowStartHour")
+                let minute = UserDefaults.standard.integer(forKey: "windowStartMinute")
+                NotificationService.shared.scheduleFastingWindowNotification(
+                    windowStartHour: hour, windowStartMinute: minute)
+            } else {
+                NotificationService.shared.cancelFastingWindowNotification()
+            }
+        }
     }
-    var username: String = "" {
-        didSet { UserDefaults.standard.set(username, forKey: "username") }
-    }
-    var name: String = "" {
-        didSet { UserDefaults.standard.set(name, forKey: "userName") }
-    }
-    var location: String = "" {
-        didSet { UserDefaults.standard.set(location, forKey: "userLocation") }
-    }
-    var instagramHandle: String = "" {
-        didSet { UserDefaults.standard.set(instagramHandle, forKey: "instagramHandle") }
-    }
-    var tiktokHandle: String = "" {
-        didSet { UserDefaults.standard.set(tiktokHandle, forKey: "tiktokHandle") }
-    }
-    var isPrivateAccount: Bool = false {
-        didSet { UserDefaults.standard.set(isPrivateAccount, forKey: "isPrivateAccount") }
-    }
+
+    // MARK: - Streak (device-local — persisted to UserDefaults)
+
     /// Current macro streak — kept in sync by HomeViewModel so LeaderboardView can read it.
     var macroStreak: Int = 0 {
         didSet { UserDefaults.standard.set(macroStreak, forKey: "macroStreak") }
     }
 
-    // MARK: - Brainstorm result persistence
+    // MARK: - Brainstorm result persistence (device-local)
 
     /// The AI meal-planner result text from the most recent brainstorm run.
     var lastBrainstormResult: String = "" {
@@ -60,7 +72,7 @@ struct AuraGain: Identifiable, Equatable {
         !lastBrainstormResult.isEmpty && Calendar.current.isDateInToday(lastBrainstormDate)
     }
 
-    // MARK: - Brainstorm daily limit
+    // MARK: - Brainstorm daily limit (device-local)
 
     private static let brainstormDailyLimit = 2
 
@@ -94,35 +106,9 @@ struct AuraGain: Identifiable, Equatable {
         }
     }
 
-    // MARK: - Body
-    var fastingEnabled: Bool = false {
-        didSet {
-            UserDefaults.standard.set(fastingEnabled, forKey: "fastingEnabled")
-            if fastingEnabled {
-                let hour   = UserDefaults.standard.integer(forKey: "windowStartHour")
-                let minute = UserDefaults.standard.integer(forKey: "windowStartMinute")
-                NotificationService.shared.scheduleFastingWindowNotification(
-                    windowStartHour: hour, windowStartMinute: minute)
-            } else {
-                NotificationService.shared.cancelFastingWindowNotification()
-            }
-        }
-    }
-    var currentWeight: Double = 160 {
-        didSet { UserDefaults.standard.set(currentWeight, forKey: "currentWeight") }
-    }
-    var goalWeight: Double = 160 {
-        didSet { UserDefaults.standard.set(goalWeight, forKey: "goalWeight") }
-    }
-    var proteinPerLb: Double = 0.9 {
-        didSet { UserDefaults.standard.set(proteinPerLb, forKey: "proteinPerLb") }
-    }
+    // MARK: - Aura (in-memory for identity fields; weekly/leaderboard fields device-local)
 
-    // MARK: - Aura
-
-    var auraPoints: Int = 0 {
-        didSet { UserDefaults.standard.set(auraPoints, forKey: "auraPoints") }
-    }
+    var auraPoints: Int = 0
     /// Aura earned since the most recent Monday 00:00 local time.
     var weeklyAuraPoints: Int = 0 {
         didSet { UserDefaults.standard.set(weeklyAuraPoints, forKey: "weeklyAuraPoints") }
@@ -162,10 +148,9 @@ struct AuraGain: Identifiable, Equatable {
         if met { dates.insert(key) } else { dates.remove(key) }
         goalsMetDatesRaw = dates.joined(separator: ",")
     }
+
     /// Whether to show the aura gain popup when points are earned.
-    var auraPopupsEnabled: Bool = true {
-        didSet { UserDefaults.standard.set(auraPopupsEnabled, forKey: "auraPopupsEnabled") }
-    }
+    var auraPopupsEnabled: Bool = true
     /// Set whenever points are awarded (when popups enabled). Observe to show popup.
     var pendingAuraGain: AuraGain? = nil
 
@@ -199,7 +184,7 @@ struct AuraGain: Identifiable, Equatable {
         if auraPopupsEnabled && !silent {
             pendingAuraGain = AuraGain(pointsEarned: points)
         }
-        let id = userID
+        let id  = userID
         let pts = auraPoints
         Task {
             try? await UserProfileService.shared.updateProfile(
@@ -278,74 +263,7 @@ struct AuraGain: Identifiable, Equatable {
         achievedMilestonesRaw = set.map { String($0) }.joined(separator: ",")
     }
 
-    // MARK: - Account Switch
-
-    /// Clears ALL user data from memory and UserDefaults.
-    /// Call this on sign-out so no prior user's data survives into the next session.
-    func clearAllUserData() {
-        // Identity
-        userID           = ""
-        username         = ""
-        name             = ""
-        location         = ""
-        instagramHandle  = ""
-        tiktokHandle     = ""
-        isPrivateAccount = false
-        // Health / goals / streaks
-        fastingEnabled           = false
-        currentWeight            = 160
-        goalWeight               = 160
-        proteinPerLb             = 0.9
-        auraPoints               = 0
-        weeklyAuraPoints         = 0
-        weeklyAuraWeekStart      = .distantPast
-        lastLeaderboardAwardDate = .distantPast
-        achievedMilestonesRaw    = ""
-        goalsMetDatesRaw         = ""
-        lastCelebrationDate      = .distantPast
-        macroStreak              = 0
-        // Brainstorm
-        lastBrainstormResult  = ""
-        lastBrainstormDate    = .distantPast
-        brainstormUsageCount  = 0
-        brainstormUsageDate   = .distantPast
-        // UI state
-        auraPopupsEnabled = true
-        pendingAuraGain   = nil
-        // Profile image
-        profileImageData  = nil
-        // Pure-UserDefaults keys not backed by in-memory properties
-        let extraKeys = ["goalCalories", "goalProtein", "goalCarbs", "goalFat",
-                         "windowStartHour", "windowStartMinute", "windowDurationHours",
-                         "dailyWindowSnapshots"]
-        extraKeys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
-    }
-
-    /// Resets all health, goal, and streak data to defaults.
-    func resetHealthData() {
-        fastingEnabled   = false
-        currentWeight    = 160
-        goalWeight       = 160
-        proteinPerLb     = 0.9
-        auraPoints       = 0
-        weeklyAuraPoints = 0
-        macroStreak      = 0
-        achievedMilestonesRaw  = ""
-        goalsMetDatesRaw       = ""
-        lastCelebrationDate    = .distantPast
-        lastBrainstormResult   = ""
-        lastBrainstormDate     = .distantPast
-        brainstormUsageCount   = 0
-        brainstormUsageDate    = .distantPast
-
-        // Clear macro goals and fasting window — HomeViewModel reads these from UserDefaults on init
-        let keys = ["goalCalories", "goalProtein", "goalCarbs", "goalFat",
-                    "windowStartHour", "windowStartMinute", "windowDurationHours",
-                    "dailyWindowSnapshots"]
-        keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
-    }
-
-    // MARK: - Init
+    // MARK: - Profile image (local file in Documents dir)
 
     /// Profile picture — persisted as a JPEG file in the Documents directory.
     var profileImageData: Data? {
@@ -359,32 +277,53 @@ struct AuraGain: Identifiable, Equatable {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("profile_image.jpg")
 
+    // MARK: - SessionManager integration
+
+    /// Called by SessionManager after a successful Firestore profile fetch.
+    /// Populates all identity fields in-memory. Does NOT touch UserDefaults.
+    func populate(from profile: UserProfile) {
+        userID            = profile.userID ?? ""
+        username          = profile.username
+        name              = profile.name
+        location          = profile.location
+        instagramHandle   = profile.instagramHandle
+        tiktokHandle      = profile.tiktokHandle
+        isPrivateAccount  = profile.isPrivateAccount
+        currentWeight     = profile.currentWeight
+        goalWeight        = profile.goalWeight
+        proteinPerLb      = profile.proteinPerLb
+        fastingEnabled    = profile.fastingEnabled
+        auraPopupsEnabled = profile.auraPopupsEnabled
+        auraPoints        = profile.auraPoints
+        macroStreak       = profile.streakDays
+    }
+
+    /// Called by SessionManager on sign-out. Clears all identity fields.
+    func clearProfile() {
+        userID            = ""
+        username          = ""
+        name              = ""
+        location          = ""
+        instagramHandle   = ""
+        tiktokHandle      = ""
+        isPrivateAccount  = false
+        currentWeight     = 160
+        goalWeight        = 160
+        proteinPerLb      = 0.9
+        fastingEnabled    = false
+        auraPopupsEnabled = true
+        auraPoints        = 0
+        profileImageData  = nil
+        macroStreak       = 0
+    }
+
+    // MARK: - Init
+
     init() {
-        // userID is now set to the Firebase Auth uid via WellnessApp once auth resolves.
-        // Fall back to any previously stored value (e.g. upgrading from pre-auth builds).
-        self.userID = UserDefaults.standard.string(forKey: "userID") ?? ""
-        self.username = UserDefaults.standard.string(forKey: "username") ?? ""
-        self.name     = UserDefaults.standard.string(forKey: "userName") ?? ""
-        self.location         = UserDefaults.standard.string(forKey: "userLocation")     ?? ""
-        self.instagramHandle  = UserDefaults.standard.string(forKey: "instagramHandle")  ?? ""
-        self.tiktokHandle     = UserDefaults.standard.string(forKey: "tiktokHandle")     ?? ""
-        let storedPrivate = UserDefaults.standard.object(forKey: "isPrivateAccount")
-        self.isPrivateAccount = storedPrivate != nil
-            ? UserDefaults.standard.bool(forKey: "isPrivateAccount") : false
+        // Restore only device-local tracking fields from UserDefaults.
+        // Profile identity fields start at their zero/default values —
+        // they will be set by populate(from:) after SessionManager resolves auth.
 
-        let storedFasting = UserDefaults.standard.object(forKey: "fastingEnabled")
-        self.fastingEnabled = storedFasting != nil
-            ? UserDefaults.standard.bool(forKey: "fastingEnabled") : false
-
-        let cw = UserDefaults.standard.double(forKey: "currentWeight")
-        self.currentWeight = cw > 0 ? cw : 160
-        let gw = UserDefaults.standard.double(forKey: "goalWeight")
-        self.goalWeight    = gw > 0 ? gw : 160
-
-        let pp = UserDefaults.standard.object(forKey: "proteinPerLb")
-        self.proteinPerLb = pp != nil ? UserDefaults.standard.double(forKey: "proteinPerLb") : 0.9
-
-        self.auraPoints      = UserDefaults.standard.integer(forKey: "auraPoints")
         self.weeklyAuraPoints = UserDefaults.standard.integer(forKey: "weeklyAuraPoints")
         let storedWeekStart = UserDefaults.standard.double(forKey: "weeklyAuraWeekStart")
         self.weeklyAuraWeekStart = storedWeekStart > 0
@@ -395,17 +334,17 @@ struct AuraGain: Identifiable, Equatable {
         self.achievedMilestonesRaw = UserDefaults.standard.string(forKey: "achievedMilestones") ?? ""
         self.goalsMetDatesRaw      = UserDefaults.standard.string(forKey: "goalsMetDates") ?? ""
         let storedCelebDate = UserDefaults.standard.double(forKey: "lastCelebrationDate")
-        self.lastCelebrationDate = storedCelebDate > 0 ? Date(timeIntervalSince1970: storedCelebDate) : .distantPast
+        self.lastCelebrationDate = storedCelebDate > 0
+            ? Date(timeIntervalSince1970: storedCelebDate) : .distantPast
         self.macroStreak           = UserDefaults.standard.integer(forKey: "macroStreak")
         self.brainstormUsageCount  = UserDefaults.standard.integer(forKey: "brainstormUsageCount")
         let storedBSDate = UserDefaults.standard.double(forKey: "brainstormUsageDate")
-        self.brainstormUsageDate   = storedBSDate > 0 ? Date(timeIntervalSince1970: storedBSDate) : .distantPast
+        self.brainstormUsageDate   = storedBSDate > 0
+            ? Date(timeIntervalSince1970: storedBSDate) : .distantPast
         self.lastBrainstormResult  = UserDefaults.standard.string(forKey: "lastBrainstormResult") ?? ""
         let storedBSResultDate = UserDefaults.standard.double(forKey: "lastBrainstormDate")
-        self.lastBrainstormDate    = storedBSResultDate > 0 ? Date(timeIntervalSince1970: storedBSResultDate) : .distantPast
-        let storedPopups = UserDefaults.standard.object(forKey: "auraPopupsEnabled")
-        self.auraPopupsEnabled = storedPopups != nil
-            ? UserDefaults.standard.bool(forKey: "auraPopupsEnabled") : true
+        self.lastBrainstormDate    = storedBSResultDate > 0
+            ? Date(timeIntervalSince1970: storedBSResultDate) : .distantPast
         self.profileImageData = try? Data(contentsOf: UserSettings.profileImageURL)
     }
 }

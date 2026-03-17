@@ -21,6 +21,7 @@ struct SocialView: View {
     let userSettings: UserSettings
 
     @Environment(LocationManager.self) private var locationManager
+    @Environment(NotificationState.self) private var notificationState
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SocialPost.postedAt, order: .reverse) private var posts: [SocialPost]
 
@@ -31,9 +32,10 @@ struct SocialView: View {
     @State private var selectedPost:     SocialPost?
     @State private var selectedFeed:     Feed        = .arena
     @State private var viewingProfile:   SocialPost? = nil
-    @State private var showingSettings   = false
     @State private var showingOwnProfile = false
     @State private var showingSearch     = false
+    @State private var showingNotifications = false
+    @State private var labelFilter:      PostLabel?  = nil
 
     enum Feed: String, CaseIterable {
         case team  = "Team"
@@ -84,11 +86,14 @@ struct SocialView: View {
     }
 
     private var displayedPosts: [SocialPost] {
+        let base: [SocialPost]
         switch selectedFeed {
-        case .team:  return ranked(teamPosts)
-        case .local: return ranked(localPosts)
-        case .arena: return ranked(arenaPosts)
+        case .team:  base = ranked(teamPosts)
+        case .local: base = ranked(localPosts)
+        case .arena: base = ranked(arenaPosts)
         }
+        guard let filter = labelFilter else { return base }
+        return base.filter { $0.postLabel == filter.rawValue }
     }
 
     /// Returns true if a post should be visible in local/arena feeds.
@@ -122,6 +127,23 @@ struct SocialView: View {
             Color.pageBg.ignoresSafeArea()
 
             VStack(spacing: 0) {
+                // Custom header (nav bar is hidden)
+                HStack {
+                    Text("Aura Stream")
+                        .font(.system(size: 22, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    HStack(spacing: 14) {
+                        BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
+                        Button { showingOwnProfile = true } label: {
+                            socialProfileAvatarIcon
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+
                 HStack(spacing: 0) {
                     ForEach(Feed.allCases, id: \.self) { feed in
                         Button { selectedFeed = feed } label: {
@@ -151,6 +173,18 @@ struct SocialView: View {
                     if feed == .local { locationManager.requestLocationIfNeeded() }
                 }
 
+                // Label filter chips
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        filterChip(label: nil)
+                        ForEach(PostLabel.allCases, id: \.self) { label in
+                            filterChip(label: label)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                }
+
                 if userSettings.isPrivateAccount && (selectedFeed == .local || selectedFeed == .arena) {
                     privateAccountBanner
                 }
@@ -161,6 +195,7 @@ struct SocialView: View {
                         ForEach(displayedPosts) { post in
                             PostCard(post: post, userID: userSettings.userID,
                                      userSettings: userSettings,
+                                     followingIDs: $followingIDs,
                                      onAvatarTap: { viewingProfile = post })
                                 .contentShape(Rectangle())
                                 .onTapGesture { selectedPost = post }
@@ -194,38 +229,22 @@ struct SocialView: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
+                    .refreshable {
+                        await loadFollowingIDs()
+                        await notificationState.refresh(userID: userSettings.userID)
+                    }
                 }
             }
         }
         .preferredColorScheme(.dark)
+        .navigationBarHidden(true)
         .task { await loadFollowingIDs() }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button { showingSearch = true } label: {
-                    Image(systemName: "magnifyingglass").foregroundStyle(Color.purpleHi)
-                }
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 14) {
-                    Button { showingNewPost = true } label: {
-                        Image(systemName: "square.and.pencil")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
-                    }
-                    Button { showingSettings = true } label: {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Color.purpleHi)
-                    }
-                    Button { showingOwnProfile = true } label: {
-                        socialProfileAvatarIcon
-                    }
-                }
-            }
+        .sheet(isPresented: $showingNewPost) {
+            NewPostView(userSettings: userSettings)
+                .environment(locationManager)
         }
-        .sheet(isPresented: $showingNewPost) { NewPostView(userSettings: userSettings) }
-        .sheet(isPresented: $showingSettings) {
-            NavigationStack { SettingsView(userSettings: userSettings) }
+        .sheet(isPresented: $showingNotifications) {
+            NotificationsView(userSettings: userSettings, notificationState: notificationState)
         }
         .sheet(isPresented: $showingOwnProfile) {
             NavigationStack {
@@ -237,12 +256,13 @@ struct SocialView: View {
                     profileAuraPoints:  userSettings.auraPoints,
                     profileImageData:   userSettings.profileImageData,
                     profileLocation:    userSettings.location,
-                    ownUserSettings:    userSettings
+                    ownUserSettings:    userSettings,
+                    isDismissable:      true
                 )
             }
         }
         .sheet(item: $selectedPost) { post in PostDetailView(post: post, userSettings: userSettings) }
-        .sheet(item: $viewingProfile) { post in
+        .sheet(item: $viewingProfile, onDismiss: { Task { await loadFollowingIDs() } }) { post in
             NavigationStack {
                 ProfileView(
                     profileUserID:       post.authorID,
@@ -254,7 +274,8 @@ struct SocialView: View {
                     profileLocation:     post.authorLocation,
                     profileStreak:       post.authorStreak,
                     ownUserSettings:     post.authorID == userSettings.userID ? userSettings : nil,
-                    currentUserSettings: post.authorID == userSettings.userID ? nil : userSettings
+                    currentUserSettings: post.authorID == userSettings.userID ? nil : userSettings,
+                    isDismissable:       true
                 )
             }
             .presentationDetents([.large])
@@ -282,6 +303,34 @@ struct SocialView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Filter chip
+
+    @ViewBuilder
+    private func filterChip(label: PostLabel?) -> some View {
+        let isActive = labelFilter == label
+        let color: Color = label.map { postLabelColor($0) } ?? Color.white
+        Button {
+            withAnimation(.spring(duration: 0.2)) { labelFilter = label }
+        } label: {
+            HStack(spacing: 4) {
+                if let l = label {
+                    Image(systemName: l.icon)
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                Text(label?.rawValue ?? "All")
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundStyle(isActive ? .black : (label == nil ? .white.opacity(0.60) : color))
+            .padding(.horizontal, 11)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(isActive
+                ? (label == nil ? Color.white : color)
+                : color.opacity(label == nil ? 0.08 : 0.10)))
+            .overlay(Capsule().stroke(color.opacity(isActive ? 0 : (label == nil ? 0.20 : 0.30)), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Following IDs
@@ -375,6 +424,20 @@ struct SocialView: View {
     }
 }
 
+// MARK: - Post label color helper
+
+func postLabelColor(_ label: PostLabel) -> Color {
+    switch label {
+    case .transformation: return Color(red: 0.35, green: 0.75, blue: 1.00)
+    case .fuelLog:        return Color(red: 1.00, green: 0.55, blue: 0.15)
+    case .mealInspo:      return Color(red: 0.30, green: 0.85, blue: 0.55)
+    case .mogBoard:       return Color(red: 1.00, green: 0.80, blue: 0.20)
+    case .advice:         return Color(red: 0.40, green: 0.90, blue: 0.72)
+    case .cut:            return Color(red: 0.90, green: 0.35, blue: 0.35)
+    case .bulk:           return Color(red: 0.45, green: 0.85, blue: 0.45)
+    }
+}
+
 // MARK: - Post card
 
 // Reusable avatar circle used by PostCard and PostDetailView
@@ -402,9 +465,14 @@ struct PostCard: View {
     @Bindable var post: SocialPost
     let userID: String
     let userSettings: UserSettings
+    @Binding var followingIDs: Set<String>
     var onAvatarTap: (() -> Void)? = nil
 
     @State private var showingImageViewer = false
+    @State private var followLoading      = false
+
+    private var isFollowing: Bool { followingIDs.contains(post.authorID) }
+    private var isOwnPost:   Bool { post.authorID == userID }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -427,6 +495,18 @@ struct PostCard: View {
                     post.toggleRep(userID: userID)
                     if isNewRep {
                         userSettings.awardAura(points: 1, silent: true)
+                    }
+                    if isNewRep && post.authorID != userID {
+                        Task {
+                            await InAppNotificationService.shared.sendRep(
+                                to:               post.authorID,
+                                postID:           post.firebasePostID,
+                                postHeadline:     post.memeHeadline,
+                                actorID:          userSettings.userID,
+                                actorUsername:    userSettings.username,
+                                actorDisplayName: userSettings.name
+                            )
+                        }
                     }
                 } label: {
                     HStack(spacing: 5) {
@@ -503,6 +583,10 @@ struct PostCard: View {
                                 .font(.system(size: 9))
                             Text("Lv \(post.authorAuraLevel)")
                                 .font(.system(size: 10, weight: .black, design: .rounded))
+                            if !post.authorAuraTitle.isEmpty {
+                                Text("· \(post.authorAuraTitle)")
+                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            }
                         }
                         .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
                         .padding(.horizontal, 7)
@@ -511,19 +595,98 @@ struct PostCard: View {
                         .clipShape(Capsule())
                     }
                 }
-                Text("@\(post.authorUsername)  ·  \(post.postedAt, format: .dateTime.month(.abbreviated).day().hour().minute())")
-                    .font(.caption2).foregroundStyle(.white.opacity(0.35))
+                HStack(spacing: 6) {
+                    Text("@\(post.authorUsername)  ·  \(post.postedAt, format: .dateTime.month(.abbreviated).day().hour().minute())")
+                        .font(.caption2).foregroundStyle(.white.opacity(0.35))
+                    if let label = PostLabel(rawValue: post.postLabel) {
+                        let color = postLabelColor(label)
+                        HStack(spacing: 3) {
+                            Image(systemName: label.icon)
+                                .font(.system(size: 8, weight: .semibold))
+                            if label == .mogBoard, !post.mogBoardScope.isEmpty, !post.mogBoardType.isEmpty {
+                                Text("\(post.mogBoardScope) · \(post.mogBoardType)")
+                                    .font(.system(size: 9, weight: .semibold))
+                            } else {
+                                Text(label.rawValue)
+                                    .font(.system(size: 9, weight: .semibold))
+                            }
+                        }
+                        .foregroundStyle(color)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(color.opacity(0.12))
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(color.opacity(0.30), lineWidth: 0.5))
+                    }
+                }
             }
             Spacer()
-            if !post.isCustomPost {
-                Text(post.memeEmoji)
-                    .font(post.memeEmoji.count > 2 ? .subheadline.weight(.bold) : .title2)
-                    .foregroundStyle(
-                        post.memeEmoji.hasPrefix("⭐")
-                            ? Color(red: 1.0, green: 0.80, blue: 0.20)
-                            : .white
-                    )
+            if !isOwnPost {
+                followButton
             }
+        }
+    }
+
+    private var followButton: some View {
+        Button {
+            Task { await toggleFollow() }
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(isFollowing
+                        ? Color(red: 0.35, green: 1.00, blue: 0.60).opacity(0.15)
+                        : Color(red: 1.00, green: 0.80, blue: 0.20).opacity(0.15))
+                    .frame(width: 28, height: 28)
+                    .overlay(Circle().stroke(
+                        isFollowing
+                            ? Color(red: 0.35, green: 1.00, blue: 0.60).opacity(0.40)
+                            : Color(red: 1.00, green: 0.80, blue: 0.20).opacity(0.40),
+                        lineWidth: 1
+                    ))
+                if followLoading {
+                    ProgressView().scaleEffect(0.55)
+                } else {
+                    Image(systemName: isFollowing ? "checkmark" : "plus")
+                        .font(.system(size: 11, weight: .black))
+                        .foregroundStyle(isFollowing
+                            ? Color(red: 0.35, green: 1.00, blue: 0.60)
+                            : Color(red: 1.00, green: 0.80, blue: 0.20))
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(followLoading)
+    }
+
+    private func toggleFollow() async {
+        followLoading = true
+        defer { followLoading = false }
+        do {
+            if isFollowing {
+                try await FollowService.shared.unfollowUser(
+                    currentUserID: userSettings.userID,
+                    targetUserID:  post.authorID
+                )
+                followingIDs.remove(post.authorID)
+            } else {
+                try await FollowService.shared.followUser(
+                    currentUserID:          userSettings.userID,
+                    currentUsername:        userSettings.username,
+                    currentProfilePhotoURL: "",
+                    targetUserID:           post.authorID,
+                    targetUsername:         post.authorUsername,
+                    targetProfilePhotoURL:  ""
+                )
+                followingIDs.insert(post.authorID)
+                await InAppNotificationService.shared.sendFollow(
+                    to:               post.authorID,
+                    actorID:          userSettings.userID,
+                    actorUsername:    userSettings.username,
+                    actorDisplayName: userSettings.name
+                )
+            }
+        } catch {
+            print("[PostCard] toggleFollow error: \(error)")
         }
     }
 

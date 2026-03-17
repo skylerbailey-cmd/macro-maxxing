@@ -30,7 +30,7 @@ final class NotificationService {
 
         let content = UNMutableNotificationContent()
         content.title = "Fast Ending Soon"
-        content.body  = "Your fasting window ends in 90 minutes. Start prepping your first meal! 🍳"
+        content.body  = "Your fasting window ends in 90 minutes. Start prepping your last meal! 🍳"
         content.sound = .default
 
         var components    = DateComponents()

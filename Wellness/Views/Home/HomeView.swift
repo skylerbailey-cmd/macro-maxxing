@@ -22,16 +22,17 @@ private extension Color {
 struct HomeView: View {
     @State private var viewModel: HomeViewModel
     @Binding var selectedDate: Date
+    @Environment(NotificationState.self) private var notificationState
     @State private var showingWindowPicker = false
     @State private var selectedMacro: MacroType? = nil
     @State private var showingShare       = false
     @State private var showCelebration    = false
     @State private var pendingAuraGain: AuraGain? = nil
-    @State private var showingSettings    = false
     @State private var showingProfile     = false
     @State private var showingGoalPost    = false
     @State private var goalPostMeme       = GymMeme.random()
     @State private var brainstormAlert: BrainstormAlert? = nil
+    @State private var showingNotifications = false
 
     private enum BrainstormAlert: Identifiable {
         case confirm, limitReached
@@ -111,10 +112,8 @@ struct HomeView: View {
             .preferredColorScheme(.dark)
             .toolbar { toolbarContent }
             .sheet(isPresented: $showingShare) { shareSheet }
-            .sheet(isPresented: $showingSettings) {
-                NavigationStack {
-                    SettingsView(userSettings: viewModel.userSettings)
-                }
+            .sheet(isPresented: $showingNotifications) {
+                NotificationsView(userSettings: viewModel.userSettings, notificationState: notificationState)
             }
             .sheet(isPresented: $showingProfile) {
                 NavigationStack {
@@ -126,7 +125,8 @@ struct HomeView: View {
                         profileAuraPoints:  viewModel.userSettings.auraPoints,
                         profileImageData:   viewModel.userSettings.profileImageData,
                         profileLocation:    viewModel.userSettings.location,
-                        ownUserSettings:    viewModel.userSettings
+                        ownUserSettings:    viewModel.userSettings,
+                        isDismissable:      true
                     )
                 }
             }
@@ -191,16 +191,26 @@ struct HomeView: View {
                         .clipped()
                 }
             VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(greetingText)
-                        .font(.system(size: 26, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                    HStack(spacing: 4) {
-                        ForEach(0..<3, id: \.self) { i in
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(Color.purpleHi.opacity(i == 0 ? 1.0 : i == 1 ? 0.35 : 0.12))
-                                .frame(width: i == 0 ? 28 : i == 1 ? 16 : 10, height: 3)
+                HStack(alignment: .top, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(greetingText)
+                            .font(.system(size: 26, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
+                        HStack(spacing: 4) {
+                            ForEach(0..<3, id: \.self) { i in
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(Color.purpleHi.opacity(i == 0 ? 1.0 : i == 1 ? 0.35 : 0.12))
+                                    .frame(width: i == 0 ? 28 : i == 1 ? 16 : 10, height: 3)
+                            }
                         }
+                    }
+                    Spacer()
+                    HStack(spacing: 12) {
+                        BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
+                        Button { showingProfile = true } label: {
+                            profileAvatarIcon
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 HStack(spacing: 0) {
@@ -222,6 +232,10 @@ struct HomeView: View {
                                        ? "→ \(Int(viewModel.userSettings.goalWeight)) lbs"
                                        : "current weight")
                     }
+                }
+
+                if viewModel.userSettings.auraPoints > 0 {
+                    auraXPBar
                 }
             }
             .padding(20)
@@ -254,33 +268,50 @@ struct HomeView: View {
             .frame(width: 1, height: 22)
             .padding(.trailing, 16)
     }
+
+    private var auraXPBar: some View {
+        let pts       = viewModel.userSettings.auraPoints
+        let level     = min(pts / 1000, 100)
+        let inLevel   = level >= 100 ? 1000 : pts % 1000
+        let progress  = Double(inLevel) / 1000.0
+        let pctText   = level >= 100 ? "MAX" : "\(Int(progress * 100))%"
+        let nextLabel = level >= 100 ? "Max level" : "to Lv \(level + 1)"
+        let barColor  = LinearGradient(
+            colors: [Color(red: 0.65, green: 0.45, blue: 1.00),
+                     Color(red: 1.00, green: 0.80, blue: 0.20)],
+            startPoint: .leading, endPoint: .trailing
+        )
+
+        return HStack(spacing: 8) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.white.opacity(0.08))
+                        .frame(height: 5)
+                    Capsule()
+                        .fill(barColor)
+                        .frame(width: max(5, geo.size.width * progress), height: 5)
+                        .animation(.easeOut(duration: 0.6), value: progress)
+                }
+            }
+            .frame(height: 5)
+
+            Text(pctText)
+                .font(.system(size: 10, weight: .black, design: .rounded))
+                .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
+                .frame(width: 34, alignment: .trailing)
+
+            Text(nextLabel)
+                .font(.system(size: 9))
+                .foregroundStyle(.white.opacity(0.32))
+                .lineLimit(1)
+        }
+    }
     
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .navigationBarTrailing) {
-            HStack(spacing: 14) {
-                Button { showingShare = true } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
-                }
-                Button {
-                    goalPostMeme   = GymMeme.random()
-                    showingGoalPost = true
-                } label: {
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
-                }
-                Button { showingSettings = true } label: {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
-                }
-                Button { showingProfile = true } label: {
-                    profileAvatarIcon
-                }
-            }
+            EmptyView()
         }
     }
 
@@ -409,9 +440,11 @@ struct HomeView: View {
     
     private func handleMacrosMetChange(_ oldVal: Int, _ newVal: Int) {
         guard newVal == 4 && oldVal < 4 && Calendar.current.isDateInToday(viewModel.selectedDate) else { return }
-        // Show at most once per calendar day
-        guard !Calendar.current.isDateInToday(viewModel.userSettings.lastCelebrationDate) else { return }
-        viewModel.userSettings.lastCelebrationDate = Date()
+        // Read/write UserDefaults directly — SwiftData @Model didSet doesn't fire reliably
+        let stored = UserDefaults.standard.double(forKey: "lastCelebrationDate")
+        let lastShown = stored > 0 ? Date(timeIntervalSince1970: stored) : Date.distantPast
+        guard !Calendar.current.isDateInToday(lastShown) else { return }
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastCelebrationDate")
         showCelebration = true
     }
 
@@ -560,11 +593,60 @@ struct HomeView: View {
 
     // MARK: - Macros section
 
+    private var disciplineProgress: Double {
+        let pairs: [(Double, Double)] = [
+            (viewModel.totalCalories, viewModel.goalCalories),
+            (viewModel.totalProtein,  viewModel.goalProtein),
+            (viewModel.totalCarbs,    viewModel.goalCarbs),
+            (viewModel.totalFat,      viewModel.goalFat),
+        ]
+        let active = pairs.filter { $0.1 > 0 }
+        guard !active.isEmpty else { return 0 }
+        let sum = active.reduce(0.0) { $0 + min($1.0 / $1.1, 1.0) }
+        return sum / Double(active.count)
+    }
+
     private var macrosSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Today's Macros")
-                .font(.system(size: 20, weight: .black, design: .rounded))
-                .foregroundStyle(.white)
+            HStack(alignment: .bottom) {
+                Text("Today's Macros")
+                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+
+                Spacer()
+
+                // Daily Discipline bar
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("DISCIPLINE")
+                        .font(.system(size: 9, weight: .bold))
+                        .tracking(1.2)
+                        .foregroundStyle(.white.opacity(0.35))
+                    HStack(spacing: 6) {
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.white.opacity(0.08))
+                                .frame(width: 80, height: 5)
+                            Capsule()
+                                .fill(LinearGradient(
+                                    colors: disciplineProgress >= 1.0
+                                        ? [Color(red: 0.35, green: 1.00, blue: 0.60),
+                                           Color(red: 0.20, green: 0.85, blue: 0.50)]
+                                        : [Color(red: 0.65, green: 0.45, blue: 1.00),
+                                           Color(red: 0.35, green: 0.75, blue: 1.00)],
+                                    startPoint: .leading, endPoint: .trailing
+                                ))
+                                .frame(width: max(5, 80 * disciplineProgress), height: 5)
+                                .animation(.easeOut(duration: 0.5), value: disciplineProgress)
+                        }
+                        Text("\(Int(disciplineProgress * 100))%")
+                            .font(.system(size: 12, weight: .black, design: .rounded))
+                            .foregroundStyle(disciplineProgress >= 1.0
+                                ? Color(red: 0.35, green: 1.00, blue: 0.60)
+                                : Color(red: 0.65, green: 0.45, blue: 1.00))
+                            .animation(.easeOut(duration: 0.5), value: disciplineProgress)
+                    }
+                }
+            }
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 MacroGaugeCard(label: "Calories", value: viewModel.totalCalories,

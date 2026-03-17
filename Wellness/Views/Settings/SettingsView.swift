@@ -98,7 +98,7 @@ private enum ActivePicker: Identifiable {
 
 struct SettingsView: View {
     @Bindable var userSettings: UserSettings
-    @Environment(AuthViewModel.self) private var auth
+    @Environment(SessionManager.self) private var session
     @Environment(\.dismiss) private var dismiss
     @FocusState private var nameFocused: Bool
 
@@ -113,17 +113,6 @@ struct SettingsView: View {
     @State private var showCitySearch    = false
     @State private var showDeleteAccount = false
     @State private var showChangeEmail   = false
-
-    /// The Firebase UID that was active when this view appeared.
-    /// commitAll() uses this — not userSettings.userID — so a late .onDisappear
-    /// call can't accidentally write one user's local state into another user's
-    /// Firestore document after an account switch.
-    @State private var sessionUID: String = ""
-
-    /// True once the user has edited any text field in this session.
-    /// While false, incoming userSettings changes (from the async Firestore fetch)
-    /// are allowed to refresh the local state vars.
-    @State private var isDirty = false
 
     // Username availability
     private enum UsernameState { case idle, checking, available, taken }
@@ -156,7 +145,6 @@ struct SettingsView: View {
                         .focused($nameFocused)
                         .submitLabel(.next)
                         .onSubmit { nameFocused = false }
-                        .onChange(of: nameText) { _, _ in isDirty = true }
                 }
                 HStack {
                     Text("Username")
@@ -170,9 +158,8 @@ struct SettingsView: View {
                                 .textInputAutocapitalization(.never)
                                 .focused($nameFocused)
                                 .submitLabel(.done)
-                                .onSubmit { Task { await commitAll() }; nameFocused = false }
+                                .onSubmit { Task { await saveProfile() }; nameFocused = false }
                                 .onChange(of: usernameText) { _, newValue in
-                                    isDirty = true
                                     scheduleUsernameCheck(newValue)
                                 }
                         }
@@ -327,7 +314,7 @@ struct SettingsView: View {
                 Button(role: .destructive) {
                     // Save to Firestore BEFORE revoking auth — otherwise Firestore
                     // security rules reject the write (request.auth is null after logout).
-                    Task { await commitAll(); auth.logout() }
+                    Task { await saveProfile(); session.logout() }
                 } label: {
                     HStack {
                         Image(systemName: "rectangle.portrait.and.arrow.right")
@@ -346,23 +333,13 @@ struct SettingsView: View {
             }
         }
         .onAppear {
-            isDirty = false
-            // Seed fields immediately from current userSettings.
-            // If syncUserSettings hasn't finished yet these will be empty —
-            // the task(id: userSettings.userID) below re-runs once the uid is set.
             applyProfile(name:          userSettings.name,
                          username:      userSettings.username,
                          currentWeight: userSettings.currentWeight,
                          goalWeight:    userSettings.goalWeight,
                          proteinPerLb:  userSettings.proteinPerLb)
         }
-        .task(id: userSettings.userID) {
-            guard !userSettings.userID.isEmpty else { return }
-            // Capture the uid for commitAll() now that we know it's real.
-            sessionUID = userSettings.userID
-            await loadProfile()
-        }
-        .onDisappear { Task { await commitAll() } }
+        .onDisappear { Task { await saveProfile() } }
         .navigationTitle("Account")
         .navigationBarTitleDisplayMode(.inline)
         .preferredColorScheme(.dark)
@@ -386,17 +363,17 @@ struct SettingsView: View {
                               currentWeight: $currentWeightVal,
                               goalWeight:    $goalWeightVal,
                               proteinPerLb:  $proteinPerLbVal)
-            { Task { await commitAll() } }
+            { Task { await saveProfile() } }
                 .presentationDetents([.height(280)])
         }
         .sheet(isPresented: $showDeleteAccount) {
             DeleteAccountView()
-                .environment(auth)
+                .environment(session)
                 .environment(userSettings)
         }
         .sheet(isPresented: $showChangeEmail) {
             ChangeEmailView()
-                .environment(auth)
+                .environment(session)
         }
     }
 
@@ -417,38 +394,6 @@ struct SettingsView: View {
         .buttonStyle(.plain)
     }
 
-    /// Fetches the profile directly from Firestore and populates all local fields.
-    /// Called on every onAppear so Settings always shows fresh data regardless of
-    /// whether syncUserSettings has already completed.
-    private func loadProfile() async {
-        let uid = userSettings.userID
-        guard !uid.isEmpty else { return }
-        guard let profile = try? await UserProfileService.shared.fetchProfile(userID: uid) else { return }
-        guard !isDirty else { return }   // user started typing while fetch was in flight
-
-        // Push fetched values into userSettings so the rest of the app stays in sync
-        userSettings.name              = profile.name
-        userSettings.username          = profile.username
-        userSettings.location          = profile.location
-        userSettings.auraPoints        = profile.auraPoints
-        userSettings.macroStreak       = profile.streakDays
-        userSettings.instagramHandle   = profile.instagramHandle
-        userSettings.tiktokHandle      = profile.tiktokHandle
-        userSettings.isPrivateAccount  = profile.isPrivateAccount
-        userSettings.currentWeight     = profile.currentWeight
-        userSettings.goalWeight        = profile.goalWeight
-        userSettings.proteinPerLb      = profile.proteinPerLb
-        userSettings.fastingEnabled    = profile.fastingEnabled
-        userSettings.auraPopupsEnabled = profile.auraPopupsEnabled
-
-        // Populate the local text/number fields shown in this view
-        applyProfile(name:          profile.name,
-                     username:      profile.username,
-                     currentWeight: profile.currentWeight,
-                     goalWeight:    profile.goalWeight,
-                     proteinPerLb:  profile.proteinPerLb)
-    }
-
     private func applyProfile(name: String, username: String,
                                currentWeight: Double, goalWeight: Double,
                                proteinPerLb: Double) {
@@ -459,58 +404,28 @@ struct SettingsView: View {
         proteinPerLbVal  = proteinPerLb
     }
 
-    private func commitAll() async {
-        // Block save if the username is confirmed taken
+    private func saveProfile() async {
         guard usernameState != .taken else { return }
-
-        // Don't write to Firestore if username is still empty — that means the
-        // Firestore profile fetch (syncUserSettings) hasn't completed yet and the
-        // local state was never populated. Writing now would overwrite real Firestore
-        // data with blank values.
-        let trimmedUsernameEarlyCheck = usernameText
-            .trimmingCharacters(in: .whitespaces)
-            .lowercased()
+        let trimmedUsername = usernameText.trimmingCharacters(in: .whitespaces).lowercased()
             .replacingOccurrences(of: "@", with: "")
-        guard !trimmedUsernameEarlyCheck.isEmpty else { return }
-
-        // Use the UID captured at onAppear time (sessionUID), not userSettings.userID.
-        // If .onDisappear fires late — after an account switch has already changed
-        // userSettings.userID to a different user — the snapshot below would carry
-        // the old session's local text into the new user's Firestore document.
-        // Guarding against Auth.currentUser ensures we only write when the session
-        // user is still the one currently authenticated.
-        let uid = sessionUID
-        guard !uid.isEmpty, uid == Auth.auth().currentUser?.uid else { return }
-
+        guard !trimmedUsername.isEmpty else { return }
         let trimmedName = nameText.trimmingCharacters(in: .whitespaces)
-        let trimmedUsername = usernameText
-            .trimmingCharacters(in: .whitespaces)
-            .lowercased()
-            .replacingOccurrences(of: "@", with: "")
-        userSettings.name          = trimmedName
-        userSettings.username      = trimmedUsername
-        userSettings.currentWeight = currentWeightVal
-        userSettings.goalWeight    = goalWeightVal
-        userSettings.proteinPerLb  = proteinPerLbVal
 
         let fields: [String: Any] = [
-            "username":          trimmedUsername,
-            "name":              trimmedName,
-            "location":          userSettings.location,
-            "auraPoints":        userSettings.auraPoints,
-            "streakDays":        userSettings.macroStreak,
-            "instagramHandle":   userSettings.instagramHandle,
-            "tiktokHandle":      userSettings.tiktokHandle,
-            "isPrivateAccount":  userSettings.isPrivateAccount,
-            "currentWeight":     currentWeightVal,
-            "goalWeight":        goalWeightVal,
-            "proteinPerLb":      proteinPerLbVal,
-            "fastingEnabled":    userSettings.fastingEnabled,
+            "username": trimmedUsername, "name": trimmedName,
+            "location": userSettings.location,
+            "auraPoints": userSettings.auraPoints,
+            "streakDays": userSettings.macroStreak,
+            "instagramHandle": userSettings.instagramHandle,
+            "tiktokHandle": userSettings.tiktokHandle,
+            "isPrivateAccount": userSettings.isPrivateAccount,
+            "currentWeight": currentWeightVal,
+            "goalWeight": goalWeightVal,
+            "proteinPerLb": proteinPerLbVal,
+            "fastingEnabled": userSettings.fastingEnabled,
             "auraPopupsEnabled": userSettings.auraPopupsEnabled,
         ]
-        // Await the write so callers (e.g. Sign Out button) can ensure it
-        // completes while the user is still authenticated.
-        try? await UserProfileService.shared.updateProfile(userID: uid, fields: fields)
+        try? await session.updateProfile(fields: fields)
     }
 
     private func scheduleUsernameCheck(_ raw: String) {
@@ -534,8 +449,9 @@ struct SettingsView: View {
         usernameCheckTask = Task {
             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s debounce
             guard !Task.isCancelled else { return }
+            let uid = Auth.auth().currentUser?.uid ?? ""
             let taken = await UserProfileService.shared.isUsernameTaken(
-                cleaned, excludingUserID: userSettings.userID)
+                cleaned, excludingUserID: uid)
             await MainActor.run {
                 usernameState = taken ? .taken : .available
             }
@@ -720,6 +636,6 @@ private struct CitySearchSheet: View {
 #Preview {
     NavigationStack {
         SettingsView(userSettings: UserSettings())
-            .environment(AuthViewModel())
+            .environment(SessionManager())
     }
 }

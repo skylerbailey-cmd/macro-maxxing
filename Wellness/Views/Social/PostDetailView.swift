@@ -66,7 +66,9 @@ struct PostDetailView: View {
                         profileImageData:   post.authorProfileImageData,
                         profileLocation:    post.authorLocation,
                         profileStreak:      post.authorStreak,
-                        ownUserSettings:    post.authorID == userSettings.userID ? userSettings : nil
+                        ownUserSettings:    post.authorID == userSettings.userID ? userSettings : nil,
+                        currentUserSettings: post.authorID == userSettings.userID ? nil : userSettings,
+                        isDismissable:      true
                     )
                 }
                 .presentationDetents([.large])
@@ -466,5 +468,17 @@ struct PostDetailView: View {
         commentFocused = false
         let hasPhoto = imgData != nil
         userSettings.awardAura(points: hasPhoto ? 5 : 1, silent: true)
+        if post.authorID != userSettings.userID {
+            Task {
+                await InAppNotificationService.shared.sendComment(
+                    to:               post.authorID,
+                    postID:           post.firebasePostID,
+                    postHeadline:     post.memeHeadline,
+                    actorID:          userSettings.userID,
+                    actorUsername:    userSettings.username,
+                    actorDisplayName: userSettings.name
+                )
+            }
+        }
     }
 }

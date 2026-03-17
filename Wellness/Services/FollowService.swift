@@ -43,6 +43,7 @@ final class FollowService {
     /// Writes a following document for userA and a followers document for userB
     /// in a single batch, then increments followingCount on userA and
     /// followerCount on userB — all atomically.
+    /// If the target already follows back, both users' friendCount is also incremented.
     func followUser(
         currentUserID:          String,
         currentUsername:        String,
@@ -52,6 +53,10 @@ final class FollowService {
         targetProfilePhotoURL:  String
     ) async throws {
         guard currentUserID != targetUserID else { return }
+
+        // Check for mutual follow before batching (determines if friendship is created)
+        let becomesFriends = (try? await isFollowing(
+            currentUserID: targetUserID, targetUserID: currentUserID)) ?? false
 
         let now   = Date()
         let batch = db.batch()
@@ -92,14 +97,25 @@ final class FollowService {
             forDocument: targetUserRef
         )
 
+        // 2c. If mutual follow, increment friendCount on both
+        if becomesFriends {
+            batch.updateData(["friendCount": FieldValue.increment(Int64(1))], forDocument: currentUserRef)
+            batch.updateData(["friendCount": FieldValue.increment(Int64(1))], forDocument: targetUserRef)
+        }
+
         try await batch.commit()
-        print("[FollowService] \(currentUserID) followed \(targetUserID)")
+        print("[FollowService] \(currentUserID) followed \(targetUserID) (friends: \(becomesFriends))")
     }
 
     // MARK: - 2. Unfollow User
 
     /// Deletes both relationship documents and decrements the counts atomically.
+    /// If the two users were mutual friends, friendCount is also decremented on both.
     func unfollowUser(currentUserID: String, targetUserID: String) async throws {
+        // Check for mutual follow before batching (determines if friendship is broken)
+        let wasFriends = (try? await isFollowing(
+            currentUserID: targetUserID, targetUserID: currentUserID)) ?? false
+
         let batch = db.batch()
 
         // Delete following doc
@@ -126,8 +142,14 @@ final class FollowService {
             forDocument: targetUserRef
         )
 
+        // If they were mutual friends, decrement friendCount on both
+        if wasFriends {
+            batch.updateData(["friendCount": FieldValue.increment(Int64(-1))], forDocument: currentUserRef)
+            batch.updateData(["friendCount": FieldValue.increment(Int64(-1))], forDocument: targetUserRef)
+        }
+
         try await batch.commit()
-        print("[FollowService] \(currentUserID) unfollowed \(targetUserID)")
+        print("[FollowService] \(currentUserID) unfollowed \(targetUserID) (wasFriends: \(wasFriends))")
     }
 
     // MARK: - 3. Is Following
@@ -167,5 +189,28 @@ final class FollowService {
         return snapshot.documents.compactMap { doc in
             try? Firestore.Decoder().decode(FollowEntry.self, from: doc.data())
         }
+    }
+
+    // MARK: - 6. Fetch Friends (mutual follows)
+
+    /// Returns UserProfiles for all users that mutually follow `userID` (i.e. friends).
+    func fetchFriends(userID: String) async throws -> [UserProfile] {
+        guard !userID.isEmpty else { return [] }
+
+        async let followingFetch = fetchFollowing(userID: userID)
+        async let followersFetch = fetchFollowers(userID: userID)
+        let (following, followers) = try await (followingFetch, followersFetch)
+
+        let followingIDs = Set(following.map { $0.userID })
+        let followerIDs  = Set(followers.map { $0.userID })
+        let friendIDs    = followingIDs.intersection(followerIDs)
+
+        var profiles: [UserProfile] = []
+        for id in friendIDs {
+            if let profile = try? await UserProfileService.shared.fetchProfile(userID: id) {
+                profiles.append(profile)
+            }
+        }
+        return profiles.sorted { $0.username < $1.username }
     }
 }

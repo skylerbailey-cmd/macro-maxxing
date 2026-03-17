@@ -465,6 +465,7 @@ struct CreatePostView: View {
             userProfilePhotoURL: "",   // populated once profile-photo upload is wired to Storage
             auraLevel:           userSettings.auraLevel,
             auraPoints:          userSettings.auraPoints,
+            auraTitle:           userSettings.auraTitle,
             streak:              userSettings.macroStreak,
             memeType:            memeKey(for: userSettings.auraLevel),
             isPublic:            !userSettings.isPrivateAccount

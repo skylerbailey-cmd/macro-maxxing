@@ -61,6 +61,7 @@ struct FeedPost: Codable, Identifiable {
     /// Aura level at time of posting — displayed as a badge without a live lookup.
     var auraLevel:  Int
     var auraPoints: Int
+    var auraTitle:  String
 
     /// Macro streak at time of posting.
     var streak: Int
@@ -70,6 +71,13 @@ struct FeedPost: Codable, Identifiable {
 
     /// Fasting window at time of posting, e.g. "9:00 AM – 5:00 PM · 8h window". Empty if not applicable.
     var fastingWindowDisplay: String
+
+    /// Post label (PostLabel.rawValue). Empty string means no label.
+    var postLabel: String
+
+    /// Mog Board sub-selections (only relevant when postLabel == "Mog Board").
+    var mogBoardScope: String
+    var mogBoardType:  String
 
     // MARK: - Location
 
@@ -141,6 +149,7 @@ struct FeedPost: Codable, Identifiable {
         commentsCount:       Int    = 0,
         auraLevel:           Int    = 0,
         auraPoints:          Int    = 0,
+        auraTitle:           String = "",
         streak:              Int    = 0,
         memeType:            String = "",
         locationName:        String = "",
@@ -148,7 +157,10 @@ struct FeedPost: Codable, Identifiable {
         longitude:           Double = 0,
         isPublic:            Bool   = true,
         macroDate:           Date?  = nil,
-        fastingWindowDisplay: String = ""
+        fastingWindowDisplay: String = "",
+        postLabel:           String = "",
+        mogBoardScope:       String = "",
+        mogBoardType:        String = ""
     ) {
         self.userID              = userID
         self.username            = username
@@ -171,6 +183,7 @@ struct FeedPost: Codable, Identifiable {
         self.commentsCount       = commentsCount
         self.auraLevel           = auraLevel
         self.auraPoints          = auraPoints
+        self.auraTitle           = auraTitle
         self.streak              = streak
         self.memeType            = memeType
         self.locationName         = locationName
@@ -179,6 +192,9 @@ struct FeedPost: Codable, Identifiable {
         self.isPublic             = isPublic
         self.macroDate            = macroDate.map { Timestamp(date: $0) }
         self.fastingWindowDisplay = fastingWindowDisplay
+        self.postLabel            = postLabel
+        self.mogBoardScope        = mogBoardScope
+        self.mogBoardType         = mogBoardType
     }
 }
 

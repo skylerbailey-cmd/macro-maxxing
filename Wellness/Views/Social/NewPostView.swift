@@ -87,18 +87,35 @@ struct NewPostView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss)      private var dismiss
 
-    @State private var titleText = ""
-    @State private var bodyText  = ""
-    @State private var photos: [PostPhoto] = []
+    @Query(sort: \FoodEntry.loggedAt) private var allFoodEntries: [FoodEntry]
+
+    @State private var titleText     = ""
+    @State private var bodyText      = ""
+    @State private var photos:       [PostPhoto] = []
+    @State private var selectedLabel:      PostLabel? = nil
+    @State private var mogBoardScope:      String     = "Arena"
+    @State private var mogBoardType:       String     = "Weekly Aura"
     @FocusState private var focus: Field?
+
+    private let mogBoardScopes = ["Team", "Local", "Arena"]
+    private let mogBoardTypes  = ["Weekly Aura", "Engagement", "Streak"]
 
     private enum Field: Hashable { case title, body }
 
     private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
     private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
 
     private var statusPrompt: String { dailyStatusPrompts[dailyIndex(for: dailyStatusPrompts)] }
     private var bodyPrompt:   String { dailyBodyPrompts[dailyIndex(for: dailyBodyPrompts)] }
+
+    private var todayFuelEntries: [FoodEntry] {
+        let today = Calendar.current.startOfDay(for: Date())
+        return allFoodEntries
+            .filter { Calendar.current.startOfDay(for: $0.loggedAt) == today }
+            .sorted { $0.loggedAt < $1.loggedAt }
+    }
 
     var body: some View {
         NavigationStack {
@@ -107,6 +124,19 @@ struct NewPostView: View {
 
                 ScrollView {
                     VStack(spacing: 14) {
+                        // Label picker
+                        labelPickerSection
+
+                        // Fuel log preview (only when Fuel Log label is selected)
+                        if selectedLabel == .fuelLog {
+                            fuelLogPreview
+                        }
+
+                        // Mog Board sub-options
+                        if selectedLabel == .mogBoard {
+                            mogBoardOptions
+                        }
+
                         // Status
                         VStack(alignment: .trailing, spacing: 4) {
                             TextField(statusPrompt, text: $titleText)
@@ -175,6 +205,211 @@ struct NewPostView: View {
         }
     }
 
+    // MARK: - Label picker
+
+    private var labelPickerSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Label (optional)")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.50))
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    // "None" chip
+                    Button {
+                        withAnimation(.spring(duration: 0.2)) { selectedLabel = nil }
+                    } label: {
+                        Text("None")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(selectedLabel == nil ? .black : .white.opacity(0.55))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(
+                                Capsule().fill(selectedLabel == nil
+                                    ? Color.white
+                                    : Color.white.opacity(0.07))
+                            )
+                    }
+                    .buttonStyle(.plain)
+
+                    ForEach(PostLabel.allCases, id: \.self) { label in
+                        let isSelected = selectedLabel == label
+                        let color = labelColor(label)
+                        Button {
+                            withAnimation(.spring(duration: 0.2)) {
+                                selectedLabel = isSelected ? nil : label
+                            }
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: label.icon)
+                                    .font(.system(size: 11, weight: .semibold))
+                                Text(label.rawValue)
+                                    .font(.system(size: 12, weight: .semibold))
+                            }
+                            .foregroundStyle(isSelected ? .black : color)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(Capsule().fill(isSelected ? color : color.opacity(0.12)))
+                            .overlay(Capsule().stroke(color.opacity(isSelected ? 0 : 0.35), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 1)
+            }
+        }
+    }
+
+    // MARK: - Fuel log preview
+
+    @ViewBuilder
+    private var fuelLogPreview: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color(red: 1.00, green: 0.55, blue: 0.15))
+                Text("Today's fuel log will be attached")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                Spacer()
+                Text("\(todayFuelEntries.count) items")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.40))
+            }
+
+            if todayFuelEntries.isEmpty {
+                Text("No meals logged today yet. Log meals in the Fuel Log tab first.")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.40))
+                    .padding(.top, 2)
+            } else {
+                ForEach(todayFuelEntries.prefix(5)) { entry in
+                    HStack(spacing: 8) {
+                        if let data = entry.imageData, let img = UIImage(data: data) {
+                            Image(uiImage: img)
+                                .resizable().scaledToFill()
+                                .frame(width: 32, height: 32)
+                                .clipped().cornerRadius(6)
+                        } else {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.white.opacity(0.07))
+                                .frame(width: 32, height: 32)
+                                .overlay {
+                                    Image(systemName: "fork.knife")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(.white.opacity(0.30))
+                                }
+                        }
+                        Text(entry.foodName)
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.80))
+                        Spacer()
+                        Text("\(Int(entry.calories)) kcal")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color(red: 1.00, green: 0.55, blue: 0.15))
+                    }
+                }
+                if todayFuelEntries.count > 5 {
+                    Text("+ \(todayFuelEntries.count - 5) more")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.35))
+                }
+            }
+        }
+        .padding(12)
+        .background(cardBg)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color(red: 1.00, green: 0.55, blue: 0.15).opacity(0.30), lineWidth: 1)
+        )
+    }
+
+    // MARK: - Mog Board options
+
+    private var mogBoardOptions: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(gold)
+                Text("Mog Board Options")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+
+            // Feed scope
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Feed")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.50))
+                HStack(spacing: 8) {
+                    ForEach(mogBoardScopes, id: \.self) { scope in
+                        let isSelected = mogBoardScope == scope
+                        Button {
+                            withAnimation(.spring(duration: 0.2)) { mogBoardScope = scope }
+                        } label: {
+                            Text(scope)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(isSelected ? .black : .white.opacity(0.65))
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(Capsule().fill(isSelected ? gold : Color.white.opacity(0.08)))
+                                .overlay(Capsule().stroke(gold.opacity(isSelected ? 0 : 0.25), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            // Board type
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Board")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.50))
+                HStack(spacing: 8) {
+                    ForEach(mogBoardTypes, id: \.self) { type in
+                        let isSelected = mogBoardType == type
+                        Button {
+                            withAnimation(.spring(duration: 0.2)) { mogBoardType = type }
+                        } label: {
+                            Text(type)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(isSelected ? .black : .white.opacity(0.65))
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(Capsule().fill(isSelected ? gold : Color.white.opacity(0.08)))
+                                .overlay(Capsule().stroke(gold.opacity(isSelected ? 0 : 0.25), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .background(cardBg)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(gold.opacity(0.30), lineWidth: 1)
+        )
+    }
+
+    // MARK: - Helpers
+
+    private func labelColor(_ label: PostLabel) -> Color {
+        switch label {
+        case .transformation: return Color(red: 0.35, green: 0.75, blue: 1.00)
+        case .fuelLog:        return Color(red: 1.00, green: 0.55, blue: 0.15)
+        case .mealInspo:      return Color(red: 0.30, green: 0.85, blue: 0.55)
+        case .mogBoard:       return Color(red: 1.00, green: 0.80, blue: 0.20)
+        case .advice:         return Color(red: 0.40, green: 0.90, blue: 0.72)
+        case .cut:            return Color(red: 0.90, green: 0.35, blue: 0.35)
+        case .bulk:           return Color(red: 0.45, green: 0.85, blue: 0.45)
+        }
+    }
+
     private func submit() {
         let t = titleText.trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty else { return }
@@ -197,12 +432,18 @@ struct NewPostView: View {
         post.isCustomPost           = true
         post.authorAuraLevel        = userSettings.auraLevel
         post.authorAuraPoints       = userSettings.auraPoints
+        post.authorAuraTitle        = userSettings.auraTitle
         post.authorLocation         = locationManager.city.isEmpty ? userSettings.location : locationManager.city
         post.authorLatitude         = locationManager.coordinate?.latitude  ?? 0
         post.authorLongitude        = locationManager.coordinate?.longitude ?? 0
         post.authorStreak           = userSettings.macroStreak
         post.isAuthorPrivate        = userSettings.isPrivateAccount
         post.authorProfileImageData = userSettings.profileImageData
+        post.postLabel              = selectedLabel?.rawValue ?? ""
+        if selectedLabel == .mogBoard {
+            post.mogBoardScope = mogBoardScope
+            post.mogBoardType  = mogBoardType
+        }
         let datas = photos.map { $0.image.jpegData(compressionQuality: 0.8) }
         post.imageData  = datas.count > 0 ? datas[0] : nil
         post.imageData2 = datas.count > 1 ? datas[1] : nil
@@ -210,6 +451,24 @@ struct NewPostView: View {
         post.imageData4      = datas.count > 3 ? datas[3] : nil
         post.firebasePostID  = fbPostID
         modelContext.insert(post)
+
+        // Attach today's fuel log entries when label is Fuel Log
+        if selectedLabel == .fuelLog {
+            for (i, entry) in todayFuelEntries.enumerated() {
+                let fuelEntry = FuelLogEntry(
+                    foodName:  entry.foodName,
+                    calories:  entry.calories,
+                    protein:   entry.protein,
+                    carbs:     entry.carbs,
+                    fat:       entry.fat,
+                    loggedAt:  entry.loggedAt,
+                    sortOrder: i,
+                    imageData: entry.imageData
+                )
+                post.fuelLogEntries.append(fuelEntry)
+                modelContext.insert(fuelEntry)
+            }
+        }
 
         // 2. Mirror to Firebase in the background (non-blocking)
         let images       = photos.map { $0.image }
@@ -225,6 +484,7 @@ struct NewPostView: View {
             userProfilePhotoURL: "",
             auraLevel:           userSettings.auraLevel,
             auraPoints:          userSettings.auraPoints,
+            auraTitle:           userSettings.auraTitle,
             streak:              userSettings.macroStreak,
             memeType:            "",
             isPublic:            !userSettings.isPrivateAccount
@@ -240,7 +500,10 @@ struct NewPostView: View {
                     locationName: locationName,
                     latitude:     latitude,
                     longitude:    longitude,
-                    postID:       fbPostID
+                    postLabel:     selectedLabel?.rawValue ?? "",
+                    mogBoardScope: selectedLabel == .mogBoard ? mogBoardScope : "",
+                    mogBoardType:  selectedLabel == .mogBoard ? mogBoardType  : "",
+                    postID:        fbPostID
                 )
             } catch {
                 print("[NewPostView] Firebase sync failed: \(error.localizedDescription)")

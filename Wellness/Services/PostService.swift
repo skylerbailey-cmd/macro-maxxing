@@ -45,6 +45,7 @@ final class PostService {
         let userProfilePhotoURL: String
         let auraLevel:           Int
         let auraPoints:          Int
+        let auraTitle:           String
         let streak:              Int
         /// Meme badge key matching asset names (e.g. "sigma", "gigachad").
         let memeType:            String
@@ -144,6 +145,7 @@ final class PostService {
             goalFat:             goalFat,
             auraLevel:           author.auraLevel,
             auraPoints:          author.auraPoints,
+            auraTitle:           author.auraTitle,
             streak:              author.streak,
             memeType:            author.memeType,
             locationName:        locationName,
@@ -352,6 +354,9 @@ final class PostService {
         latitude:             Double = 0,
         longitude:            Double = 0,
         fastingWindowDisplay: String = "",
+        postLabel:            String = "",
+        mogBoardScope:        String = "",
+        mogBoardType:         String = "",
         postID:               String = UUID().uuidString
     ) async throws -> String {
         let postID = postID
@@ -399,13 +404,17 @@ final class PostService {
             fat:                  0,
             auraLevel:            author.auraLevel,
             auraPoints:           author.auraPoints,
+            auraTitle:            author.auraTitle,
             streak:               author.streak,
             memeType:             author.memeType,
             locationName:         locationName,
             latitude:             latitude,
             longitude:            longitude,
             isPublic:             author.isPublic,
-            fastingWindowDisplay: fastingWindowDisplay
+            fastingWindowDisplay: fastingWindowDisplay,
+            postLabel:            postLabel,
+            mogBoardScope:        mogBoardScope,
+            mogBoardType:         mogBoardType
         )
 
         let data = try post.firestoreData()

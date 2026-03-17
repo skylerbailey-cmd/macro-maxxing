@@ -301,23 +301,8 @@ struct CelebrationPostEditorSheet: View {
                 pageBg.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: 16) {
-                        // Meme context badge
-                        HStack(spacing: 10) {
-                            Text(meme.emoji)
-                                .font(.system(size: 28))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(meme.headline.replacingOccurrences(of: "\n", with: " "))
-                                    .font(.system(size: 13, weight: .black, design: .rounded))
-                                    .foregroundStyle(.white)
-                                Text(meme.sub)
-                                    .font(.caption)
-                                    .foregroundStyle(.white.opacity(0.45))
-                            }
-                            Spacer()
-                        }
-                        .padding(12)
-                        .background(cardBg)
-                        .cornerRadius(12)
+                        // Discipline summary card
+                        disciplineCard
 
                         // Status / title field
                         VStack(alignment: .leading, spacing: 6) {
@@ -391,9 +376,7 @@ struct CelebrationPostEditorSheet: View {
             .preferredColorScheme(.dark)
             .navigationTitle("Post for Points")
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
-                titleText = meme.headline.replacingOccurrences(of: "\n", with: " ")
-            }
+            .onAppear { }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -412,6 +395,107 @@ struct CelebrationPostEditorSheet: View {
         }
     }
 
+    // MARK: - Discipline Card
+
+    private var disciplineProgress: Double {
+        let pairs: [(Double, Double)] = [
+            (postData.totalCalories, postData.goalCalories),
+            (postData.totalProtein,  postData.goalProtein),
+            (postData.totalCarbs,    postData.goalCarbs),
+            (postData.totalFat,      postData.goalFat),
+        ]
+        let active = pairs.filter { $0.1 > 0 }
+        guard !active.isEmpty else { return 0 }
+        return active.reduce(0.0) { $0 + min($1.0 / $1.1, 1.0) } / Double(active.count)
+    }
+
+    private var disciplineCard: some View {
+        let neon = Color(red: 0.35, green: 1.00, blue: 0.60)
+        let pct  = Int(disciplineProgress * 100)
+
+        return VStack(spacing: 10) {
+            // Overall discipline bar
+            HStack(spacing: 0) {
+                Text("DISCIPLINE")
+                    .font(.system(size: 10, weight: .black))
+                    .tracking(1.5)
+                    .foregroundStyle(.white.opacity(0.40))
+                Spacer()
+                HStack(spacing: 6) {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.white.opacity(0.08))
+                                .frame(height: 5)
+                            Capsule()
+                                .fill(LinearGradient(
+                                    colors: disciplineProgress >= 1.0
+                                        ? [neon, Color(red: 0.20, green: 0.85, blue: 0.50)]
+                                        : [purpl, Color(red: 0.35, green: 0.75, blue: 1.00)],
+                                    startPoint: .leading, endPoint: .trailing
+                                ))
+                                .frame(width: max(4, geo.size.width * disciplineProgress), height: 5)
+                        }
+                    }
+                    .frame(width: 80, height: 5)
+                    Text("\(pct)%")
+                        .font(.system(size: 13, weight: .black, design: .rounded))
+                        .foregroundStyle(disciplineProgress >= 1.0 ? neon : purpl)
+                        .frame(width: 38, alignment: .trailing)
+                }
+            }
+
+            Divider().background(purpl.opacity(0.15))
+
+            // Per-macro rows
+            let macros: [(String, Double, Double, String, Color)] = [
+                ("Calories", postData.totalCalories, postData.goalCalories, "kcal",
+                 Color.orange),
+                ("Protein",  postData.totalProtein,  postData.goalProtein,  "g",
+                 Color(red: 0.35, green: 0.75, blue: 1.00)),
+                ("Carbs",    postData.totalCarbs,     postData.goalCarbs,    "g",
+                 Color(red: 0.35, green: 1.00, blue: 0.80)),
+                ("Fat",      postData.totalFat,       postData.goalFat,      "g",
+                 Color(red: 1.00, green: 0.45, blue: 0.55)),
+            ]
+            ForEach(Array(macros.enumerated()), id: \.offset) { _, macro in
+                let (label, total, goal, unit, color) = macro
+                let ratio = goal > 0 ? min(total / goal, 1.0) : 0
+                let macPct = goal > 0 ? Int((total / goal) * 100) : 0
+                HStack(spacing: 8) {
+                    Text(label)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.70))
+                        .frame(width: 60, alignment: .leading)
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.white.opacity(0.07))
+                                .frame(height: 6)
+                            Capsule()
+                                .fill(color.opacity(0.85))
+                                .frame(width: max(4, geo.size.width * ratio), height: 6)
+                        }
+                    }
+                    .frame(height: 6)
+                    Text("\(macPct)%")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(color)
+                        .frame(width: 38, alignment: .trailing)
+                    Text("\(Int(total)) / \(Int(goal)) \(unit)")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.28))
+                        .frame(width: 80, alignment: .trailing)
+                }
+            }
+        }
+        .padding(14)
+        .background(cardBg)
+        .cornerRadius(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(purpl.opacity(0.20), lineWidth: 1)
+        )
+    }
+
     private func submit(title: String) {
         let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         let fbPostID = UUID().uuidString   // shared ID for SwiftData ↔ Firestore link
@@ -419,9 +503,9 @@ struct CelebrationPostEditorSheet: View {
             authorID:          userSettings.userID,
             authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
             authorDisplayName: userSettings.name,
-            memeEmoji:         meme.emoji,
+            memeEmoji:         "",
             memeHeadline:      title,
-            memeSub:           message.isEmpty ? meme.sub : message,
+            memeSub:           message,
             macroDate:         postData.date,
             totalCalories:     postData.totalCalories, goalCalories: postData.goalCalories,
             totalProtein:      postData.totalProtein,  goalProtein:  postData.goalProtein,
@@ -430,6 +514,7 @@ struct CelebrationPostEditorSheet: View {
         )
         post.authorAuraLevel        = userSettings.auraLevel
         post.authorAuraPoints       = userSettings.auraPoints
+        post.authorAuraTitle        = userSettings.auraTitle
         post.authorLocation         = locationManager.city.isEmpty ? userSettings.location : locationManager.city
         post.authorLatitude         = locationManager.coordinate?.latitude  ?? 0
         post.authorLongitude        = locationManager.coordinate?.longitude ?? 0
@@ -451,7 +536,7 @@ struct CelebrationPostEditorSheet: View {
         let locationName = locationManager.city.isEmpty ? userSettings.location : locationManager.city
         let latitude     = locationManager.coordinate?.latitude  ?? 0
         let longitude    = locationManager.coordinate?.longitude ?? 0
-        let caption      = message.isEmpty ? meme.sub : message
+        let caption      = message
         let author = PostService.PostAuthor(
             userID:              userSettings.userID,
             username:            userSettings.username.isEmpty ? "me" : userSettings.username,
@@ -459,6 +544,7 @@ struct CelebrationPostEditorSheet: View {
             userProfilePhotoURL: "",
             auraLevel:           userSettings.auraLevel,
             auraPoints:          userSettings.auraPoints,
+            auraTitle:           userSettings.auraTitle,
             streak:              userSettings.macroStreak,
             memeType:            "",
             isPublic:            !userSettings.isPrivateAccount

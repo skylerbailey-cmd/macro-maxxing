@@ -9,6 +9,7 @@ import SwiftData
 @Model final class FoodEntry {
     var id: UUID
     var loggedAt: Date
+    var userID: String = ""   // owning account — empty for pre-auth legacy entries
     var foodName: String
     var calories: Double
     var protein: Double   // grams
@@ -19,6 +20,7 @@ import SwiftData
     init(
         id: UUID = UUID(),
         loggedAt: Date = Date(),
+        userID: String = "",
         foodName: String,
         calories: Double,
         protein: Double,
@@ -28,6 +30,7 @@ import SwiftData
     ) {
         self.id = id
         self.loggedAt = loggedAt
+        self.userID = userID
         self.foodName = foodName
         self.calories = calories
         self.protein = protein

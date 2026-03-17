@@ -39,12 +39,15 @@ enum AnalysisState: Equatable {
 
     private let modelContext: ModelContext
     private let service: ClaudeVisionService
+    private(set) var userID: String
 
     init(modelContext: ModelContext,
          selectedDate: Date = Calendar.current.startOfDay(for: Date()),
+         userID: String = "",
          service: ClaudeVisionService = ClaudeVisionService()) {
         self.modelContext = modelContext
         self.selectedDate = selectedDate
+        self.userID       = userID
         self.service      = service
         // Loaded lazily from the view's onAppear
     }
@@ -53,7 +56,10 @@ enum AnalysisState: Equatable {
         let calendar   = Calendar.current
         let startOfDay = calendar.startOfDay(for: selectedDate)
         guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return }
-        let predicate  = #Predicate<FoodEntry> { $0.loggedAt >= startOfDay && $0.loggedAt < endOfDay }
+        let uid = userID
+        let predicate  = #Predicate<FoodEntry> {
+            $0.loggedAt >= startOfDay && $0.loggedAt < endOfDay && $0.userID == uid
+        }
         let descriptor = FetchDescriptor<FoodEntry>(
             predicate: predicate,
             sortBy: [SortDescriptor(\.loggedAt, order: .reverse)]
@@ -114,6 +120,7 @@ enum AnalysisState: Equatable {
         let imageData = selectedImage?.jpegData(compressionQuality: 0.8)
         let entry = FoodEntry(
             loggedAt: loggedAt,
+            userID: userID,
             foodName: foodName.isEmpty ? "Unknown Food" : foodName,
             calories: calories,
             protein: protein,
