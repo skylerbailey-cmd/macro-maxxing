@@ -83,7 +83,7 @@ final class UserProfileService {
     /// Merges `fields` into the existing user document.
     /// Pass only the keys you want to change, e.g. `["username": "newname", "auraPoints": 500]`.
     func updateProfile(userID: String, fields: [String: Any]) async throws {
-        try await db.collection(collectionName).document(userID).updateData(fields)
+        try await db.collection(collectionName).document(userID).setData(fields, merge: true)
         print("[UserProfileService] Updated fields \(fields.keys.joined(separator: ", ")) for \(userID)")
     }
 
@@ -95,11 +95,19 @@ final class UserProfileService {
         let userID = userSettings.userID
         guard !userID.isEmpty else { return }
         let fields: [String: Any] = [
-            "username":   userSettings.username,
-            "name":       userSettings.name,
-            "location":   userSettings.location,
-            "auraPoints": userSettings.auraPoints,
-            "streakDays": userSettings.macroStreak,
+            "username":          userSettings.username,
+            "name":              userSettings.name,
+            "location":          userSettings.location,
+            "auraPoints":        userSettings.auraPoints,
+            "streakDays":        userSettings.macroStreak,
+            "instagramHandle":   userSettings.instagramHandle,
+            "tiktokHandle":      userSettings.tiktokHandle,
+            "isPrivateAccount":  userSettings.isPrivateAccount,
+            "currentWeight":     userSettings.currentWeight,
+            "goalWeight":        userSettings.goalWeight,
+            "proteinPerLb":      userSettings.proteinPerLb,
+            "fastingEnabled":    userSettings.fastingEnabled,
+            "auraPopupsEnabled": userSettings.auraPopupsEnabled,
         ]
         do {
             try await updateProfile(userID: userID, fields: fields)

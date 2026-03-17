@@ -158,7 +158,7 @@ struct SettingsView: View {
                                 .textInputAutocapitalization(.never)
                                 .focused($nameFocused)
                                 .submitLabel(.done)
-                                .onSubmit { commitAll(); nameFocused = false }
+                                .onSubmit { Task { await commitAll() }; nameFocused = false }
                                 .onChange(of: usernameText) { _, newValue in
                                     scheduleUsernameCheck(newValue)
                                 }
@@ -312,7 +312,9 @@ struct SettingsView: View {
             // MARK: Account Actions
             Section {
                 Button(role: .destructive) {
-                    auth.logout()
+                    // Save to Firestore BEFORE revoking auth — otherwise Firestore
+                    // security rules reject the write (request.auth is null after logout).
+                    Task { await commitAll(); auth.logout() }
                 } label: {
                     HStack {
                         Image(systemName: "rectangle.portrait.and.arrow.right")
@@ -337,7 +339,7 @@ struct SettingsView: View {
             goalWeightVal    = userSettings.goalWeight    > 0 ? userSettings.goalWeight    : 160
             proteinPerLbVal  = userSettings.proteinPerLb
         }
-        .onDisappear { commitAll() }
+        .onDisappear { Task { await commitAll() } }
         .navigationTitle("Account")
         .navigationBarTitleDisplayMode(.inline)
         .preferredColorScheme(.dark)
@@ -361,7 +363,7 @@ struct SettingsView: View {
                               currentWeight: $currentWeightVal,
                               goalWeight:    $goalWeightVal,
                               proteinPerLb:  $proteinPerLbVal)
-            { commitAll() }
+            { Task { await commitAll() } }
                 .presentationDetents([.height(280)])
         }
         .sheet(isPresented: $showDeleteAccount) {
@@ -392,7 +394,7 @@ struct SettingsView: View {
         .buttonStyle(.plain)
     }
 
-    private func commitAll() {
+    private func commitAll() async {
         // Block save if the username is confirmed taken
         guard usernameState != .taken else { return }
         let trimmedName = nameText.trimmingCharacters(in: .whitespaces)
@@ -406,10 +408,8 @@ struct SettingsView: View {
         userSettings.goalWeight    = goalWeightVal
         userSettings.proteinPerLb  = proteinPerLbVal
 
-        // Snapshot all values synchronously before dispatching the async write.
-        // This prevents a race where account-switching clears userSettings (and
-        // reassigns userSettings.userID) before the task runs, which would corrupt
-        // the incoming user's Firestore document with empty data.
+        // Snapshot all values synchronously so account-switching can't mutate
+        // userSettings between here and the Firestore write.
         let uid = userSettings.userID
         guard !uid.isEmpty else { return }
         let fields: [String: Any] = [
@@ -427,7 +427,9 @@ struct SettingsView: View {
             "fastingEnabled":    userSettings.fastingEnabled,
             "auraPopupsEnabled": userSettings.auraPopupsEnabled,
         ]
-        Task { try? await UserProfileService.shared.updateProfile(userID: uid, fields: fields) }
+        // Await the write so callers (e.g. Sign Out button) can ensure it
+        // completes while the user is still authenticated.
+        try? await UserProfileService.shared.updateProfile(userID: uid, fields: fields)
     }
 
     private func scheduleUsernameCheck(_ raw: String) {
