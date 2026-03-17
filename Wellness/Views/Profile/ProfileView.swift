@@ -36,6 +36,8 @@ struct ProfileView: View {
     @State private var showingCamera       = false
     @State private var showingLibrary      = false
     @State private var showingPhotoSource  = false
+    @State private var rawPickedImage:     UIImage? = nil
+    @State private var showingCrop         = false
     @State private var newProfileImage:    UIImage?
     @State private var selectedPost:       SocialPost?
     @State private var showingProfileShare = false
@@ -175,11 +177,24 @@ struct ProfileView: View {
             Button("Choose from Library") { showingLibrary = true }
             Button("Cancel", role: .cancel) { }
         }
-        .sheet(isPresented: $showingCamera, onDismiss: saveNewPhoto) {
-            ImagePickerView(sourceType: .camera, selectedImage: $newProfileImage)
+        .sheet(isPresented: $showingCamera, onDismiss: { if rawPickedImage != nil { showingCrop = true } }) {
+            ImagePickerView(sourceType: .camera, selectedImage: $rawPickedImage)
         }
-        .sheet(isPresented: $showingLibrary, onDismiss: saveNewPhoto) {
-            ImagePickerView(sourceType: .photoLibrary, selectedImage: $newProfileImage)
+        .sheet(isPresented: $showingLibrary, onDismiss: { if rawPickedImage != nil { showingCrop = true } }) {
+            ImagePickerView(sourceType: .photoLibrary, selectedImage: $rawPickedImage)
+        }
+        .fullScreenCover(isPresented: $showingCrop) {
+            if let img = rawPickedImage {
+                CropCircleView(sourceImage: img) { cropped in
+                    newProfileImage = cropped
+                    rawPickedImage  = nil
+                    showingCrop     = false
+                    saveNewPhoto()
+                } onCancel: {
+                    rawPickedImage = nil
+                    showingCrop    = false
+                }
+            }
         }
         .sheet(isPresented: $showingProfileShare) {
             ProfileShareView(
