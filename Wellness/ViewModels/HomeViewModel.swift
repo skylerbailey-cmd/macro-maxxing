@@ -85,10 +85,15 @@ import SwiftData
         dailyWindowSnapshots = snapshots
     }
 
-    private func dateKey(_ date: Date) -> String {
+    private static let dateKeyFormatter: DateFormatter = {
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyy-MM-dd"
-        return fmt.string(from: date)
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        return fmt
+    }()
+
+    private func dateKey(_ date: Date) -> String {
+        Self.dateKeyFormatter.string(from: date)
     }
 
     var windowEndHour: Int {
@@ -215,7 +220,10 @@ import SwiftData
         let startOfDay = calendar.startOfDay(for: selectedDate)
         guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return }
 
-        let predicate  = #Predicate<FoodEntry> { $0.loggedAt >= startOfDay && $0.loggedAt < endOfDay }
+        let uid = userSettings.userID
+        let predicate  = #Predicate<FoodEntry> {
+            $0.loggedAt >= startOfDay && $0.loggedAt < endOfDay && $0.userID == uid
+        }
         let descriptor = FetchDescriptor<FoodEntry>(predicate: predicate)
         guard let entries = try? modelContext.fetch(descriptor) else { return }
 
@@ -308,9 +316,7 @@ import SwiftData
     private func loadStreak() {
         let calendar    = Calendar.current
         let goalsMetDates = userSettings.goalsMetDates
-        let fmt         = DateFormatter()
-        fmt.dateFormat  = "yyyy-MM-dd"
-        fmt.calendar    = calendar
+        let fmt = Self.dateKeyFormatter
 
         // Count consecutive completed past days
         var streak = 0
