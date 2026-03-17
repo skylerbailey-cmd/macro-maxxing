@@ -5,6 +5,7 @@
 
 import SwiftUI
 import MapKit
+import FirebaseAuth
 
 // MARK: - FAQ item model
 
@@ -97,6 +98,8 @@ private enum ActivePicker: Identifiable {
 
 struct SettingsView: View {
     @Bindable var userSettings: UserSettings
+    @Environment(AuthViewModel.self) private var auth
+    @Environment(\.dismiss) private var dismiss
     @FocusState private var nameFocused: Bool
 
     // Local state — only writes to userSettings on commit, preventing re-renders on every input
@@ -107,7 +110,9 @@ struct SettingsView: View {
     @State private var goalWeightVal:    Double = 160
     @State private var proteinPerLbVal:  Double = 0.9
     @State private var activePicker: ActivePicker? = nil
-    @State private var showCitySearch = false
+    @State private var showCitySearch    = false
+    @State private var showDeleteAccount = false
+    @State private var showChangeEmail   = false
 
     // Username availability
     private enum UsernameState { case idle, checking, available, taken }
@@ -180,6 +185,22 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
+                Button { showChangeEmail = true } label: {
+                    HStack {
+                        Label("Email", systemImage: "envelope.fill")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text(Auth.auth().currentUser?.email ?? "—")
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+
                 Button { showCitySearch = true } label: {
                     HStack {
                         Label("Location", systemImage: "mappin.circle.fill")
@@ -287,6 +308,27 @@ struct SettingsView: View {
                      ? "Your intermittent fasting window is shown on the Home screen. Tap Edit to adjust the start time and duration."
                      : "Enable to track your daily intermittent fasting window on the Home screen.")
             }
+
+            // MARK: Account Actions
+            Section {
+                Button(role: .destructive) {
+                    auth.logout()
+                } label: {
+                    HStack {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                        Text("Sign Out")
+                    }
+                }
+
+                Button(role: .destructive) {
+                    showDeleteAccount = true
+                } label: {
+                    HStack {
+                        Image(systemName: "person.crop.circle.badge.minus")
+                        Text("Delete Account")
+                    }
+                }
+            }
         }
         .onAppear {
             nameText         = userSettings.name
@@ -299,6 +341,14 @@ struct SettingsView: View {
         .navigationTitle("Account")
         .navigationBarTitleDisplayMode(.inline)
         .preferredColorScheme(.dark)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+            }
+        }
         .sheet(item: $activeFAQ) { item in
             FAQDetailView(item: item)
                 .presentationDetents([.medium, .large])
@@ -313,6 +363,15 @@ struct SettingsView: View {
                               proteinPerLb:  $proteinPerLbVal)
             { commitAll() }
                 .presentationDetents([.height(280)])
+        }
+        .sheet(isPresented: $showDeleteAccount) {
+            DeleteAccountView()
+                .environment(auth)
+                .environment(userSettings)
+        }
+        .sheet(isPresented: $showChangeEmail) {
+            ChangeEmailView()
+                .environment(auth)
         }
     }
 
@@ -336,16 +395,39 @@ struct SettingsView: View {
     private func commitAll() {
         // Block save if the username is confirmed taken
         guard usernameState != .taken else { return }
-        userSettings.name     = nameText.trimmingCharacters(in: .whitespaces)
-        userSettings.username = usernameText
+        let trimmedName = nameText.trimmingCharacters(in: .whitespaces)
+        let trimmedUsername = usernameText
             .trimmingCharacters(in: .whitespaces)
             .lowercased()
             .replacingOccurrences(of: "@", with: "")
+        userSettings.name          = trimmedName
+        userSettings.username      = trimmedUsername
         userSettings.currentWeight = currentWeightVal
         userSettings.goalWeight    = goalWeightVal
         userSettings.proteinPerLb  = proteinPerLbVal
-        // Sync profile fields to Firestore whenever the user saves settings
-        Task { await UserProfileService.shared.syncProfile(from: userSettings) }
+
+        // Snapshot all values synchronously before dispatching the async write.
+        // This prevents a race where account-switching clears userSettings (and
+        // reassigns userSettings.userID) before the task runs, which would corrupt
+        // the incoming user's Firestore document with empty data.
+        let uid = userSettings.userID
+        guard !uid.isEmpty else { return }
+        let fields: [String: Any] = [
+            "username":          trimmedUsername,
+            "name":              trimmedName,
+            "location":          userSettings.location,
+            "auraPoints":        userSettings.auraPoints,
+            "streakDays":        userSettings.macroStreak,
+            "instagramHandle":   userSettings.instagramHandle,
+            "tiktokHandle":      userSettings.tiktokHandle,
+            "isPrivateAccount":  userSettings.isPrivateAccount,
+            "currentWeight":     currentWeightVal,
+            "goalWeight":        goalWeightVal,
+            "proteinPerLb":      proteinPerLbVal,
+            "fastingEnabled":    userSettings.fastingEnabled,
+            "auraPopupsEnabled": userSettings.auraPopupsEnabled,
+        ]
+        Task { try? await UserProfileService.shared.updateProfile(userID: uid, fields: fields) }
     }
 
     private func scheduleUsernameCheck(_ raw: String) {
@@ -555,5 +637,6 @@ private struct CitySearchSheet: View {
 #Preview {
     NavigationStack {
         SettingsView(userSettings: UserSettings())
+            .environment(AuthViewModel())
     }
 }
