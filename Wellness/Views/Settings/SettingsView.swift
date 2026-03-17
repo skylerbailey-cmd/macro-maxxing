@@ -114,6 +114,12 @@ struct SettingsView: View {
     @State private var showDeleteAccount = false
     @State private var showChangeEmail   = false
 
+    /// The Firebase UID that was active when this view appeared.
+    /// commitAll() uses this — not userSettings.userID — so a late .onDisappear
+    /// call can't accidentally write one user's local state into another user's
+    /// Firestore document after an account switch.
+    @State private var sessionUID: String = ""
+
     // Username availability
     private enum UsernameState { case idle, checking, available, taken }
     @State private var usernameState: UsernameState = .idle
@@ -333,6 +339,7 @@ struct SettingsView: View {
             }
         }
         .onAppear {
+            sessionUID       = userSettings.userID
             nameText         = userSettings.name
             usernameText     = userSettings.username
             currentWeightVal = userSettings.currentWeight > 0 ? userSettings.currentWeight : 160
@@ -397,6 +404,16 @@ struct SettingsView: View {
     private func commitAll() async {
         // Block save if the username is confirmed taken
         guard usernameState != .taken else { return }
+
+        // Use the UID captured at onAppear time (sessionUID), not userSettings.userID.
+        // If .onDisappear fires late — after an account switch has already changed
+        // userSettings.userID to a different user — the snapshot below would carry
+        // the old session's local text into the new user's Firestore document.
+        // Guarding against Auth.currentUser ensures we only write when the session
+        // user is still the one currently authenticated.
+        let uid = sessionUID
+        guard !uid.isEmpty, uid == Auth.auth().currentUser?.uid else { return }
+
         let trimmedName = nameText.trimmingCharacters(in: .whitespaces)
         let trimmedUsername = usernameText
             .trimmingCharacters(in: .whitespaces)
@@ -408,10 +425,6 @@ struct SettingsView: View {
         userSettings.goalWeight    = goalWeightVal
         userSettings.proteinPerLb  = proteinPerLbVal
 
-        // Snapshot all values synchronously so account-switching can't mutate
-        // userSettings between here and the Firestore write.
-        let uid = userSettings.userID
-        guard !uid.isEmpty else { return }
         let fields: [String: Any] = [
             "username":          trimmedUsername,
             "name":              trimmedName,
