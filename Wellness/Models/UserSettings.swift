@@ -24,6 +24,7 @@ struct AuraGain: Identifiable, Equatable {
     var username:         String = ""
     var name:             String = ""
     var location:         String = ""
+    var profilePhotoURL:  String = ""
     var instagramHandle:  String = ""
     var tiktokHandle:     String = ""
     var isPrivateAccount: Bool   = false
@@ -282,10 +283,11 @@ struct AuraGain: Identifiable, Equatable {
     /// Called by SessionManager after a successful Firestore profile fetch.
     /// Populates all identity fields in-memory. Does NOT touch UserDefaults.
     func populate(from profile: UserProfile) {
-        userID            = profile.userID ?? ""
+        userID            = profile.userID
         username          = profile.username
         name              = profile.name
         location          = profile.location
+        profilePhotoURL   = profile.profilePhotoURL
         instagramHandle   = profile.instagramHandle
         tiktokHandle      = profile.tiktokHandle
         isPrivateAccount  = profile.isPrivateAccount
@@ -304,6 +306,7 @@ struct AuraGain: Identifiable, Equatable {
         username          = ""
         name              = ""
         location          = ""
+        profilePhotoURL   = ""
         instagramHandle   = ""
         tiktokHandle      = ""
         isPrivateAccount  = false

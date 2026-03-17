@@ -653,21 +653,43 @@ struct ProfileView: View {
                 .frame(width: size, height: size)
                 .clipShape(Circle())
         } else {
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [purpl.opacity(0.40), Color(red: 0.30, green: 0.10, blue: 0.60)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: size, height: size)
-                .overlay {
-                    Text(String(displayName.prefix(1)).uppercased())
-                        .font(.system(size: size * 0.40, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
+            let urlString = isOwnProfile
+                ? (ownUserSettings?.profilePhotoURL ?? "")
+                : targetProfilePhotoURL
+            if !urlString.isEmpty, let url = URL(string: urlString) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: size, height: size)
+                            .clipShape(Circle())
+                    default:
+                        avatarPlaceholder(size: size)
+                    }
                 }
+            } else {
+                avatarPlaceholder(size: size)
+            }
         }
+    }
+
+    private func avatarPlaceholder(size: CGFloat) -> some View {
+        Circle()
+            .fill(
+                LinearGradient(
+                    colors: [purpl.opacity(0.40), Color(red: 0.30, green: 0.10, blue: 0.60)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .frame(width: size, height: size)
+            .overlay {
+                Text(String(displayName.prefix(1)).uppercased())
+                    .font(.system(size: size * 0.40, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+            }
     }
 
     @ViewBuilder
