@@ -346,26 +346,17 @@ struct SettingsView: View {
             }
         }
         .onAppear {
-            isDirty          = false
-            sessionUID       = userSettings.userID
-            nameText         = userSettings.name
-            usernameText     = userSettings.username
-            currentWeightVal = userSettings.currentWeight > 0 ? userSettings.currentWeight : 160
-            goalWeightVal    = userSettings.goalWeight    > 0 ? userSettings.goalWeight    : 160
-            proteinPerLbVal  = userSettings.proteinPerLb
-        }
-        // syncUserSettings fetches the Firestore profile asynchronously after login.
-        // If the user opens Settings before that fetch completes, onAppear captures
-        // empty values. This watcher detects when the profile arrives and refreshes
-        // local state — but only if the user hasn't started typing yet (isDirty).
-        .onChange(of: userSettings.username) { _, newValue in
-            guard !isDirty, !newValue.isEmpty else { return }
-            nameText         = userSettings.name
-            usernameText     = userSettings.username
-            currentWeightVal = userSettings.currentWeight > 0 ? userSettings.currentWeight : 160
-            goalWeightVal    = userSettings.goalWeight    > 0 ? userSettings.goalWeight    : 160
-            proteinPerLbVal  = userSettings.proteinPerLb
-            sessionUID       = userSettings.userID
+            isDirty    = false
+            sessionUID = userSettings.userID
+            // Seed fields from whatever userSettings already holds (may be empty
+            // if the Firestore fetch hasn't finished yet — loadProfile() below
+            // will overwrite with the real values once the fetch completes).
+            applyProfile(name:          userSettings.name,
+                         username:      userSettings.username,
+                         currentWeight: userSettings.currentWeight,
+                         goalWeight:    userSettings.goalWeight,
+                         proteinPerLb:  userSettings.proteinPerLb)
+            Task { await loadProfile() }
         }
         .onDisappear { Task { await commitAll() } }
         .navigationTitle("Account")
@@ -420,6 +411,48 @@ struct SettingsView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    /// Fetches the profile directly from Firestore and populates all local fields.
+    /// Called on every onAppear so Settings always shows fresh data regardless of
+    /// whether syncUserSettings has already completed.
+    private func loadProfile() async {
+        let uid = userSettings.userID
+        guard !uid.isEmpty else { return }
+        guard let profile = try? await UserProfileService.shared.fetchProfile(userID: uid) else { return }
+        guard !isDirty else { return }   // user started typing while fetch was in flight
+
+        // Push fetched values into userSettings so the rest of the app stays in sync
+        userSettings.name              = profile.name
+        userSettings.username          = profile.username
+        userSettings.location          = profile.location
+        userSettings.auraPoints        = profile.auraPoints
+        userSettings.macroStreak       = profile.streakDays
+        userSettings.instagramHandle   = profile.instagramHandle
+        userSettings.tiktokHandle      = profile.tiktokHandle
+        userSettings.isPrivateAccount  = profile.isPrivateAccount
+        userSettings.currentWeight     = profile.currentWeight
+        userSettings.goalWeight        = profile.goalWeight
+        userSettings.proteinPerLb      = profile.proteinPerLb
+        userSettings.fastingEnabled    = profile.fastingEnabled
+        userSettings.auraPopupsEnabled = profile.auraPopupsEnabled
+
+        // Populate the local text/number fields shown in this view
+        applyProfile(name:          profile.name,
+                     username:      profile.username,
+                     currentWeight: profile.currentWeight,
+                     goalWeight:    profile.goalWeight,
+                     proteinPerLb:  profile.proteinPerLb)
+    }
+
+    private func applyProfile(name: String, username: String,
+                               currentWeight: Double, goalWeight: Double,
+                               proteinPerLb: Double) {
+        nameText         = name
+        usernameText     = username
+        currentWeightVal = currentWeight > 0 ? currentWeight : 160
+        goalWeightVal    = goalWeight    > 0 ? goalWeight    : 160
+        proteinPerLbVal  = proteinPerLb
     }
 
     private func commitAll() async {
