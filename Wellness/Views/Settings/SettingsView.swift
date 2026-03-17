@@ -346,17 +346,21 @@ struct SettingsView: View {
             }
         }
         .onAppear {
-            isDirty    = false
-            sessionUID = userSettings.userID
-            // Seed fields from whatever userSettings already holds (may be empty
-            // if the Firestore fetch hasn't finished yet — loadProfile() below
-            // will overwrite with the real values once the fetch completes).
+            isDirty = false
+            // Seed fields immediately from current userSettings.
+            // If syncUserSettings hasn't finished yet these will be empty —
+            // the task(id: userSettings.userID) below re-runs once the uid is set.
             applyProfile(name:          userSettings.name,
                          username:      userSettings.username,
                          currentWeight: userSettings.currentWeight,
                          goalWeight:    userSettings.goalWeight,
                          proteinPerLb:  userSettings.proteinPerLb)
-            Task { await loadProfile() }
+        }
+        .task(id: userSettings.userID) {
+            guard !userSettings.userID.isEmpty else { return }
+            // Capture the uid for commitAll() now that we know it's real.
+            sessionUID = userSettings.userID
+            await loadProfile()
         }
         .onDisappear { Task { await commitAll() } }
         .navigationTitle("Account")
