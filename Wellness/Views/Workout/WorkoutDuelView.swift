@@ -38,11 +38,6 @@ struct WorkoutDuelView: View {
                     totalCard
                         .padding(.bottom, 4)
 
-                    // Rest day quick-log (only shown when no rest day already logged)
-                    if !entries.contains(where: { $0.workoutType == .restDay }) {
-                        duelRestDayButton
-                    }
-
                     Text("\(entries.count) Workout\(entries.count == 1 ? "" : "s")")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.30))
