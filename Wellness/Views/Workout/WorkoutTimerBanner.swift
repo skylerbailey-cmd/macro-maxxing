@@ -16,6 +16,7 @@ struct WorkoutTimerBanner: View {
     let onPause:             () -> Void
     let onResume:            () -> Void
     let onLog:               () -> Void
+    let onCancel:            () -> Void
 
     @State private var now = Date()
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -56,6 +57,16 @@ struct WorkoutTimerBanner: View {
             }
 
             Spacer()
+
+            // Cancel
+            Button(action: onCancel) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.60))
+                    .frame(width: 34, height: 34)
+                    .background(.white.opacity(0.08), in: Circle())
+            }
+            .buttonStyle(.plain)
 
             // Pause / Resume
             Button(action: isPaused ? onResume : onPause) {

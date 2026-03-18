@@ -110,6 +110,13 @@ struct ContentView: View {
                                 workoutTimerElapsedMinutes = max(0, Int(rawSeconds / 60))
                             }
                             fabShowingLogWorkoutFromTimer = true
+                        },
+                        onCancel: {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                workoutStartTime          = nil
+                                workoutPausedAt           = nil
+                                workoutTotalPausedSeconds = 0
+                            }
                         }
                     )
                     Spacer()
