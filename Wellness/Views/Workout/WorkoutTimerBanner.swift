@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+internal import Combine
 
 struct WorkoutTimerBanner: View {
 
@@ -45,12 +46,12 @@ struct WorkoutTimerBanner: View {
             // Time info
             VStack(alignment: .leading, spacing: 1) {
                 Text(formatElapsed(elapsedSeconds))
-                    .font(.system(size: 20, weight: .black, design: .monospaced))
+                    .font(.system(size: 26, weight: .black, design: .monospaced))
                     .foregroundStyle(.white)
                     .contentTransition(.numericText())
                 Text("Started \(startTime.formatted(date: .omitted, time: .shortened))"
                      + (isPaused ? "  ·  Paused" : ""))
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(isPaused ? .orange.opacity(0.85) : .white.opacity(0.42))
             }
 
