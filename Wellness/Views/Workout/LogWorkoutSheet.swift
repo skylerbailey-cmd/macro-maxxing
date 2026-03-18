@@ -605,6 +605,7 @@ struct LogWorkoutSheet: View {
                 onSaved()
                 dismiss()
             } else {
+                userSettings.awardAura(points: 25)
                 showingPostPrompt = true
             }
         } catch {
