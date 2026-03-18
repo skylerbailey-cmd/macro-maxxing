@@ -430,9 +430,9 @@ func postLabelColor(_ label: PostLabel) -> Color {
     switch label {
     case .transformation: return Color(red: 0.35, green: 0.75, blue: 1.00)
     case .fuelLog:        return Color(red: 1.00, green: 0.55, blue: 0.15)
-    case .mealInspo:      return Color(red: 0.30, green: 0.85, blue: 0.55)
+    case .mealInspo:      return Color(red: 1.00, green: 0.30, blue: 0.55)
     case .mogBoard:       return Color(red: 1.00, green: 0.80, blue: 0.20)
-    case .advice:         return Color(red: 0.40, green: 0.90, blue: 0.72)
+    case .advice:         return Color(red: 1.00, green: 0.90, blue: 0.20)
     case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
     }
 }
