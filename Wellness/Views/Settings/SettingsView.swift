@@ -273,10 +273,13 @@ struct SettingsView: View {
                 pickerRow(label: "Protein per lb", display: String(format: "%.2f g/lb", proteinPerLbVal)) {
                     activePicker = .proteinPerLb
                 }
+                Toggle(isOn: $userSettings.autoAdjustMacrosForWorkout) {
+                    Label("Auto-adjust macros for workouts", systemImage: "figure.strengthtraining.traditional")
+                }
             } header: {
                 Text("Nutrition")
             } footer: {
-                Text("Grams of protein per pound of goal body weight. General fitness: 0.7–0.8 g/lb. Strength training: 0.8–1.0 g/lb.")
+                Text("Grams of protein per pound of goal body weight. General fitness: 0.7–0.8 g/lb. Strength training: 0.8–1.0 g/lb.\n\nWhen auto-adjust is on, the \"Apply macro adjustments\" toggle in the workout log sheet will default to ON, automatically updating your daily macro targets based on the type of workout logged.")
             }
 
             // MARK: FAQ

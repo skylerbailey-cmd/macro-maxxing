@@ -168,6 +168,9 @@ import Foundation
             ? UserDefaults.standard.integer(forKey: "windowDurationHours")
             : 8
 
+        // Revert workout macro adjustments if they were applied on a previous day
+        MacroAdjustmentEngine.revertIfNewDay()
+
         if UserDefaults.standard.object(forKey: "goalCalories") != nil {
             self.goalCalories = UserDefaults.standard.double(forKey: "goalCalories")
         }
@@ -212,6 +215,16 @@ import Foundation
 
     func loadTodayTotals() {
         Task { await loadTodayTotalsAsync() }
+    }
+
+    /// Reloads macro goals from UserDefaults (called after a workout macro adjustment is applied).
+    func reloadGoalsFromDefaults() {
+        MacroAdjustmentEngine.revertIfNewDay()
+        let ud = UserDefaults.standard
+        if ud.object(forKey: "goalCalories") != nil { goalCalories = ud.double(forKey: "goalCalories") }
+        if ud.object(forKey: "goalProtein")  != nil { goalProtein  = ud.double(forKey: "goalProtein")  }
+        if ud.object(forKey: "goalCarbs")    != nil { goalCarbs    = ud.double(forKey: "goalCarbs")    }
+        if ud.object(forKey: "goalFat")      != nil { goalFat      = ud.double(forKey: "goalFat")      }
     }
 
     func loadTodayTotalsAsync() async {

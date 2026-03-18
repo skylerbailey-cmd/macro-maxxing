@@ -177,6 +177,64 @@ final class ClaudeAnalysisService {
         return text
     }
 
+    // MARK: - Workout Voice Parse
+
+    struct WorkoutParseResult {
+        let name:            String
+        let workoutType:     WorkoutType
+        let durationMinutes: Int
+        let caloriesBurned:  Int
+    }
+
+    /// Parses a free-form workout description into structured fields including workout type.
+    func parseWorkout(transcript: String) async throws -> WorkoutParseResult {
+        let typeOptions = WorkoutType.allCases.map { "\"\($0.rawValue)\"" }.joined(separator: ", ")
+        let prompt = """
+        You are a fitness assistant. A user verbally described their workout. \
+        Extract the workout name, workout type, duration in minutes, and estimated calories burned.
+
+        Workout type must be one of: \(typeOptions)
+
+        If the user mentions calories, use that number. Otherwise estimate accurately \
+        based on workout type and duration for an average adult.
+
+        User said: "\(transcript)"
+
+        Respond ONLY with a valid JSON object and nothing else — no explanation, no markdown:
+        {"name": "...", "workoutType": "Strength", "durationMinutes": 45, "caloriesBurned": 350}
+        """
+
+        let body = RequestBody(
+            model: model,
+            maxTokens: 150,
+            messages: [RequestBody.Message(role: "user", content: prompt)]
+        )
+        var req = URLRequest(url: endpoint)
+        req.httpMethod = "POST"
+        req.setValue(Config.anthropicAPIKey, forHTTPHeaderField: "x-api-key")
+        req.setValue("2023-06-01",           forHTTPHeaderField: "anthropic-version")
+        req.setValue("application/json",     forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONEncoder().encode(body)
+
+        let (data, response) = try await URLSession.shared.data(for: req)
+        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+            throw ClaudeServiceError.badResponse(statusCode: http.statusCode)
+        }
+        let decoded = try JSONDecoder().decode(ResponseBody.self, from: data)
+        guard let text = decoded.content.first(where: { $0.type == "text" })?.text,
+              let jsonData = text.data(using: .utf8),
+              let json     = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+              let name     = json["name"]            as? String,
+              let duration = json["durationMinutes"] as? Int,
+              let calories = json["caloriesBurned"]  as? Int
+        else { throw ClaudeServiceError.noContent }
+
+        let typeRaw    = json["workoutType"] as? String ?? ""
+        let workoutType = WorkoutType(rawValue: typeRaw) ?? .other
+        return WorkoutParseResult(name: name, workoutType: workoutType,
+                                  durationMinutes: duration, caloriesBurned: calories)
+    }
+
     // MARK: - Codable types
 
     private struct RequestBody: Encodable {

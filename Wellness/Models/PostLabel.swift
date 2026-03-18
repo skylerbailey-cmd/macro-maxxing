@@ -11,6 +11,7 @@ enum PostLabel: String, CaseIterable, Codable {
     case mealInspo      = "Meal Inspo"
     case mogBoard       = "Mog Board"
     case advice         = "Advice"
+    case workout        = "Workout"
 
     var icon: String {
         switch self {
@@ -19,6 +20,7 @@ enum PostLabel: String, CaseIterable, Codable {
         case .mealInspo:      return "fork.knife"
         case .mogBoard:       return "crown.fill"
         case .advice:         return "lightbulb.fill"
+        case .workout:        return "figure.strengthtraining.traditional"
         }
     }
 }

@@ -433,6 +433,7 @@ func postLabelColor(_ label: PostLabel) -> Color {
     case .mealInspo:      return Color(red: 0.30, green: 0.85, blue: 0.55)
     case .mogBoard:       return Color(red: 1.00, green: 0.80, blue: 0.20)
     case .advice:         return Color(red: 0.40, green: 0.90, blue: 0.72)
+    case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
     }
 }
 
@@ -558,6 +559,29 @@ struct PostCard: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(Color.white.opacity(0.06), lineWidth: 1)
         )
+        .overlay(alignment: .topTrailing) {
+            if let label = PostLabel(rawValue: post.postLabel) {
+                let color = postLabelColor(label)
+                HStack(spacing: 4) {
+                    Image(systemName: label.icon)
+                        .font(.system(size: 9, weight: .bold))
+                    if label == .mogBoard, !post.mogBoardScope.isEmpty {
+                        Text("\(post.mogBoardScope) Mog")
+                            .font(.system(size: 9, weight: .bold))
+                    } else {
+                        Text(label.rawValue)
+                            .font(.system(size: 9, weight: .bold))
+                    }
+                }
+                .foregroundStyle(color)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(color.opacity(0.15), in: Capsule())
+                .overlay(Capsule().stroke(color.opacity(0.35), lineWidth: 0.75))
+                .padding(.top, 10)
+                .padding(.trailing, 10)
+            }
+        }
         .sheet(isPresented: $showingImageViewer) {
             PostImageViewerSheet(imageDatas: post.allImageDatas)
         }
@@ -594,30 +618,8 @@ struct PostCard: View {
                         .clipShape(Capsule())
                     }
                 }
-                HStack(spacing: 6) {
-                    Text("@\(post.authorUsername)  ·  \(post.postedAt, format: .dateTime.month(.abbreviated).day().hour().minute())")
-                        .font(.caption2).foregroundStyle(.white.opacity(0.35))
-                    if let label = PostLabel(rawValue: post.postLabel) {
-                        let color = postLabelColor(label)
-                        HStack(spacing: 3) {
-                            Image(systemName: label.icon)
-                                .font(.system(size: 8, weight: .semibold))
-                            if label == .mogBoard, !post.mogBoardScope.isEmpty, !post.mogBoardType.isEmpty {
-                                Text("\(post.mogBoardScope) · \(post.mogBoardType)")
-                                    .font(.system(size: 9, weight: .semibold))
-                            } else {
-                                Text(label.rawValue)
-                                    .font(.system(size: 9, weight: .semibold))
-                            }
-                        }
-                        .foregroundStyle(color)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(color.opacity(0.12))
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(color.opacity(0.30), lineWidth: 0.5))
-                    }
-                }
+                Text("@\(post.authorUsername)  ·  \(post.postedAt, format: .dateTime.month(.abbreviated).day().hour().minute())")
+                    .font(.caption2).foregroundStyle(.white.opacity(0.35))
             }
             Spacer()
             if !isOwnPost && (!isFollowing || showCheckmark) {

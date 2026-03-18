@@ -21,11 +21,12 @@ struct ContentView: View {
     @State private var selectedTab = 0
 
     // FAB state
-    @State private var fabExpanded        = false
-    @State private var fabShowingCamera   = false
-    @State private var fabShowingLibrary  = false
-    @State private var fabShowingNewPost  = false
-    @State private var fabShowingSearch   = false
+    @State private var fabExpanded           = false
+    @State private var fabShowingCamera      = false
+    @State private var fabShowingLibrary     = false
+    @State private var fabShowingNewPost     = false
+    @State private var fabShowingSearch      = false
+    @State private var fabShowingLogWorkout  = false
     @State private var fabSelectedImage: UIImage? = nil
 
     var body: some View {
@@ -100,6 +101,11 @@ struct ContentView: View {
                     selectedTab = 1
                     fabShowingLibrary = true
                 },
+                onLogWorkout: {
+                    fabExpanded = false
+                    selectedTab = 1
+                    fabShowingLogWorkout = true
+                },
                 onMakePost: {
                     fabExpanded = false
                     fabShowingNewPost = true
@@ -111,6 +117,17 @@ struct ContentView: View {
             )
             .padding(.trailing, 20)
             .padding(.bottom, 88)
+        }
+        .sheet(isPresented: $fabShowingLogWorkout) {
+            LogWorkoutSheet(
+                userID:              userSettings.userID,
+                selectedDate:        selectedDate,
+                bodyWeightLbs:       userSettings.currentWeight,
+                autoAdjustByDefault: userSettings.autoAdjustMacrosForWorkout,
+                userSettings:        userSettings,
+                onSaved:             {}
+            )
+            .environment(locationManager)
         }
         .sheet(isPresented: $fabShowingNewPost) {
             NewPostView(userSettings: userSettings)
@@ -193,6 +210,7 @@ private struct QuickActionFAB: View {
     @Binding var expanded: Bool
     let onLogMealCamera:  () -> Void
     let onLogMealLibrary: () -> Void
+    let onLogWorkout:     () -> Void
     let onMakePost:       () -> Void
     let onFindPeople:     () -> Void
 
@@ -225,6 +243,9 @@ private struct QuickActionFAB: View {
                         logMealExpanded.toggle()
                     }
                 }
+
+                actionPill(icon: "figure.strengthtraining.traditional", label: "Log a Workout",
+                           color: Color(red: 0.30, green: 0.90, blue: 0.55), action: onLogWorkout)
 
                 actionPill(icon: "square.and.pencil", label: "Make a Post", color: gold,
                            action: onMakePost)

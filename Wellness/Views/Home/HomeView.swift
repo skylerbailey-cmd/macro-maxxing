@@ -133,6 +133,9 @@ struct HomeView: View {
                 }
             }
             .onAppear { handleAppear() }
+            .onReceive(NotificationCenter.default.publisher(for: MacroAdjustmentEngine.macroAdjustedNotification)) { _ in
+                viewModel.reloadGoalsFromDefaults()
+            }
             .onChange(of: selectedDate) { _, newDate in handleDateChange(newDate) }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }

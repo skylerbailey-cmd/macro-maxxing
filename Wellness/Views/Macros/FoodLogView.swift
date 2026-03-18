@@ -458,30 +458,16 @@ struct FoodLogView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Duel tab placeholder
+    // MARK: - Duel tab
 
     private var duelTab: some View {
-        VStack(spacing: 18) {
-            Spacer()
-            ZStack {
-                Circle()
-                    .fill(Color.purpleHi.opacity(0.10))
-                    .frame(width: 84, height: 84)
-                Image(systemName: "bolt.shield.fill")
-                    .font(.system(size: 40))
-                    .foregroundStyle(Color.purpleHi.opacity(0.50))
-            }
-            VStack(spacing: 6) {
-                Text("Duel")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.65))
-                Text("Coming soon")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.32))
-            }
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
+        WorkoutDuelView(
+            userID:              userSettings.userID,
+            selectedDate:        selectedDate,
+            isToday:             isToday,
+            bodyWeightLbs:       userSettings.currentWeight,
+            autoAdjustByDefault: userSettings.autoAdjustMacrosForWorkout
+        )
     }
 }
 
@@ -491,40 +477,91 @@ private struct AnalysisSheet: View {
     @Bindable var viewModel: FoodLogViewModel
     let onSaved: () -> Void
     @Environment(\.dismiss) private var dismiss
-    @State private var showSaveError     = false
-    @State private var showVoiceRecorder = false
+
+    @State private var mode: EntryMode    = .photo
     @State private var speechRecognizer  = SpeechRecognizer()
     @State private var skeletonPulse     = false
+    @State private var showSaveError     = false
+
+    enum EntryMode { case photo, voice, manual }
+
+    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
+    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+    private let accent = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+
+    private var hasPhoto: Bool { viewModel.selectedImage != nil }
+    private var showFields: Bool {
+        if mode == .manual || viewModel.analysisState == .result {
+            return true
+        }
+        if case .error = viewModel.analysisState {
+            return true
+        }
+        return false
+    }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    if let image = viewModel.selectedImage {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 180)
-                            .clipped()
-                            .cornerRadius(14)
-                            .padding(.horizontal)
-                    }
+            ZStack {
+                pageBg.ignoresSafeArea()
 
-                    switch viewModel.analysisState {
-                    case .idle:
-                        if showVoiceRecorder {
-                            voiceRecorderPrompt
-                        } else {
-                            analyzePrompt
+                ScrollView {
+                    VStack(spacing: 20) {
+
+                        // Food photo
+                        if let image = viewModel.selectedImage {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 190)
+                                .clipped()
+                                .cornerRadius(16)
                         }
-                    case .analyzing:
-                        skeletonEntryFields
-                    case .result, .error:
-                        entryFields
+
+                        // Saved meals quick-select
+                        if !viewModel.savedMeals.isEmpty {
+                            savedMealsSection
+                        }
+
+                        // Mode picker
+                        modePicker
+
+                        // Mode-specific action area
+                        switch mode {
+                        case .photo:
+                            photoContent
+                        case .voice:
+                            voiceContent
+                        case .manual:
+                            EmptyView()
+                        }
+
+                        // Skeleton
+                        if viewModel.analysisState == .analyzing {
+                            skeletonFields
+                        }
+
+                        // Entry fields
+                        if showFields && viewModel.analysisState != .analyzing {
+                            entryFields
+                            saveToggle
+                            saveButton
+                        }
+
+                        if showSaveError {
+                            Text("Fill in all macro fields before saving.")
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                                .multilineTextAlignment(.center)
+                        }
+
+                        Spacer(minLength: 40)
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
                 }
-                .padding(.vertical)
             }
             .navigationTitle("Log Food")
             .navigationBarTitleDisplayMode(.inline)
@@ -534,343 +571,394 @@ private struct AnalysisSheet: View {
                         speechRecognizer.reset()
                         dismiss()
                     }
+                    .foregroundStyle(.white.opacity(0.65))
                 }
             }
+            .preferredColorScheme(.dark)
+            .onAppear {
+                // Default to Manual; switch to Photo only when a photo is attached
+                mode = hasPhoto ? .photo : .manual
+                if mode == .manual { viewModel.analysisState = .result }
+                Task { await viewModel.loadSavedMeals() }
+            }
             .onDisappear { speechRecognizer.reset() }
-            .task { await viewModel.loadSavedMeals() }
         }
     }
 
-    private var analyzePrompt: some View {
-        VStack(spacing: 16) {
-            VStack(spacing: 6) {
-                Text("How do you want to log this?")
-                    .font(.headline)
-                Text("Analyze the photo, describe what you ate, or enter macros manually.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.horizontal)
+    // MARK: - Mode Picker
 
-            VStack(spacing: 10) {
+    private var modePicker: some View {
+        HStack(spacing: 0) {
+            modeTab(label: "Manual", icon: "keyboard",            tag: .manual)
+            modeTab(label: "Voice",  icon: "mic.fill",            tag: .voice)
+            if hasPhoto {
+                modeTab(label: "Photo",  icon: "camera.viewfinder", tag: .photo)
+            }
+        }
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.08), lineWidth: 1))
+    }
+
+    private func modeTab(label: String, icon: String, tag: EntryMode) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                mode = tag
+                if tag == .manual { viewModel.analysisState = .result }
+            }
+            speechRecognizer.reset()
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(label)
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .foregroundStyle(mode == tag ? .black : .white.opacity(0.45))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(
+                mode == tag
+                    ? RoundedRectangle(cornerRadius: 10).fill(gold)
+                    : RoundedRectangle(cornerRadius: 10).fill(Color.clear)
+            )
+            .padding(3)
+        }
+        .buttonStyle(.plain)
+        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: mode)
+    }
+
+    // MARK: - Photo Content
+
+    private var photoContent: some View {
+        Group {
+            if viewModel.analysisState == .idle {
                 Button {
                     Task { await viewModel.analyzeImage() }
                 } label: {
-                    Label("Analyze Photo", systemImage: "camera.viewfinder")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button {
-                    showVoiceRecorder = true
-                } label: {
-                    Label("Describe What You Ate", systemImage: "mic.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(Color(red: 0.65, green: 0.45, blue: 1.00))
-            }
-            .padding(.horizontal)
-
-            Button("Enter manually instead") {
-                viewModel.analysisState = .result
-            }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-
-            if !viewModel.savedMeals.isEmpty {
-                savedMealsSection
-            }
-        }
-    }
-
-    private var savedMealsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Saved Meals")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.55))
-                .padding(.horizontal)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(viewModel.savedMeals) { meal in
-                        savedMealCard(meal)
-                            .onTapGesture {
-                                viewModel.populateFromSavedMeal(meal)
-                            }
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                        Text("Analyze Photo")
                     }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(accent, in: RoundedRectangle(cornerRadius: 12))
                 }
-                .padding(.horizontal)
+                .buttonStyle(.plain)
             }
         }
-        .padding(.top, 4)
     }
 
-    @ViewBuilder
-    private func savedMealCard(_ meal: FoodEntry) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if let url = URL(string: meal.photoURL), !meal.photoURL.isEmpty {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let img):
-                        img.resizable().scaledToFill()
-                    default:
-                        Color(red: 0.13, green: 0.10, blue: 0.22)
-                            .overlay(Image(systemName: "fork.knife").foregroundStyle(.white.opacity(0.3)))
-                    }
+    // MARK: - Voice Content
+
+    private var voiceContent: some View {
+        VStack(spacing: 16) {
+            // Mic button
+            Button {
+                if speechRecognizer.status == .recording { speechRecognizer.stop() }
+                else { speechRecognizer.start() }
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(speechRecognizer.status == .recording
+                              ? accent.opacity(0.20) : cardBg)
+                        .frame(width: 80, height: 80)
+                        .overlay(
+                            Circle().stroke(
+                                speechRecognizer.status == .recording ? accent : .white.opacity(0.15),
+                                lineWidth: 2
+                            )
+                        )
+                    Image(systemName: speechRecognizer.status == .recording ? "stop.fill" : "mic.fill")
+                        .font(.system(size: 30, weight: .semibold))
+                        .foregroundStyle(
+                            speechRecognizer.status == .recording ? accent : .white.opacity(0.65)
+                        )
                 }
-                .frame(width: 110, height: 72)
-                .clipped()
-                .cornerRadius(10)
-            } else {
-                Color(red: 0.13, green: 0.10, blue: 0.22)
-                    .overlay(Image(systemName: "fork.knife").foregroundStyle(.white.opacity(0.3)))
-                    .frame(width: 110, height: 72)
-                    .cornerRadius(10)
             }
+            .buttonStyle(.plain)
 
-            Text(meal.foodName)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white)
-                .lineLimit(2)
-                .frame(width: 110, alignment: .leading)
-
-            Text("\(Int(meal.calories)) cal  \(String(format: "%.0f", meal.protein))p  \(String(format: "%.0f", meal.carbs))c  \(String(format: "%.0f", meal.fat))f")
-                .font(.system(size: 10))
-                .foregroundStyle(.white.opacity(0.50))
-                .frame(width: 110, alignment: .leading)
-        }
-        .padding(8)
-        .background(Color(red: 0.13, green: 0.10, blue: 0.22))
-        .cornerRadius(12)
-    }
-
-    private var voiceRecorderPrompt: some View {
-        VStack(spacing: 20) {
-            VStack(spacing: 6) {
-                Text("Describe what you ate")
-                    .font(.headline)
-                Text("Say the food and portion size — Claude will use your description and the photo together.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.horizontal)
+            Text(voiceMicHint)
+                .font(.system(size: 13))
+                .foregroundStyle(.white.opacity(0.45))
+                .multilineTextAlignment(.center)
 
             // Transcript bubble
             if !speechRecognizer.transcript.isEmpty {
                 Text(speechRecognizer.transcript)
-                    .font(.body)
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.white.opacity(0.80))
+                    .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(14)
-                    .background(Color(red: 0.13, green: 0.10, blue: 0.22))
-                    .cornerRadius(12)
-                    .padding(.horizontal)
+                    .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12).stroke(accent.opacity(0.20), lineWidth: 1)
+                    )
             }
 
-            // Error message
+            // Error from speech
             if case .error(let msg) = speechRecognizer.status {
                 Text(msg)
                     .font(.caption)
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal)
             }
 
-            // Mic button
-            Button {
-                if speechRecognizer.status == .recording {
-                    speechRecognizer.stop()
-                } else {
-                    speechRecognizer.start()
+            // Analyze button
+            if speechRecognizer.status == .done && !speechRecognizer.transcript.isEmpty
+                && viewModel.analysisState == .idle {
+                Button {
+                    viewModel.voiceNote = speechRecognizer.transcript
+                    Task {
+                        if hasPhoto { await viewModel.analyzeImageWithVoice() }
+                        else        { await viewModel.analyzeImage() }
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                        Text("Generate with AI")
+                    }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(accent, in: RoundedRectangle(cornerRadius: 12))
                 }
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(speechRecognizer.status == .recording
-                              ? Color.red.opacity(0.85)
-                              : Color(red: 0.65, green: 0.45, blue: 1.00).opacity(0.85))
-                        .frame(width: 72, height: 72)
-                    Image(systemName: speechRecognizer.status == .recording ? "stop.fill" : "mic.fill")
-                        .font(.system(size: 28, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+        }
+    }
 
-            Text(micLabel)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+    private var voiceMicHint: String {
+        switch speechRecognizer.status {
+        case .idle:                 return "Tap the mic and describe what you ate"
+        case .requestingPermission: return "Requesting permission…"
+        case .recording:            return "Listening… tap to stop"
+        case .done:                 return speechRecognizer.transcript.isEmpty
+                                        ? "Nothing heard — try again" : "Tap to re-record"
+        case .error:                return ""
+        }
+    }
+
+    // MARK: - Skeleton
+
+    private var skeletonFields: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 8) {
+                ProgressView().tint(accent).scaleEffect(0.80)
+                Text("Analyzing…")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.45))
+            }
 
             VStack(spacing: 10) {
-                // Analyze with voice button — shown when there's a transcript
-                if speechRecognizer.status == .done && !speechRecognizer.transcript.isEmpty {
-                    Button {
-                        viewModel.voiceNote = speechRecognizer.transcript
-                        Task { await viewModel.analyzeImageWithVoice() }
-                    } label: {
-                        Label("Analyze with Description", systemImage: "wand.and.stars")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .padding(.horizontal)
-                }
-
-                Button("Back") {
-                    speechRecognizer.reset()
-                    showVoiceRecorder = false
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                skeletonRow("Food",     "Identifying food…")
+                skeletonRow("Calories", "—— kcal")
+                skeletonRow("Protein",  "——g")
+                skeletonRow("Carbs",    "——g")
+                skeletonRow("Fat",      "——g")
             }
-        }
-    }
-
-    private var micLabel: String {
-        switch speechRecognizer.status {
-        case .idle:              return "Tap to start recording"
-        case .requestingPermission: return "Requesting permission…"
-        case .recording:         return "Listening… tap to stop"
-        case .done:              return speechRecognizer.transcript.isEmpty ? "Nothing heard — try again" : "Tap to re-record"
-        case .error:             return ""
-        }
-    }
-
-    // MARK: - Skeleton (shown while API is in-flight)
-
-    private var skeletonEntryFields: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 8) {
-                ProgressView()
-                    .scaleEffect(0.75)
-                    .tint(Color.purpleHi)
-                Text("Analyzing your photo…")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.50))
-            }
-            .padding(.horizontal)
-
-            VStack(spacing: 12) {
-                skeletonRow(label: "Food",     placeholder: "Identifying food…")
-                skeletonRow(label: "Calories", placeholder: "—— kcal")
-                skeletonRow(label: "Protein",  placeholder: "——g")
-                skeletonRow(label: "Carbs",    placeholder: "——g")
-                skeletonRow(label: "Fat",      placeholder: "——g")
-            }
-            .padding(.horizontal)
-            .opacity(skeletonPulse ? 0.35 : 0.75)
+            .opacity(skeletonPulse ? 0.30 : 0.70)
             .animation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true),
                        value: skeletonPulse)
-            .onAppear  { skeletonPulse = true  }
+            .onAppear   { skeletonPulse = true  }
             .onDisappear { skeletonPulse = false }
         }
     }
 
-    @ViewBuilder
-    private func skeletonRow(label: String, placeholder: String) -> some View {
+    private func skeletonRow(_ label: String, _ placeholder: String) -> some View {
         HStack {
             Text(label)
-                .frame(width: 80, alignment: .leading)
-                .foregroundStyle(.primary)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.40))
+                .frame(width: 72, alignment: .leading)
             Spacer()
             Text(placeholder)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 13))
+                .foregroundStyle(.white.opacity(0.25))
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 10)
-        .background(Color(.secondarySystemBackground).opacity(0.5))
-        .cornerRadius(8)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
     }
+
+    // MARK: - Entry Fields
 
     private var entryFields: some View {
         VStack(spacing: 12) {
-            HStack {
-                Text("Food")
-                    .frame(width: 80, alignment: .leading)
-                TextField("Food name", text: $viewModel.foodName)
-                    .textFieldStyle(.roundedBorder)
+            macroField(label: "Food",     placeholder: "Food name", text: $viewModel.foodName,      unit: nil,    keyboard: .default)
+            macroField(label: "Calories", placeholder: "0",         text: $viewModel.caloriesText,  unit: "kcal", keyboard: .decimalPad)
+            HStack(spacing: 12) {
+                macroField(label: "Protein", placeholder: "0", text: $viewModel.proteinText, unit: "g", keyboard: .decimalPad)
+                macroField(label: "Carbs",   placeholder: "0", text: $viewModel.carbsText,   unit: "g", keyboard: .decimalPad)
+                macroField(label: "Fat",     placeholder: "0", text: $viewModel.fatText,     unit: "g", keyboard: .decimalPad)
             }
-            MacroFieldView(label: "Calories", unit: "kcal", value: $viewModel.caloriesText)
-            MacroFieldView(label: "Protein",  unit: "g",    value: $viewModel.proteinText)
-            MacroFieldView(label: "Carbs",    unit: "g",    value: $viewModel.carbsText)
-            MacroFieldView(label: "Fat",      unit: "g",    value: $viewModel.fatText)
 
-            if case .error(let message) = viewModel.analysisState {
-                HStack(spacing: 6) {
+            if case .error(let msg) = viewModel.analysisState {
+                HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
-                    Text(message)
-                        .foregroundStyle(.red)
-                        .font(.caption)
-                }
-                .padding(.horizontal)
-                Button {
-                    Task { await viewModel.analyzeImage() }
-                } label: {
-                    Label("Retry Analysis", systemImage: "arrow.clockwise")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .padding(.horizontal)
-            }
-
-            if showSaveError {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .foregroundStyle(.red)
-                    Text("Please fill in all macro fields (calories, protein, carbs, fat) before saving.")
+                    Text(msg)
                         .font(.caption)
                         .foregroundStyle(.red)
+                    Spacer()
+                    Button {
+                        Task { await viewModel.analyzeImage() }
+                    } label: {
+                        Label("Retry", systemImage: "arrow.clockwise")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(accent)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.red.opacity(0.10))
-                .cornerRadius(10)
-                .padding(.horizontal)
+                .padding(12)
+                .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
             }
+        }
+    }
 
-            // Save as meal checkbox — hidden when entry came from a saved meal
-            if !viewModel.isFromSavedMeal { Button {
-                viewModel.saveMeal.toggle()
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: viewModel.saveMeal ? "checkmark.square.fill" : "square")
-                        .font(.system(size: 20))
-                        .foregroundStyle(viewModel.saveMeal
-                            ? Color(red: 0.65, green: 0.45, blue: 1.00)
-                            : .secondary)
-                    Text("Save as a saved meal")
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
+    private func macroField(label: String, placeholder: String, text: Binding<String>,
+                            unit: String?, keyboard: UIKeyboardType) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 4) {
+                Text(label)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.40))
+                if let unit {
+                    Text(unit)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.25))
                 }
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal)
-            }
+            TextField(placeholder, text: text)
+                .keyboardType(keyboard)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.20), lineWidth: 1))
+        }
+    }
 
-            HStack(spacing: 12) {
-                Button("Discard") { dismiss() }
-                    .buttonStyle(.bordered)
-                    .frame(maxWidth: .infinity)
+    // MARK: - Save Toggle
 
-                Button("Save") {
-                    if viewModel.caloriesText.isEmpty || viewModel.proteinText.isEmpty ||
-                       viewModel.carbsText.isEmpty   || viewModel.fatText.isEmpty {
-                        showSaveError = true
-                    } else if viewModel.saveEntry() {
-                        showSaveError = false
-                        onSaved()
+    private var saveToggle: some View {
+        Group {
+            if !viewModel.isFromSavedMeal {
+                Toggle(isOn: $viewModel.saveMeal) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Save as Saved Meal")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                        Text("Quick-select this meal next time")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.white.opacity(0.40))
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .frame(maxWidth: .infinity)
+                .tint(accent)
+                .padding(14)
+                .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
             }
-            .padding(.horizontal)
-            .padding(.top, 4)
         }
-        .padding(.horizontal)
+    }
+
+    // MARK: - Save Button
+
+    private var canSave: Bool {
+        !viewModel.caloriesText.isEmpty && !viewModel.proteinText.isEmpty &&
+        !viewModel.carbsText.isEmpty   && !viewModel.fatText.isEmpty
+    }
+
+    private var saveButton: some View {
+        Button {
+            if canSave {
+                showSaveError = false
+                if viewModel.saveEntry() { onSaved() }
+            } else {
+                showSaveError = true
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark")
+                Text("Log Food")
+            }
+            .font(.system(size: 16, weight: .bold))
+            .foregroundStyle(.black)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(canSave ? accent : accent.opacity(0.25), in: RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Saved Meals Section
+
+    private var savedMealsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Saved Meals")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.45))
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(viewModel.savedMeals) { meal in
+                        savedMealChip(meal)
+                    }
+                }
+            }
+        }
+    }
+
+    private func savedMealChip(_ meal: FoodEntry) -> some View {
+        Button {
+            viewModel.populateFromSavedMeal(meal)
+            viewModel.analysisState = .result
+        } label: {
+            HStack(spacing: 10) {
+                if let url = URL(string: meal.photoURL), !meal.photoURL.isEmpty {
+                    AsyncImage(url: url) { phase in
+                        if case .success(let img) = phase {
+                            img.resizable().scaledToFill()
+                        } else {
+                            Color.white.opacity(0.05)
+                        }
+                    }
+                    .frame(width: 38, height: 38)
+                    .clipped()
+                    .cornerRadius(8)
+                } else {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(accent.opacity(0.12))
+                            .frame(width: 38, height: 38)
+                        Image(systemName: "fork.knife")
+                            .font(.system(size: 14))
+                            .foregroundStyle(accent.opacity(0.60))
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(meal.foodName)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    Text("\(Int(meal.calories)) cal · \(String(format: "%.0f", meal.protein))p")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(accent.opacity(0.20), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 

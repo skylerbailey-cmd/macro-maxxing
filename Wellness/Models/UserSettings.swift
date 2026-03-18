@@ -152,6 +152,11 @@ struct AuraGain: Identifiable, Equatable {
         goalsMetDatesRaw = dates.joined(separator: ",")
     }
 
+    /// Whether to automatically apply macro adjustments when a workout is logged.
+    var autoAdjustMacrosForWorkout: Bool = false {
+        didSet { UserDefaults.standard.set(autoAdjustMacrosForWorkout, forKey: "autoAdjustMacrosForWorkout") }
+    }
+
     /// Whether to show the aura gain popup when points are earned.
     var auraPopupsEnabled: Bool = true
     /// Set whenever points are awarded (when popups enabled). Observe to show popup.
@@ -362,6 +367,7 @@ struct AuraGain: Identifiable, Equatable {
         // Profile identity fields start at their zero/default values —
         // they will be set by populate(from:) after SessionManager resolves auth.
 
+        self.autoAdjustMacrosForWorkout = UserDefaults.standard.bool(forKey: "autoAdjustMacrosForWorkout")
         self.weeklyAuraPoints = UserDefaults.standard.integer(forKey: "weeklyAuraPoints")
         let storedWeekStart = UserDefaults.standard.double(forKey: "weeklyAuraWeekStart")
         self.weeklyAuraWeekStart = storedWeekStart > 0
