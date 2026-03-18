@@ -97,6 +97,8 @@ final class SessionManager {
         guard let profile = try? await UserProfileService.shared.fetchProfile(userID: uid) else { return }
         userProfile = profile
         userSettings?.populate(from: profile)
+        // Download and cache the profile photo so every tab icon shows it immediately
+        await userSettings?.downloadProfileImageIfNeeded()
     }
 
     // MARK: - Profile Update

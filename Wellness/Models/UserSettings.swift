@@ -314,6 +314,17 @@ struct AuraGain: Identifiable, Equatable {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("profile_image.jpg")
 
+    /// Downloads the profile photo from `profilePhotoURL` and caches it in
+    /// `profileImageData` (and to disk). No-ops if the image is already cached
+    /// or if `profilePhotoURL` is empty.
+    func downloadProfileImageIfNeeded() async {
+        guard profileImageData == nil,
+              !profilePhotoURL.isEmpty,
+              let url = URL(string: profilePhotoURL) else { return }
+        guard let (data, _) = try? await URLSession.shared.data(from: url) else { return }
+        profileImageData = data
+    }
+
     // MARK: - SessionManager integration
 
     /// Called by SessionManager after a successful Firestore profile fetch.
