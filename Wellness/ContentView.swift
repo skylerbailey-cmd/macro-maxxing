@@ -7,11 +7,13 @@
 
 import SwiftUI
 import SwiftData
+import AVFoundation
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.modelContext)  private var modelContext
     @Environment(UserSettings.self) private var userSettings
     @Environment(SessionManager.self) private var auth
+    @Environment(\.scenePhase)   private var scenePhase
     @State private var selectedDate     = Calendar.current.startOfDay(for: Date())
     @State private var locationManager  = LocationManager()
 
@@ -38,6 +40,11 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
+            // Hidden 1×1 view that keeps the PiP display layer in the hierarchy
+            PiPLayerView()
+                .frame(width: 1, height: 1)
+                .allowsHitTesting(false)
+
             // Email verification nudge — full-width gold bar at the top until dismissed
             if auth.needsEmailVerification {
                 VStack(spacing: 0) {
@@ -85,6 +92,21 @@ struct ContentView: View {
             .onChange(of: userSettings.userID) { _, newID in
                 guard !newID.isEmpty else { return }
                 Task { await notificationState.refresh(userID: newID) }
+            }
+            .onAppear { restoreWorkoutTimer() }
+            .onChange(of: workoutStartTime)          { _, _ in persistWorkoutTimer(); syncPiP() }
+            .onChange(of: workoutPausedAt)           { _, _ in persistWorkoutTimer(); syncPiP() }
+            .onChange(of: workoutTotalPausedSeconds) { _, _ in persistWorkoutTimer(); syncPiP() }
+            .onChange(of: scenePhase) { _, phase in
+                switch phase {
+                case .background:
+                    persistWorkoutTimer()
+                    if workoutStartTime != nil { WorkoutPiPManager.shared.startPiP() }
+                case .active:
+                    WorkoutPiPManager.shared.stopPiP()
+                    restoreWorkoutTimer()
+                default: break
+                }
             }
 
             // Workout timer banner
@@ -158,6 +180,7 @@ struct ContentView: View {
                         workoutPausedAt           = nil
                         workoutTotalPausedSeconds = 0
                     }
+                    syncPiP()
                 },
                 onMakePost: {
                     fabExpanded = false
@@ -217,6 +240,46 @@ struct ContentView: View {
         .onChange(of: fabSelectedImage) { _, image in
             if image != nil { selectedTab = 1 }
         }
+    }
+
+    // MARK: - Workout timer persistence
+
+    private func persistWorkoutTimer() {
+        let ud = UserDefaults.standard
+        if let start = workoutStartTime {
+            ud.set(start.timeIntervalSince1970,  forKey: "wt_startTime")
+            ud.set(workoutTotalPausedSeconds,     forKey: "wt_pausedSeconds")
+            if let p = workoutPausedAt {
+                ud.set(p.timeIntervalSince1970, forKey: "wt_pausedAt")
+            } else {
+                ud.removeObject(forKey: "wt_pausedAt")
+            }
+        } else {
+            ud.removeObject(forKey: "wt_startTime")
+            ud.removeObject(forKey: "wt_pausedAt")
+            ud.removeObject(forKey: "wt_pausedSeconds")
+        }
+    }
+
+    private func restoreWorkoutTimer() {
+        let ud = UserDefaults.standard
+        guard let startInterval = ud.object(forKey: "wt_startTime") as? Double else { return }
+        workoutStartTime          = Date(timeIntervalSince1970: startInterval)
+        workoutTotalPausedSeconds = ud.double(forKey: "wt_pausedSeconds")
+        if let pausedInterval = ud.object(forKey: "wt_pausedAt") as? Double {
+            workoutPausedAt = Date(timeIntervalSince1970: pausedInterval)
+        } else {
+            workoutPausedAt = nil
+        }
+    }
+
+    /// Keeps WorkoutPiPManager's copy of the timer state up to date.
+    private func syncPiP() {
+        WorkoutPiPManager.shared.update(
+            startTime:          workoutStartTime,
+            pausedAt:           workoutPausedAt,
+            totalPausedSeconds: workoutTotalPausedSeconds
+        )
     }
 
     // MARK: - Leaderboard award on app open
