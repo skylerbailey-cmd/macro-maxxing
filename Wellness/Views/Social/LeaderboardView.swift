@@ -49,6 +49,7 @@ struct LeaderboardView: View {
 
     @State private var selectedScope:    Scope            = .arena
     @State private var selectedProfile:  LeaderboardEntry? = nil
+    @State private var showingTutorial   = false
     @State private var showingProfile    = false
     @State private var showPostPicker    = false
     @State private var showingNotifications = false
@@ -83,6 +84,12 @@ struct LeaderboardView: View {
                         .foregroundStyle(.white)
                     Spacer()
                     HStack(spacing: 14) {
+                        Button { showingTutorial = true } label: {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(size: 20))
+                                .foregroundStyle(.white.opacity(0.65))
+                        }
+                        .buttonStyle(.plain)
                         BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
                         Button { showingProfile = true } label: {
                             leaderboardProfileAvatarIcon
@@ -125,6 +132,13 @@ struct LeaderboardView: View {
                     .padding(.top, 8)
                     .padding(.bottom, 32)
                 }
+            }
+            if showingTutorial {
+                TutorialOverlayView(steps: TutorialSteps.board, onDismiss: {
+                    withAnimation(.easeOut(duration: 0.25)) { showingTutorial = false }
+                })
+                .transition(.opacity.animation(.easeInOut(duration: 0.25)))
+                .zIndex(100)
             }
         }
         .preferredColorScheme(.dark)

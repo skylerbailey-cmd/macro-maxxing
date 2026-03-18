@@ -30,6 +30,7 @@ struct SocialView: View {
     /// Intersection of followingIDs and followerIDs — mutual friends.
     @State private var friendIDs: Set<String> = []
 
+    @State private var showingTutorial   = false
     @State private var showingNewPost    = false
     @State private var selectedPost:     SocialPost?
     @State private var selectedFeed:     Feed        = .arena
@@ -146,6 +147,12 @@ struct SocialView: View {
                         .foregroundStyle(.white)
                     Spacer()
                     HStack(spacing: 14) {
+                        Button { showingTutorial = true } label: {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(size: 20))
+                                .foregroundStyle(.white.opacity(0.65))
+                        }
+                        .buttonStyle(.plain)
                         BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
                         Button { showingOwnProfile = true } label: {
                             socialProfileAvatarIcon
@@ -246,6 +253,13 @@ struct SocialView: View {
                         await notificationState.refresh(userID: userSettings.userID)
                     }
                 }
+            }
+            if showingTutorial {
+                TutorialOverlayView(steps: TutorialSteps.feed, onDismiss: {
+                    withAnimation(.easeOut(duration: 0.25)) { showingTutorial = false }
+                })
+                .transition(.opacity.animation(.easeInOut(duration: 0.25)))
+                .zIndex(100)
             }
         }
         .preferredColorScheme(.dark)

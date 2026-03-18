@@ -25,6 +25,8 @@ struct FoodLogView: View {
     let userSettings: UserSettings
     @Binding var externalImage: UIImage?
     @Environment(NotificationState.self) private var notificationState
+    @State private var showingTutorial        = false
+    @State private var tutorialAnchors:       [String: Anchor<CGRect>] = [:]
     @State private var showingAnalysisSheet  = false
     @State private var editingEntry: FoodEntry? = nil
     @State private var showingFuelLogPost    = false
@@ -64,6 +66,12 @@ struct FoodLogView: View {
                         .foregroundStyle(.white)
                     Spacer()
                     HStack(spacing: 14) {
+                        Button { showingTutorial = true } label: {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(size: 20))
+                                .foregroundStyle(.white.opacity(0.65))
+                        }
+                        .buttonStyle(.plain)
                         BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
                         Button { showingProfile = true } label: {
                             profileAvatarIcon
@@ -133,6 +141,13 @@ struct FoodLogView: View {
                 }
             }
 
+            if showingTutorial {
+                TutorialOverlayView(steps: TutorialSteps.log, onDismiss: {
+                    withAnimation(.easeOut(duration: 0.25)) { showingTutorial = false }
+                })
+                .transition(.opacity.animation(.easeInOut(duration: 0.25)))
+                .zIndex(100)
+            }
         }
         .preferredColorScheme(.dark)
         .navigationBarHidden(true)

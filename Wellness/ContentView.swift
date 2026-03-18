@@ -20,6 +20,9 @@ struct ContentView: View {
     @State private var notificationState = NotificationState()
     @State private var selectedTab = 0
 
+    @AppStorage("hasSeenAppTour") private var hasSeenAppTour = false
+    @State private var showingAppTour = false
+
     // Aura popup
     @State private var pendingAuraGain: AuraGain? = nil
     // Celebration popup
@@ -79,6 +82,10 @@ struct ContentView: View {
                 guard !userSettings.userID.isEmpty else { return }
                 InAppNotificationService.shared.startNewPostListener(userID: userSettings.userID)
                 checkLeaderboardAward()
+                if !hasSeenAppTour {
+                    try? await Task.sleep(for: .seconds(0.6))
+                    showingAppTour = true
+                }
             }
             .onChange(of: userSettings.userID) { _, newID in
                 guard !newID.isEmpty else { return }
@@ -120,6 +127,20 @@ struct ContentView: View {
                 )
                 .transition(.opacity)
                 .zIndex(20)
+            }
+
+            // Full app tour — shown once after first login
+            if showingAppTour {
+                TutorialOverlayView(
+                    steps: TutorialSteps.appTour,
+                    selectedTab: $selectedTab,
+                    onDismiss: {
+                        withAnimation(.easeOut(duration: 0.25)) { showingAppTour = false }
+                        hasSeenAppTour = true
+                    }
+                )
+                .transition(.opacity.animation(.easeInOut(duration: 0.3)))
+                .zIndex(30)
             }
 
             // Tap-to-dismiss overlay when FAB is open

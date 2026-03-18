@@ -29,6 +29,8 @@ struct HomeView: View {
     @State private var showingWindowPicker = false
     @State private var selectedMacro: MacroType? = nil
     @State private var showingShare       = false
+    @State private var showingTutorial    = false
+    @State private var tutorialAnchors:   [String: Anchor<CGRect>] = [:]
     @State private var showingProfile     = false
     @State private var showingGoalPost    = false
     @State private var goalPostMeme       = GymMeme.random()
@@ -168,19 +170,32 @@ struct HomeView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     greetingHeader
+                        .tutorialAnchor("hub.header")
                     DateNavigatorView(selectedDate: $selectedDate)
                     goalsSection
                     if viewModel.userSettings.fastingEnabled {
                         eatingWindowCard
                     }
                     macrosSection
+                        .tutorialAnchor("hub.macros")
                     brainstormSection
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 28)
             }
+            if showingTutorial {
+                TutorialOverlayView(
+                    steps: TutorialSteps.hub,
+                    anchors: tutorialAnchors,
+                    onDismiss: {
+                        withAnimation(.easeOut(duration: 0.25)) { showingTutorial = false }
+                    })
+                .transition(.opacity.animation(.easeInOut(duration: 0.25)))
+                .zIndex(100)
+            }
         }
+        .onPreferenceChange(TutorialAnchorKey.self) { tutorialAnchors = $0 }
     }
     
     private var greetingHeader: some View {
@@ -216,12 +231,19 @@ struct HomeView: View {
                     }
                     Spacer()
                     HStack(spacing: 12) {
+                        Button { showingTutorial = true } label: {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(size: 20))
+                                .foregroundStyle(.white.opacity(0.65))
+                        }
+                        .buttonStyle(.plain)
                         BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
                         Button { showingProfile = true } label: {
                             profileAvatarIcon
                         }
                         .buttonStyle(.plain)
                     }
+                    .tutorialAnchor("hub.notifications")
                 }
                 HStack(spacing: 0) {
                     headerStat(icon: "flame.fill", iconColor: .orange,
