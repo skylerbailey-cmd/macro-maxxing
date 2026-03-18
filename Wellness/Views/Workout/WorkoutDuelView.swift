@@ -14,11 +14,13 @@ struct WorkoutDuelView: View {
     let isToday:             Bool
     let bodyWeightLbs:       Double
     let autoAdjustByDefault: Bool
+    let userSettings:        UserSettings
 
-    @State private var entries:         [WorkoutEntry] = []
-    @State private var isLoading        = false
+    @State private var entries:          [WorkoutEntry] = []
+    @State private var isLoading         = false
     @State private var showingRestDayConfirm = false
-    @State private var isSavingRestDay  = false
+    @State private var isSavingRestDay   = false
+    @State private var editingEntry:     WorkoutEntry?  = nil
 
     private let accent  = Color(red: 0.30, green: 0.90, blue: 0.55)
     private let cardBg  = Color(red: 0.13, green: 0.10, blue: 0.22)
@@ -44,12 +46,14 @@ struct WorkoutDuelView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     ForEach(entries) { entry in
-                        WorkoutRow(entry: entry, accent: accent, cardBg: cardBg) {
+                        WorkoutRow(entry: entry, accent: accent, cardBg: cardBg,
+                                   onEdit: { editingEntry = entry },
+                                   onDelete: {
                             Task {
                                 await WorkoutService.shared.delete(workoutID: entry.workoutID, userID: userID)
                                 entries.removeAll { $0.workoutID == entry.workoutID }
                             }
-                        }
+                        })
                     }
                 }
             }
@@ -60,6 +64,17 @@ struct WorkoutDuelView: View {
         .task(id: selectedDate) { await load() }
         .onReceive(NotificationCenter.default.publisher(for: WorkoutService.workoutSavedNotification)) { _ in
             Task { await load() }
+        }
+        .sheet(item: $editingEntry) { entry in
+            LogWorkoutSheet(
+                userID:              userID,
+                selectedDate:        selectedDate,
+                bodyWeightLbs:       bodyWeightLbs,
+                autoAdjustByDefault: autoAdjustByDefault,
+                userSettings:        userSettings,
+                editingEntry:        entry,
+                onSaved:             { Task { await load() } }
+            )
         }
     }
 
@@ -169,9 +184,10 @@ struct WorkoutDuelView: View {
 // MARK: - WorkoutRow
 
 private struct WorkoutRow: View {
-    let entry:   WorkoutEntry
-    let accent:  Color
-    let cardBg:  Color
+    let entry:    WorkoutEntry
+    let accent:   Color
+    let cardBg:   Color
+    let onEdit:   () -> Void
     let onDelete: () -> Void
 
     var body: some View {
@@ -206,6 +222,9 @@ private struct WorkoutRow: View {
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.06), lineWidth: 1))
         .contentShape(Rectangle())
         .contextMenu {
+            Button(action: onEdit) {
+                Label("Edit", systemImage: "pencil")
+            }
             Button(role: .destructive, action: onDelete) {
                 Label("Delete", systemImage: "trash")
             }

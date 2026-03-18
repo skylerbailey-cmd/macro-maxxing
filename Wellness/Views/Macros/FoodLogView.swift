@@ -466,7 +466,8 @@ struct FoodLogView: View {
             selectedDate:        selectedDate,
             isToday:             isToday,
             bodyWeightLbs:       userSettings.currentWeight,
-            autoAdjustByDefault: userSettings.autoAdjustMacrosForWorkout
+            autoAdjustByDefault: userSettings.autoAdjustMacrosForWorkout,
+            userSettings:        userSettings
         )
     }
 }

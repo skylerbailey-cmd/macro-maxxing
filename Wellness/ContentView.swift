@@ -37,6 +37,7 @@ struct ContentView: View {
     @State private var workoutTotalPausedSeconds: Double  = 0
     @State private var workoutTimerElapsedMinutes: Int    = 0
     @State private var fabShowingLogWorkoutFromTimer = false
+    @State private var showingCancelWorkoutConfirm   = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -134,11 +135,7 @@ struct ContentView: View {
                             fabShowingLogWorkoutFromTimer = true
                         },
                         onCancel: {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                workoutStartTime          = nil
-                                workoutPausedAt           = nil
-                                workoutTotalPausedSeconds = 0
-                            }
+                            showingCancelWorkoutConfirm = true
                         }
                     )
                     Spacer()
@@ -239,6 +236,19 @@ struct ContentView: View {
         }
         .onChange(of: fabSelectedImage) { _, image in
             if image != nil { selectedTab = 1 }
+        }
+        .confirmationDialog("Cancel Workout?", isPresented: $showingCancelWorkoutConfirm,
+                            titleVisibility: .visible) {
+            Button("Cancel Workout", role: .destructive) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    workoutStartTime          = nil
+                    workoutPausedAt           = nil
+                    workoutTotalPausedSeconds = 0
+                }
+            }
+            Button("Keep Going", role: .cancel) {}
+        } message: {
+            Text("Your workout progress will be lost.")
         }
     }
 

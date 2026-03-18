@@ -12,6 +12,7 @@ struct LogWorkoutSheet: View {
     let bodyWeightLbs:       Double
     let autoAdjustByDefault: Bool
     let userSettings:        UserSettings
+    let editingEntry:        WorkoutEntry?   // non-nil = edit mode
     let onSaved:             () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -60,15 +61,24 @@ struct LogWorkoutSheet: View {
     // MARK: - Init
 
     init(userID: String, selectedDate: Date, bodyWeightLbs: Double, autoAdjustByDefault: Bool,
-         userSettings: UserSettings, initialDurationMinutes: Int = 0, onSaved: @escaping () -> Void) {
+         userSettings: UserSettings, initialDurationMinutes: Int = 0,
+         editingEntry: WorkoutEntry? = nil, onSaved: @escaping () -> Void) {
         self.userID              = userID
         self.selectedDate        = selectedDate
         self.bodyWeightLbs       = bodyWeightLbs
         self.autoAdjustByDefault = autoAdjustByDefault
         self.userSettings        = userSettings
+        self.editingEntry        = editingEntry
         self.onSaved             = onSaved
         _applyAdjustment         = State(initialValue: autoAdjustByDefault)
-        _durationText            = State(initialValue: initialDurationMinutes > 0 ? "\(initialDurationMinutes)" : "")
+        if let e = editingEntry {
+            _workoutName  = State(initialValue: e.name)
+            _workoutType  = State(initialValue: e.workoutType)
+            _durationText = State(initialValue: "\(e.durationMinutes)")
+            _caloriesText = State(initialValue: "\(e.caloriesBurned)")
+        } else {
+            _durationText = State(initialValue: initialDurationMinutes > 0 ? "\(initialDurationMinutes)" : "")
+        }
     }
 
     // MARK: - Body
@@ -103,14 +113,14 @@ struct LogWorkoutSheet: View {
                         macroAdjustmentCard
 
                         // Toggles
-                        saveToggle
+                        if editingEntry == nil { saveToggle }
                         adjustToggle
 
                         // Save button
                         saveButton
 
-                        // Rest day button
-                        restDayButton
+                        // Rest day button (new workouts only)
+                        if editingEntry == nil { restDayButton }
 
                         if let err = saveError {
                             Text(err)
@@ -125,7 +135,7 @@ struct LogWorkoutSheet: View {
                     .padding(.top, 8)
                 }
             }
-            .navigationTitle("Log a Workout")
+            .navigationTitle(editingEntry != nil ? "Edit Workout" : "Log a Workout")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -505,7 +515,7 @@ struct LogWorkoutSheet: View {
             HStack(spacing: 8) {
                 if isSaving { ProgressView().tint(.black) }
                 else { Image(systemName: "checkmark") }
-                Text(isSaving ? "Saving…" : "Log Workout")
+                Text(isSaving ? "Saving…" : editingEntry != nil ? "Save Changes" : "Log Workout")
             }
             .font(.system(size: 16, weight: .bold))
             .foregroundStyle(.black)
@@ -562,9 +572,15 @@ struct LogWorkoutSheet: View {
         isSaving  = true
         saveError = nil
 
-        let entry = WorkoutEntry(name: name, workoutType: workoutType,
-                                 durationMinutes: duration, caloriesBurned: calories,
-                                 loggedAt: selectedDate)
+        // Preserve the original workoutID when editing so Firestore overwrites the same document
+        let entry = WorkoutEntry(
+            workoutID:       editingEntry?.workoutID ?? UUID().uuidString,
+            name:            name,
+            workoutType:     workoutType,
+            durationMinutes: duration,
+            caloriesBurned:  calories,
+            loggedAt:        editingEntry?.loggedAt ?? selectedDate
+        )
         do {
             try await WorkoutService.shared.save(entry: entry, userID: userID)
 
@@ -579,12 +595,18 @@ struct LogWorkoutSheet: View {
                 MacroAdjustmentEngine.apply(for: workoutType, bodyWeightLbs: bodyWeightLbs)
             }
 
-            savedWorkoutName = name
-            savedWorkoutType = workoutType
-            savedDuration    = duration
-            savedCalories    = calories
-            isSaving         = false
-            showingPostPrompt = true
+            savedWorkoutName  = name
+            savedWorkoutType  = workoutType
+            savedDuration     = duration
+            savedCalories     = calories
+            isSaving          = false
+            // Skip the post prompt when editing an existing workout
+            if editingEntry != nil {
+                onSaved()
+                dismiss()
+            } else {
+                showingPostPrompt = true
+            }
         } catch {
             isSaving  = false
             saveError = "Failed to save. Please try again."
