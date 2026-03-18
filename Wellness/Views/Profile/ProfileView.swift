@@ -784,27 +784,37 @@ struct ProfileView: View {
     }
 
     private func loadFollowState() async {
+        // Compute counts from actual follow collections rather than cached Firestore counters,
+        // which can drift over time.
+        async let followersOfProfile  = FollowService.shared.fetchFollowers(userID: profileUserID)
+        async let followingByProfile  = FollowService.shared.fetchFollowing(userID: profileUserID)
+
+        let followers  = (try? await followersOfProfile)  ?? []
+        let following  = (try? await followingByProfile)  ?? []
+        let followerIDs  = Set(followers.map { $0.userID })
+        let followingIDs = Set(following.map { $0.userID })
+
+        followerCount  = followerIDs.count
+        followingCount = followingIDs.count
+        friendCount    = followingIDs.intersection(followerIDs).count
+
         if isOwnProfile {
+            // Still fetch profile for photo URL updates
             if let uid = ownUserSettings?.userID, !uid.isEmpty,
                let profile = try? await UserProfileService.shared.fetchProfile(userID: uid) {
-                followerCount  = profile.followerCount
-                followingCount = profile.followingCount
-                friendCount    = profile.friendCount
+                targetProfilePhotoURL = profile.profilePhotoURL
             }
             return
         }
         let viewer = currentUserSettings ?? ownUserSettings
         guard let viewerID = viewer?.userID, !viewerID.isEmpty else { return }
 
-        async let followingCheck  = FollowService.shared.isFollowing(currentUserID: viewerID, targetUserID: profileUserID)
-        async let targetProfile   = UserProfileService.shared.fetchProfile(userID: profileUserID)
-        async let viewerProfile   = UserProfileService.shared.fetchProfile(userID: viewerID)
+        async let followingCheck = FollowService.shared.isFollowing(currentUserID: viewerID, targetUserID: profileUserID)
+        async let targetProfile  = UserProfileService.shared.fetchProfile(userID: profileUserID)
+        async let viewerProfile  = UserProfileService.shared.fetchProfile(userID: viewerID)
 
-        if let following = try? await followingCheck { isFollowing = following }
+        if let viewerIsFollowing = try? await followingCheck { isFollowing = viewerIsFollowing }
         if let profile = try? await targetProfile {
-            followerCount         = profile.followerCount
-            followingCount        = profile.followingCount
-            friendCount           = profile.friendCount
             targetProfilePhotoURL = profile.profilePhotoURL
         }
         if let vp = try? await viewerProfile { viewerProfilePhotoURL = vp.profilePhotoURL }

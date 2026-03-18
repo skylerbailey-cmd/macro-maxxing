@@ -6,6 +6,14 @@
 import Foundation
 import SwiftData
 
+// Lightweight snapshot of a single leaderboard row — stored as JSON inside SocialPost.mogBoardSnapshot
+struct MogBoardSnapshotEntry: Codable, Identifiable {
+    let id:          String   // userID
+    let displayName: String
+    let username:    String
+    let score:       Int
+}
+
 @Model final class SocialPost {
     var id:                UUID   = UUID()
     var authorID:          String = ""
@@ -37,6 +45,7 @@ import SwiftData
     var postLabel:            String = ""  // PostLabel.rawValue, empty = no label
     var mogBoardScope:        String = ""  // "Team" | "Local" | "Arena"
     var mogBoardType:         String = ""  // "Weekly Aura" | "Engagement" | "Streak"
+    var mogBoardSnapshot:     String = ""  // JSON-encoded [MogBoardSnapshotEntry] top-10 at time of posting
 
     // Author aura + profile picture + location + streak + privacy at time of posting
     var authorAuraLevel:   Int    = 0

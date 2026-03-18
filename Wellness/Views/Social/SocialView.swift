@@ -710,6 +710,77 @@ struct PostCard: View {
                 .foregroundStyle(.white.opacity(0.65))
                 .lineLimit(3)
         }
+        if post.postLabel == PostLabel.mogBoard.rawValue && !mogBoardSnapshotEntries.isEmpty {
+            mogBoardSnapshotCard
+        }
+    }
+
+    private var mogBoardSnapshotEntries: [MogBoardSnapshotEntry] {
+        guard !post.mogBoardSnapshot.isEmpty,
+              let data = post.mogBoardSnapshot.data(using: .utf8),
+              let entries = try? JSONDecoder().decode([MogBoardSnapshotEntry].self, from: data)
+        else { return [] }
+        return entries
+    }
+
+    @ViewBuilder
+    private var mogBoardSnapshotCard: some View {
+        let snapshotGold = Color(red: 1.0, green: 0.80, blue: 0.20)
+        let entries = mogBoardSnapshotEntries
+        let scoreLabel: String = {
+            switch post.mogBoardType {
+            case "Streak":     return "days"
+            case "Engagement": return "score"
+            default:           return "pts"
+            }
+        }()
+
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "list.number")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(snapshotGold)
+                Text(post.mogBoardType.isEmpty ? "Board" : post.mogBoardType)
+                    .font(.system(size: 11, weight: .black, design: .rounded))
+                    .foregroundStyle(snapshotGold)
+                Spacer()
+                Text(scoreLabel.uppercased())
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.30))
+            }
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
+            .padding(.bottom, 6)
+
+            Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
+
+            VStack(spacing: 0) {
+                ForEach(Array(entries.prefix(5).enumerated()), id: \.element.id) { rank, entry in
+                    HStack(spacing: 8) {
+                        Text("#\(rank + 1)")
+                            .font(.system(size: 11, weight: .black, design: .monospaced))
+                            .foregroundStyle(rank == 0 ? snapshotGold : .white.opacity(0.30))
+                            .frame(width: 26, alignment: .trailing)
+                        Text(entry.displayName.isEmpty ? "@\(entry.username)" : entry.displayName)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.85))
+                            .lineLimit(1)
+                        Spacer()
+                        Text("\(entry.score)")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(rank == 0 ? snapshotGold : .white.opacity(0.55))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(rank == 0 ? snapshotGold.opacity(0.07) : Color.clear)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+        .background(Color(red: 0.10, green: 0.07, blue: 0.18))
+        .cornerRadius(10)
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(snapshotGold.opacity(0.20), lineWidth: 1))
+        .padding(.top, 4)
     }
 
     // Achievement post: optional photo + meme + macro summary

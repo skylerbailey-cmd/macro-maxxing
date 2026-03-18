@@ -88,6 +88,7 @@ struct NewPostView: View {
     @Environment(\.dismiss)      private var dismiss
 
     @Query(sort: \FoodEntry.loggedAt) private var allFoodEntries: [FoodEntry]
+    @Query(sort: \SocialPost.postedAt, order: .reverse) private var allSocialPosts: [SocialPost]
 
     @State private var titleText     = ""
     @State private var bodyText      = ""
@@ -519,6 +520,61 @@ struct NewPostView: View {
 
     // MARK: - Helpers
 
+    /// Builds a top-10 leaderboard snapshot for the selected mogBoard scope/type.
+    /// Uses Arena-equivalent filtering (all public users) since followingIDs aren't
+    /// available synchronously at post time.
+    private func computeMogBoardSnapshot() -> [MogBoardSnapshotEntry] {
+        let weekStart = UserSettings.lastSundayAwardCutoff() ?? Date.distantPast
+        let selfName  = userSettings.name.isEmpty ? userSettings.username : userSettings.name
+        var data: [String: (name: String, username: String, score: Int)] = [:]
+
+        switch mogBoardType {
+        case "Streak":
+            data[userSettings.userID] = (selfName, userSettings.username, userSettings.macroStreak)
+            for post in allSocialPosts where post.authorID != userSettings.userID && !post.isAuthorPrivate {
+                let name = post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName
+                if let existing = data[post.authorID] {
+                    if post.authorStreak > existing.score {
+                        data[post.authorID] = (name, post.authorUsername, post.authorStreak)
+                    }
+                } else {
+                    data[post.authorID] = (name, post.authorUsername, post.authorStreak)
+                }
+            }
+        case "Engagement":
+            data[userSettings.userID] = (selfName, userSettings.username, 0)
+            for post in allSocialPosts where post.postedAt >= weekStart && !post.isAuthorPrivate {
+                let name  = post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName
+                let score = post.repsCount + post.comments.count
+                if var existing = data[post.authorID] {
+                    existing.score += score
+                    data[post.authorID] = existing
+                } else {
+                    data[post.authorID] = (name, post.authorUsername, score)
+                }
+            }
+        default: // Weekly Aura
+            data[userSettings.userID] = (selfName, userSettings.username, userSettings.weeklyAuraPoints)
+            for post in allSocialPosts where post.postedAt >= weekStart
+                    && post.authorID != userSettings.userID && !post.isAuthorPrivate {
+                let pts  = post.goalCalories > 0 ? 50 : 10
+                let name = post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName
+                if var existing = data[post.authorID] {
+                    existing.score += pts
+                    data[post.authorID] = existing
+                } else {
+                    data[post.authorID] = (name, post.authorUsername, pts)
+                }
+            }
+        }
+
+        return Array(
+            data.map { id, d in MogBoardSnapshotEntry(id: id, displayName: d.name, username: d.username, score: d.score) }
+                .sorted { $0.score != $1.score ? $0.score > $1.score : $0.displayName < $1.displayName }
+                .prefix(10)
+        )
+    }
+
     private func labelColor(_ label: PostLabel) -> Color {
         switch label {
         case .transformation: return Color(red: 0.35, green: 0.75, blue: 1.00)
@@ -563,6 +619,11 @@ struct NewPostView: View {
         if selectedLabel == .mogBoard {
             post.mogBoardScope = mogBoardScope
             post.mogBoardType  = mogBoardType
+            let snapshotEntries = computeMogBoardSnapshot()
+            if let snapshotData = try? JSONEncoder().encode(snapshotEntries),
+               let snapshotJSON = String(data: snapshotData, encoding: .utf8) {
+                post.mogBoardSnapshot = snapshotJSON
+            }
         }
         let datas = photos.map { $0.image.jpegData(compressionQuality: 0.8) }
         post.imageData  = datas.count > 0 ? datas[0] : nil

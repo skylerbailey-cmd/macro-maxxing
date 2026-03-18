@@ -269,6 +269,7 @@ struct LeaderboardView: View {
         post.isCustomPost           = true
         post.authorAuraLevel        = userSettings.auraLevel
         post.authorAuraPoints       = userSettings.auraPoints
+        post.authorAuraTitle        = userSettings.auraTitle
         post.authorLocation         = userSettings.location
         post.authorLatitude         = locationManager.coordinate?.latitude  ?? 0
         post.authorLongitude        = locationManager.coordinate?.longitude ?? 0
@@ -276,7 +277,18 @@ struct LeaderboardView: View {
         post.isAuthorPrivate        = userSettings.isPrivateAccount
         post.authorProfileImageData = userSettings.profileImageData
         post.imageData              = image.jpegData(compressionQuality: 0.85)
+        post.postLabel              = PostLabel.mogBoard.rawValue
+        post.mogBoardScope          = selectedScope.rawValue
+        post.mogBoardType           = board.title
         post.firebasePostID         = fbPostID
+        // Embed a compact leaderboard snapshot so the feed card can show the live top-10
+        let snapshotEntries = board.entries.prefix(10).map { e in
+            MogBoardSnapshotEntry(id: e.id, displayName: e.displayName, username: e.username, score: e.score)
+        }
+        if let snapshotData = try? JSONEncoder().encode(Array(snapshotEntries)),
+           let snapshotJSON = String(data: snapshotData, encoding: .utf8) {
+            post.mogBoardSnapshot = snapshotJSON
+        }
         modelContext.insert(post)
 
         // Mirror to Firebase
