@@ -97,6 +97,10 @@ struct NewPostView: View {
     @State private var mogBoardType:       String     = "Weekly Aura"
     @FocusState private var focus: Field?
 
+    // Workout pre-fill
+    @State private var todayWorkouts:    [WorkoutEntry] = []
+    @State private var isLoadingWorkouts = false
+
     private let mogBoardScopes = ["Team", "Local", "Arena"]
     private let mogBoardTypes  = ["Weekly Aura", "Engagement", "Streak"]
 
@@ -130,6 +134,11 @@ struct NewPostView: View {
                         // Fuel log preview (only when Fuel Log label is selected)
                         if selectedLabel == .fuelLog {
                             fuelLogPreview
+                        }
+
+                        // Workout preview (only when Workout label is selected)
+                        if selectedLabel == .workout {
+                            workoutPreview
                         }
 
                         // Mog Board sub-options
@@ -192,6 +201,11 @@ struct NewPostView: View {
             .preferredColorScheme(.dark)
             .navigationTitle("New Post")
             .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: selectedLabel) { _, label in
+                if label == .workout {
+                    Task { await loadTodayWorkouts() }
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -324,6 +338,113 @@ struct NewPostView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color(red: 1.00, green: 0.55, blue: 0.15).opacity(0.30), lineWidth: 1)
         )
+    }
+
+    // MARK: - Workout preview
+
+    private let workoutGreen = Color(red: 0.30, green: 0.90, blue: 0.55)
+
+    @ViewBuilder
+    private var workoutPreview: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "figure.strengthtraining.traditional")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(workoutGreen)
+                Text("Today's workout will be attached")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                Spacer()
+                if isLoadingWorkouts {
+                    ProgressView().tint(workoutGreen).scaleEffect(0.8)
+                } else {
+                    Text("\(todayWorkouts.count) workout\(todayWorkouts.count == 1 ? "" : "s")")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.40))
+                }
+            }
+
+            if !isLoadingWorkouts {
+                if todayWorkouts.isEmpty {
+                    Text("No workouts logged today yet. Log a workout first.")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.40))
+                        .padding(.top, 2)
+                } else {
+                    ForEach(todayWorkouts) { entry in
+                        HStack(spacing: 10) {
+                            ZStack {
+                                Circle()
+                                    .fill(workoutGreen.opacity(0.12))
+                                    .frame(width: 32, height: 32)
+                                Image(systemName: entry.workoutType.icon)
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(workoutGreen)
+                            }
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(entry.name)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.white.opacity(0.85))
+                                Text("\(entry.formattedDuration) · \(entry.workoutType.shortLabel)")
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.42))
+                            }
+                            Spacer()
+                            Text("\(entry.caloriesBurned) cal")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(workoutGreen)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .background(cardBg)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(workoutGreen.opacity(0.30), lineWidth: 1)
+        )
+    }
+
+    // MARK: - Load workouts
+
+    private func loadTodayWorkouts() async {
+        isLoadingWorkouts = true
+        todayWorkouts     = (try? await WorkoutService.shared.fetch(
+            userID: userSettings.userID, date: Date())) ?? []
+        isLoadingWorkouts = false
+
+        guard !todayWorkouts.isEmpty else { return }
+
+        // Pre-fill title and body only if they're still empty
+        let realWorkouts = todayWorkouts.filter { $0.workoutType != .restDay }
+        guard !realWorkouts.isEmpty else {
+            if titleText.isEmpty { titleText = "Rest Day 🌙" }
+            if bodyText.isEmpty  { bodyText  = "Taking it easy today. Recovery is part of the grind." }
+            return
+        }
+
+        if titleText.isEmpty {
+            titleText = realWorkouts.count == 1
+                ? "\(realWorkouts[0].name) 💪"
+                : "Today's Workouts 💪"
+        }
+
+        if bodyText.isEmpty {
+            if realWorkouts.count == 1 {
+                let w = realWorkouts[0]
+                bodyText = "\(w.formattedDuration) · \(w.caloriesBurned) cal burned · \(w.workoutType.rawValue)"
+            } else {
+                let lines = realWorkouts
+                    .map { "• \($0.name): \($0.formattedDuration), \($0.caloriesBurned) cal" }
+                    .joined(separator: "\n")
+                let totalCal = realWorkouts.reduce(0) { $0 + $1.caloriesBurned }
+                let totalMin = realWorkouts.reduce(0) { $0 + $1.durationMinutes }
+                let totalTime = totalMin >= 60 ? "\(totalMin / 60)h \(totalMin % 60)m" : "\(totalMin)m"
+                bodyText = "\(lines)\n\nTotal: \(totalTime) · \(totalCal) cal burned"
+            }
+        }
     }
 
     // MARK: - Mog Board options
