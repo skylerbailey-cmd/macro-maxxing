@@ -29,6 +29,13 @@ struct ContentView: View {
     @State private var fabShowingLogWorkout  = false
     @State private var fabSelectedImage: UIImage? = nil
 
+    // Active workout timer
+    @State private var workoutStartTime:          Date?   = nil
+    @State private var workoutPausedAt:           Date?   = nil
+    @State private var workoutTotalPausedSeconds: Double  = 0
+    @State private var workoutTimerElapsedMinutes: Int    = 0
+    @State private var fabShowingLogWorkoutFromTimer = false
+
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             // Email verification nudge — full-width gold bar at the top until dismissed
@@ -80,6 +87,37 @@ struct ContentView: View {
                 Task { await notificationState.refresh(userID: newID) }
             }
 
+            // Workout timer banner
+            if let startTime = workoutStartTime {
+                VStack(spacing: 0) {
+                    WorkoutTimerBanner(
+                        startTime:          startTime,
+                        pausedAt:           workoutPausedAt,
+                        totalPausedSeconds: workoutTotalPausedSeconds,
+                        onPause: {
+                            workoutPausedAt = Date()
+                        },
+                        onResume: {
+                            if let p = workoutPausedAt {
+                                workoutTotalPausedSeconds += Date().timeIntervalSince(p)
+                            }
+                            workoutPausedAt = nil
+                        },
+                        onLog: {
+                            if let start = workoutStartTime {
+                                let end        = workoutPausedAt ?? Date()
+                                let rawSeconds = end.timeIntervalSince(start) - workoutTotalPausedSeconds
+                                workoutTimerElapsedMinutes = max(0, Int(rawSeconds / 60))
+                            }
+                            fabShowingLogWorkoutFromTimer = true
+                        }
+                    )
+                    Spacer()
+                }
+                .zIndex(9)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+
             // Tap-to-dismiss overlay when FAB is open
             if fabExpanded {
                 Color.black.opacity(0.001)
@@ -106,6 +144,14 @@ struct ContentView: View {
                     selectedTab = 1
                     fabShowingLogWorkout = true
                 },
+                onStartWorkout: {
+                    fabExpanded = false
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        workoutStartTime          = Date()
+                        workoutPausedAt           = nil
+                        workoutTotalPausedSeconds = 0
+                    }
+                },
                 onMakePost: {
                     fabExpanded = false
                     fabShowingNewPost = true
@@ -126,6 +172,24 @@ struct ContentView: View {
                 autoAdjustByDefault: userSettings.autoAdjustMacrosForWorkout,
                 userSettings:        userSettings,
                 onSaved:             {}
+            )
+            .environment(locationManager)
+        }
+        .sheet(isPresented: $fabShowingLogWorkoutFromTimer) {
+            LogWorkoutSheet(
+                userID:                 userSettings.userID,
+                selectedDate:           selectedDate,
+                bodyWeightLbs:          userSettings.currentWeight,
+                autoAdjustByDefault:    userSettings.autoAdjustMacrosForWorkout,
+                userSettings:           userSettings,
+                initialDurationMinutes: workoutTimerElapsedMinutes,
+                onSaved: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        workoutStartTime          = nil
+                        workoutPausedAt           = nil
+                        workoutTotalPausedSeconds = 0
+                    }
+                }
             )
             .environment(locationManager)
         }
@@ -211,14 +275,17 @@ private struct QuickActionFAB: View {
     let onLogMealCamera:  () -> Void
     let onLogMealLibrary: () -> Void
     let onLogWorkout:     () -> Void
+    let onStartWorkout:   () -> Void
     let onMakePost:       () -> Void
     let onFindPeople:     () -> Void
 
-    @State private var logMealExpanded = false
+    @State private var logMealExpanded    = false
+    @State private var logWorkoutExpanded = false
 
-    private let gold  = Color(red: 1.00, green: 0.80, blue: 0.20)
-    private let purpl = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let teal  = Color(red: 0.20, green: 0.80, blue: 0.70)
+    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let teal   = Color(red: 0.20, green: 0.80, blue: 0.70)
+    private let green  = Color(red: 0.30, green: 0.90, blue: 0.55)
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 10) {
@@ -241,11 +308,29 @@ private struct QuickActionFAB: View {
                 ) {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         logMealExpanded.toggle()
+                        if logMealExpanded { logWorkoutExpanded = false }
                     }
                 }
 
-                actionPill(icon: "figure.strengthtraining.traditional", label: "Log a Workout",
-                           color: Color(red: 0.30, green: 0.90, blue: 0.55), action: onLogWorkout)
+                // Sub-actions under Log a Workout
+                if logWorkoutExpanded {
+                    actionPill(icon: "play.fill", label: "Start a Workout",
+                               color: green, action: onStartWorkout)
+
+                    actionPill(icon: "plus.clipboard", label: "Log a Workout",
+                               color: green, action: onLogWorkout)
+                }
+
+                actionPill(
+                    icon: logWorkoutExpanded ? "chevron.down" : "figure.strengthtraining.traditional",
+                    label: "Log a Workout",
+                    color: green
+                ) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        logWorkoutExpanded.toggle()
+                        if logWorkoutExpanded { logMealExpanded = false }
+                    }
+                }
 
                 actionPill(icon: "square.and.pencil", label: "Make a Post", color: gold,
                            action: onMakePost)
@@ -257,7 +342,10 @@ private struct QuickActionFAB: View {
             // Main FAB button
             Button {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    if expanded { logMealExpanded = false }
+                    if expanded {
+                        logMealExpanded    = false
+                        logWorkoutExpanded = false
+                    }
                     expanded.toggle()
                 }
             } label: {

@@ -60,7 +60,7 @@ struct LogWorkoutSheet: View {
     // MARK: - Init
 
     init(userID: String, selectedDate: Date, bodyWeightLbs: Double, autoAdjustByDefault: Bool,
-         userSettings: UserSettings, onSaved: @escaping () -> Void) {
+         userSettings: UserSettings, initialDurationMinutes: Int = 0, onSaved: @escaping () -> Void) {
         self.userID              = userID
         self.selectedDate        = selectedDate
         self.bodyWeightLbs       = bodyWeightLbs
@@ -68,6 +68,7 @@ struct LogWorkoutSheet: View {
         self.userSettings        = userSettings
         self.onSaved             = onSaved
         _applyAdjustment         = State(initialValue: autoAdjustByDefault)
+        _durationText            = State(initialValue: initialDurationMinutes > 0 ? "\(initialDurationMinutes)" : "")
     }
 
     // MARK: - Body
