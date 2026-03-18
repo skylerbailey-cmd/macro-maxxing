@@ -339,8 +339,11 @@ struct AuraGain: Identifiable, Equatable {
         macroStreak       = profile.streakDays
     }
 
-    /// Called by SessionManager on sign-out. Clears all identity fields.
+    /// Called by SessionManager on sign-out.
+    /// Clears all identity fields AND all device-local UserDefaults state so a
+    /// new user on the same device starts completely fresh.
     func clearProfile() {
+        // Identity
         userID            = ""
         username          = ""
         name              = ""
@@ -357,7 +360,37 @@ struct AuraGain: Identifiable, Equatable {
         auraPopupsEnabled = true
         auraPoints        = 0
         profileImageData  = nil
-        macroStreak       = 0
+
+        // Streak & goals-met history
+        macroStreak          = 0
+        goalsMetDatesRaw     = ""
+        achievedMilestonesRaw = ""
+        lastCelebrationDate  = .distantPast
+
+        // Aura / leaderboard
+        weeklyAuraPoints      = 0
+        weeklyAuraWeekStart   = .distantPast
+        lastLeaderboardAwardDate = .distantPast
+
+        // Brainstorm
+        lastBrainstormResult = ""
+        lastBrainstormDate   = .distantPast
+        brainstormUsageCount = 0
+        brainstormUsageDate  = .distantPast
+
+        // Misc device-local keys not owned by UserSettings properties
+        let ud = UserDefaults.standard
+        for key in [
+            "goalCalories", "goalProtein", "goalCarbs", "goalFat",
+            "windowStartHour", "windowStartMinute", "windowDurationHours",
+            "dailyWindowSnapshots",
+            "autoAdjustMacrosForWorkout",
+            "base_goalCalories", "base_goalProtein", "base_goalCarbs", "base_goalFat",
+            "workoutAdjustmentDate",
+            "savedWorkoutTemplates",
+            "wt_startTime", "wt_pausedAt", "wt_pausedSeconds",
+            "cachedUserID"
+        ] { ud.removeObject(forKey: key) }
     }
 
     // MARK: - Init
