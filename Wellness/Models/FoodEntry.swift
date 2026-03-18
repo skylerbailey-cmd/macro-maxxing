@@ -17,6 +17,13 @@ import SwiftData
     var fat: Double       // grams
     @Attribute(.externalStorage) var imageData: Data?
 
+    /// Firestore document ID under users/{userID}/foodEntries — empty until synced.
+    var firebaseEntryID: String = ""
+    /// Firebase Storage download URL for the food photo — empty if no photo or not yet uploaded.
+    var photoURL: String = ""
+    /// True when the user opted to save this entry as a reusable saved meal.
+    var isSavedMeal: Bool = false
+
     init(
         id: UUID = UUID(),
         loggedAt: Date = Date(),

@@ -23,6 +23,9 @@ struct HomeView: View {
     @State private var viewModel: HomeViewModel
     @Binding var selectedDate: Date
     @Environment(NotificationState.self) private var notificationState
+    @Environment(\.scenePhase) private var scenePhase
+    /// Calendar date when data was last loaded — used to detect midnight crossings.
+    @State private var lastLoadedDay: Date = Calendar.current.startOfDay(for: Date())
     @State private var showingWindowPicker = false
     @State private var selectedMacro: MacroType? = nil
     @State private var showingShare       = false
@@ -41,7 +44,6 @@ struct HomeView: View {
 
     init(modelContext: ModelContext, selectedDate: Binding<Date>, userSettings: UserSettings) {
         _viewModel    = State(wrappedValue: HomeViewModel(
-            modelContext: modelContext,
             selectedDate: selectedDate.wrappedValue,
             userSettings: userSettings
         ))
@@ -132,6 +134,16 @@ struct HomeView: View {
             }
             .onAppear { handleAppear() }
             .onChange(of: selectedDate) { _, newDate in handleDateChange(newDate) }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                let today = Calendar.current.startOfDay(for: Date())
+                if !Calendar.current.isDate(today, inSameDayAs: lastLoadedDay) {
+                    // App came to foreground on a new calendar day — reset to today and reload
+                    selectedDate  = today
+                    lastLoadedDay = today
+                    Task { viewModel.loadTodayTotals() }
+                }
+            }
         
         let contentWithGoalChanges = contentWithModifiers
             .onChange(of: viewModel.userSettings.goalWeight) { _, newVal in handleGoalWeightChange(newVal) }
@@ -270,41 +282,59 @@ struct HomeView: View {
     }
 
     private var auraXPBar: some View {
-        let pts       = viewModel.userSettings.auraPoints
-        let level     = min(pts / 1000, 100)
-        let inLevel   = level >= 100 ? 1000 : pts % 1000
-        let progress  = Double(inLevel) / 1000.0
-        let pctText   = level >= 100 ? "MAX" : "\(Int(progress * 100))%"
-        let nextLabel = level >= 100 ? "Max level" : "to Lv \(level + 1)"
+        let pts        = viewModel.userSettings.auraPoints
+        let level      = UserSettings.auraLevel(for: pts)
+        let levelStart = UserSettings.auraThreshold(level)
+        let levelEnd   = UserSettings.auraThreshold(level + 1)
+        let inLevel    = pts - levelStart
+        let forLevel   = max(1, levelEnd - levelStart)
+        let progress   = level >= 100 ? 1.0 : Double(inLevel) / Double(forLevel)
+        let pctText    = level >= 100 ? "MAX" : "\(Int(progress * 100))%"
+        let nextLabel  = level >= 100 ? "Max level" : "to Lv \(level + 1)"
         let barColor  = LinearGradient(
             colors: [Color(red: 0.65, green: 0.45, blue: 1.00),
                      Color(red: 1.00, green: 0.80, blue: 0.20)],
             startPoint: .leading, endPoint: .trailing
         )
 
-        return HStack(spacing: 8) {
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(Color.white.opacity(0.08))
-                        .frame(height: 5)
-                    Capsule()
-                        .fill(barColor)
-                        .frame(width: max(5, geo.size.width * progress), height: 5)
-                        .animation(.easeOut(duration: 0.6), value: progress)
+        let ptsToNext = level >= 100 ? 0 : forLevel - inLevel
+
+        return VStack(spacing: 4) {
+            HStack(spacing: 8) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.white.opacity(0.08))
+                            .frame(height: 5)
+                        Capsule()
+                            .fill(barColor)
+                            .frame(width: max(5, geo.size.width * progress), height: 5)
+                            .animation(.easeOut(duration: 0.6), value: progress)
+                    }
+                }
+                .frame(height: 5)
+
+                Text(pctText)
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
+                    .frame(width: 34, alignment: .trailing)
+
+                Text(nextLabel)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.white.opacity(0.32))
+                    .lineLimit(1)
+            }
+            HStack {
+                Text("\(pts) pts")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.45))
+                Spacer()
+                if level < 100 {
+                    Text("\(ptsToNext) pts to Lv \(level + 1)")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.45))
                 }
             }
-            .frame(height: 5)
-
-            Text(pctText)
-                .font(.system(size: 10, weight: .black, design: .rounded))
-                .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
-                .frame(width: 34, alignment: .trailing)
-
-            Text(nextLabel)
-                .font(.system(size: 9))
-                .foregroundStyle(.white.opacity(0.32))
-                .lineLimit(1)
         }
     }
     
@@ -419,6 +449,7 @@ struct HomeView: View {
     
     private func handleAppear() {
         viewModel.selectedDate = selectedDate
+        lastLoadedDay = Calendar.current.startOfDay(for: Date())
         // Defer the DB fetch to after the first frame so the UI renders immediately
         Task { viewModel.loadTodayTotals() }
         // Lock any past fasting windows that haven't been locked yet

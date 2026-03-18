@@ -60,7 +60,8 @@ struct CelebrationView: View {
     @State private var showingPostEditor = false
     @State private var postedToFeed    = false
     @State private var renderedImage:  UIImage?
-
+    
+    // Random meme selected for this celebration
     private let meme = GymMeme.random()
 
     var body: some View {
@@ -76,18 +77,6 @@ struct CelebrationView: View {
 
             // Card
             VStack(spacing: 12) {
-                // Meme image
-                Image(meme.imageName)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .cornerRadius(14)
-                    .shadow(color: Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.4), radius: 12)
-
-                Text(meme.sub)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.60))
-                    .multilineTextAlignment(.center)
-
                 // Streak badge
                 if userSettings.macroStreak > 0 {
                     HStack(spacing: 6) {
@@ -565,6 +554,14 @@ struct CelebrationPostEditorSheet: View {
             } catch {
                 print("[CelebrationView] Firebase sync failed: \(error.localizedDescription)")
             }
+            await InAppNotificationService.shared.notifySubscribers(
+                ofUserID:          userSettings.userID,
+                posterUsername:    userSettings.username,
+                posterDisplayName: userSettings.name,
+                postID:            fbPostID,
+                postTitle:         title,
+                posterPhotoURL:    userSettings.profilePhotoURL
+            )
         }
 
         onPosted()
@@ -726,20 +723,6 @@ private struct CelebrationShareCard: View {
                 .padding(.top, 44)
 
                 Spacer()
-
-                // Meme image
-                VStack(spacing: 12) {
-                    Image(meme.imageName)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 280)
-                        .cornerRadius(14)
-                        .shadow(color: gold.opacity(0.4), radius: 12)
-                    Text(meme.sub)
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.60))
-                        .multilineTextAlignment(.center)
-                }
 
                 Spacer()
 

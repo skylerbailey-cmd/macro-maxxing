@@ -4,7 +4,6 @@
 //
 
 import Foundation
-import SwiftData
 
 @Observable final class HomeViewModel {
     // MARK: - Selected date
@@ -155,12 +154,8 @@ import SwiftData
     // MARK: - Streak (consecutive days where ALL macro goals were met, ending yesterday)
     var macroStreak: Int = 0
 
-    private let modelContext: ModelContext
-
-    init(modelContext: ModelContext,
-         selectedDate: Date = Calendar.current.startOfDay(for: Date()),
+    init(selectedDate: Date = Calendar.current.startOfDay(for: Date()),
          userSettings: UserSettings) {
-        self.modelContext  = modelContext
         self.selectedDate  = selectedDate
         self.userSettings  = userSettings
 
@@ -216,16 +211,12 @@ import SwiftData
     }
 
     func loadTodayTotals() {
-        let calendar   = Calendar.current
-        let startOfDay = calendar.startOfDay(for: selectedDate)
-        guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return }
+        Task { await loadTodayTotalsAsync() }
+    }
 
-        let uid = userSettings.userID
-        let predicate  = #Predicate<FoodEntry> {
-            $0.loggedAt >= startOfDay && $0.loggedAt < endOfDay && $0.userID == uid
-        }
-        let descriptor = FetchDescriptor<FoodEntry>(predicate: predicate)
-        guard let entries = try? modelContext.fetch(descriptor) else { return }
+    func loadTodayTotalsAsync() async {
+        let entries = (try? await FoodEntryService.shared.fetch(
+            userID: userSettings.userID, date: selectedDate)) ?? []
 
         totalCalories = entries.reduce(0) { $0 + $1.calories }
         totalProtein  = entries.reduce(0) { $0 + $1.protein }
@@ -239,11 +230,39 @@ import SwiftData
             return h + m / 60.0
         }
 
-        // Record whether all macro goals were met today so streak can track it
-        let allMet = totalCalories > 0 && macroGoalsMet.allSatisfy { $0 }
-        userSettings.setGoalsMet(allMet, for: selectedDate)
+        // Only record goal status for today — never rewrite a past day's outcome
+        if isSelectedDateToday {
+            let allMet = totalCalories > 0 && macroGoalsMet.allSatisfy { $0 }
+            userSettings.setGoalsMet(allMet, for: selectedDate)
+
+            // Persist the date goals were last fully met so the Cloud Function
+            // can reset the streak server-side at midnight without the app open.
+            if allMet {
+                let fmt = DateFormatter()
+                fmt.dateFormat = "yyyy-MM-dd"
+                fmt.locale = Locale(identifier: "en_US_POSIX")
+                let dateStr = fmt.string(from: Date())
+                let uid = userSettings.userID
+                Task {
+                    try? await UserProfileService.shared.updateProfile(
+                        userID: uid,
+                        fields: ["lastGoalsMetDate": dateStr]
+                    )
+                }
+            }
+        }
 
         loadStreak()
+
+        // Schedule or cancel the 10 PM streak-warning notification based on today's progress
+        if isSelectedDateToday {
+            let allMet = totalCalories > 0 && macroGoalsMet.allSatisfy { $0 }
+            if allMet || macroStreak == 0 {
+                NotificationService.shared.cancelStreakWarningNotification()
+            } else {
+                NotificationService.shared.scheduleStreakWarningIfNeeded(streak: macroStreak)
+            }
+        }
 
         // Persist today's macro snapshot and fasting window to Firestore (today only)
         if isSelectedDateToday {
@@ -314,20 +333,7 @@ import SwiftData
     // MARK: - Private
 
     private func loadStreak() {
-        let calendar    = Calendar.current
-        let goalsMetDates = userSettings.goalsMetDates
-        let fmt = Self.dateKeyFormatter
-
-        // Count consecutive completed past days
-        var streak = 0
-        var offset = 1
-        while offset <= 365 {
-            guard let day = calendar.date(byAdding: .day, value: -offset, to: Date()) else { break }
-            if goalsMetDates.contains(fmt.string(from: day)) { streak += 1 } else { break }
-            offset += 1
-        }
-        // Include today immediately once its goals are met
-        if goalsMetDates.contains(fmt.string(from: Date())) { streak += 1 }
+        let streak = StreakService.recalculate()
 
         macroStreak              = streak
         userSettings.macroStreak = streak

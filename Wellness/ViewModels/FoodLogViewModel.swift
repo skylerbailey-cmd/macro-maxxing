@@ -4,7 +4,6 @@
 //
 
 import UIKit
-import SwiftData
 
 enum AnalysisState: Equatable {
     case idle
@@ -18,7 +17,7 @@ enum AnalysisState: Equatable {
     var selectedDate: Date {
         didSet {
             if !Calendar.current.isDate(selectedDate, inSameDayAs: oldValue) {
-                loadTodayEntries()
+                Task { await loadTodayEntries() }
             }
         }
     }
@@ -34,37 +33,42 @@ enum AnalysisState: Equatable {
     var carbsText = ""
     var fatText = ""
     var voiceNote = ""
+    /// Whether to mark the next saved entry as a saved meal.
+    var saveMeal: Bool = false
+    /// True when the current entry fields were pre-filled from a saved meal.
+    var isFromSavedMeal: Bool = false
 
     var todayEntries: [FoodEntry] = []
+    var savedMeals:   [FoodEntry] = []
 
-    private let modelContext: ModelContext
     private let service: ClaudeVisionService
     private(set) var userID: String
 
-    init(modelContext: ModelContext,
-         selectedDate: Date = Calendar.current.startOfDay(for: Date()),
+    init(selectedDate: Date = Calendar.current.startOfDay(for: Date()),
          userID: String = "",
          service: ClaudeVisionService = ClaudeVisionService()) {
-        self.modelContext = modelContext
         self.selectedDate = selectedDate
         self.userID       = userID
         self.service      = service
-        // Loaded lazily from the view's onAppear
     }
 
-    func loadTodayEntries() {
-        let calendar   = Calendar.current
-        let startOfDay = calendar.startOfDay(for: selectedDate)
-        guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return }
-        let uid = userID
-        let predicate  = #Predicate<FoodEntry> {
-            $0.loggedAt >= startOfDay && $0.loggedAt < endOfDay && $0.userID == uid
-        }
-        let descriptor = FetchDescriptor<FoodEntry>(
-            predicate: predicate,
-            sortBy: [SortDescriptor(\.loggedAt, order: .reverse)]
-        )
-        todayEntries = (try? modelContext.fetch(descriptor)) ?? []
+    func loadTodayEntries() async {
+        todayEntries = (try? await FoodEntryService.shared.fetch(userID: userID, date: selectedDate)) ?? []
+    }
+
+    func loadSavedMeals() async {
+        savedMeals = (try? await FoodEntryService.shared.fetchSavedMeals(userID: userID)) ?? []
+    }
+
+    /// Pre-fills entry fields from a saved meal and switches to the result state.
+    func populateFromSavedMeal(_ entry: FoodEntry) {
+        foodName         = entry.foodName
+        caloriesText     = String(format: "%.0f", entry.calories)
+        proteinText      = String(format: "%.1f", entry.protein)
+        carbsText        = String(format: "%.1f", entry.carbs)
+        fatText          = String(format: "%.1f", entry.fat)
+        isFromSavedMeal  = true
+        analysisState    = .result
     }
 
     func analyzeImage() async {
@@ -117,26 +121,40 @@ enum AnalysisState: Equatable {
         comps.second  = calendar.component(.second, from: now)
         let loggedAt  = calendar.date(from: comps) ?? selectedDate
 
-        let imageData = selectedImage?.jpegData(compressionQuality: 0.8)
+        let image     = selectedImage
+        let imageData = image?.jpegData(compressionQuality: 0.8)
         let entry = FoodEntry(
             loggedAt: loggedAt,
-            userID: userID,
+            userID:   userID,
             foodName: foodName.isEmpty ? "Unknown Food" : foodName,
             calories: calories,
-            protein: protein,
-            carbs: carbs,
-            fat: fat,
+            protein:  protein,
+            carbs:    carbs,
+            fat:      fat,
             imageData: imageData
         )
-        modelContext.insert(entry)
+        entry.isSavedMeal = saveMeal
+
+        // Optimistic local insert so UI updates instantly
+        todayEntries.insert(entry, at: 0)
         resetFields()
-        loadTodayEntries()
+
+        // Persist to Firestore
+        Task {
+            if let result = try? await FoodEntryService.shared.save(entry: entry, image: image) {
+                entry.firebaseEntryID = result.docID
+                entry.photoURL        = result.photoURL
+            }
+        }
+
         return true
     }
 
     func deleteEntry(_ entry: FoodEntry) {
-        modelContext.delete(entry)
-        loadTodayEntries()
+        todayEntries.removeAll { $0.id == entry.id }
+        let entryID = entry.firebaseEntryID
+        let uid     = entry.userID
+        Task { await FoodEntryService.shared.delete(entryID: entryID, userID: uid) }
     }
 
     func updateEntry(_ entry: FoodEntry,
@@ -150,8 +168,20 @@ enum AnalysisState: Equatable {
         entry.protein  = protein
         entry.carbs    = carbs
         entry.fat      = fat
-        try? modelContext.save()
-        loadTodayEntries()
+
+        let entryID = entry.firebaseEntryID
+        let uid     = entry.userID
+        Task {
+            await FoodEntryService.shared.update(
+                entryID:  entryID,
+                userID:   uid,
+                foodName: entry.foodName,
+                calories: entry.calories,
+                protein:  entry.protein,
+                carbs:    entry.carbs,
+                fat:      entry.fat
+            )
+        }
     }
 
     func discardEntry() {
@@ -166,6 +196,8 @@ enum AnalysisState: Equatable {
         carbsText     = ""
         fatText       = ""
         voiceNote     = ""
-        analysisState = .idle
+        saveMeal        = false
+        isFromSavedMeal = false
+        analysisState   = .idle
     }
 }

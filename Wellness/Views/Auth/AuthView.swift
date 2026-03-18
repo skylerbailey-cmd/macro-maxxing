@@ -61,6 +61,10 @@ struct AuthView: View {
                         messageBanner(err, color: .red).padding(.bottom, 12)
                     }
 
+                    socialButtons
+
+                    orDivider.padding(.vertical, 20)
+
                     // form card
                     VStack(spacing: 16) {
                         fields
@@ -81,10 +85,6 @@ struct AuthView: View {
                     submitButton.padding(.top, 20)
 
                     modeSwitcher.padding(.top, 16)
-
-                    orDivider.padding(.vertical, 20)
-
-                    socialButtons
 
                     Spacer().frame(height: 48)
                 }
@@ -357,7 +357,7 @@ struct AuthView: View {
     private var orDivider: some View {
         HStack(spacing: 12) {
             Rectangle().frame(height: 1).foregroundStyle(Color.white.opacity(0.08))
-            Text("or").font(.caption).foregroundStyle(Color.white.opacity(0.35))
+            Text("or continue with email").font(.caption).foregroundStyle(Color.white.opacity(0.35))
             Rectangle().frame(height: 1).foregroundStyle(Color.white.opacity(0.08))
         }
         .padding(.horizontal, 24)

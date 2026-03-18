@@ -86,11 +86,10 @@ struct FollowListView: View {
     @ViewBuilder
     private func entryRow(entry: FollowEntry) -> some View {
         NavigationLink {
-            // Tapping navigates to that user's profile (no photo data — shows initials placeholder)
             ProfileView(
                 profileUserID:       entry.userID,
                 profileUsername:     entry.username,
-                profileDisplayName:  entry.username,
+                profileDisplayName:  entry.displayName ?? entry.username,
                 profileAuraLevel:    0,
                 profileAuraPoints:   0,
                 profileImageData:    nil,
@@ -98,24 +97,25 @@ struct FollowListView: View {
             )
         } label: {
             HStack(spacing: 12) {
-                // Avatar
-                userAvatar(url: entry.profilePhotoURL, name: entry.username, size: 48)
+                userAvatar(url: entry.profilePhotoURL, name: entry.displayName ?? entry.username, size: 48)
 
-                // Info
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("@\(entry.username)")
+                    Text(entry.displayName?.isEmpty == false ? entry.displayName! : entry.username)
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.white)
-                    Text(entry.followedAtDate, style: .date)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.25))
+                    Text("@\(entry.username)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.40))
                 }
 
                 Spacer()
 
-                // Follow/Unfollow — only shown when viewer is logged in and not viewing themselves
                 if let viewer = currentUserSettings, viewer.userID != entry.userID {
-                    followButton(for: entry)
+                    if mode == .following {
+                        unfollowMinusButton(for: entry)
+                    } else {
+                        followButton(for: entry)
+                    }
                 }
             }
             .padding(.horizontal, 16)
@@ -124,7 +124,33 @@ struct FollowListView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Follow Button
+    // MARK: - Unfollow (red minus) — shown in .following mode
+
+    @ViewBuilder
+    private func unfollowMinusButton(for entry: FollowEntry) -> some View {
+        let isLoading = loadingIDs.contains(entry.userID)
+        Button {
+            Task { await toggleFollow(entry: entry) }
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(Color.red.opacity(0.15))
+                    .frame(width: 32, height: 32)
+                    .overlay(Circle().stroke(Color.red.opacity(0.40), lineWidth: 1))
+                if isLoading {
+                    ProgressView().scaleEffect(0.55).tint(.red)
+                } else {
+                    Image(systemName: "minus")
+                        .font(.system(size: 13, weight: .black))
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(isLoading)
+    }
+
+    // MARK: - Follow Button — shown in .followers mode
 
     @ViewBuilder
     private func followButton(for entry: FollowEntry) -> some View {

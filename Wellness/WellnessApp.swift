@@ -16,7 +16,8 @@ import GoogleSignIn
 
 class AppDelegate: NSObject, UIApplicationDelegate {
 
-    static let feedRefreshTaskID = "com.sbailey.Wellness.feedRefresh"
+    static let feedRefreshTaskID  = "com.sbailey.Wellness.feedRefresh"
+    static let streakResetTaskID  = "com.sbailey.Wellness.streakReset"
 
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
@@ -29,7 +30,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             diskPath:       "image_cache"
         )
 
-        // Register the background feed-refresh task
+        // Register background feed-refresh task
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: Self.feedRefreshTaskID,
             using: nil
@@ -37,17 +38,25 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             self.handleFeedRefresh(task as! BGAppRefreshTask)
         }
 
+        // Register nightly streak-reset task
+        BGTaskScheduler.shared.register(
+            forTaskWithIdentifier: Self.streakResetTaskID,
+            using: nil
+        ) { task in
+            self.handleStreakReset(task as! BGAppRefreshTask)
+        }
+
         return true
     }
 
-    // Schedule next refresh when app moves to background
+    // Schedule both tasks when app moves to background
     func applicationDidEnterBackground(_ application: UIApplication) {
         Self.scheduleFeedRefresh()
+        Self.scheduleStreakReset()
     }
 
-    // MARK: - BGAppRefreshTask
+    // MARK: - Feed refresh
 
-    /// Schedules a background feed refresh to run no earlier than 30 minutes from now.
     static func scheduleFeedRefresh() {
         let request = BGAppRefreshTaskRequest(identifier: feedRefreshTaskID)
         request.earliestBeginDate = Date(timeIntervalSinceNow: 30 * 60)
@@ -55,18 +64,38 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     private func handleFeedRefresh(_ task: BGAppRefreshTask) {
-        // Immediately reschedule so the 30-minute cycle continues
         Self.scheduleFeedRefresh()
-
         let fetchTask = Task {
-            // Fetching from Firestore populates the offline persistence cache.
-            // Next time the user opens the app the feed loads instantly from that cache.
             _ = try? await PostService.shared.fetchFeedPosts(limit: 20)
             task.setTaskCompleted(success: true)
         }
-
-        // iOS calls this when the background time budget runs out
         task.expirationHandler = { fetchTask.cancel() }
+    }
+
+    // MARK: - Streak reset (nightly at 12:01 AM)
+
+    /// Schedules the streak-reset task to run at 12:01 AM tonight.
+    /// Each time it fires it reschedules itself for the following midnight.
+    static func scheduleStreakReset() {
+        let request = BGAppRefreshTaskRequest(identifier: streakResetTaskID)
+        let cal = Calendar.current
+        // Next midnight = start of tomorrow
+        let tomorrow   = cal.date(byAdding: .day, value: 1, to: Date())!
+        let midnight   = cal.startOfDay(for: tomorrow)
+        // Add 61 seconds so it fires just after 12:01 AM
+        request.earliestBeginDate = midnight.addingTimeInterval(61)
+        try? BGTaskScheduler.shared.submit(request)
+    }
+
+    private func handleStreakReset(_ task: BGAppRefreshTask) {
+        // Reschedule for the next midnight before doing any work
+        Self.scheduleStreakReset()
+
+        let work = Task {
+            await StreakService.verifyAndResetInBackground()
+            task.setTaskCompleted(success: true)
+        }
+        task.expirationHandler = { work.cancel() }
     }
 }
 

@@ -43,6 +43,10 @@ struct ProfileView: View {
     @State private var showingProfileShare = false
     @State private var showingSettings     = false
 
+    // Firestore posts (primary source for profile grid)
+    @State private var firestorePosts: [FeedPost] = []
+    @State private var postsLoading   = false
+
     // Follow state
     @State private var isFollowing:           Bool   = false
     @State private var followerCount:         Int    = 0
@@ -55,19 +59,16 @@ struct ProfileView: View {
     @State private var showingFollowingList:  Bool   = false
     @State private var showingFriendsList:    Bool   = false
 
+    // Subscription state
+    @State private var isSubscribed:     Bool = false
+    @State private var subscribeLoading: Bool = false
+
     private var isOwnProfile: Bool { ownUserSettings != nil }
 
     private var resolvedStreak: Int {
         if let own = ownUserSettings { return own.macroStreak }
-        // For other users derive from the highest authorStreak seen on their posts
-        return userPosts.map { $0.authorStreak }.max() ?? profileStreak
-    }
-
-    private var userPosts: [SocialPost] {
-        allPosts.filter {
-            $0.authorID == profileUserID ||
-            $0.authorUsername.lowercased() == profileUsername.lowercased()
-        }
+        // For other users derive from the highest streak seen on their Firestore posts
+        return firestorePosts.map { $0.streak }.max() ?? profileStreak
     }
 
     private var displayName: String {
@@ -103,6 +104,7 @@ struct ProfileView: View {
                     auraLevelCard
                     socialLinks
                     if !isOwnProfile { addToTeamButton }
+                    if !isOwnProfile && isFollowing { subscribeButton }
                     postsGrid
                 }
                 .padding(.bottom, 40)
@@ -139,6 +141,7 @@ struct ProfileView: View {
             }
         }
         .task { await loadFollowState() }
+        .task { await loadPosts() }
         .sheet(isPresented: $showingFollowersList) {
             NavigationStack {
                 FollowListView(
@@ -310,7 +313,7 @@ struct ProfileView: View {
 
     private var statsBar: some View {
         HStack(spacing: 0) {
-            statCell(value: "\(userPosts.count)", label: "POSTS")
+            statCell(value: "\(firestorePosts.count)", label: "POSTS")
             statDivider
             Button { showingFollowersList = true } label: {
                 statCell(value: "\(followerCount)", label: "FOLLOWERS")
@@ -426,11 +429,14 @@ struct ProfileView: View {
     @ViewBuilder
     private var auraLevelCard: some View {
         if profileAuraPoints > 0 || profileAuraLevel > 0 {
-            let pts      = profileAuraPoints
-            let level    = min(pts / 1000, 100)
-            let inLevel  = level >= 100 ? 1000 : pts % 1000
-            let progress = Double(inLevel) / 1000.0
-            let pctText  = level >= 100 ? "MAX" : "\(Int(progress * 100))%"
+            let pts        = profileAuraPoints
+            let level      = UserSettings.auraLevel(for: pts)
+            let levelStart = UserSettings.auraThreshold(level)
+            let levelEnd   = UserSettings.auraThreshold(level + 1)
+            let inLevel    = pts - levelStart
+            let forLevel   = max(1, levelEnd - levelStart)
+            let progress   = level >= 100 ? 1.0 : Double(inLevel) / Double(forLevel)
+            let pctText    = level >= 100 ? "MAX" : "\(Int(progress * 100))%"
 
             VStack(spacing: 10) {
                 HStack(spacing: 0) {
@@ -475,12 +481,12 @@ struct ProfileView: View {
                 .frame(height: 8)
 
                 HStack {
-                    Text("\(inLevel) / 1,000 pts")
+                    Text("\(inLevel) / \(forLevel) pts")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.30))
                     Spacer()
                     if level < 100 {
-                        Text("\(1000 - inLevel) pts to Level \(level + 1)")
+                        Text("\(forLevel - inLevel) pts to Level \(level + 1)")
                             .font(.caption2)
                             .foregroundStyle(.white.opacity(0.30))
                     } else {
@@ -609,14 +615,19 @@ struct ProfileView: View {
                     .tracking(2)
                     .foregroundStyle(.white.opacity(0.35))
                 Spacer()
-                Text("\(userPosts.count)")
+                Text("\(firestorePosts.count)")
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(purpl.opacity(0.60))
             }
             .padding(.horizontal, 16)
             .padding(.top, 20)
 
-            if userPosts.isEmpty {
+            if postsLoading {
+                ProgressView()
+                    .tint(purpl)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
+            } else if firestorePosts.isEmpty {
                 VStack(spacing: 8) {
                     Text("💀")
                         .font(.system(size: 36))
@@ -634,9 +645,14 @@ struct ProfileView: View {
                     columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
                     spacing: 8
                 ) {
-                    ForEach(userPosts) { post in
+                    ForEach(firestorePosts) { post in
                         ProfilePostCard(post: post)
-                            .onTapGesture { selectedPost = post }
+                            .onTapGesture {
+                                // Bridge to local SocialPost for detail view if cached locally
+                                if let local = allPosts.first(where: { $0.firebasePostID == post.postID }) {
+                                    selectedPost = local
+                                }
+                            }
                     }
                 }
                 .padding(.horizontal, 16)
@@ -742,8 +758,29 @@ struct ProfileView: View {
         ownUserSettings?.profileImageData = data
         // Upload to Firebase Storage and update the Firestore profile URL
         if let settings = ownUserSettings {
-            Task { try? await UserProfileService.shared.updateProfilePhoto(userID: settings.userID, image: img) }
+            Task {
+                if let url = try? await UserProfileService.shared.updateProfilePhoto(userID: settings.userID, image: img) {
+                    settings.profilePhotoURL = url
+                }
+            }
         }
+    }
+
+    private func loadPosts() async {
+        guard !profileUserID.isEmpty else {
+            print("[ProfileView] loadPosts: profileUserID is empty, skipping")
+            postsLoading = false
+            return
+        }
+        postsLoading = true
+        do {
+            firestorePosts = try await PostService.shared.fetchUserPosts(userID: profileUserID)
+            print("[ProfileView] loadPosts: fetched \(firestorePosts.count) posts for userID=\(profileUserID)")
+        } catch {
+            print("[ProfileView] loadPosts error for userID=\(profileUserID): \(error)")
+            firestorePosts = []
+        }
+        postsLoading = false
     }
 
     private func loadFollowState() async {
@@ -771,6 +808,10 @@ struct ProfileView: View {
             targetProfilePhotoURL = profile.profilePhotoURL
         }
         if let vp = try? await viewerProfile { viewerProfilePhotoURL = vp.profilePhotoURL }
+        if let subscribed = try? await SubscriptionService.shared.isSubscribed(
+            subscriberID: viewerID, targetUserID: profileUserID) {
+            isSubscribed = subscribed
+        }
     }
 
     private func toggleFollow() async {
@@ -792,9 +833,11 @@ struct ProfileView: View {
                 try await FollowService.shared.followUser(
                     currentUserID:          viewerSettings.userID,
                     currentUsername:        viewerSettings.username,
+                    currentDisplayName:     viewerSettings.name.isEmpty ? nil : viewerSettings.name,
                     currentProfilePhotoURL: viewerProfilePhotoURL,
                     targetUserID:           profileUserID,
                     targetUsername:         profileUsername,
+                    targetDisplayName:      profileDisplayName.isEmpty ? nil : profileDisplayName,
                     targetProfilePhotoURL:  targetProfilePhotoURL
                 )
                 isFollowing   = true
@@ -810,46 +853,97 @@ struct ProfileView: View {
             print("[ProfileView] toggleFollow error: \(error)")
         }
     }
+
+    private var subscribeButton: some View {
+        Button {
+            Task { await toggleSubscribe() }
+        } label: {
+            HStack(spacing: 8) {
+                if subscribeLoading {
+                    ProgressView().scaleEffect(0.8)
+                } else {
+                    Image(systemName: isSubscribed ? "bell.fill" : "bell")
+                        .font(.system(size: 14, weight: .bold))
+                    Text(isSubscribed ? "Subscribed" : "Get Notified")
+                        .font(.system(size: 15, weight: .black))
+                }
+            }
+            .foregroundStyle(isSubscribed ? gold : .white.opacity(0.70))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(isSubscribed ? gold.opacity(0.15) : Color.white.opacity(0.08))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(isSubscribed ? gold.opacity(0.40) : Color.white.opacity(0.15), lineWidth: 1)
+            )
+            .cornerRadius(14)
+        }
+        .disabled(subscribeLoading)
+        .padding(.horizontal, 16)
+        .padding(.top, 6)
+    }
+
+    private func toggleSubscribe() async {
+        let viewer = currentUserSettings ?? ownUserSettings
+        guard let viewerSettings = viewer, !viewerSettings.userID.isEmpty else { return }
+        subscribeLoading = true
+        defer { subscribeLoading = false }
+        do {
+            if isSubscribed {
+                try await SubscriptionService.shared.unsubscribe(
+                    subscriberID: viewerSettings.userID,
+                    targetUserID: profileUserID
+                )
+                isSubscribed = false
+            } else {
+                try await SubscriptionService.shared.subscribe(
+                    subscriberID:          viewerSettings.userID,
+                    subscriberUsername:    viewerSettings.username,
+                    subscriberDisplayName: viewerSettings.name,
+                    targetUserID:          profileUserID
+                )
+                isSubscribed = true
+            }
+        } catch {
+            print("[ProfileView] toggleSubscribe error: \(error)")
+        }
+    }
 }
 
 // MARK: - Post card for profile grid
 
 private struct ProfilePostCard: View {
-    let post: SocialPost
+    let post: FeedPost
 
     private let cardBg = Color(red: 0.10, green: 0.08, blue: 0.18)
     private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Thumbnail
-            if let data = post.imageData, let img = UIImage(data: data) {
-                Image(uiImage: img)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 130)
-                    .clipped()
-            } else {
-                // No-photo placeholder with gradient
-                ZStack {
-                    LinearGradient(
-                        colors: [Color(red: 0.18, green: 0.08, blue: 0.35),
-                                 Color(red: 0.08, green: 0.05, blue: 0.18)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                    .frame(height: 90)
-
-                    Text(post.memeEmoji.isEmpty ? "🔥" : post.memeEmoji)
-                        .font(.system(size: 30))
+            // Thumbnail — load from Firebase Storage URL
+            if let urlString = post.allPhotoURLs.first, let url = URL(string: urlString) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let img):
+                        img.resizable()
+                            .scaledToFill()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 130)
+                            .clipped()
+                    default:
+                        placeholderThumbnail
+                    }
                 }
+                .frame(maxWidth: .infinity)
+                .frame(height: 130)
+                .clipped()
+            } else {
+                placeholderThumbnail
             }
 
             // Text content
             VStack(alignment: .leading, spacing: 4) {
-                Text(post.memeHeadline)
+                Text(post.title)
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white)
                     .lineLimit(2)
@@ -857,13 +951,15 @@ private struct ProfilePostCard: View {
                 HStack(spacing: 4) {
                     Text("💪")
                         .font(.system(size: 10))
-                    Text("\(post.repsCount)")
+                    Text("\(post.reps)")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.50))
                     Spacer()
-                    Text(post.postedAt, style: .date)
-                        .font(.system(size: 9))
-                        .foregroundStyle(.white.opacity(0.25))
+                    if let date = post.createdAtDate {
+                        Text(date, style: .date)
+                            .font(.system(size: 9))
+                            .foregroundStyle(.white.opacity(0.25))
+                    }
                 }
             }
             .padding(.horizontal, 10)
@@ -876,5 +972,19 @@ private struct ProfilePostCard: View {
                 .stroke(purpl.opacity(0.12), lineWidth: 1)
         )
         .clipped()
+    }
+
+    private var placeholderThumbnail: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(red: 0.18, green: 0.08, blue: 0.35),
+                         Color(red: 0.08, green: 0.05, blue: 0.18)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .frame(height: 90)
+            Text("🔥")
+                .font(.system(size: 30))
+        }
     }
 }

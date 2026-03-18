@@ -46,6 +46,8 @@ struct UserProfile: Codable, Identifiable {
 
     /// Unix timestamp (seconds) of when the profile was created.
     var joinDate: Int
+    /// Date of birth stored as "yyyy-MM-dd". Empty string if not set.
+    var dateOfBirth: String
 
     // MARK: - Identifiable
 
@@ -72,7 +74,8 @@ struct UserProfile: Codable, Identifiable {
         proteinPerLb:     Double = 0.9,
         fastingEnabled:   Bool   = false,
         auraPopupsEnabled: Bool  = true,
-        joinDate:         Int
+        joinDate:         Int,
+        dateOfBirth:      String = ""
     ) {
         self.userID           = userID
         self.username         = username
@@ -93,6 +96,7 @@ struct UserProfile: Codable, Identifiable {
         self.fastingEnabled   = fastingEnabled
         self.auraPopupsEnabled = auraPopupsEnabled
         self.joinDate         = joinDate
+        self.dateOfBirth      = dateOfBirth
     }
 }
 
@@ -145,6 +149,7 @@ extension UserProfile {
             "username":        "",   // guard against missing field causing decode failure
             "instagramHandle": "",
             "tiktokHandle":    "",
+            "dateOfBirth":     "",
         ]
         for (key, value) in stringDefaults where data[key] == nil {
             data[key] = value

@@ -204,10 +204,11 @@ final class PostService {
     func fetchUserPosts(userID: String) async throws -> [FeedPost] {
         let snapshot = try await db.collection(collectionName)
             .whereField("userID", isEqualTo: userID)
-            .order(by: "createdAt", descending: true)
             .getDocuments()
 
-        return snapshot.documents.compactMap { FeedPost(document: $0) }
+        let decoded = snapshot.documents.compactMap { FeedPost(document: $0) }
+        print("[PostService] fetchUserPosts: \(snapshot.documents.count) docs, \(decoded.count) decoded for userID=\(userID)")
+        return decoded.sorted { ($0.createdAtDate ?? .distantPast) > ($1.createdAtDate ?? .distantPast) }
     }
 
     // MARK: - 4. Delete Post

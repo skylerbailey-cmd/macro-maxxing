@@ -138,7 +138,6 @@ struct PostDetailView: View {
                 if !post.allImageDatas.isEmpty {
                     PostImagesView(imageDatas: post.allImageDatas)
                 }
-                Text(post.memeEmoji).font(.system(size: 56))
                 Text(post.memeHeadline)
                     .font(.system(size: 22, weight: .black, design: .rounded))
                     .foregroundStyle(.white).multilineTextAlignment(.center)

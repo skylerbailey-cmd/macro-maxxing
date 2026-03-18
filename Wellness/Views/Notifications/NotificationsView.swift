@@ -96,7 +96,7 @@ struct NotificationsView: View {
             Text("No notifications yet")
                 .font(.system(size: 17, weight: .bold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.55))
-            Text("You'll see follows, reps, comments,\nand leaderboard placements here.")
+            Text("You'll see follows, reps, comments,\nleaderboard placements, and new posts here.")
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.white.opacity(0.28))
@@ -247,6 +247,7 @@ struct NotificationsView: View {
         case .rep:         return "hand.raised.fill"
         case .comment:     return "bubble.left.fill"
         case .leaderboard: return "crown.fill"
+        case .newPost:     return "bell.fill"
         }
     }
 
@@ -256,6 +257,7 @@ struct NotificationsView: View {
         case .rep:         return Color(red: 1.00, green: 0.80, blue: 0.20)
         case .comment:     return Color(red: 0.65, green: 0.45, blue: 1.00)
         case .leaderboard: return Color(red: 1.00, green: 0.80, blue: 0.20)
+        case .newPost:     return Color(red: 1.00, green: 0.60, blue: 0.20)
         }
     }
 
@@ -290,9 +292,11 @@ struct NotificationsView: View {
         try? await FollowService.shared.followUser(
             currentUserID:          userSettings.userID,
             currentUsername:        userSettings.username,
+            currentDisplayName:     userSettings.name.isEmpty ? nil : userSettings.name,
             currentProfilePhotoURL: userSettings.profilePhotoURL,
             targetUserID:           actorID,
             targetUsername:         actorProfile?.username ?? "",
+            targetDisplayName:      actorProfile?.name.isEmpty == false ? actorProfile?.name : nil,
             targetProfilePhotoURL:  actorProfile?.profilePhotoURL ?? ""
         )
         // Show checkmark on just this actor's button; other buttons are unaffected

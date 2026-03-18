@@ -1,0 +1,207 @@
+//
+//  FoodEntryService.swift
+//  Wellness
+//
+//  Syncs food log entries to Firestore and food photos to Firebase Storage.
+//
+//  Firestore:  users/{userID}/foodEntries/{entryID}
+//  Storage:    food_photos/{userID}/{entryID}.jpg
+//
+
+import UIKit
+import FirebaseFirestore
+import FirebaseStorage
+
+final class FoodEntryService {
+
+    // MARK: - Singleton
+
+    static let shared = FoodEntryService()
+    private init() {}
+
+    // MARK: - Private refs
+
+    private var db:      Firestore        { FirebaseManager.shared.db }
+    private var storage: StorageReference { FirebaseManager.shared.storage }
+
+    // MARK: - 1. Save
+
+    /// Uploads the photo (if any) to Storage then writes all fields to Firestore.
+    /// Returns the Firestore document ID and the photo download URL (empty string if no photo).
+    @discardableResult
+    func save(entry: FoodEntry, image: UIImage?) async throws -> (docID: String, photoURL: String) {
+        guard !entry.userID.isEmpty else { return ("", "") }
+
+        let entryID = entry.firebaseEntryID.isEmpty ? entry.id.uuidString : entry.firebaseEntryID
+
+        // Upload photo first so the URL can be included in the Firestore write
+        var photoURL = ""
+        if let image {
+            photoURL = (try? await uploadPhoto(image: image, userID: entry.userID, entryID: entryID)) ?? ""
+        }
+
+        let data: [String: Any] = [
+            "entryID":     entryID,
+            "userID":      entry.userID,
+            "foodName":    entry.foodName,
+            "calories":    entry.calories,
+            "protein":     entry.protein,
+            "carbs":       entry.carbs,
+            "fat":         entry.fat,
+            "loggedAt":    Timestamp(date: entry.loggedAt),
+            "photoURL":    photoURL,
+            "isSavedMeal": entry.isSavedMeal
+        ]
+
+        let docRef = db.collection("users").document(entry.userID)
+            .collection("foodEntries").document(entryID)
+        try await docRef.setData(data)
+
+        return (entryID, photoURL)
+    }
+
+    // MARK: - 2. Delete
+
+    /// Removes the Firestore document and the Storage photo (if any).
+    func delete(entryID: String, userID: String) async {
+        guard !entryID.isEmpty, !userID.isEmpty else { return }
+
+        let docRef = db.collection("users").document(userID)
+            .collection("foodEntries").document(entryID)
+        try? await docRef.delete()
+
+        // Best-effort photo deletion — ignore errors if there's no photo
+        let photoRef = storage.child("food_photos/\(userID)/\(entryID).jpg")
+        try? await photoRef.delete()
+    }
+
+    // MARK: - 3. Update (fields only — photo is not re-uploaded on edit)
+
+    func update(entryID: String, userID: String, foodName: String, calories: Double,
+                protein: Double, carbs: Double, fat: Double) async {
+        guard !entryID.isEmpty, !userID.isEmpty else { return }
+
+        let docRef = db.collection("users").document(userID)
+            .collection("foodEntries").document(entryID)
+        try? await docRef.updateData([
+            "foodName": foodName,
+            "calories": calories,
+            "protein":  protein,
+            "carbs":    carbs,
+            "fat":      fat
+        ])
+    }
+
+    // MARK: - 4. Fetch
+
+    /// Fetches all food entries for a user on a given date, ordered newest first.
+    func fetch(userID: String, date: Date) async throws -> [FoodEntry] {
+        guard !userID.isEmpty else { return [] }
+        let calendar = Calendar.current
+        let start    = calendar.startOfDay(for: date)
+        let end      = calendar.date(byAdding: .day, value: 1, to: start)!
+
+        let snapshot = try await db.collection("users").document(userID)
+            .collection("foodEntries")
+            .whereField("loggedAt", isGreaterThanOrEqualTo: Timestamp(date: start))
+            .whereField("loggedAt", isLessThan: Timestamp(date: end))
+            .getDocuments()
+
+        return snapshot.documents.compactMap { doc in
+            let data     = doc.data()
+            guard let foodName = data["foodName"] as? String,
+                  let calories = data["calories"] as? Double,
+                  let protein  = data["protein"]  as? Double,
+                  let carbs    = data["carbs"]    as? Double,
+                  let fat      = data["fat"]      as? Double,
+                  let ts       = data["loggedAt"] as? Timestamp else { return nil }
+
+            let entryID  = data["entryID"]  as? String ?? doc.documentID
+            let uid      = data["userID"]   as? String ?? userID
+            let photoURL = data["photoURL"] as? String ?? ""
+
+            let entry = FoodEntry(
+                id:       UUID(uuidString: entryID) ?? UUID(),
+                loggedAt: ts.dateValue(),
+                userID:   uid,
+                foodName: foodName,
+                calories: calories,
+                protein:  protein,
+                carbs:    carbs,
+                fat:      fat
+            )
+            entry.firebaseEntryID = entryID
+            entry.photoURL        = photoURL
+            entry.isSavedMeal     = data["isSavedMeal"] as? Bool ?? false
+            return entry
+        }
+        .sorted { $0.loggedAt > $1.loggedAt }
+    }
+
+    // MARK: - 5. Saved meals
+
+    /// Fetches all food entries marked as saved meals for a user, ordered newest first.
+    func fetchSavedMeals(userID: String) async throws -> [FoodEntry] {
+        guard !userID.isEmpty else { return [] }
+
+        let snapshot = try await db.collection("users").document(userID)
+            .collection("foodEntries")
+            .whereField("isSavedMeal", isEqualTo: true)
+            .getDocuments()
+
+        return snapshot.documents.compactMap { doc in
+            let data     = doc.data()
+            guard let foodName = data["foodName"] as? String,
+                  let calories = data["calories"] as? Double,
+                  let protein  = data["protein"]  as? Double,
+                  let carbs    = data["carbs"]    as? Double,
+                  let fat      = data["fat"]      as? Double,
+                  let ts       = data["loggedAt"] as? Timestamp else { return nil }
+
+            let entryID  = data["entryID"]  as? String ?? doc.documentID
+            let uid      = data["userID"]   as? String ?? userID
+            let photoURL = data["photoURL"] as? String ?? ""
+
+            let entry = FoodEntry(
+                id:       UUID(uuidString: entryID) ?? UUID(),
+                loggedAt: ts.dateValue(),
+                userID:   uid,
+                foodName: foodName,
+                calories: calories,
+                protein:  protein,
+                carbs:    carbs,
+                fat:      fat
+            )
+            entry.firebaseEntryID = entryID
+            entry.photoURL        = photoURL
+            entry.isSavedMeal     = true
+            return entry
+        }
+        .sorted { $0.loggedAt > $1.loggedAt }
+    }
+
+    // MARK: - Private: Photo upload
+
+    private func uploadPhoto(image: UIImage, userID: String, entryID: String) async throws -> String {
+        guard let data = image.jpegData(compressionQuality: 0.75) else {
+            throw URLError(.cannotCreateFile)
+        }
+        let ref      = storage.child("food_photos/\(userID)/\(entryID).jpg")
+        let metadata = StorageMetadata()
+        metadata.contentType = "image/jpeg"
+
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            ref.putData(data, metadata: metadata) { _, error in
+                if let error { cont.resume(throwing: error) }
+                else         { cont.resume() }
+            }
+        }
+        let url = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<URL, Error>) in
+            ref.downloadURL { url, error in
+                if let url   { cont.resume(returning: url) }
+                else         { cont.resume(throwing: error ?? URLError(.badServerResponse)) }
+            }
+        }
+        return url.absoluteString
+    }
+}

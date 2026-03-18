@@ -38,12 +38,11 @@ struct FoodLogView: View {
     init(modelContext: ModelContext, selectedDate: Binding<Date>, userSettings: UserSettings,
          externalImage: Binding<UIImage?> = .constant(nil)) {
         _viewModel  = State(wrappedValue: FoodLogViewModel(
-            modelContext: modelContext,
             selectedDate: selectedDate.wrappedValue,
             userID: userSettings.userID
         ))
         _analyzeVM  = State(wrappedValue: AnalyzeViewModel(
-            modelContext: modelContext,
+            userID:       userSettings.userID,
             selectedDate: selectedDate.wrappedValue
         ))
         _selectedDate  = selectedDate
@@ -157,7 +156,7 @@ struct FoodLogView: View {
         }
         .onAppear {
             viewModel.selectedDate = selectedDate
-            Task { viewModel.loadTodayEntries() }
+            Task { await viewModel.loadTodayEntries() }
         }
         .onChange(of: selectedDate) { _, newDate in
             viewModel.selectedDate   = newDate
@@ -538,6 +537,7 @@ private struct AnalysisSheet: View {
                 }
             }
             .onDisappear { speechRecognizer.reset() }
+            .task { await viewModel.loadSavedMeals() }
         }
     }
 
@@ -578,7 +578,72 @@ private struct AnalysisSheet: View {
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
+
+            if !viewModel.savedMeals.isEmpty {
+                savedMealsSection
+            }
         }
+    }
+
+    private var savedMealsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Saved Meals")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.55))
+                .padding(.horizontal)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(viewModel.savedMeals) { meal in
+                        savedMealCard(meal)
+                            .onTapGesture {
+                                viewModel.populateFromSavedMeal(meal)
+                            }
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    @ViewBuilder
+    private func savedMealCard(_ meal: FoodEntry) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let url = URL(string: meal.photoURL), !meal.photoURL.isEmpty {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let img):
+                        img.resizable().scaledToFill()
+                    default:
+                        Color(red: 0.13, green: 0.10, blue: 0.22)
+                            .overlay(Image(systemName: "fork.knife").foregroundStyle(.white.opacity(0.3)))
+                    }
+                }
+                .frame(width: 110, height: 72)
+                .clipped()
+                .cornerRadius(10)
+            } else {
+                Color(red: 0.13, green: 0.10, blue: 0.22)
+                    .overlay(Image(systemName: "fork.knife").foregroundStyle(.white.opacity(0.3)))
+                    .frame(width: 110, height: 72)
+                    .cornerRadius(10)
+            }
+
+            Text(meal.foodName)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+                .frame(width: 110, alignment: .leading)
+
+            Text("\(Int(meal.calories)) cal  \(String(format: "%.0f", meal.protein))p  \(String(format: "%.0f", meal.carbs))c  \(String(format: "%.0f", meal.fat))f")
+                .font(.system(size: 10))
+                .foregroundStyle(.white.opacity(0.50))
+                .frame(width: 110, alignment: .leading)
+        }
+        .padding(8)
+        .background(Color(red: 0.13, green: 0.10, blue: 0.22))
+        .cornerRadius(12)
     }
 
     private var voiceRecorderPrompt: some View {
@@ -766,6 +831,25 @@ private struct AnalysisSheet: View {
                 .padding(.horizontal)
             }
 
+            // Save as meal checkbox — hidden when entry came from a saved meal
+            if !viewModel.isFromSavedMeal { Button {
+                viewModel.saveMeal.toggle()
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: viewModel.saveMeal ? "checkmark.square.fill" : "square")
+                        .font(.system(size: 20))
+                        .foregroundStyle(viewModel.saveMeal
+                            ? Color(red: 0.65, green: 0.45, blue: 1.00)
+                            : .secondary)
+                    Text("Save as a saved meal")
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal)
+            }
+
             HStack(spacing: 12) {
                 Button("Discard") { dismiss() }
                     .buttonStyle(.bordered)
@@ -798,71 +882,20 @@ private struct FoodEntryRow: View {
     let onDelete: () -> Void
     var canEdit:  Bool = true
 
-    @State private var offset: CGFloat = 0
-    private let deleteReveal: CGFloat = 78
+    @State private var showScoreInfo = false
 
     var body: some View {
-        ZStack(alignment: .trailing) {
-            // Red delete button revealed on swipe (today only)
-            if canEdit {
-                Button {
-                    withAnimation(.spring(response: 0.25)) { offset = 0 }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { onDelete() }
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: "trash.fill")
-                            .font(.system(size: 15, weight: .semibold))
-                        Text("Delete")
-                            .font(.system(size: 10, weight: .semibold))
-                    }
-                    .foregroundStyle(.white)
-                    .frame(width: deleteReveal)
-                    .frame(maxHeight: .infinity)
-                    .background(Color.red.opacity(0.85))
-                    .cornerRadius(16)
+        if canEdit {
+            rowContent
+                .contentShape(Rectangle())
+                .onTapGesture { onEdit() }
+                .contextMenu {
+                    Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
+                    Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
                 }
-                .buttonStyle(.plain)
-            }
-
-            if canEdit {
-                // Today: swipeable + tappable to edit
-                rowContent
-                    .offset(x: offset)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.75), value: offset)
-                    .gesture(
-                        DragGesture(minimumDistance: 10)
-                            .onChanged { value in
-                                let x = value.translation.width
-                                if x < 0 {
-                                    offset = max(x, -deleteReveal)
-                                } else if offset < 0 {
-                                    offset = min(0, offset + x)
-                                }
-                            }
-                            .onEnded { value in
-                                withAnimation(.spring(response: 0.3)) {
-                                    offset = value.translation.width < -(deleteReveal / 2) ? -deleteReveal : 0
-                                }
-                            }
-                    )
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        if offset != 0 {
-                            withAnimation(.spring(response: 0.25)) { offset = 0 }
-                        } else {
-                            onEdit()
-                        }
-                    }
-                    .contextMenu {
-                        Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
-                        Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
-                    }
-            } else {
-                // Past date: no gesture attached, scroll passes through freely
-                rowContent
-            }
+        } else {
+            rowContent
         }
-        .clipped()
     }
 
     private var rowContent: some View {
@@ -872,6 +905,20 @@ private struct FoodEntryRow: View {
                     Image(uiImage: uiImage)
                         .resizable()
                         .scaledToFill()
+                } else if !entry.photoURL.isEmpty, let url = URL(string: entry.photoURL) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let img):
+                            img.resizable().scaledToFill()
+                        default:
+                            Color.white.opacity(0.06)
+                                .overlay {
+                                    Image(systemName: "fork.knife")
+                                        .font(.system(size: 20))
+                                        .foregroundStyle(.white.opacity(0.25))
+                                }
+                        }
+                    }
                 } else {
                     Color.white.opacity(0.06)
                         .overlay {
@@ -891,6 +938,7 @@ private struct FoodEntryRow: View {
                         .foregroundStyle(.white)
                         .lineLimit(1)
                     Spacer()
+                    scoreCircle
                     Text(entry.loggedAt, style: .time)
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.28))
@@ -920,6 +968,209 @@ private struct FoodEntryRow: View {
             .padding(.vertical, 3)
             .background(color.opacity(0.13))
             .clipShape(RoundedRectangle(cornerRadius: 5))
+    }
+
+    // MARK: - Meal Score
+
+    /// Goal macro ratios as caloric percentages, derived from UserDefaults goals.
+    private var goalRatios: (protein: Double, carbs: Double, fat: Double) {
+        let ud = UserDefaults.standard
+        func g(_ key: String, fallback: Double) -> Double {
+            ud.object(forKey: key) != nil ? ud.double(forKey: key) : fallback
+        }
+        let pCal  = g("goalProtein", fallback: 150) * 4
+        let cCal  = g("goalCarbs",   fallback: 200) * 4
+        let fCal  = g("goalFat",     fallback:  65) * 9
+        let total = pCal + cCal + fCal
+        guard total > 0 else { return (0.26, 0.49, 0.25) }
+        return (pCal / total, cCal / total, fCal / total)
+    }
+
+    /// 0–100 score: how closely the meal's macro distribution matches the user's goal ratios.
+    private var mealScore: Int {
+        guard entry.calories >= 300 else { return 0 }
+        let goal    = goalRatios
+        let cal     = entry.calories
+        let actualP = (entry.protein * 4) / cal
+        let actualC = (entry.carbs   * 4) / cal
+        let actualF = (entry.fat     * 9) / cal
+        // Sum of absolute deviations; max possible is 2.0 (proportions sum to 1)
+        let dev   = abs(actualP - goal.protein) + abs(actualC - goal.carbs) + abs(actualF - goal.fat)
+        return max(0, min(100, Int(((1.0 - dev / 2.0) * 100).rounded())))
+    }
+
+    @ViewBuilder
+    private var scoreCircle: some View {
+        if entry.calories >= 300 {
+            let score = mealScore
+            let color: Color = score >= 75 ? Color(red: 0.25, green: 0.85, blue: 0.50)
+                             : score >= 50 ? Color(red: 1.00, green: 0.75, blue: 0.20)
+                             :               Color(red: 1.00, green: 0.35, blue: 0.35)
+            Button { showScoreInfo = true } label: {
+                ZStack {
+                    Circle()
+                        .stroke(color.opacity(0.30), lineWidth: 1.5)
+                        .frame(width: 36, height: 36)
+                    Text("\(score)")
+                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .foregroundStyle(color)
+                }
+            }
+            .buttonStyle(.plain)
+            .sheet(isPresented: $showScoreInfo) {
+                MealScoreInfoSheet(entry: entry, score: score, goalRatios: goalRatios)
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+            }
+        }
+    }
+}
+
+// MARK: - Meal Score Info Sheet
+
+private struct MealScoreInfoSheet: View {
+    let entry:      FoodEntry
+    let score:      Int
+    let goalRatios: (protein: Double, carbs: Double, fat: Double)
+
+    private let purpleHi = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let cardBg   = Color(red: 0.13, green: 0.10, blue: 0.22)
+    private let pageBg   = Color(red: 0.07, green: 0.05, blue: 0.12)
+
+    private var scoreColor: Color {
+        score >= 75 ? Color(red: 0.25, green: 0.85, blue: 0.50)
+      : score >= 50 ? Color(red: 1.00, green: 0.75, blue: 0.20)
+      :               Color(red: 1.00, green: 0.35, blue: 0.35)
+    }
+
+    private var mealRatios: (protein: Double, carbs: Double, fat: Double) {
+        let cal = max(entry.calories, 1)
+        return ((entry.protein * 4) / cal,
+                (entry.carbs   * 4) / cal,
+                (entry.fat     * 9) / cal)
+    }
+
+    var body: some View {
+        ZStack {
+            pageBg.ignoresSafeArea()
+
+            ScrollView {
+                VStack(spacing: 20) {
+
+                    // Score badge
+                    ZStack {
+                        Circle()
+                            .stroke(scoreColor.opacity(0.35), lineWidth: 3)
+                            .frame(width: 72, height: 72)
+                        Text("\(score)")
+                            .font(.system(size: 28, weight: .black, design: .rounded))
+                            .foregroundStyle(scoreColor)
+                    }
+                    .padding(.top, 8)
+
+                    VStack(spacing: 6) {
+                        Text("Meal Score")
+                            .font(.title3.bold())
+                            .foregroundStyle(.white)
+                        Text("How closely this meal's macro distribution matches your personal goals.")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.55))
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal)
+
+                    // Ratio comparison table
+                    VStack(spacing: 0) {
+                        ratioHeader
+                        Divider().background(Color.white.opacity(0.08))
+                        ratioRow(label: "Protein", meal: mealRatios.protein, goal: goalRatios.protein,
+                                 color: Color(red: 0.35, green: 0.75, blue: 1.00))
+                        Divider().background(Color.white.opacity(0.06))
+                        ratioRow(label: "Carbs",   meal: mealRatios.carbs,   goal: goalRatios.carbs,
+                                 color: Color(red: 0.40, green: 0.90, blue: 0.72))
+                        Divider().background(Color.white.opacity(0.06))
+                        ratioRow(label: "Fat",     meal: mealRatios.fat,     goal: goalRatios.fat,
+                                 color: Color(red: 1.00, green: 0.50, blue: 0.72))
+                    }
+                    .background(cardBg)
+                    .cornerRadius(14)
+                    .padding(.horizontal)
+
+                    // Tips card
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("How to score higher", systemImage: "bolt.fill")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(purpleHi)
+
+                        Text("A score of **100** means this meal's caloric ratio of protein, carbs, and fat perfectly matches your goals. The closer each macro is to your target percentage, the higher the score.")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.65))
+                            .lineSpacing(3)
+
+                        Text("Scores are only shown for meals over 300 calories, since smaller snacks don't reflect a full macro balance.")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.40))
+                            .lineSpacing(2)
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(cardBg)
+                    .cornerRadius(14)
+                    .padding(.horizontal)
+
+                    Spacer().frame(height: 8)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private var ratioHeader: some View {
+        HStack {
+            Text("Macro")
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text("This Meal")
+                .frame(width: 80, alignment: .center)
+            Text("Your Goal")
+                .frame(width: 80, alignment: .center)
+        }
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(.white.opacity(0.40))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
+
+    private func ratioRow(label: String, meal: Double, goal: Double, color: Color) -> some View {
+        let diff = meal - goal
+        return HStack {
+            HStack(spacing: 6) {
+                Circle().fill(color).frame(width: 7, height: 7)
+                Text(label)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.white)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text("\(Int((meal * 100).rounded()))%")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 80, alignment: .center)
+
+            HStack(spacing: 4) {
+                Text("\(Int((goal * 100).rounded()))%")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.55))
+                if abs(diff) >= 0.03 {
+                    Image(systemName: diff > 0 ? "arrow.up" : "arrow.down")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(diff > 0 ? Color(red: 1.00, green: 0.35, blue: 0.35)
+                                                   : Color(red: 0.35, green: 0.75, blue: 1.00))
+                }
+            }
+            .frame(width: 80, alignment: .center)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 }
 
@@ -1108,23 +1359,32 @@ private struct FuelLogPostSheet: View {
                             ForEach(entries) { entry in
                                 VStack(spacing: 0) {
                                     HStack(spacing: 10) {
-                                        if let data = entry.imageData, let img = UIImage(data: data) {
-                                            Image(uiImage: img)
-                                                .resizable()
-                                                .scaledToFill()
-                                                .frame(width: 40, height: 40)
-                                                .clipped()
-                                                .cornerRadius(8)
-                                        } else {
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .fill(Color.white.opacity(0.07))
-                                                .frame(width: 40, height: 40)
-                                                .overlay {
-                                                    Image(systemName: "fork.knife")
-                                                        .font(.system(size: 14))
-                                                        .foregroundStyle(.white.opacity(0.30))
+                                        Group {
+                                            if let data = entry.imageData, let img = UIImage(data: data) {
+                                                Image(uiImage: img)
+                                                    .resizable()
+                                                    .scaledToFill()
+                                            } else if !entry.photoURL.isEmpty, let url = URL(string: entry.photoURL) {
+                                                AsyncImage(url: url) { phase in
+                                                    if case .success(let img) = phase {
+                                                        img.resizable().scaledToFill()
+                                                    } else {
+                                                        Color.white.opacity(0.07)
+                                                            .overlay { Image(systemName: "fork.knife").font(.system(size: 14)).foregroundStyle(.white.opacity(0.30)) }
+                                                    }
                                                 }
+                                            } else {
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .fill(Color.white.opacity(0.07))
+                                                    .overlay {
+                                                        Image(systemName: "fork.knife")
+                                                            .font(.system(size: 14))
+                                                            .foregroundStyle(.white.opacity(0.30))
+                                                    }
+                                            }
                                         }
+                                        .frame(width: 40, height: 40)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(entry.foodName)
                                                 .font(.subheadline.weight(.semibold))

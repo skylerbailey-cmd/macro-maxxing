@@ -43,7 +43,8 @@ final class UserProfileService {
     /// Writes a new user document to Firestore at `users/{profile.userID}`.
     /// Uses `setData(merge: true)` so calling this on an existing profile is safe.
     func createProfile(_ profile: UserProfile) async throws {
-        guard let userID = profile.userID, !userID.isEmpty else { return }
+        let userID = profile.userID
+        guard !userID.isEmpty else { return }
         let data = try profile.firestoreData()
         try await db.collection(collectionName).document(userID).setData(data, merge: true)
         print("[UserProfileService] Profile created/merged for \(userID)")

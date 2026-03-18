@@ -110,6 +110,7 @@ struct SettingsView: View {
     @State private var goalWeightVal:    Double = 160
     @State private var proteinPerLbVal:  Double = 0.9
     @State private var activePicker: ActivePicker? = nil
+    @State private var dobDate:          Date   = Calendar.current.date(byAdding: .year, value: -18, to: Date()) ?? Date()
     @State private var showCitySearch    = false
     @State private var showDeleteAccount = false
     @State private var showChangeEmail   = false
@@ -217,6 +218,16 @@ struct SettingsView: View {
                 Toggle(isOn: $userSettings.isPrivateAccount) {
                     Label("Private Account", systemImage: "lock.fill")
                 }
+                DatePicker(
+                    "Date of Birth",
+                    selection: $dobDate,
+                    in: ...Calendar.current.date(byAdding: .year, value: -13, to: Date())!,
+                    displayedComponents: .date
+                )
+            }
+
+            // MARK: Socials
+            Section("Socials") {
                 HStack {
                     Label("Instagram", systemImage: "camera.fill")
                         .foregroundStyle(
@@ -394,6 +405,13 @@ struct SettingsView: View {
         .buttonStyle(.plain)
     }
 
+    private static let dobFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
+
     private func applyProfile(name: String, username: String,
                                currentWeight: Double, goalWeight: Double,
                                proteinPerLb: Double) {
@@ -402,6 +420,10 @@ struct SettingsView: View {
         currentWeightVal = currentWeight > 0 ? currentWeight : 160
         goalWeightVal    = goalWeight    > 0 ? goalWeight    : 160
         proteinPerLbVal  = proteinPerLb
+        if !userSettings.dateOfBirth.isEmpty,
+           let d = Self.dobFormatter.date(from: userSettings.dateOfBirth) {
+            dobDate = d
+        }
     }
 
     private func saveProfile() async {
@@ -410,6 +432,9 @@ struct SettingsView: View {
             .replacingOccurrences(of: "@", with: "")
         guard !trimmedUsername.isEmpty else { return }
         let trimmedName = nameText.trimmingCharacters(in: .whitespaces)
+
+        let dobString = Self.dobFormatter.string(from: dobDate)
+        userSettings.dateOfBirth = dobString
 
         let fields: [String: Any] = [
             "username": trimmedUsername, "name": trimmedName,
@@ -424,6 +449,7 @@ struct SettingsView: View {
             "proteinPerLb": proteinPerLbVal,
             "fastingEnabled": userSettings.fastingEnabled,
             "auraPopupsEnabled": userSettings.auraPopupsEnabled,
+            "dateOfBirth": dobString,
         ]
         try? await session.updateProfile(fields: fields)
     }

@@ -206,7 +206,7 @@ extension FeedPost {
     init?(document: DocumentSnapshot) {
         guard document.exists else { return nil }
         do {
-            self = try Firestore.Decoder().decode(FeedPost.self, from: document.data() ?? [:])
+            self = try document.data(as: FeedPost.self)
         } catch {
             print("[FeedPost] Decode error – \(document.documentID): \(error)")
             return nil

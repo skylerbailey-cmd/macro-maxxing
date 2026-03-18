@@ -21,6 +21,6 @@ struct AppNotification: Identifiable, Codable {
     var createdAt:            Date   = Date()
 
     enum NotifType: String, Codable {
-        case follow, rep, comment, leaderboard
+        case follow, rep, comment, leaderboard, newPost
     }
 }

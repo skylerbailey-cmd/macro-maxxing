@@ -47,9 +47,11 @@ final class FollowService {
     func followUser(
         currentUserID:          String,
         currentUsername:        String,
+        currentDisplayName:     String? = nil,
         currentProfilePhotoURL: String,
         targetUserID:           String,
         targetUsername:         String,
+        targetDisplayName:      String? = nil,
         targetProfilePhotoURL:  String
     ) async throws {
         guard !currentUserID.isEmpty, !targetUserID.isEmpty, currentUserID != targetUserID else { return }
@@ -65,6 +67,7 @@ final class FollowService {
         let followingEntry = FollowEntry(
             userID:          targetUserID,
             username:        targetUsername,
+            displayName:     targetDisplayName,
             profilePhotoURL: targetProfilePhotoURL,
             followedAt:      now
         )
@@ -76,6 +79,7 @@ final class FollowService {
         let followerEntry = FollowEntry(
             userID:          currentUserID,
             username:        currentUsername,
+            displayName:     currentDisplayName,
             profilePhotoURL: currentProfilePhotoURL,
             followedAt:      now
         )
@@ -172,11 +176,11 @@ final class FollowService {
         guard !userID.isEmpty else { return [] }
         let snapshot = try await db.collection("users").document(userID)
             .collection("following")
-            .order(by: "followedAt", descending: true)
             .getDocuments()
         return snapshot.documents.compactMap { doc in
-            try? Firestore.Decoder().decode(FollowEntry.self, from: doc.data())
+            FollowEntry(document: doc)
         }
+        .sorted { ($0.followedAt?.dateValue() ?? .distantPast) > ($1.followedAt?.dateValue() ?? .distantPast) }
     }
 
     // MARK: - 5. Fetch Followers
@@ -186,11 +190,11 @@ final class FollowService {
         guard !userID.isEmpty else { return [] }
         let snapshot = try await db.collection("users").document(userID)
             .collection("followers")
-            .order(by: "followedAt", descending: true)
             .getDocuments()
         return snapshot.documents.compactMap { doc in
-            try? Firestore.Decoder().decode(FollowEntry.self, from: doc.data())
+            FollowEntry(document: doc)
         }
+        .sorted { ($0.followedAt?.dateValue() ?? .distantPast) > ($1.followedAt?.dateValue() ?? .distantPast) }
     }
 
     // MARK: - 6. Fetch Friends (mutual follows)

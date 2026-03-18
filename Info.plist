@@ -5,6 +5,7 @@
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>com.sbailey.Wellness.feedRefresh</string>
+		<string>com.sbailey.Wellness.streakReset</string>
 	</array>
 	<key>CFBundleURLTypes</key>
 	<array>

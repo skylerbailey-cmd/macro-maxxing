@@ -126,6 +126,92 @@ final class InAppNotificationService {
         await save(n, to: userID, ref: ref)
     }
 
+    func sendNewPost(to subscriberID: String,
+                     fromUserID: String,
+                     fromUsername: String,
+                     fromDisplayName: String,
+                     postID: String,
+                     postTitle: String,
+                     fromPhotoURL: String = "") async {
+        guard !subscriberID.isEmpty, subscriberID != fromUserID else { return }
+        let display = fromDisplayName.isEmpty ? fromUsername : fromDisplayName
+        let body    = postTitle.isEmpty ? "posted something new." : "posted: \"\(postTitle)\""
+        let n = AppNotification(
+            type:                 .newPost,
+            actorID:              fromUserID,
+            actorUsername:        fromUsername,
+            actorDisplayName:     display,
+            actorProfilePhotoURL: fromPhotoURL,
+            message:              "\(display) (@\(fromUsername)) \(body)",
+            postID:               postID,
+            postHeadline:         postTitle
+        )
+        await save(n, to: subscriberID)
+    }
+
+    /// Fetches all subscribers of `posterID` and sends each one a newPost notification.
+    func notifySubscribers(ofUserID posterID: String,
+                           posterUsername: String,
+                           posterDisplayName: String,
+                           postID: String,
+                           postTitle: String,
+                           posterPhotoURL: String = "") async {
+        guard let ids = try? await SubscriptionService.shared.fetchSubscriberIDs(targetUserID: posterID),
+              !ids.isEmpty else { return }
+        await withTaskGroup(of: Void.self) { group in
+            for sid in ids {
+                group.addTask {
+                    await self.sendNewPost(
+                        to:              sid,
+                        fromUserID:      posterID,
+                        fromUsername:    posterUsername,
+                        fromDisplayName: posterDisplayName,
+                        postID:          postID,
+                        postTitle:       postTitle,
+                        fromPhotoURL:    posterPhotoURL
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - Real-time listener (fires local push when a newPost notification arrives)
+
+    private var newPostListener: ListenerRegistration?
+
+    /// Starts a Firestore listener on the current user's notifications collection.
+    /// When a newPost notification is written (e.g. by a subscribed user's device),
+    /// fires a local UNUserNotificationCenter alert — works while app is foregrounded or backgrounded.
+    func startNewPostListener(userID: String) {
+        guard !userID.isEmpty else { return }
+        stopNewPostListener()
+        let since = Timestamp(date: Date())
+        newPostListener = col(userID)
+            .whereField("type", isEqualTo: AppNotification.NotifType.newPost.rawValue)
+            .whereField("createdAt", isGreaterThan: since)
+            .addSnapshotListener { snapshot, _ in
+                guard let snapshot else { return }
+                let added = snapshot.documentChanges
+                    .filter { $0.type == .added }
+                    .compactMap { try? Firestore.Decoder().decode(AppNotification.self,
+                                                                   from: $0.document.data()) }
+                for notif in added {
+                    let name = notif.actorDisplayName.isEmpty
+                        ? notif.actorUsername
+                        : notif.actorDisplayName
+                    NotificationService.shared.fireLocalNewPostNotification(
+                        fromDisplayName: name,
+                        postTitle:       notif.postHeadline
+                    )
+                }
+            }
+    }
+
+    func stopNewPostListener() {
+        newPostListener?.remove()
+        newPostListener = nil
+    }
+
     // MARK: - Private save helper
 
     private func save(_ n: AppNotification, to userID: String, ref: DocumentReference? = nil) async {

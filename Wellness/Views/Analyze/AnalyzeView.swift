@@ -19,13 +19,15 @@ private extension Color {
 struct AnalyzeView: View {
     @State private var viewModel: AnalyzeViewModel
     @Binding var selectedDate: Date
+    @Environment(SessionManager.self) private var sessionManager
 
-    init(modelContext: ModelContext, selectedDate: Binding<Date>) {
-        _viewModel    = State(wrappedValue: AnalyzeViewModel(
-            modelContext: modelContext,
+    init(selectedDate: Binding<Date>) {
+        _selectedDate = selectedDate
+        // viewModel will be initialized in onAppear with the actual userID
+        _viewModel = State(wrappedValue: AnalyzeViewModel(
+            userID: "",
             selectedDate: selectedDate.wrappedValue
         ))
-        _selectedDate = selectedDate
     }
 
     var body: some View {
@@ -69,6 +71,12 @@ struct AnalyzeView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onAppear {
+            // Initialize viewModel with the actual userID when view appears
+            if let userID = sessionManager.currentUID {
+                viewModel = AnalyzeViewModel(userID: userID, selectedDate: selectedDate)
+            }
+        }
         .onChange(of: selectedDate) { _, newDate in
             viewModel.selectedDate = newDate
             viewModel.reset()
@@ -182,11 +190,10 @@ struct AnalyzeView: View {
 #Preview {
     let config    = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: FoodEntry.self, configurations: config)
+    let sessionManager = SessionManager()
     return NavigationStack {
-        AnalyzeView(
-            modelContext: container.mainContext,
-            selectedDate: .constant(Calendar.current.startOfDay(for: Date()))
-        )
-        .navigationTitle("Analyze")
+        AnalyzeView(selectedDate: .constant(Calendar.current.startOfDay(for: Date())))
+            .environment(sessionManager)
+            .navigationTitle("Analyze")
     }
 }

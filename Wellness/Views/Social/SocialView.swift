@@ -433,8 +433,6 @@ func postLabelColor(_ label: PostLabel) -> Color {
     case .mealInspo:      return Color(red: 0.30, green: 0.85, blue: 0.55)
     case .mogBoard:       return Color(red: 1.00, green: 0.80, blue: 0.20)
     case .advice:         return Color(red: 0.40, green: 0.90, blue: 0.72)
-    case .cut:            return Color(red: 0.90, green: 0.35, blue: 0.35)
-    case .bulk:           return Color(red: 0.45, green: 0.85, blue: 0.45)
     }
 }
 

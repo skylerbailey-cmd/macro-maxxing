@@ -4,7 +4,6 @@
 //
 
 import Foundation
-import SwiftData
 
 @Observable final class AnalyzeViewModel {
     enum State: Equatable {
@@ -16,6 +15,7 @@ import SwiftData
 
     var state:        State = .idle
     var selectedDate: Date
+    private let userID: String
 
     /// True if Log Meals has already been run today (real calendar today).
     var hasRunToday: Bool {
@@ -23,30 +23,22 @@ import SwiftData
         return Calendar.current.isDateInToday(Date(timeIntervalSince1970: t))
     }
 
-    private let modelContext: ModelContext
     private let service = ClaudeAnalysisService()
 
-    init(modelContext: ModelContext,
+    private static let savedResultKey     = "aiCoachResult"
+    private static let savedResultDateKey = "aiCoachResultDate"
+
+    init(userID: String,
          selectedDate: Date = Calendar.current.startOfDay(for: Date())) {
-        self.modelContext = modelContext
+        self.userID       = userID
         self.selectedDate = selectedDate
+        restoreIfToday()
     }
 
     func analyze() async {
         state = .analyzing
 
-        // Fetch entries for the selected date
-        let calendar   = Calendar.current
-        let startOfDay = calendar.startOfDay(for: selectedDate)
-        guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else {
-            state = .error("Could not determine date range.")
-            return
-        }
-
-        let predicate  = #Predicate<FoodEntry> { $0.loggedAt >= startOfDay && $0.loggedAt < endOfDay }
-        let descriptor = FetchDescriptor<FoodEntry>(predicate: predicate,
-                                                    sortBy: [SortDescriptor(\.loggedAt)])
-        let entries = (try? modelContext.fetch(descriptor)) ?? []
+        let entries = (try? await FoodEntryService.shared.fetch(userID: userID, date: selectedDate)) ?? []
 
         // Read current macro goals from UserDefaults (written by HomeViewModel)
         let ud = UserDefaults.standard
@@ -66,15 +58,34 @@ import SwiftData
 
         do {
             let result = try await service.analyze(input)
-            // Mark today as used
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastLogMealsDate")
+            UserDefaults.standard.set(result, forKey: Self.savedResultKey)
+            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.savedResultDateKey)
             state = .result(result)
         } catch {
             state = .error(error.localizedDescription)
         }
     }
 
+    /// Resets to idle, unless the selected date is today and a persisted result exists.
     func reset() {
-        state = .idle
+        if Calendar.current.isDateInToday(selectedDate) {
+            restoreIfToday()
+        } else {
+            state = .idle
+        }
+    }
+
+    // MARK: - Private
+
+    private func restoreIfToday() {
+        let ud = UserDefaults.standard
+        guard
+            let ts     = ud.object(forKey: Self.savedResultDateKey) as? Double,
+            Calendar.current.isDateInToday(Date(timeIntervalSince1970: ts)),
+            let saved  = ud.string(forKey: Self.savedResultKey),
+            !saved.isEmpty
+        else { return }
+        state = .result(saved)
     }
 }

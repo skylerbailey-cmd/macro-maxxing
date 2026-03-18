@@ -28,6 +28,8 @@ struct AuraGain: Identifiable, Equatable {
     var instagramHandle:  String = ""
     var tiktokHandle:     String = ""
     var isPrivateAccount: Bool   = false
+    /// Date of birth as "yyyy-MM-dd". Empty string if not set.
+    var dateOfBirth:      String = ""
 
     // MARK: - Body (in-memory only)
 
@@ -155,9 +157,38 @@ struct AuraGain: Identifiable, Equatable {
     /// Set whenever points are awarded (when popups enabled). Observe to show popup.
     var pendingAuraGain: AuraGain? = nil
 
+    // MARK: - Aura Level Curve
+    //
+    // Quadratic: cumulativePoints(level) = a·n + b·n²
+    // Constraints: threshold(1) = 300, threshold(100) = 100,000
+    // → b = 700/99 ≈ 7.07,  a = 300 − b ≈ 292.93
+    // Incremental cost grows from 300 pts (Lv 1) to 1,700 pts (Lv 100).
+
+    /// Cumulative aura points required to *reach* `level` (0–100).
+    static func auraThreshold(_ level: Int) -> Int {
+        guard level > 0   else { return 0 }
+        guard level < 100 else { return 100_000 }
+        let n = Double(level)
+        let b = 700.0 / 99.0
+        let a = 300.0 - b
+        return Int((a * n + b * n * n).rounded())
+    }
+
+    /// Level (0–100) for a given point total, using the quadratic curve.
+    static func auraLevel(for points: Int) -> Int {
+        guard points > 0        else { return 0 }
+        guard points < 100_000  else { return 100 }
+        var lo = 0, hi = 99
+        while lo < hi {
+            let mid = (lo + hi + 1) / 2
+            if auraThreshold(mid) <= points { lo = mid } else { hi = mid - 1 }
+        }
+        return lo
+    }
+
     // MARK: Computed aura properties
 
-    var auraLevel: Int { min(auraPoints / 1000, 100) }
+    var auraLevel: Int { UserSettings.auraLevel(for: auraPoints) }
 
     var auraTitle: String {
         switch auraLevel {
@@ -283,6 +314,8 @@ struct AuraGain: Identifiable, Equatable {
     /// Called by SessionManager after a successful Firestore profile fetch.
     /// Populates all identity fields in-memory. Does NOT touch UserDefaults.
     func populate(from profile: UserProfile) {
+        // Cache userID to UserDefaults so background tasks can access it without the auth stack
+        UserDefaults.standard.set(profile.userID, forKey: "cachedUserID")
         userID            = profile.userID
         username          = profile.username
         name              = profile.name
@@ -291,6 +324,7 @@ struct AuraGain: Identifiable, Equatable {
         instagramHandle   = profile.instagramHandle
         tiktokHandle      = profile.tiktokHandle
         isPrivateAccount  = profile.isPrivateAccount
+        dateOfBirth       = profile.dateOfBirth
         currentWeight     = profile.currentWeight
         goalWeight        = profile.goalWeight
         proteinPerLb      = profile.proteinPerLb
@@ -310,6 +344,7 @@ struct AuraGain: Identifiable, Equatable {
         instagramHandle   = ""
         tiktokHandle      = ""
         isPrivateAccount  = false
+        dateOfBirth       = ""
         currentWeight     = 160
         goalWeight        = 160
         proteinPerLb      = 0.9
