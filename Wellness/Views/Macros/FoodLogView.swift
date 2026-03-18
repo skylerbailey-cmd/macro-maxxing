@@ -178,10 +178,11 @@ struct FoodLogView: View {
             ImagePickerView(sourceType: .photoLibrary, selectedImage: $viewModel.selectedImage)
         }
         .sheet(item: $editingEntry) { entry in
-            EditEntrySheet(entry: entry) { name, cal, pro, carb, fat in
+            EditEntrySheet(entry: entry) { name, cal, pro, carb, fat, time in
                 viewModel.updateEntry(entry, foodName: name,
                                       calories: cal, protein: pro,
-                                      carbs: carb, fat: fat)
+                                      carbs: carb, fat: fat,
+                                      loggedAt: time)
             }
             .presentationDetents([.medium])
         }
@@ -1267,7 +1268,7 @@ private struct MealScoreInfoSheet: View {
 
 private struct EditEntrySheet: View {
     let entry: FoodEntry
-    let onSave: (String, Double, Double, Double, Double) -> Void
+    let onSave: (String, Double, Double, Double, Double, Date) -> Void
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focus: Field?
 
@@ -1276,11 +1277,12 @@ private struct EditEntrySheet: View {
     @State private var proteinText:  String
     @State private var carbsText:    String
     @State private var fatText:      String
+    @State private var loggedAt:     Date
     @State private var showEditError = false
 
     private enum Field: Hashable { case name, calories, protein, carbs, fat }
 
-    init(entry: FoodEntry, onSave: @escaping (String, Double, Double, Double, Double) -> Void) {
+    init(entry: FoodEntry, onSave: @escaping (String, Double, Double, Double, Double, Date) -> Void) {
         self.entry  = entry
         self.onSave = onSave
         _foodName     = State(initialValue: entry.foodName)
@@ -1288,6 +1290,7 @@ private struct EditEntrySheet: View {
         _proteinText  = State(initialValue: String(format: "%.1f", entry.protein))
         _carbsText    = State(initialValue: String(format: "%.1f", entry.carbs))
         _fatText      = State(initialValue: String(format: "%.1f", entry.fat))
+        _loggedAt     = State(initialValue: entry.loggedAt)
     }
 
     var body: some View {
@@ -1309,6 +1312,9 @@ private struct EditEntrySheet: View {
                     macroRow("Protein",  unit: "g",    text: $proteinText,  field: .protein,  next: .carbs)
                     macroRow("Carbs",    unit: "g",    text: $carbsText,    field: .carbs,    next: .fat)
                     macroRow("Fat",      unit: "g",    text: $fatText,      field: .fat,      next: nil)
+                }
+                Section("Time Logged") {
+                    DatePicker("Time", selection: $loggedAt, displayedComponents: .hourAndMinute)
                 }
                 if showEditError {
                     Section {
@@ -1352,7 +1358,7 @@ private struct EditEntrySheet: View {
               let pro = Double(proteinText),
               let carb = Double(carbsText),
               let fat = Double(fatText) else { return }
-        onSave(foodName, cal, pro, carb, fat)
+        onSave(foodName, cal, pro, carb, fat, loggedAt)
         dismiss()
     }
 
@@ -1385,6 +1391,7 @@ private struct FuelLogPostSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(LocationManager.self) private var locationManager
+    @State private var titleText   = ""
     @State private var messageText = ""
     @FocusState private var focused: Bool
 
@@ -1405,9 +1412,34 @@ private struct FuelLogPostSheet: View {
                 ScrollView {
                     VStack(spacing: 16) {
 
-                        // Optional message field
+                        // Status / title (replaces the hardcoded header in the feed)
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Add a message (optional)")
+                            Text("Status")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.50))
+                            TextField("", text: $titleText, prompt:
+                                Text("e.g. \"ate clean all day fr\"")
+                                    .foregroundStyle(.white.opacity(0.28))
+                            )
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .padding(12)
+                            .background(cardBg)
+                            .cornerRadius(12)
+                            .onChange(of: titleText) { _, v in
+                                if v.count > 80 { titleText = String(v.prefix(80)) }
+                            }
+                            HStack {
+                                Spacer()
+                                Text("\(titleText.count)/80")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(titleText.count >= 80 ? .red : titleText.count >= 64 ? Color.orange : .white.opacity(0.25))
+                            }
+                        }
+
+                        // Message / caption (shown below the status in the feed)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Message (optional)")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.white.opacity(0.50))
                             ZStack(alignment: .topLeading) {
@@ -1421,7 +1453,7 @@ private struct FuelLogPostSheet: View {
                                     .font(.subheadline)
                                     .foregroundStyle(.white)
                                     .scrollContentBackground(.hidden)
-                                    .frame(minHeight: 90)
+                                    .frame(minHeight: 80)
                                     .padding(10)
                                     .focused($focused)
                                     .onChange(of: messageText) { _, v in
@@ -1538,15 +1570,16 @@ private struct FuelLogPostSheet: View {
     }
 
     private func submit() {
+        let title   = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
         let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         let fbPostID = UUID().uuidString   // shared ID for SwiftData ↔ Firestore link
 
         let isToday = Calendar.current.isDateInToday(logDate)
-        let dateLabel: String = {
-            if isToday { return "Today's Fuel Log 🔥" }
+        let fallbackLabel: String = {
+            if isToday { return "Today's Fuel Log" }
             let fmt = DateFormatter()
             fmt.dateFormat = "MMM d"
-            return "\(fmt.string(from: logDate)) Fuel Log 🔥"
+            return "\(fmt.string(from: logDate)) Fuel Log"
         }()
 
         let post = SocialPost(
@@ -1554,7 +1587,7 @@ private struct FuelLogPostSheet: View {
             authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
             authorDisplayName: userSettings.name,
             memeEmoji:         "🔥",
-            memeHeadline:      dateLabel,
+            memeHeadline:      title.isEmpty ? fallbackLabel : title,
             memeSub:           message,
             macroDate:         logDate,
             totalCalories: totalCalories, goalCalories: 0,
@@ -1584,7 +1617,8 @@ private struct FuelLogPostSheet: View {
                 fat:       entry.fat,
                 loggedAt:  entry.loggedAt,
                 sortOrder: index,
-                imageData: entry.imageData
+                imageData: entry.imageData,
+                photoURL:  entry.photoURL
             )
             fle.post = post
             modelContext.insert(fle)
@@ -1616,7 +1650,7 @@ private struct FuelLogPostSheet: View {
                 try await PostService.shared.createCustomPost(
                     photos:       entryPhotos,
                     author:       author,
-                    title:        dateLabel,
+                    title:        title.isEmpty ? fallbackLabel : title,
                     caption:      caption,
                     locationName: locationName,
                     latitude:     latitude,

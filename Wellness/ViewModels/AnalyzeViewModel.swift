@@ -38,7 +38,11 @@ import Foundation
     func analyze() async {
         state = .analyzing
 
-        let entries = (try? await FoodEntryService.shared.fetch(userID: userID, date: selectedDate)) ?? []
+        async let foodFetch    = FoodEntryService.shared.fetch(userID: userID, date: selectedDate)
+        async let workoutFetch = WorkoutService.shared.fetch(userID: userID, date: selectedDate)
+
+        let entries  = (try? await foodFetch)    ?? []
+        let workouts = (try? await workoutFetch) ?? []
 
         // Read current macro goals from UserDefaults (written by HomeViewModel)
         let ud = UserDefaults.standard
@@ -46,14 +50,26 @@ import Foundation
             ud.object(forKey: key) != nil ? ud.double(forKey: key) : fallback
         }
 
+        let workoutSummaries = workouts.map {
+            ClaudeAnalysisService.WorkoutSummary(
+                name:            $0.name,
+                type:            $0.workoutType.rawValue,
+                durationMinutes: $0.durationMinutes,
+                caloriesBurned:  $0.caloriesBurned,
+                loggedAt:        $0.loggedAt
+            )
+        }
+
         let input = ClaudeAnalysisService.NutritionInput(
             entries:      entries.map { (name: $0.foodName, calories: $0.calories,
-                                         protein: $0.protein, carbs: $0.carbs, fat: $0.fat) },
+                                         protein: $0.protein, carbs: $0.carbs, fat: $0.fat,
+                                         loggedAt: $0.loggedAt) },
             goalCalories: goal("goalCalories", fallback: 2000),
             goalProtein:  goal("goalProtein",  fallback: 150),
             goalCarbs:    goal("goalCarbs",    fallback: 200),
             goalFat:      goal("goalFat",      fallback: 65),
-            date:         selectedDate
+            date:         selectedDate,
+            workouts:     workoutSummaries
         )
 
         do {

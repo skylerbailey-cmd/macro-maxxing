@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+internal import _LocationEssentials
 
 struct PostWorkoutSheet: View {
 

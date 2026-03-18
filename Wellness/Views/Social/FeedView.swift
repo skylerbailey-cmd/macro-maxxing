@@ -206,7 +206,16 @@ struct FeedPostCard: View {
                 if !post.caption.isEmpty {
                     captionView(post.caption)
                 }
-                macroRow
+                if post.goalCalories > 0 {
+                    MacroDisciplineCard(
+                        totalCalories: Double(post.calories),  goalCalories: Double(post.goalCalories),
+                        totalProtein:  post.protein,           goalProtein:  post.goalProtein,
+                        totalCarbs:    post.carbs,             goalCarbs:    post.goalCarbs,
+                        totalFat:      post.fat,               goalFat:      post.goalFat
+                    )
+                } else {
+                    macroRow
+                }
                 actionRow
             }
             .padding(.horizontal, 14)
@@ -472,6 +481,100 @@ struct FeedPostCard: View {
         case 86400..<604800: return "\(s / 86400)d"
         default:          return "\(s / 604800)w"
         }
+    }
+}
+
+// MARK: - Macro Discipline Card (shared by feed + post detail)
+
+struct MacroDisciplineCard: View {
+    let totalCalories: Double; let goalCalories:  Double
+    let totalProtein:  Double; let goalProtein:   Double
+    let totalCarbs:    Double; let goalCarbs:     Double
+    let totalFat:      Double; let goalFat:       Double
+
+    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let neon   = Color(red: 0.35, green: 1.00, blue: 0.60)
+    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+
+    private var disciplineProgress: Double {
+        let pairs = [(totalCalories, goalCalories), (totalProtein, goalProtein),
+                     (totalCarbs, goalCarbs), (totalFat, goalFat)]
+        let active = pairs.filter { $0.1 > 0 }
+        guard !active.isEmpty else { return 0 }
+        return active.reduce(0.0) { $0 + max(0, 1.0 - abs($1.0 / $1.1 - 1.0)) } / Double(active.count)
+    }
+
+    var body: some View {
+        let pct    = Int((disciplineProgress * 100 / 5).rounded()) * 5
+        let macros: [(String, Double, Double, String, Color)] = [
+            ("Calories", totalCalories, goalCalories, "kcal", Color.calClr),
+            ("Protein",  totalProtein,  goalProtein,  "g",    Color.proClr),
+            ("Carbs",    totalCarbs,    goalCarbs,    "g",    Color.carbClr),
+            ("Fat",      totalFat,      goalFat,      "g",    Color.fatClr),
+        ]
+        VStack(spacing: 10) {
+            // Overall discipline bar
+            HStack(spacing: 0) {
+                Text("DISCIPLINE")
+                    .font(.system(size: 10, weight: .black))
+                    .tracking(1.5)
+                    .foregroundStyle(.white.opacity(0.40))
+                Spacer()
+                HStack(spacing: 6) {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.white.opacity(0.08)).frame(height: 5)
+                            Capsule()
+                                .fill(LinearGradient(
+                                    colors: disciplineProgress >= 1.0
+                                        ? [neon, Color(red: 0.20, green: 0.85, blue: 0.50)]
+                                        : [purpl, Color(red: 0.35, green: 0.75, blue: 1.00)],
+                                    startPoint: .leading, endPoint: .trailing))
+                                .frame(width: max(4, geo.size.width * disciplineProgress), height: 5)
+                        }
+                    }
+                    .frame(width: 80, height: 5)
+                    Text("\(pct)%")
+                        .font(.system(size: 13, weight: .black, design: .rounded))
+                        .foregroundStyle(disciplineProgress >= 1.0 ? neon : purpl)
+                        .frame(width: 38, alignment: .trailing)
+                }
+            }
+            Divider().background(purpl.opacity(0.15))
+            // Per-macro rows
+            ForEach(Array(macros.enumerated()), id: \.offset) { _, macro in
+                let (label, total, goal, unit, color) = macro
+                let ratio  = goal > 0 ? min(total / goal, 1.0) : 0
+                let macPct = goal > 0 ? Int((total / goal) * 100) : 0
+                HStack(spacing: 8) {
+                    Text(label)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.70))
+                        .frame(width: 60, alignment: .leading)
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.white.opacity(0.07)).frame(height: 6)
+                            Capsule()
+                                .fill(color.opacity(0.85))
+                                .frame(width: max(4, geo.size.width * ratio), height: 6)
+                        }
+                    }
+                    .frame(height: 6)
+                    Text("\(macPct)%")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(color)
+                        .frame(width: 38, alignment: .trailing)
+                    Text("\(Int(total)) / \(Int(goal)) \(unit)")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.28))
+                        .frame(width: 80, alignment: .trailing)
+                }
+            }
+        }
+        .padding(14)
+        .background(cardBg)
+        .cornerRadius(14)
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(purpl.opacity(0.20), lineWidth: 1))
     }
 }
 

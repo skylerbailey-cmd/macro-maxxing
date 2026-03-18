@@ -187,7 +187,6 @@ final class InAppNotificationService {
         stopNewPostListener()
         let since = Timestamp(date: Date())
         newPostListener = col(userID)
-            .whereField("type", isEqualTo: AppNotification.NotifType.newPost.rawValue)
             .whereField("createdAt", isGreaterThan: since)
             .addSnapshotListener { snapshot, _ in
                 guard let snapshot else { return }
@@ -195,6 +194,7 @@ final class InAppNotificationService {
                     .filter { $0.type == .added }
                     .compactMap { try? Firestore.Decoder().decode(AppNotification.self,
                                                                    from: $0.document.data()) }
+                    .filter { $0.type == .newPost }
                 for notif in added {
                     let name = notif.actorDisplayName.isEmpty
                         ? notif.actorUsername

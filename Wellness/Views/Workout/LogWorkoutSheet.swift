@@ -25,6 +25,7 @@ struct LogWorkoutSheet: View {
     @State private var workoutType    = WorkoutType.strength
     @State private var durationText   = ""
     @State private var caloriesText   = ""
+    @State private var logTime:        Date
     @State private var saveAsTemplate = false
     @State private var applyAdjustment: Bool
 
@@ -61,8 +62,8 @@ struct LogWorkoutSheet: View {
     // MARK: - Init
 
     init(userID: String, selectedDate: Date, bodyWeightLbs: Double, autoAdjustByDefault: Bool,
-         userSettings: UserSettings, initialDurationMinutes: Int = 0,
-         editingEntry: WorkoutEntry? = nil, onSaved: @escaping () -> Void) {
+         userSettings: UserSettings, editingEntry: WorkoutEntry? = nil,
+         onSaved: @escaping () -> Void) {
         self.userID              = userID
         self.selectedDate        = selectedDate
         self.bodyWeightLbs       = bodyWeightLbs
@@ -70,14 +71,16 @@ struct LogWorkoutSheet: View {
         self.userSettings        = userSettings
         self.editingEntry        = editingEntry
         self.onSaved             = onSaved
-        _applyAdjustment         = State(initialValue: autoAdjustByDefault)
         if let e = editingEntry {
-            _workoutName  = State(initialValue: e.name)
-            _workoutType  = State(initialValue: e.workoutType)
-            _durationText = State(initialValue: "\(e.durationMinutes)")
-            _caloriesText = State(initialValue: "\(e.caloriesBurned)")
+            _workoutName     = State(initialValue: e.name)
+            _workoutType     = State(initialValue: e.workoutType)
+            _durationText    = State(initialValue: "\(e.durationMinutes)")
+            _caloriesText    = State(initialValue: "\(e.caloriesBurned)")
+            _logTime         = State(initialValue: e.loggedAt)
+            _applyAdjustment = State(initialValue: e.adjustmentApplied)
         } else {
-            _durationText = State(initialValue: initialDurationMinutes > 0 ? "\(initialDurationMinutes)" : "")
+            _logTime         = State(initialValue: Date())
+            _applyAdjustment = State(initialValue: autoAdjustByDefault)
         }
     }
 
@@ -248,6 +251,7 @@ struct LogWorkoutSheet: View {
                 field(label: "Duration (min)",  placeholder: "45",  text: $durationText, keyboardType: .numberPad)
                 field(label: "Calories Burned", placeholder: "350", text: $caloriesText, keyboardType: .numberPad)
             }
+            timePickerRow
         }
     }
 
@@ -358,6 +362,22 @@ struct LogWorkoutSheet: View {
                 field(label: "Duration (min)",  placeholder: "45",  text: $durationText, keyboardType: .numberPad)
                 field(label: "Calories Burned", placeholder: "350", text: $caloriesText, keyboardType: .numberPad)
             }
+            timePickerRow
+        }
+    }
+
+    private var timePickerRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Time Completed")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.45))
+            DatePicker("", selection: $logTime, displayedComponents: .hourAndMinute)
+                .labelsHidden()
+                .colorScheme(.dark)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.20), lineWidth: 1))
         }
     }
 
@@ -563,6 +583,21 @@ struct LogWorkoutSheet: View {
         }
     }
 
+    /// Preserves the year/month/day from `date` but applies the hour/minute from `time`.
+    private func combinedDate(date: Date, time: Date) -> Date {
+        let cal  = Calendar.current
+        let ymd  = cal.dateComponents([.year, .month, .day], from: date)
+        let hm   = cal.dateComponents([.hour, .minute], from: time)
+        var merged = DateComponents()
+        merged.year   = ymd.year
+        merged.month  = ymd.month
+        merged.day    = ymd.day
+        merged.hour   = hm.hour
+        merged.minute = hm.minute
+        merged.second = 0
+        return cal.date(from: merged) ?? date
+    }
+
     private func saveWorkout() async {
         let name     = workoutName.trimmingCharacters(in: .whitespaces)
         let duration = Int(durationText) ?? 0
@@ -572,14 +607,18 @@ struct LogWorkoutSheet: View {
         isSaving  = true
         saveError = nil
 
+        // Combine the selected calendar date with the user-chosen time
+        let loggedAt = combinedDate(date: selectedDate, time: logTime)
+
         // Preserve the original workoutID when editing so Firestore overwrites the same document
         let entry = WorkoutEntry(
-            workoutID:       editingEntry?.workoutID ?? UUID().uuidString,
-            name:            name,
-            workoutType:     workoutType,
-            durationMinutes: duration,
-            caloriesBurned:  calories,
-            loggedAt:        editingEntry?.loggedAt ?? selectedDate
+            workoutID:          editingEntry?.workoutID ?? UUID().uuidString,
+            name:               name,
+            workoutType:        workoutType,
+            durationMinutes:    duration,
+            caloriesBurned:     calories,
+            loggedAt:           loggedAt,
+            adjustmentApplied:  applyAdjustment
         )
         do {
             try await WorkoutService.shared.save(entry: entry, userID: userID)
@@ -591,12 +630,14 @@ struct LogWorkoutSheet: View {
                 )
             }
 
-            if applyAdjustment {
-                // Re-applies for the (possibly changed) workout type — safe to call on new or edited entries
-                MacroAdjustmentEngine.apply(for: workoutType, bodyWeightLbs: bodyWeightLbs)
-            } else if editingEntry != nil {
-                // Editing with adjustment OFF: restore base goals
-                MacroAdjustmentEngine.revert()
+            if Calendar.current.isDateInToday(selectedDate) {
+                if applyAdjustment {
+                    // Re-applies for the (possibly changed) workout type — safe to call on new or edited entries
+                    MacroAdjustmentEngine.apply(for: workoutType, bodyWeightLbs: bodyWeightLbs)
+                } else if editingEntry != nil {
+                    // Editing with adjustment OFF: restore base goals
+                    MacroAdjustmentEngine.revert()
+                }
             }
 
             savedWorkoutName  = name
@@ -624,7 +665,7 @@ struct LogWorkoutSheet: View {
 
         let entry = WorkoutEntry(name: "Rest Day", workoutType: .restDay,
                                  durationMinutes: 0, caloriesBurned: 0,
-                                 loggedAt: selectedDate)
+                                 loggedAt: combinedDate(date: selectedDate, time: Date()))
         do {
             try await WorkoutService.shared.save(entry: entry, userID: userID)
 

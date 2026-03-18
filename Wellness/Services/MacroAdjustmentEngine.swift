@@ -158,6 +158,10 @@ enum MacroAdjustmentEngine {
         ud.set(ud.double(forKey: baseCrbKey), forKey: "goalCarbs")
         ud.set(ud.double(forKey: baseFatKey), forKey: "goalFat")
         ud.removeObject(forKey: adjDateKey)
+        ud.removeObject(forKey: baseCalKey)
+        ud.removeObject(forKey: basePrtKey)
+        ud.removeObject(forKey: baseCrbKey)
+        ud.removeObject(forKey: baseFatKey)
 
         NotificationCenter.default.post(name: macroAdjustedNotification, object: nil)
     }
@@ -173,6 +177,47 @@ enum MacroAdjustmentEngine {
         ud.set(ud.double(forKey: baseCrbKey), forKey: "goalCarbs")
         ud.set(ud.double(forKey: baseFatKey), forKey: "goalFat")
         ud.removeObject(forKey: adjDateKey)
+        ud.removeObject(forKey: baseCalKey)
+        ud.removeObject(forKey: basePrtKey)
+        ud.removeObject(forKey: baseCrbKey)
+        ud.removeObject(forKey: baseFatKey)
+
+        NotificationCenter.default.post(name: macroAdjustedNotification, object: nil)
+    }
+
+    // MARK: Update base goals (called when user changes settings while adjustment is active)
+
+    /// Updates the stored base goals when the user changes their weight/protein settings
+    /// while a workout adjustment is already active for today.
+    /// Preserves the existing adjustment deltas on top of the new base values.
+    static func updateBaseGoals(newCalories: Double, newProtein: Double,
+                                newCarbs: Double, newFat: Double) {
+        let ud = UserDefaults.standard
+        guard isAdjustedToday(), ud.object(forKey: baseCalKey) != nil else { return }
+
+        // Current adjusted values in UserDefaults
+        let adjCal = ud.double(forKey: "goalCalories")
+        let adjPrt = ud.double(forKey: "goalProtein")
+        let adjCrb = ud.double(forKey: "goalCarbs")
+        let adjFat = ud.double(forKey: "goalFat")
+
+        // Deltas = adjusted − old base
+        let calDelta = adjCal - ud.double(forKey: baseCalKey)
+        let prtDelta = adjPrt - ud.double(forKey: basePrtKey)
+        let crbDelta = adjCrb - ud.double(forKey: baseCrbKey)
+        let fatDelta = adjFat - ud.double(forKey: baseFatKey)
+
+        // Save new base
+        ud.set(newCalories, forKey: baseCalKey)
+        ud.set(newProtein,  forKey: basePrtKey)
+        ud.set(newCarbs,    forKey: baseCrbKey)
+        ud.set(newFat,      forKey: baseFatKey)
+
+        // Re-apply same deltas on top of new base
+        ud.set(max(1200, newCalories + calDelta), forKey: "goalCalories")
+        ud.set(max(50,   newProtein  + prtDelta), forKey: "goalProtein")
+        ud.set(max(50,   newCarbs    + crbDelta), forKey: "goalCarbs")
+        ud.set(max(20,   newFat      + fatDelta), forKey: "goalFat")
 
         NotificationCenter.default.post(name: macroAdjustedNotification, object: nil)
     }

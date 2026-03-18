@@ -7,13 +7,11 @@
 
 import SwiftUI
 import SwiftData
-import AVFoundation
 
 struct ContentView: View {
     @Environment(\.modelContext)  private var modelContext
     @Environment(UserSettings.self) private var userSettings
     @Environment(SessionManager.self) private var auth
-    @Environment(\.scenePhase)   private var scenePhase
     @State private var selectedDate     = Calendar.current.startOfDay(for: Date())
     @State private var locationManager  = LocationManager()
 
@@ -21,6 +19,11 @@ struct ContentView: View {
 
     @State private var notificationState = NotificationState()
     @State private var selectedTab = 0
+
+    // Aura popup
+    @State private var pendingAuraGain: AuraGain? = nil
+    // Celebration popup
+    @State private var pendingCelebration: CelebrationPostData? = nil
 
     // FAB state
     @State private var fabExpanded           = false
@@ -31,21 +34,8 @@ struct ContentView: View {
     @State private var fabShowingLogWorkout  = false
     @State private var fabSelectedImage: UIImage? = nil
 
-    // Active workout timer
-    @State private var workoutStartTime:          Date?   = nil
-    @State private var workoutPausedAt:           Date?   = nil
-    @State private var workoutTotalPausedSeconds: Double  = 0
-    @State private var workoutTimerElapsedMinutes: Int    = 0
-    @State private var fabShowingLogWorkoutFromTimer = false
-    @State private var showingCancelWorkoutConfirm   = false
-
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            // Hidden 1×1 view that keeps the PiP display layer in the hierarchy
-            PiPLayerView()
-                .frame(width: 1, height: 1)
-                .allowsHitTesting(false)
-
             // Email verification nudge — full-width gold bar at the top until dismissed
             if auth.needsEmailVerification {
                 VStack(spacing: 0) {
@@ -84,64 +74,52 @@ struct ContentView: View {
             }
             .environment(locationManager)
             .environment(notificationState)
-            .onAppear { checkLeaderboardAward() }
             .task { await notificationState.refresh(userID: userSettings.userID) }
             .task(id: userSettings.userID) {
                 guard !userSettings.userID.isEmpty else { return }
                 InAppNotificationService.shared.startNewPostListener(userID: userSettings.userID)
+                checkLeaderboardAward()
             }
             .onChange(of: userSettings.userID) { _, newID in
                 guard !newID.isEmpty else { return }
                 Task { await notificationState.refresh(userID: newID) }
             }
-            .onAppear { restoreWorkoutTimer() }
-            .onChange(of: workoutStartTime)          { _, _ in persistWorkoutTimer(); syncPiP() }
-            .onChange(of: workoutPausedAt)           { _, _ in persistWorkoutTimer(); syncPiP() }
-            .onChange(of: workoutTotalPausedSeconds) { _, _ in persistWorkoutTimer(); syncPiP() }
-            .onChange(of: scenePhase) { _, phase in
-                switch phase {
-                case .background:
-                    persistWorkoutTimer()
-                    if workoutStartTime != nil { WorkoutPiPManager.shared.startPiP() }
-                case .active:
-                    WorkoutPiPManager.shared.stopPiP()
-                    restoreWorkoutTimer()
-                default: break
-                }
+            .onChange(of: userSettings.pendingAuraGain) { _, gain in
+                if let gain { pendingAuraGain = gain }
+            }
+            .onChange(of: userSettings.pendingCelebration) { _, data in
+                if let data { pendingCelebration = data }
             }
 
-            // Workout timer banner
-            if let startTime = workoutStartTime {
-                VStack(spacing: 0) {
-                    WorkoutTimerBanner(
-                        startTime:          startTime,
-                        pausedAt:           workoutPausedAt,
-                        totalPausedSeconds: workoutTotalPausedSeconds,
-                        onPause: {
-                            workoutPausedAt = Date()
-                        },
-                        onResume: {
-                            if let p = workoutPausedAt {
-                                workoutTotalPausedSeconds += Date().timeIntervalSince(p)
-                            }
-                            workoutPausedAt = nil
-                        },
-                        onLog: {
-                            if let start = workoutStartTime {
-                                let end        = workoutPausedAt ?? Date()
-                                let rawSeconds = end.timeIntervalSince(start) - workoutTotalPausedSeconds
-                                workoutTimerElapsedMinutes = max(0, Int(rawSeconds / 60))
-                            }
-                            fabShowingLogWorkoutFromTimer = true
-                        },
-                        onCancel: {
-                            showingCancelWorkoutConfirm = true
-                        }
-                    )
-                    Spacer()
-                }
-                .zIndex(9)
-                .transition(.move(edge: .top).combined(with: .opacity))
+            // Celebration popup — shown on top of all tabs
+            if let data = pendingCelebration {
+                CelebrationView(
+                    macroGoalsMet: [true, true, true, true],
+                    userName:      userSettings.name,
+                    userSettings:  userSettings,
+                    postData:      data,
+                    onDismiss: {
+                        pendingCelebration = nil
+                        userSettings.pendingCelebration = nil
+                    }
+                )
+                .environment(locationManager)
+                .transition(.opacity)
+                .zIndex(20)
+            }
+
+            // Aura popup — shown on top of all tabs
+            if let gain = pendingAuraGain {
+                AuraPopupView(
+                    gain:         gain,
+                    userSettings: userSettings,
+                    onDismiss: {
+                        pendingAuraGain = nil
+                        userSettings.pendingAuraGain = nil
+                    }
+                )
+                .transition(.opacity)
+                .zIndex(20)
             }
 
             // Tap-to-dismiss overlay when FAB is open
@@ -170,15 +148,6 @@ struct ContentView: View {
                     selectedTab = 1
                     fabShowingLogWorkout = true
                 },
-                onStartWorkout: {
-                    fabExpanded = false
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                        workoutStartTime          = Date()
-                        workoutPausedAt           = nil
-                        workoutTotalPausedSeconds = 0
-                    }
-                    syncPiP()
-                },
                 onMakePost: {
                     fabExpanded = false
                     fabShowingNewPost = true
@@ -202,24 +171,6 @@ struct ContentView: View {
             )
             .environment(locationManager)
         }
-        .sheet(isPresented: $fabShowingLogWorkoutFromTimer) {
-            LogWorkoutSheet(
-                userID:                 userSettings.userID,
-                selectedDate:           selectedDate,
-                bodyWeightLbs:          userSettings.currentWeight,
-                autoAdjustByDefault:    userSettings.autoAdjustMacrosForWorkout,
-                userSettings:           userSettings,
-                initialDurationMinutes: workoutTimerElapsedMinutes,
-                onSaved: {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                        workoutStartTime          = nil
-                        workoutPausedAt           = nil
-                        workoutTotalPausedSeconds = 0
-                    }
-                }
-            )
-            .environment(locationManager)
-        }
         .sheet(isPresented: $fabShowingNewPost) {
             NewPostView(userSettings: userSettings)
                 .environment(locationManager)
@@ -237,59 +188,6 @@ struct ContentView: View {
         .onChange(of: fabSelectedImage) { _, image in
             if image != nil { selectedTab = 1 }
         }
-        .confirmationDialog("Cancel Workout?", isPresented: $showingCancelWorkoutConfirm,
-                            titleVisibility: .visible) {
-            Button("Cancel Workout", role: .destructive) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                    workoutStartTime          = nil
-                    workoutPausedAt           = nil
-                    workoutTotalPausedSeconds = 0
-                }
-            }
-            Button("Keep Going", role: .cancel) {}
-        } message: {
-            Text("Your workout progress will be lost.")
-        }
-    }
-
-    // MARK: - Workout timer persistence
-
-    private func persistWorkoutTimer() {
-        let ud = UserDefaults.standard
-        if let start = workoutStartTime {
-            ud.set(start.timeIntervalSince1970,  forKey: "wt_startTime")
-            ud.set(workoutTotalPausedSeconds,     forKey: "wt_pausedSeconds")
-            if let p = workoutPausedAt {
-                ud.set(p.timeIntervalSince1970, forKey: "wt_pausedAt")
-            } else {
-                ud.removeObject(forKey: "wt_pausedAt")
-            }
-        } else {
-            ud.removeObject(forKey: "wt_startTime")
-            ud.removeObject(forKey: "wt_pausedAt")
-            ud.removeObject(forKey: "wt_pausedSeconds")
-        }
-    }
-
-    private func restoreWorkoutTimer() {
-        let ud = UserDefaults.standard
-        guard let startInterval = ud.object(forKey: "wt_startTime") as? Double else { return }
-        workoutStartTime          = Date(timeIntervalSince1970: startInterval)
-        workoutTotalPausedSeconds = ud.double(forKey: "wt_pausedSeconds")
-        if let pausedInterval = ud.object(forKey: "wt_pausedAt") as? Double {
-            workoutPausedAt = Date(timeIntervalSince1970: pausedInterval)
-        } else {
-            workoutPausedAt = nil
-        }
-    }
-
-    /// Keeps WorkoutPiPManager's copy of the timer state up to date.
-    private func syncPiP() {
-        WorkoutPiPManager.shared.update(
-            startTime:          workoutStartTime,
-            pausedAt:           workoutPausedAt,
-            totalPausedSeconds: workoutTotalPausedSeconds
-        )
     }
 
     // MARK: - Leaderboard award on app open
@@ -355,12 +253,10 @@ private struct QuickActionFAB: View {
     let onLogMealCamera:  () -> Void
     let onLogMealLibrary: () -> Void
     let onLogWorkout:     () -> Void
-    let onStartWorkout:   () -> Void
     let onMakePost:       () -> Void
     let onFindPeople:     () -> Void
 
-    @State private var logMealExpanded    = false
-    @State private var logWorkoutExpanded = false
+    @State private var logMealExpanded = false
 
     private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
     private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
@@ -388,29 +284,11 @@ private struct QuickActionFAB: View {
                 ) {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         logMealExpanded.toggle()
-                        if logMealExpanded { logWorkoutExpanded = false }
                     }
                 }
 
-                // Sub-actions under Log a Workout
-                if logWorkoutExpanded {
-                    actionPill(icon: "play.fill", label: "Start a Workout",
-                               color: green, action: onStartWorkout)
-
-                    actionPill(icon: "plus.clipboard", label: "Log a Workout",
-                               color: green, action: onLogWorkout)
-                }
-
-                actionPill(
-                    icon: logWorkoutExpanded ? "chevron.down" : "figure.strengthtraining.traditional",
-                    label: "Log a Workout",
-                    color: green
-                ) {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        logWorkoutExpanded.toggle()
-                        if logWorkoutExpanded { logMealExpanded = false }
-                    }
-                }
+                actionPill(icon: "figure.strengthtraining.traditional", label: "Log a Workout",
+                           color: green, action: onLogWorkout)
 
                 actionPill(icon: "square.and.pencil", label: "Make a Post", color: gold,
                            action: onMakePost)
@@ -422,10 +300,7 @@ private struct QuickActionFAB: View {
             // Main FAB button
             Button {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    if expanded {
-                        logMealExpanded    = false
-                        logWorkoutExpanded = false
-                    }
+                    if expanded { logMealExpanded = false }
                     expanded.toggle()
                 }
             } label: {

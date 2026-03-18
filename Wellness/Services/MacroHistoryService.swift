@@ -128,7 +128,19 @@ final class MacroHistoryService {
         }
     }
 
-    // MARK: - 3. Fetch All Macro History
+    // MARK: - 3. Fetch Goals for a Single Day
+
+    /// Returns the saved macro goals for a specific past date, or nil if no snapshot exists.
+    func fetchDayGoals(userID: String, date: Date) async
+        -> (calories: Double, protein: Double, carbs: Double, fat: Double)? {
+        guard !userID.isEmpty else { return nil }
+        let key = Self.dateString(for: date)
+        guard let doc   = try? await historyCollection(userID: userID).document(key).getDocument(),
+              let macros = DailyMacros(document: doc) else { return nil }
+        return (Double(macros.goalCalories), macros.goalProtein, macros.goalCarbs, macros.goalFat)
+    }
+
+    // MARK: - 4. Fetch All Macro History
 
     /// Returns all macro history documents for the user, ordered newest first.
     /// No limit — captures full all-time history.

@@ -39,7 +39,11 @@ final class SessionManager {
     var errorMessage:   String? = nil
     var successMessage: String? = nil
 
-    private(set) var isBypassSession = false
+    private(set) var isBypassSession  = false
+
+    /// True immediately after a brand-new profile is created; cleared when the user
+    /// finishes the onboarding flow.
+    var needsOnboarding = false
 
     // MARK: - UserSettings wire-up
 
@@ -164,6 +168,7 @@ final class SessionManager {
                 joinDate: Int(Date().timeIntervalSince1970)
             ))
 
+            needsOnboarding = true
             successMessage = "Account created! A verification email was sent from noreply@macromaxxing.firebaseapp.com — check your spam folder if you don't see it."
         } catch {
             errorMessage = Self.friendlyMessage(for: error)
@@ -439,6 +444,7 @@ final class SessionManager {
             followingCount: 0, followerCount: 0,
             joinDate: Int(Date().timeIntervalSince1970)
         ))
+        needsOnboarding = true
     }
 
     // MARK: - Validation Helpers

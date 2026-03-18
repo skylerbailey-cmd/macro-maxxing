@@ -78,18 +78,20 @@ final class FoodEntryService {
     // MARK: - 3. Update (fields only — photo is not re-uploaded on edit)
 
     func update(entryID: String, userID: String, foodName: String, calories: Double,
-                protein: Double, carbs: Double, fat: Double) async {
+                protein: Double, carbs: Double, fat: Double, loggedAt: Date? = nil) async {
         guard !entryID.isEmpty, !userID.isEmpty else { return }
 
         let docRef = db.collection("users").document(userID)
             .collection("foodEntries").document(entryID)
-        try? await docRef.updateData([
+        var fields: [String: Any] = [
             "foodName": foodName,
             "calories": calories,
             "protein":  protein,
             "carbs":    carbs,
             "fat":      fat
-        ])
+        ]
+        if let loggedAt { fields["loggedAt"] = Timestamp(date: loggedAt) }
+        try? await docRef.updateData(fields)
     }
 
     // MARK: - 4. Fetch

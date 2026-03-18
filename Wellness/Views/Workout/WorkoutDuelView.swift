@@ -52,6 +52,7 @@ struct WorkoutDuelView: View {
                             Task {
                                 await WorkoutService.shared.delete(workoutID: entry.workoutID, userID: userID)
                                 entries.removeAll { $0.workoutID == entry.workoutID }
+                                if isToday { MacroAdjustmentEngine.revert() }
                             }
                         })
                     }
@@ -88,7 +89,7 @@ struct WorkoutDuelView: View {
                                          durationMinutes: 0, caloriesBurned: 0,
                                          loggedAt: selectedDate)
                 try? await WorkoutService.shared.save(entry: entry, userID: userID)
-                MacroAdjustmentEngine.apply(for: .restDay, bodyWeightLbs: bodyWeightLbs)
+                if isToday { MacroAdjustmentEngine.apply(for: .restDay, bodyWeightLbs: bodyWeightLbs) }
                 await load()
                 isSavingRestDay = false
             }

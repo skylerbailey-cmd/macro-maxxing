@@ -29,13 +29,12 @@ struct HomeView: View {
     @State private var showingWindowPicker = false
     @State private var selectedMacro: MacroType? = nil
     @State private var showingShare       = false
-    @State private var showCelebration    = false
-    @State private var pendingAuraGain: AuraGain? = nil
     @State private var showingProfile     = false
     @State private var showingGoalPost    = false
     @State private var goalPostMeme       = GymMeme.random()
     @State private var brainstormAlert: BrainstormAlert? = nil
     @State private var showingNotifications = false
+    @State private var isMacroAdjustedToday = MacroAdjustmentEngine.isAdjustedToday()
 
     private enum BrainstormAlert: Identifiable {
         case confirm, limitReached
@@ -135,6 +134,7 @@ struct HomeView: View {
             .onAppear { handleAppear() }
             .onReceive(NotificationCenter.default.publisher(for: MacroAdjustmentEngine.macroAdjustedNotification)) { _ in
                 viewModel.reloadGoalsFromDefaults()
+                isMacroAdjustedToday = MacroAdjustmentEngine.isAdjustedToday()
             }
             .onChange(of: selectedDate) { _, newDate in handleDateChange(newDate) }
             .onChange(of: scenePhase) { _, phase in
@@ -152,13 +152,8 @@ struct HomeView: View {
             .onChange(of: viewModel.userSettings.goalWeight) { _, newVal in handleGoalWeightChange(newVal) }
             .onChange(of: viewModel.userSettings.proteinPerLb) { _, _ in handleProteinPerLbChange() }
         let contentWithOverlays = contentWithGoalChanges
-            .onChange(of: viewModel.userSettings.pendingAuraGain) { (_: AuraGain?, gain: AuraGain?) in
-                if let gain { pendingAuraGain = gain }
-            }
             .onChange(of: viewModel.macrosMetToday) { oldVal, newVal in handleMacrosMetChange(oldVal, newVal) }
-            .overlay { auraPopupOverlay }
-            .overlay { celebrationOverlay }
-        
+
         return contentWithOverlays
             .sheet(isPresented: $showingWindowPicker) { windowPickerSheet() }
             .sheet(item: $selectedMacro) { macro in macroHistorySheet(macro: macro) }
@@ -379,53 +374,14 @@ struct HomeView: View {
             .presentationDetents([.large])
     }
     
-    @ViewBuilder
-    private var auraPopupOverlay: some View {
-        if let gain = pendingAuraGain {
-            AuraPopupView(
-                gain:         gain,
-                userSettings: viewModel.userSettings,
-                onDismiss: {
-                    pendingAuraGain = nil
-                    viewModel.userSettings.pendingAuraGain = nil
-                }
-            )
-            .transition(.opacity)
-            .zIndex(3)
-        }
-    }
-
-    @ViewBuilder
-    private var celebrationOverlay: some View {
-        if showCelebration {
-            CelebrationView(
-                macroGoalsMet: viewModel.macroGoalsMet,
-                userName:      viewModel.userSettings.name,
-                userSettings:  viewModel.userSettings,
-                postData: CelebrationPostData(
-                    totalCalories: viewModel.totalCalories, goalCalories: viewModel.goalCalories,
-                    totalProtein:  viewModel.totalProtein,  goalProtein:  viewModel.goalProtein,
-                    totalCarbs:    viewModel.totalCarbs,    goalCarbs:    viewModel.goalCarbs,
-                    totalFat:      viewModel.totalFat,      goalFat:      viewModel.goalFat,
-                    date:          viewModel.selectedDate,
-                    fastingWindowDisplay: viewModel.userSettings.fastingEnabled
-                        ? "\(timeString(hour: viewModel.windowStartHour, minute: viewModel.windowStartMinute)) – \(timeString(hour: viewModel.windowEndHour, minute: viewModel.windowEndMinute)) · \(viewModel.windowDurationHours)h window"
-                        : ""
-                ),
-                onDismiss: { showCelebration = false }
-            )
-            .transition(.opacity)
-        }
-    }
-    
     private func goalPostSheet() -> some View {
         CelebrationPostEditorSheet(
             meme: goalPostMeme,
             postData: CelebrationPostData(
-                totalCalories: viewModel.totalCalories, goalCalories: viewModel.goalCalories,
-                totalProtein:  viewModel.totalProtein,  goalProtein:  viewModel.goalProtein,
-                totalCarbs:    viewModel.totalCarbs,    goalCarbs:    viewModel.goalCarbs,
-                totalFat:      viewModel.totalFat,      goalFat:      viewModel.goalFat,
+                totalCalories: viewModel.totalCalories, goalCalories: viewModel.displayGoalCalories,
+                totalProtein:  viewModel.totalProtein,  goalProtein:  viewModel.displayGoalProtein,
+                totalCarbs:    viewModel.totalCarbs,    goalCarbs:    viewModel.displayGoalCarbs,
+                totalFat:      viewModel.totalFat,      goalFat:      viewModel.displayGoalFat,
                 date:          viewModel.selectedDate,
                 fastingWindowDisplay: viewModel.userSettings.fastingEnabled
                     ? "\(timeString(hour: viewModel.windowStartHour, minute: viewModel.windowStartMinute)) – \(timeString(hour: viewModel.windowEndHour, minute: viewModel.windowEndMinute)) · \(viewModel.windowDurationHours)h window"
@@ -474,12 +430,20 @@ struct HomeView: View {
     
     private func handleMacrosMetChange(_ oldVal: Int, _ newVal: Int) {
         guard newVal == 4 && oldVal < 4 && Calendar.current.isDateInToday(viewModel.selectedDate) else { return }
-        // Read/write UserDefaults directly — SwiftData @Model didSet doesn't fire reliably
         let stored = UserDefaults.standard.double(forKey: "lastCelebrationDate")
         let lastShown = stored > 0 ? Date(timeIntervalSince1970: stored) : Date.distantPast
         guard !Calendar.current.isDateInToday(lastShown) else { return }
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastCelebrationDate")
-        showCelebration = true
+        viewModel.userSettings.pendingCelebration = CelebrationPostData(
+            totalCalories: viewModel.totalCalories, goalCalories: viewModel.displayGoalCalories,
+            totalProtein:  viewModel.totalProtein,  goalProtein:  viewModel.displayGoalProtein,
+            totalCarbs:    viewModel.totalCarbs,    goalCarbs:    viewModel.displayGoalCarbs,
+            totalFat:      viewModel.totalFat,      goalFat:      viewModel.displayGoalFat,
+            date:          viewModel.selectedDate,
+            fastingWindowDisplay: viewModel.userSettings.fastingEnabled
+                ? "\(timeString(hour: viewModel.windowStartHour, minute: viewModel.windowStartMinute)) – \(timeString(hour: viewModel.windowEndHour, minute: viewModel.windowEndMinute)) · \(viewModel.windowDurationHours)h window"
+                : ""
+        )
     }
 
     private var goalsTitle: String {
@@ -629,14 +593,14 @@ struct HomeView: View {
 
     private var disciplineProgress: Double {
         let pairs: [(Double, Double)] = [
-            (viewModel.totalCalories, viewModel.goalCalories),
-            (viewModel.totalProtein,  viewModel.goalProtein),
-            (viewModel.totalCarbs,    viewModel.goalCarbs),
-            (viewModel.totalFat,      viewModel.goalFat),
+            (viewModel.totalCalories, viewModel.displayGoalCalories),
+            (viewModel.totalProtein,  viewModel.displayGoalProtein),
+            (viewModel.totalCarbs,    viewModel.displayGoalCarbs),
+            (viewModel.totalFat,      viewModel.displayGoalFat),
         ]
         let active = pairs.filter { $0.1 > 0 }
         guard !active.isEmpty else { return 0 }
-        let sum = active.reduce(0.0) { $0 + min($1.0 / $1.1, 1.0) }
+        let sum = active.reduce(0.0) { $0 + max(0, 1.0 - abs($1.0 / $1.1 - 1.0)) }
         return sum / Double(active.count)
     }
 
@@ -646,6 +610,26 @@ struct HomeView: View {
                 Text("Today's Macros")
                     .font(.system(size: 20, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
+
+                if isMacroAdjustedToday {
+                    Button {
+                        MacroAdjustmentEngine.revert()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.counterclockwise")
+                                .font(.system(size: 10, weight: .bold))
+                            Text("Reset Goals")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(red: 1.0, green: 0.80, blue: 0.20).opacity(0.12),
+                                    in: Capsule())
+                        .overlay(Capsule().stroke(Color(red: 1.0, green: 0.80, blue: 0.20).opacity(0.25), lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 Spacer()
 
@@ -684,32 +668,32 @@ struct HomeView: View {
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 MacroGaugeCard(label: "Calories", value: viewModel.totalCalories,
-                               goal: viewModel.goalCalories, unit: "kcal",
+                               goal: viewModel.displayGoalCalories, unit: "kcal",
                                format: "%.0f", color: .orange,
                                action: { selectedMacro = .calories },
                                rangeText: caloriesRange)
                 MacroGaugeCard(label: "Protein",  value: viewModel.totalProtein,
-                               goal: viewModel.goalProtein,  unit: "g",
+                               goal: viewModel.displayGoalProtein,  unit: "g",
                                format: "%.0f", color: .macroBlue,
                                action: { selectedMacro = .protein },
-                               rangeText: minRange(viewModel.goalProtein))
+                               rangeText: minRange(viewModel.displayGoalProtein))
                 MacroGaugeCard(label: "Carbs",    value: viewModel.totalCarbs,
-                               goal: viewModel.goalCarbs,    unit: "g",
+                               goal: viewModel.displayGoalCarbs,    unit: "g",
                                format: "%.0f", color: .macroMint,
                                action: { selectedMacro = .carbs },
-                               rangeText: minRange(viewModel.goalCarbs))
+                               rangeText: minRange(viewModel.displayGoalCarbs))
                 MacroGaugeCard(label: "Fat",      value: viewModel.totalFat,
-                               goal: viewModel.goalFat,      unit: "g",
+                               goal: viewModel.displayGoalFat,      unit: "g",
                                format: "%.0f", color: .macroRose,
                                action: { selectedMacro = .fat },
-                               rangeText: minRange(viewModel.goalFat))
+                               rangeText: minRange(viewModel.displayGoalFat))
             }
         }
     }
 
     // Range helpers — displayed as "lo – hi" under each macro goal
     private var caloriesRange: String {
-        "\(Int(viewModel.goalCalories * 0.85)) – \(Int(viewModel.goalCalories * 1.15))"
+        "\(Int(viewModel.displayGoalCalories * 0.85)) – \(Int(viewModel.displayGoalCalories * 1.15))"
     }
     private func minRange(_ goal: Double) -> String {
         "\(Int(goal * 0.85)) – \(Int(goal * 1.15))"
@@ -836,10 +820,10 @@ struct HomeView: View {
 
     private func goalForMacro(_ macro: MacroType) -> Double {
         switch macro {
-        case .calories: return viewModel.goalCalories
-        case .protein:  return viewModel.goalProtein
-        case .carbs:    return viewModel.goalCarbs
-        case .fat:      return viewModel.goalFat
+        case .calories: return viewModel.displayGoalCalories
+        case .protein:  return viewModel.displayGoalProtein
+        case .carbs:    return viewModel.displayGoalCarbs
+        case .fat:      return viewModel.displayGoalFat
         }
     }
 }
@@ -1102,7 +1086,6 @@ private struct WindowPickerSheet: View {
     @Binding var windowStartDate: Date
     @Binding var windowDurationHours: Int
     @Environment(\.dismiss) private var dismiss
-    @State private var durationText: String = "8"
 
     var body: some View {
         NavigationStack {
@@ -1111,30 +1094,21 @@ private struct WindowPickerSheet: View {
                     DatePicker("Start Time", selection: $windowStartDate, displayedComponents: .hourAndMinute)
                 }
                 Section {
-                    HStack {
-                        Text("Duration")
-                        Spacer()
-                        TextField("8", text: $durationText)
-                            .keyboardType(.numberPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 50)
-                        Text("hours").foregroundStyle(.secondary)
+                    Picker("Duration", selection: $windowDurationHours) {
+                        ForEach(1...23, id: \.self) { h in
+                            Text("\(h) hour\(h == 1 ? "" : "s")").tag(h)
+                        }
                     }
+                    .pickerStyle(.menu)
                 } footer: {
                     Text("Common windows: 6, 8, 10, or 12 hours.")
                 }
             }
-            .onAppear { durationText = "\(windowDurationHours)" }
             .navigationTitle("Intermittent Fasting Window")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        if let hours = Int(durationText), hours >= 1, hours <= 23 {
-                            windowDurationHours = hours
-                        }
-                        dismiss()
-                    }
+                    Button("Done") { dismiss() }
                 }
             }
         }

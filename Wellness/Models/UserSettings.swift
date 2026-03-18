@@ -161,6 +161,8 @@ struct AuraGain: Identifiable, Equatable {
     var auraPopupsEnabled: Bool = true
     /// Set whenever points are awarded (when popups enabled). Observe to show popup.
     var pendingAuraGain: AuraGain? = nil
+    /// Set whenever all macro goals are met for the first time today. Observe to show celebration.
+    var pendingCelebration: CelebrationPostData? = nil
 
     // MARK: - Aura Level Curve
     //
@@ -221,12 +223,18 @@ struct AuraGain: Identifiable, Equatable {
         if auraPopupsEnabled && !silent {
             pendingAuraGain = AuraGain(pointsEarned: points)
         }
-        let id  = userID
-        let pts = auraPoints
+        let id     = userID
+        let pts    = auraPoints
+        let wkPts  = weeklyAuraPoints
+        let wkTs   = weeklyAuraWeekStart.timeIntervalSince1970
         Task {
             try? await UserProfileService.shared.updateProfile(
                 userID: id,
-                fields: ["auraPoints": pts]
+                fields: [
+                    "auraPoints":                   pts,
+                    "weeklyAuraPoints":              wkPts,
+                    "weeklyAuraWeekStartTimestamp":  wkTs,
+                ]
             )
         }
     }
@@ -236,6 +244,17 @@ struct AuraGain: Identifiable, Equatable {
         if start > weeklyAuraWeekStart {
             weeklyAuraPoints    = 0
             weeklyAuraWeekStart = start
+            let id  = userID
+            let ts  = start.timeIntervalSince1970
+            Task {
+                try? await UserProfileService.shared.updateProfile(
+                    userID: id,
+                    fields: [
+                        "weeklyAuraPoints":             0,
+                        "weeklyAuraWeekStartTimestamp": ts,
+                    ]
+                )
+            }
         }
     }
 
@@ -305,9 +324,12 @@ struct AuraGain: Identifiable, Equatable {
     /// Profile picture — persisted as a JPEG file in the Documents directory.
     var profileImageData: Data? {
         didSet {
-            let url = UserSettings.profileImageURL
-            if let data = profileImageData { try? data.write(to: url) }
-            else { try? FileManager.default.removeItem(at: url) }
+            let url  = UserSettings.profileImageURL
+            let data = profileImageData
+            Task.detached(priority: .utility) {
+                if let data { try? data.write(to: url) }
+                else { try? FileManager.default.removeItem(at: url) }
+            }
         }
     }
     static let profileImageURL: URL =
@@ -348,6 +370,23 @@ struct AuraGain: Identifiable, Equatable {
         auraPopupsEnabled = profile.auraPopupsEnabled
         auraPoints        = profile.auraPoints
         macroStreak       = profile.streakDays
+
+        // Restore weekly aura from Firestore, then check if a new week has started
+        // (checkWeeklyReset handles the reset + Firestore update if needed).
+        if profile.weeklyAuraPoints > 0 {
+            weeklyAuraPoints    = profile.weeklyAuraPoints
+            weeklyAuraWeekStart = profile.weeklyAuraWeekStartTimestamp > 0
+                ? Date(timeIntervalSince1970: profile.weeklyAuraWeekStartTimestamp)
+                : UserSettings.currentWeekStart()
+        }
+        checkWeeklyReset()
+
+        // On a fresh install (no stored leaderboard date), mark the current Sunday
+        // cutoff as already seen so the first login doesn't fire a spurious award.
+        if lastLeaderboardAwardDate == .distantPast,
+           let cutoff = UserSettings.lastSundayAwardCutoff() {
+            lastLeaderboardAwardDate = cutoff
+        }
     }
 
     /// Called by SessionManager on sign-out.
@@ -389,13 +428,13 @@ struct AuraGain: Identifiable, Equatable {
         brainstormUsageCount = 0
         brainstormUsageDate  = .distantPast
 
-        // Misc device-local keys not owned by UserSettings properties
+        // Misc device-local keys not owned by UserSettings properties.
+        // Note: fasting window (windowStartHour/Minute/Duration), macro goals
+        // (goalCalories/Protein/Carbs/Fat), and autoAdjustMacrosForWorkout are
+        // intentionally NOT cleared — they are device preferences restored from
+        // Firestore on next login, so wiping them would lose the user's settings.
         let ud = UserDefaults.standard
         for key in [
-            "goalCalories", "goalProtein", "goalCarbs", "goalFat",
-            "windowStartHour", "windowStartMinute", "windowDurationHours",
-            "dailyWindowSnapshots",
-            "autoAdjustMacrosForWorkout",
             "base_goalCalories", "base_goalProtein", "base_goalCarbs", "base_goalFat",
             "workoutAdjustmentDate",
             "savedWorkoutTemplates",
@@ -433,6 +472,18 @@ struct AuraGain: Identifiable, Equatable {
         let storedBSResultDate = UserDefaults.standard.double(forKey: "lastBrainstormDate")
         self.lastBrainstormDate    = storedBSResultDate > 0
             ? Date(timeIntervalSince1970: storedBSResultDate) : .distantPast
-        self.profileImageData = try? Data(contentsOf: UserSettings.profileImageURL)
+        // Profile image is loaded asynchronously via loadCachedImage() to avoid
+        // blocking the main thread at launch (file can be 1–3 MB).
+    }
+
+    /// Loads the cached profile image from disk on a background thread.
+    /// Call this once from the app root's .task modifier.
+    func loadCachedImage() async {
+        guard profileImageData == nil else { return }
+        let url = UserSettings.profileImageURL
+        let data = await Task.detached(priority: .userInitiated) {
+            try? Data(contentsOf: url)
+        }.value
+        profileImageData = data
     }
 }

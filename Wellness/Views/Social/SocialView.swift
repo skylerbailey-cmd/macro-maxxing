@@ -27,6 +27,8 @@ struct SocialView: View {
 
     /// Firestore-loaded set of userIDs the current user follows.
     @State private var followingIDs: Set<String> = []
+    /// Intersection of followingIDs and followerIDs — mutual friends.
+    @State private var friendIDs: Set<String> = []
 
     @State private var showingNewPost    = false
     @State private var selectedPost:     SocialPost?
@@ -38,13 +40,22 @@ struct SocialView: View {
     @State private var labelFilter:      PostLabel?  = nil
 
     enum Feed: String, CaseIterable {
-        case team  = "Team"
-        case local = "Local"
-        case arena = "Arena"
+        case team      = "Team"
+        case following = "Following"
+        case local     = "Local"
+        case arena     = "Arena"
     }
 
     private var teamPosts: [SocialPost] {
-        // Include own posts plus posts from everyone the current user follows.
+        // Own posts + mutual follows (friends only)
+        posts.filter { post in
+            post.authorID == userSettings.userID ||
+            friendIDs.contains(post.authorID)
+        }
+    }
+
+    private var followingPosts: [SocialPost] {
+        // Own posts + everyone the current user follows (one-way or mutual)
         posts.filter { post in
             post.authorID == userSettings.userID ||
             followingIDs.contains(post.authorID)
@@ -88,9 +99,10 @@ struct SocialView: View {
     private var displayedPosts: [SocialPost] {
         let base: [SocialPost]
         switch selectedFeed {
-        case .team:  base = ranked(teamPosts)
-        case .local: base = ranked(localPosts)
-        case .arena: base = ranked(arenaPosts)
+        case .team:      base = ranked(teamPosts)
+        case .following: base = ranked(followingPosts)
+        case .local:     base = ranked(localPosts)
+        case .arena:     base = ranked(arenaPosts)
         }
         guard let filter = labelFilter else { return base }
         return base.filter { $0.postLabel == filter.rawValue }
@@ -337,9 +349,13 @@ struct SocialView: View {
 
     private func loadFollowingIDs() async {
         guard !userSettings.userID.isEmpty else { return }
-        if let entries = try? await FollowService.shared.fetchFollowing(userID: userSettings.userID) {
-            followingIDs = Set(entries.map { $0.userID })
-        }
+        async let followingTask = FollowService.shared.fetchFollowing(userID: userSettings.userID)
+        async let followersTask = FollowService.shared.fetchFollowers(userID: userSettings.userID)
+        let following = (try? await followingTask) ?? []
+        let followers = (try? await followersTask) ?? []
+        followingIDs = Set(following.map { $0.userID })
+        let followerIDs = Set(followers.map { $0.userID })
+        friendIDs = followingIDs.intersection(followerIDs)
     }
 
     @ViewBuilder
@@ -375,14 +391,17 @@ struct SocialView: View {
     @ViewBuilder
     private var emptyFeed: some View {
         let noLocation = selectedFeed == .local && locationManager.coordinate == nil
-        let icon = selectedFeed == .team ? "person.2.fill"
+        let icon = (selectedFeed == .team || selectedFeed == .following) ? "person.2.fill"
             : selectedFeed == .local ? "location.circle.fill"
             : "bolt.circle.fill"
-        let headline = selectedFeed == .team ? "Nobody you follow has posted"
+        let headline = selectedFeed == .team ? "No friends have posted"
+            : selectedFeed == .following ? "Nobody you follow has posted"
             : noLocation ? "Location needed"
             : selectedFeed == .local ? "No local posts yet"
             : "Arena is empty"
         let body = selectedFeed == .team
+            ? "Friends are people who follow you back. Follow more people to grow your team."
+            : selectedFeed == .following
             ? "Follow people using the search button above — their posts will appear here."
             : noLocation
             ? "Enable location in Settings so we can show posts from people near you."
@@ -434,6 +453,8 @@ func postLabelColor(_ label: PostLabel) -> Color {
     case .mogBoard:       return Color(red: 1.00, green: 0.80, blue: 0.20)
     case .advice:         return Color(red: 1.00, green: 0.90, blue: 0.20)
     case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
+    case .goalPost:       return Color(red: 0.65, green: 0.45, blue: 1.00)
+    case .makeupPost:     return Color(red: 0.25, green: 0.85, blue: 0.70)
     }
 }
 
@@ -559,29 +580,6 @@ struct PostCard: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(Color.white.opacity(0.06), lineWidth: 1)
         )
-        .overlay(alignment: .topTrailing) {
-            if let label = PostLabel(rawValue: post.postLabel) {
-                let color = postLabelColor(label)
-                HStack(spacing: 4) {
-                    Image(systemName: label.icon)
-                        .font(.system(size: 9, weight: .bold))
-                    if label == .mogBoard, !post.mogBoardScope.isEmpty {
-                        Text("\(post.mogBoardScope) Mog")
-                            .font(.system(size: 9, weight: .bold))
-                    } else {
-                        Text(label.rawValue)
-                            .font(.system(size: 9, weight: .bold))
-                    }
-                }
-                .foregroundStyle(color)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(color.opacity(0.15), in: Capsule())
-                .overlay(Capsule().stroke(color.opacity(0.35), lineWidth: 0.75))
-                .padding(.top, 10)
-                .padding(.trailing, 10)
-            }
-        }
         .sheet(isPresented: $showingImageViewer) {
             PostImageViewerSheet(imageDatas: post.allImageDatas)
         }
@@ -622,6 +620,25 @@ struct PostCard: View {
                     .font(.caption2).foregroundStyle(.white.opacity(0.35))
             }
             Spacer()
+            if let label = PostLabel(rawValue: post.postLabel) {
+                let color = postLabelColor(label)
+                HStack(spacing: 4) {
+                    Image(systemName: label.icon)
+                        .font(.system(size: 9, weight: .bold))
+                    if label == .mogBoard, !post.mogBoardScope.isEmpty {
+                        Text("\(post.mogBoardScope) Mog")
+                            .font(.system(size: 9, weight: .bold))
+                    } else {
+                        Text(label.rawValue)
+                            .font(.system(size: 9, weight: .bold))
+                    }
+                }
+                .foregroundStyle(color)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(color.opacity(0.15), in: Capsule())
+                .overlay(Capsule().stroke(color.opacity(0.35), lineWidth: 0.75))
+            }
             if !isOwnPost && (!isFollowing || showCheckmark) {
                 followButton
             }
@@ -796,7 +813,13 @@ struct PostCard: View {
             .font(.caption).foregroundStyle(.white.opacity(0.50))
 
         if post.goalCalories > 0 {
-            macroSummaryRow
+            MacroDisciplineCard(
+                totalCalories: post.totalCalories, goalCalories:  post.goalCalories,
+                totalProtein:  post.totalProtein,  goalProtein:   post.goalProtein,
+                totalCarbs:    post.totalCarbs,    goalCarbs:     post.goalCarbs,
+                totalFat:      post.totalFat,      goalFat:       post.goalFat
+            )
+            .padding(.top, 4)
         }
 
         if !post.fastingWindowDisplay.isEmpty {
@@ -888,6 +911,45 @@ struct PostCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 
+    /// 0–100 meal quality score based on how closely macros match the viewer's goal ratios.
+    private func fuelEntryScore(calories: Double, protein: Double, carbs: Double, fat: Double) -> Int {
+        guard calories >= 300 else { return 0 }
+        let ud = UserDefaults.standard
+        func g(_ key: String, fallback: Double) -> Double {
+            ud.object(forKey: key) != nil ? ud.double(forKey: key) : fallback
+        }
+        let pCal  = g("goalProtein", fallback: 150) * 4
+        let cCal  = g("goalCarbs",   fallback: 200) * 4
+        let fCal  = g("goalFat",     fallback:  65) * 9
+        let total = pCal + cCal + fCal
+        let goalP = total > 0 ? pCal / total : 0.26
+        let goalC = total > 0 ? cCal / total : 0.49
+        let goalF = total > 0 ? fCal / total : 0.25
+        let actualP = (protein * 4) / calories
+        let actualC = (carbs   * 4) / calories
+        let actualF = (fat     * 9) / calories
+        let dev = abs(actualP - goalP) + abs(actualC - goalC) + abs(actualF - goalF)
+        return max(0, min(100, Int(((1.0 - dev / 2.0) * 100).rounded())))
+    }
+
+    @ViewBuilder
+    private func fuelScoreCircle(calories: Double, protein: Double, carbs: Double, fat: Double) -> some View {
+        let score = fuelEntryScore(calories: calories, protein: protein, carbs: carbs, fat: fat)
+        if score > 0 {
+            let color: Color = score >= 75 ? Color(red: 0.25, green: 0.85, blue: 0.50)
+                             : score >= 50 ? Color(red: 1.00, green: 0.75, blue: 0.20)
+                             :               Color(red: 1.00, green: 0.35, blue: 0.35)
+            ZStack {
+                Circle()
+                    .stroke(color.opacity(0.30), lineWidth: 1.5)
+                    .frame(width: 32, height: 32)
+                Text("\(score)")
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .foregroundStyle(color)
+            }
+        }
+    }
+
     // Fuel log post: visual meal table matching the preview
     @ViewBuilder
     private var fuelLogBody: some View {
@@ -899,11 +961,11 @@ struct PostCard: View {
         let totalFat = sorted.reduce(0.0) { $0 + $1.fat      }
 
         VStack(alignment: .leading, spacing: 0) {
-            // Header
-            Text("Today's Fuel Log 🔥")
+            // Header — user's typed status (falls back to date label)
+            Text(post.memeHeadline)
                 .font(.system(size: 15, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
-                .padding(.bottom, 10)
+                .padding(.bottom, post.memeSub.isEmpty ? 10 : 4)
 
             // Optional user message
             if !post.memeSub.isEmpty {
@@ -924,6 +986,17 @@ struct PostCard: View {
                                 .frame(width: 40, height: 40)
                                 .clipped()
                                 .cornerRadius(8)
+                        } else if !entry.photoURL.isEmpty, let url = URL(string: entry.photoURL) {
+                            AsyncImage(url: url) { phase in
+                                if let img = phase.image {
+                                    img.resizable().scaledToFill()
+                                } else {
+                                    Color.white.opacity(0.07)
+                                }
+                            }
+                            .frame(width: 40, height: 40)
+                            .clipped()
+                            .cornerRadius(8)
                         } else {
                             RoundedRectangle(cornerRadius: 8)
                                 .fill(Color.white.opacity(0.07))
@@ -946,6 +1019,8 @@ struct PostCard: View {
                             }
                         }
                         Spacer()
+                        fuelScoreCircle(calories: entry.calories, protein: entry.protein,
+                                        carbs: entry.carbs, fat: entry.fat)
                         Text(entry.loggedAt, style: .time)
                             .font(.caption2)
                             .foregroundStyle(.white.opacity(0.25))

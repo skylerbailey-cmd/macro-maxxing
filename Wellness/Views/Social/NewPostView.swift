@@ -87,7 +87,6 @@ struct NewPostView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss)      private var dismiss
 
-    @Query(sort: \FoodEntry.loggedAt) private var allFoodEntries: [FoodEntry]
     @Query(sort: \SocialPost.postedAt, order: .reverse) private var allSocialPosts: [SocialPost]
 
     @State private var titleText     = ""
@@ -97,6 +96,10 @@ struct NewPostView: View {
     @State private var mogBoardScope:      String     = "Arena"
     @State private var mogBoardType:       String     = "Weekly Aura"
     @FocusState private var focus: Field?
+
+    // Fuel log pre-fill (loaded from Firestore)
+    @State private var todayFoodEntries:  [FoodEntry] = []
+    @State private var isLoadingFood      = false
 
     // Workout pre-fill
     @State private var todayWorkouts:    [WorkoutEntry] = []
@@ -114,13 +117,6 @@ struct NewPostView: View {
 
     private var statusPrompt: String { dailyStatusPrompts[dailyIndex(for: dailyStatusPrompts)] }
     private var bodyPrompt:   String { dailyBodyPrompts[dailyIndex(for: dailyBodyPrompts)] }
-
-    private var todayFuelEntries: [FoodEntry] {
-        let today = Calendar.current.startOfDay(for: Date())
-        return allFoodEntries
-            .filter { Calendar.current.startOfDay(for: $0.loggedAt) == today }
-            .sorted { $0.loggedAt < $1.loggedAt }
-    }
 
     var body: some View {
         NavigationStack {
@@ -202,10 +198,11 @@ struct NewPostView: View {
             .preferredColorScheme(.dark)
             .navigationTitle("New Post")
             .navigationBarTitleDisplayMode(.inline)
+            .task { await loadTodayFoodEntries() }
             .onChange(of: selectedLabel) { _, label in
-                if label == .workout {
-                    Task { await loadTodayWorkouts() }
-                }
+                if label == .workout    { Task { await loadTodayWorkouts() } }
+                if label == .fuelLog    { Task { await loadTodayFoodEntries() } }
+                if let label { prefillForLabel(label) }
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -288,47 +285,53 @@ struct NewPostView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white)
                 Spacer()
-                Text("\(todayFuelEntries.count) items")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.40))
+                if isLoadingFood {
+                    ProgressView().tint(Color(red: 1.00, green: 0.55, blue: 0.15)).scaleEffect(0.8)
+                } else {
+                    Text("\(todayFoodEntries.count) items")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.40))
+                }
             }
 
-            if todayFuelEntries.isEmpty {
-                Text("No meals logged today yet. Log meals in the Fuel Log tab first.")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.40))
-                    .padding(.top, 2)
-            } else {
-                ForEach(todayFuelEntries.prefix(5)) { entry in
-                    HStack(spacing: 8) {
-                        if let data = entry.imageData, let img = UIImage(data: data) {
-                            Image(uiImage: img)
-                                .resizable().scaledToFill()
-                                .frame(width: 32, height: 32)
-                                .clipped().cornerRadius(6)
-                        } else {
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(Color.white.opacity(0.07))
-                                .frame(width: 32, height: 32)
-                                .overlay {
-                                    Image(systemName: "fork.knife")
-                                        .font(.system(size: 12))
-                                        .foregroundStyle(.white.opacity(0.30))
-                                }
-                        }
-                        Text(entry.foodName)
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.80))
-                        Spacer()
-                        Text("\(Int(entry.calories)) kcal")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Color(red: 1.00, green: 0.55, blue: 0.15))
-                    }
-                }
-                if todayFuelEntries.count > 5 {
-                    Text("+ \(todayFuelEntries.count - 5) more")
+            if !isLoadingFood {
+                if todayFoodEntries.isEmpty {
+                    Text("No meals logged today yet. Log meals in the Fuel Log tab first.")
                         .font(.caption)
-                        .foregroundStyle(.white.opacity(0.35))
+                        .foregroundStyle(.white.opacity(0.40))
+                        .padding(.top, 2)
+                } else {
+                    ForEach(todayFoodEntries.prefix(5)) { entry in
+                        HStack(spacing: 8) {
+                            if let data = entry.imageData, let img = UIImage(data: data) {
+                                Image(uiImage: img)
+                                    .resizable().scaledToFill()
+                                    .frame(width: 32, height: 32)
+                                    .clipped().cornerRadius(6)
+                            } else {
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.white.opacity(0.07))
+                                    .frame(width: 32, height: 32)
+                                    .overlay {
+                                        Image(systemName: "fork.knife")
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(.white.opacity(0.30))
+                                    }
+                            }
+                            Text(entry.foodName)
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.80))
+                            Spacer()
+                            Text("\(Int(entry.calories)) kcal")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Color(red: 1.00, green: 0.55, blue: 0.15))
+                        }
+                    }
+                    if todayFoodEntries.count > 5 {
+                        Text("+ \(todayFoodEntries.count - 5) more")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.35))
+                    }
                 }
             }
         }
@@ -373,24 +376,20 @@ struct NewPostView: View {
                         .padding(.top, 2)
                 } else {
                     ForEach(todayWorkouts) { entry in
-                        HStack(spacing: 10) {
-                            ZStack {
-                                Circle()
-                                    .fill(workoutGreen.opacity(0.12))
-                                    .frame(width: 32, height: 32)
-                                Image(systemName: entry.workoutType.icon)
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(workoutGreen)
-                            }
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(entry.name)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.white.opacity(0.85))
-                                Text("\(entry.formattedDuration) · \(entry.workoutType.shortLabel)")
-                                    .font(.caption)
-                                    .foregroundStyle(.white.opacity(0.42))
-                            }
-                            Spacer()
+                        HStack(spacing: 8) {
+                            Image(systemName: entry.workoutType.icon)
+                                .font(.system(size: 11))
+                                .foregroundStyle(workoutGreen)
+                                .frame(width: 16)
+                            Text(entry.name)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.85))
+                                .lineLimit(1)
+                            Text("· \(entry.formattedDuration) · \(entry.workoutType.shortLabel)")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.40))
+                                .lineLimit(1)
+                            Spacer(minLength: 4)
                             Text("\(entry.caloriesBurned) cal")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(workoutGreen)
@@ -408,6 +407,17 @@ struct NewPostView: View {
         )
     }
 
+    // MARK: - Load food entries
+
+    private func loadTodayFoodEntries() async {
+        guard !userSettings.userID.isEmpty else { return }
+        isLoadingFood = true
+        let entries = (try? await FoodEntryService.shared.fetch(
+            userID: userSettings.userID, date: Date())) ?? []
+        todayFoodEntries = entries.sorted { $0.loggedAt < $1.loggedAt }
+        isLoadingFood = false
+    }
+
     // MARK: - Load workouts
 
     private func loadTodayWorkouts() async {
@@ -421,15 +431,15 @@ struct NewPostView: View {
         // Pre-fill title and body only if they're still empty
         let realWorkouts = todayWorkouts.filter { $0.workoutType != .restDay }
         guard !realWorkouts.isEmpty else {
-            if titleText.isEmpty { titleText = "Rest Day 🌙" }
+            if titleText.isEmpty { titleText = "Rest Day" }
             if bodyText.isEmpty  { bodyText  = "Taking it easy today. Recovery is part of the grind." }
             return
         }
 
         if titleText.isEmpty {
             titleText = realWorkouts.count == 1
-                ? "\(realWorkouts[0].name) 💪"
-                : "Today's Workouts 💪"
+                ? realWorkouts[0].name
+                : "Today's Workouts"
         }
 
         if bodyText.isEmpty {
@@ -583,6 +593,21 @@ struct NewPostView: View {
         case .mogBoard:       return Color(red: 1.00, green: 0.80, blue: 0.20)
         case .advice:         return Color(red: 1.00, green: 0.90, blue: 0.20)
         case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
+        case .goalPost:       return Color(red: 0.65, green: 0.45, blue: 1.00)
+        case .makeupPost:     return Color(red: 0.25, green: 0.85, blue: 0.70)
+        }
+    }
+
+    private func prefillForLabel(_ label: PostLabel) {
+        switch label {
+        case .goalPost:
+            if titleText.isEmpty { titleText = "My goal" }
+            if bodyText.isEmpty  { bodyText  = "Here's what I'm locking in on. holding myself accountable to the feed." }
+        case .makeupPost:
+            if titleText.isEmpty { titleText = "Bounce back day" }
+            if bodyText.isEmpty  { bodyText  = "Missed yesterday. making it up today. no excuses, just discipline." }
+        default:
+            break
         }
     }
 
@@ -635,7 +660,7 @@ struct NewPostView: View {
 
         // Attach today's fuel log entries when label is Fuel Log
         if selectedLabel == .fuelLog {
-            for (i, entry) in todayFuelEntries.enumerated() {
+            for (i, entry) in todayFoodEntries.enumerated() {
                 let fuelEntry = FuelLogEntry(
                     foodName:  entry.foodName,
                     calories:  entry.calories,
@@ -644,7 +669,8 @@ struct NewPostView: View {
                     fat:       entry.fat,
                     loggedAt:  entry.loggedAt,
                     sortOrder: i,
-                    imageData: entry.imageData
+                    imageData: entry.imageData,
+                    photoURL:  entry.photoURL
                 )
                 post.fuelLogEntries.append(fuelEntry)
                 modelContext.insert(fuelEntry)

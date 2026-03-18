@@ -106,6 +106,10 @@ import Foundation
     var windowStartFractional: Double { Double(displayedWindowStartHour) + Double(displayedWindowStartMinute) / 60.0 }
     var windowEndFractional: Double   { windowStartFractional + Double(displayedWindowDuration) }
 
+    // MARK: - Historical goals (loaded from Firestore for past dates)
+    /// Non-nil when a past date is selected and a saved snapshot was found.
+    private var historicalGoals: (calories: Double, protein: Double, carbs: Double, fat: Double)? = nil
+
     // MARK: - Today's macro totals (for selectedDate)
     var totalCalories: Double = 0
     var totalProtein:  Double = 0
@@ -216,12 +220,42 @@ import Foundation
 
     /// Reloads macro goals from UserDefaults (called after a workout macro adjustment is applied).
     func reloadGoalsFromDefaults() {
-        MacroAdjustmentEngine.revertIfNewDay()
         let ud = UserDefaults.standard
         if ud.object(forKey: "goalCalories") != nil { goalCalories = ud.double(forKey: "goalCalories") }
         if ud.object(forKey: "goalProtein")  != nil { goalProtein  = ud.double(forKey: "goalProtein")  }
         if ud.object(forKey: "goalCarbs")    != nil { goalCarbs    = ud.double(forKey: "goalCarbs")    }
         if ud.object(forKey: "goalFat")      != nil { goalFat      = ud.double(forKey: "goalFat")      }
+    }
+
+    // MARK: - Display goals (exact saved goals for past dates, live goals for today)
+
+    /// The goal to display for the currently selected date.
+    /// Past dates use the Firestore-saved snapshot so adjusted days show
+    /// the adjusted goal and non-adjusted days show the base goal.
+    /// Falls back to current goals if no snapshot exists for that date.
+    var displayGoalCalories: Double {
+        guard !isSelectedDateToday else { return goalCalories }
+        if let h = historicalGoals { return h.calories }
+        return MacroAdjustmentEngine.isAdjustedToday()
+            ? MacroAdjustmentEngine.baseGoals().calories : goalCalories
+    }
+    var displayGoalProtein: Double {
+        guard !isSelectedDateToday else { return goalProtein }
+        if let h = historicalGoals { return h.protein }
+        return MacroAdjustmentEngine.isAdjustedToday()
+            ? MacroAdjustmentEngine.baseGoals().protein : goalProtein
+    }
+    var displayGoalCarbs: Double {
+        guard !isSelectedDateToday else { return goalCarbs }
+        if let h = historicalGoals { return h.carbs }
+        return MacroAdjustmentEngine.isAdjustedToday()
+            ? MacroAdjustmentEngine.baseGoals().carbs : goalCarbs
+    }
+    var displayGoalFat: Double {
+        guard !isSelectedDateToday else { return goalFat }
+        if let h = historicalGoals { return h.fat }
+        return MacroAdjustmentEngine.isAdjustedToday()
+            ? MacroAdjustmentEngine.baseGoals().fat : goalFat
     }
 
     func loadTodayTotalsAsync() async {
@@ -232,6 +266,15 @@ import Foundation
         totalProtein  = entries.reduce(0) { $0 + $1.protein }
         totalCarbs    = entries.reduce(0) { $0 + $1.carbs }
         totalFat      = entries.reduce(0) { $0 + $1.fat }
+
+        // Load the goals that were saved for this date so past-day views show
+        // the exact targets (adjusted or base) that were in effect that day.
+        if !isSelectedDateToday {
+            historicalGoals = await MacroHistoryService.shared.fetchDayGoals(
+                userID: userSettings.userID, date: selectedDate)
+        } else {
+            historicalGoals = nil
+        }
 
         let cal = Calendar.current
         mealLogTimes = entries.map { entry in
@@ -334,10 +377,23 @@ import Foundation
         let fat     = (cals * 0.25) / 9.0
         let carbs   = (cals - protein * 4.0 - fat * 9.0) / 4.0
 
-        goalCalories = max(cals,    1200)
-        goalProtein  = max(protein,   50)
-        goalFat      = max(fat,       30)
-        goalCarbs    = max(carbs,     50)
+        let newCal = max(cals,    1200)
+        let newPrt = max(protein,   50)
+        let newFat = max(fat,       30)
+        let newCrb = max(carbs,     50)
+
+        if MacroAdjustmentEngine.isAdjustedToday() {
+            // Preserve the existing workout adjustment deltas on top of the new base
+            MacroAdjustmentEngine.updateBaseGoals(
+                newCalories: newCal, newProtein: newPrt,
+                newCarbs: newCrb, newFat: newFat)
+            reloadGoalsFromDefaults()
+        } else {
+            goalCalories = newCal
+            goalProtein  = newPrt
+            goalFat      = newFat
+            goalCarbs    = newCrb
+        }
     }
 
     // MARK: - Private

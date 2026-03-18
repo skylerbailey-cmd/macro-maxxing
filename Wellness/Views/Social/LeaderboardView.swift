@@ -669,7 +669,7 @@ struct LeaderboardView: View {
                                        userSettings.auraLevel,
                                        userSettings.weeklyAuraPoints)
 
-        let weekStart = UserSettings.lastSundayAwardCutoff() ?? Date.distantPast
+        let weekStart = UserSettings.currentWeekStart()
         for post in allPosts where post.postedAt >= weekStart && post.authorID != userSettings.userID {
             let pts = post.goalCalories > 0 ? 50 : 10
             let name = post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName

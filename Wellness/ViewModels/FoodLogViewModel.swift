@@ -162,12 +162,14 @@ enum AnalysisState: Equatable {
                      calories: Double,
                      protein: Double,
                      carbs: Double,
-                     fat: Double) {
+                     fat: Double,
+                     loggedAt: Date? = nil) {
         entry.foodName = foodName.isEmpty ? "Unknown Food" : foodName
         entry.calories = calories
         entry.protein  = protein
         entry.carbs    = carbs
         entry.fat      = fat
+        if let loggedAt { entry.loggedAt = loggedAt }
 
         let entryID = entry.firebaseEntryID
         let uid     = entry.userID
@@ -179,7 +181,8 @@ enum AnalysisState: Equatable {
                 calories: entry.calories,
                 protein:  entry.protein,
                 carbs:    entry.carbs,
-                fat:      entry.fat
+                fat:      entry.fat,
+                loggedAt: loggedAt
             )
         }
     }

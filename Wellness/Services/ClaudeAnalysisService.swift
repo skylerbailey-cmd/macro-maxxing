@@ -9,13 +9,22 @@ final class ClaudeAnalysisService {
     private let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
     private let model    = "claude-sonnet-4-6"
 
+    struct WorkoutSummary {
+        let name:            String
+        let type:            String
+        let durationMinutes: Int
+        let caloriesBurned:  Int
+        let loggedAt:        Date
+    }
+
     struct NutritionInput {
-        let entries:      [(name: String, calories: Double, protein: Double, carbs: Double, fat: Double)]
+        let entries:      [(name: String, calories: Double, protein: Double, carbs: Double, fat: Double, loggedAt: Date)]
         let goalCalories: Double
         let goalProtein:  Double
         let goalCarbs:    Double
         let goalFat:      Double
         let date:         Date
+        var workouts:     [WorkoutSummary] = []
     }
 
     func analyze(_ input: NutritionInput) async throws -> String {
@@ -51,9 +60,11 @@ final class ClaudeAnalysisService {
     private func buildPrompt(_ input: NutritionInput) -> String {
         let calendar = Calendar.current
         let isToday  = calendar.isDateInToday(input.date)
-        let fmt      = DateFormatter()
-        fmt.dateFormat = "MMMM d"
-        let dateStr  = isToday ? "today" : fmt.string(from: input.date)
+        let timeFmt  = DateFormatter()
+        timeFmt.dateFormat = "h:mm a"
+        let dateFmt  = DateFormatter()
+        dateFmt.dateFormat = "MMMM d"
+        let dateStr  = isToday ? "today" : dateFmt.string(from: input.date)
 
         let totalCal  = input.entries.reduce(0) { $0 + $1.calories }
         let totalPro  = input.entries.reduce(0) { $0 + $1.protein }
@@ -80,27 +91,54 @@ final class ClaudeAnalysisService {
         - Fat: \(Int(input.goalFat))g\n\n
         """
 
+        // Workouts
+        if !input.workouts.isEmpty {
+            p += "**Workouts Logged \(dateStr.capitalized):**\n"
+            for w in input.workouts {
+                let timeStr = timeFmt.string(from: w.loggedAt)
+                p += "- \(w.name) (\(w.type)) at \(timeStr): \(w.durationMinutes) min, ~\(w.caloriesBurned) kcal burned\n"
+            }
+            p += "\n"
+        }
+
+        // Meals with timestamps
         if input.entries.isEmpty {
             p += "**Food Logged \(dateStr.capitalized):** Nothing logged yet.\n\n"
         } else {
-            p += "**Food Logged \(dateStr.capitalized):**\n"
+            p += "**Food Logged \(dateStr.capitalized)** (with time eaten):\n"
             for e in input.entries {
-                p += "- \(e.name): \(Int(e.calories)) kcal, "
+                let timeStr = timeFmt.string(from: e.loggedAt)
+                p += "- \(timeStr) — \(e.name): \(Int(e.calories)) kcal, "
                 p += "\(Int(e.protein))g protein, \(Int(e.carbs))g carbs, \(Int(e.fat))g fat\n"
             }
             p += "\n**Current Totals vs Goals:**\n"
             p += "- Calories: \(Int(totalCal))/\(Int(input.goalCalories)) kcal (\(pct(totalCal, input.goalCalories)))\n"
-            p += "- Protein: \(Int(totalPro))/\(Int(input.goalProtein))g (\(pct(totalPro, input.goalProtein)))\n"
-            p += "- Carbs: \(Int(totalCarb))/\(Int(input.goalCarbs))g (\(pct(totalCarb, input.goalCarbs)))\n"
-            p += "- Fat: \(Int(totalFat))/\(Int(input.goalFat))g (\(pct(totalFat, input.goalFat)))\n"
+            p += "- Protein:  \(Int(totalPro))/\(Int(input.goalProtein))g (\(pct(totalPro, input.goalProtein)))\n"
+            p += "- Carbs:    \(Int(totalCarb))/\(Int(input.goalCarbs))g (\(pct(totalCarb, input.goalCarbs)))\n"
+            p += "- Fat:      \(Int(totalFat))/\(Int(input.goalFat))g (\(pct(totalFat, input.goalFat)))\n"
         }
 
-        p += """
-        \n
-        Look at the specific meals logged and pick ONE meal to swap or tweak to better hit \
-        the macro goals. Name the exact meal and the exact change. \
-        One sentence only — no intro, no list, no extra commentary. Keep it direct and motivating.
-        """
+        if !input.workouts.isEmpty {
+            p += """
+            \n
+            Consider the workout timing relative to the meals logged. \
+            Look at pre-workout and post-workout nutrition: were there enough carbs before training \
+            and enough protein within 1–2 hours after? Is the macro distribution across the day \
+            well-timed relative to the session?
+
+            Look at the specific meals logged and pick ONE meal to swap or tweak — \
+            focusing on timing or macro balance relative to the workout. \
+            Name the exact meal and the exact change. \
+            One sentence only — no intro, no list, no extra commentary. Keep it direct and motivating.
+            """
+        } else {
+            p += """
+            \n
+            Look at the specific meals logged and pick ONE meal to swap or tweak to better hit \
+            the macro goals. Name the exact meal and the exact change. \
+            One sentence only — no intro, no list, no extra commentary. Keep it direct and motivating.
+            """
+        }
         return p
     }
 

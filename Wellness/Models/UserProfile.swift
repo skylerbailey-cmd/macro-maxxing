@@ -42,6 +42,12 @@ struct UserProfile: Codable, Identifiable {
     var fastingEnabled:   Bool
     var auraPopupsEnabled: Bool
 
+    // MARK: - Weekly aura (synced so it survives sign-out / device switches)
+
+    var weeklyAuraPoints: Int
+    /// Unix timestamp (seconds) of the Monday that opened the current weekly window.
+    var weeklyAuraWeekStartTimestamp: Double
+
     // MARK: - Dates
 
     /// Unix timestamp (seconds) of when the profile was created.
@@ -74,6 +80,8 @@ struct UserProfile: Codable, Identifiable {
         proteinPerLb:     Double = 0.9,
         fastingEnabled:   Bool   = false,
         auraPopupsEnabled: Bool  = true,
+        weeklyAuraPoints: Int    = 0,
+        weeklyAuraWeekStartTimestamp: Double = 0,
         joinDate:         Int,
         dateOfBirth:      String = ""
     ) {
@@ -95,6 +103,8 @@ struct UserProfile: Codable, Identifiable {
         self.proteinPerLb     = proteinPerLb
         self.fastingEnabled   = fastingEnabled
         self.auraPopupsEnabled = auraPopupsEnabled
+        self.weeklyAuraPoints = weeklyAuraPoints
+        self.weeklyAuraWeekStartTimestamp = weeklyAuraWeekStartTimestamp
         self.joinDate         = joinDate
         self.dateOfBirth      = dateOfBirth
     }
@@ -122,6 +132,7 @@ extension UserProfile {
             "streakDays":     0,
             "auraPoints":     0,
             "joinDate":       0,
+            "weeklyAuraPoints": 0,
         ]
         for (key, value) in intDefaults where data[key] == nil {
             data[key] = value
@@ -130,6 +141,7 @@ extension UserProfile {
             "currentWeight": 160.0,
             "goalWeight":    160.0,
             "proteinPerLb":  0.9,
+            "weeklyAuraWeekStartTimestamp": 0.0,
         ]
         for (key, value) in doubleDefaults where data[key] == nil {
             data[key] = value

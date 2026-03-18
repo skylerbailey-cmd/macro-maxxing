@@ -147,14 +147,22 @@ struct WellnessApp: App {
                             .preferredColorScheme(.dark)
 
                     case .authenticated:
-                        ContentView()
-                            .modelContainer(modelContainer)
-                            .environment(session)
-                            .environment(userSettings)
-                            .preferredColorScheme(.dark)
+                        if session.needsOnboarding {
+                            OnboardingView()
+                                .environment(session)
+                                .environment(userSettings)
+                                .preferredColorScheme(.dark)
+                        } else {
+                            ContentView()
+                                .modelContainer(modelContainer)
+                                .environment(session)
+                                .environment(userSettings)
+                                .preferredColorScheme(.dark)
+                        }
                     }
                 }
             }
+            .task { await userSettings.loadCachedImage() }
         }
     }
 }

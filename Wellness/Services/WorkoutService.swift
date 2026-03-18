@@ -25,12 +25,13 @@ final class WorkoutService {
     func save(entry: WorkoutEntry, userID: String) async throws {
         guard !userID.isEmpty else { return }
         let data: [String: Any] = [
-            "workoutID":       entry.workoutID,
-            "name":            entry.name,
-            "workoutType":     entry.workoutType.rawValue,
-            "durationMinutes": entry.durationMinutes,
-            "caloriesBurned":  entry.caloriesBurned,
-            "loggedAt":        Timestamp(date: entry.loggedAt)
+            "workoutID":          entry.workoutID,
+            "name":               entry.name,
+            "workoutType":        entry.workoutType.rawValue,
+            "durationMinutes":    entry.durationMinutes,
+            "caloriesBurned":     entry.caloriesBurned,
+            "loggedAt":           Timestamp(date: entry.loggedAt),
+            "adjustmentApplied":  entry.adjustmentApplied
         ]
         try await db.collection("users").document(userID)
             .collection("workoutEntries").document(entry.workoutID)
@@ -59,12 +60,13 @@ final class WorkoutService {
                   let duration = d["durationMinutes"] as? Int,
                   let calories = d["caloriesBurned"]  as? Int,
                   let ts       = d["loggedAt"]        as? Timestamp else { return nil }
-            let wid      = d["workoutID"]   as? String ?? doc.documentID
-            let typeRaw  = d["workoutType"] as? String ?? ""
-            let wType    = WorkoutType(rawValue: typeRaw) ?? .other
+            let wid        = d["workoutID"]          as? String ?? doc.documentID
+            let typeRaw    = d["workoutType"]        as? String ?? ""
+            let wType      = WorkoutType(rawValue: typeRaw) ?? .other
+            let adjApplied = d["adjustmentApplied"]  as? Bool ?? false
             return WorkoutEntry(workoutID: wid, name: name, workoutType: wType,
                                 durationMinutes: duration, caloriesBurned: calories,
-                                loggedAt: ts.dateValue())
+                                loggedAt: ts.dateValue(), adjustmentApplied: adjApplied)
         }
         .sorted { $0.loggedAt > $1.loggedAt }
     }

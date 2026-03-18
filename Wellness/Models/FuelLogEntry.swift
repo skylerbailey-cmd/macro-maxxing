@@ -14,6 +14,7 @@ import SwiftData
     var fat:       Double = 0
     var loggedAt:  Date   = Date()
     var sortOrder: Int    = 0
+    var photoURL:  String = ""
 
     @Attribute(.externalStorage) var imageData: Data? = nil
 
@@ -21,7 +22,7 @@ import SwiftData
 
     init(foodName: String, calories: Double, protein: Double,
          carbs: Double, fat: Double, loggedAt: Date,
-         sortOrder: Int, imageData: Data?) {
+         sortOrder: Int, imageData: Data?, photoURL: String = "") {
         self.foodName  = foodName
         self.calories  = calories
         self.protein   = protein
@@ -30,5 +31,6 @@ import SwiftData
         self.loggedAt  = loggedAt
         self.sortOrder = sortOrder
         self.imageData = imageData
+        self.photoURL  = photoURL
     }
 }

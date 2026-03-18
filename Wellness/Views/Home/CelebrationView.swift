@@ -34,7 +34,7 @@ struct GymMeme {
 // MARK: - CelebrationView
 
 /// All macro data needed to create a social post from the celebration screen.
-struct CelebrationPostData {
+struct CelebrationPostData: Equatable {
     let totalCalories: Double; let goalCalories: Double
     let totalProtein:  Double; let goalProtein:  Double
     let totalCarbs:    Double; let goalCarbs:    Double

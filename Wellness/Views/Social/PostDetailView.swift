@@ -155,56 +155,12 @@ struct PostDetailView: View {
     // MARK: Macro breakdown (celebration posts only)
 
     private var macroBreakdown: some View {
-        let items: [(String, Double, Double, Color)] = [
-            ("Calories", post.totalCalories, post.goalCalories, Color(red: 1.00, green: 0.55, blue: 0.15)),
-            ("Protein",  post.totalProtein,  post.goalProtein,  Color(red: 0.35, green: 0.75, blue: 1.00)),
-            ("Carbs",    post.totalCarbs,    post.goalCarbs,    Color(red: 0.40, green: 0.90, blue: 0.72)),
-            ("Fat",      post.totalFat,      post.goalFat,      Color(red: 1.00, green: 0.50, blue: 0.72)),
-        ]
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Macros")
-                    .font(.headline).foregroundStyle(.white)
-                Spacer()
-                Text(post.macroDate, style: .date)
-                    .font(.caption).foregroundStyle(.white.opacity(0.35))
-            }
-            HStack(spacing: 12) {
-                ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                    let (label, actual, goal, color) = item
-                    let met: Bool = label == "Calories"
-                        ? actual >= goal * 0.85 && actual <= goal * 1.15
-                        : actual >= goal * 0.85
-                    VStack(spacing: 6) {
-                        ZStack {
-                            Circle()
-                                .fill(met ? color.opacity(0.20) : Color.white.opacity(0.06))
-                                .frame(width: 48, height: 48)
-                            if met {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundStyle(color)
-                            } else {
-                                Text("\(Int(actual))g")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(.white.opacity(0.50))
-                            }
-                        }
-                        .shadow(color: met ? color.opacity(0.40) : .clear, radius: 6)
-                        Text(label)
-                            .font(.caption2)
-                            .foregroundStyle(.white.opacity(0.45))
-                        Text("/ \(Int(goal))\(label == "Calories" ? " kcal" : "g")")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.white.opacity(0.28))
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-        }
-        .padding(14)
-        .background(Color(red: 0.13, green: 0.10, blue: 0.22))
-        .cornerRadius(16)
+        MacroDisciplineCard(
+            totalCalories: post.totalCalories, goalCalories: post.goalCalories,
+            totalProtein:  post.totalProtein,  goalProtein:  post.goalProtein,
+            totalCarbs:    post.totalCarbs,    goalCarbs:    post.goalCarbs,
+            totalFat:      post.totalFat,      goalFat:      post.goalFat
+        )
     }
 
     // MARK: Fuel log content (inline inside postCard)
@@ -219,10 +175,10 @@ struct PostDetailView: View {
         let totalFat  = sorted.reduce(0.0) { $0 + $1.fat      }
 
         VStack(alignment: .leading, spacing: 0) {
-            Text("Today's Fuel Log 🔥")
+            Text(post.memeHeadline)
                 .font(.system(size: 20, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
-                .padding(.bottom, 10)
+                .padding(.bottom, post.memeSub.isEmpty ? 10 : 4)
 
             if !post.memeSub.isEmpty {
                 Text(post.memeSub)
@@ -241,6 +197,17 @@ struct PostDetailView: View {
                                 .frame(width: 48, height: 48)
                                 .clipped()
                                 .cornerRadius(10)
+                        } else if !entry.photoURL.isEmpty, let url = URL(string: entry.photoURL) {
+                            AsyncImage(url: url) { phase in
+                                if let img = phase.image {
+                                    img.resizable().scaledToFill()
+                                } else {
+                                    Color.white.opacity(0.07)
+                                }
+                            }
+                            .frame(width: 48, height: 48)
+                            .clipped()
+                            .cornerRadius(10)
                         } else {
                             RoundedRectangle(cornerRadius: 10)
                                 .fill(Color.white.opacity(0.07))
