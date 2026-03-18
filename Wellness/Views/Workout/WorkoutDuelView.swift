@@ -140,20 +140,83 @@ struct WorkoutDuelView: View {
     }
 
     private var totalCard: some View {
-        let total = entries.reduce(0) { $0 + $1.caloriesBurned }
+        let total    = entries.reduce(0) { $0 + $1.caloriesBurned }
         let totalMin = entries.reduce(0) { $0 + $1.durationMinutes }
 
-        return HStack(spacing: 0) {
-            statBlock(value: "\(total)", label: "Cal Burned", color: accent)
-            Divider()
-                .frame(height: 40)
-                .background(.white.opacity(0.10))
-            statBlock(value: formatMinutes(totalMin), label: "Total Time", color: .white.opacity(0.75))
+        // Sum adjustments across every logged workout
+        let combined: MacroAdjustment = entries.reduce(
+            MacroAdjustment(caloriesDelta: 0, carbsDelta: 0, proteinDelta: 0, fatDelta: 0)
+        ) { acc, entry in
+            let a = MacroAdjustmentEngine.adjustment(for: entry.workoutType, bodyWeightLbs: bodyWeightLbs)
+            return MacroAdjustment(
+                caloriesDelta: acc.caloriesDelta + a.caloriesDelta,
+                carbsDelta:    acc.carbsDelta    + a.carbsDelta,
+                proteinDelta:  acc.proteinDelta  + a.proteinDelta,
+                fatDelta:      acc.fatDelta      + a.fatDelta
+            )
         }
-        .padding(.vertical, 16)
+
+        return VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                statBlock(value: "\(total)", label: "Cal Burned", color: accent)
+                Divider()
+                    .frame(height: 40)
+                    .background(.white.opacity(0.10))
+                statBlock(value: formatMinutes(totalMin), label: "Total Time", color: .white.opacity(0.75))
+            }
+            .padding(.vertical, 16)
+
+            if !combined.isEmpty {
+                Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chart.bar.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+                        Text("Macro Goal Adjustments")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+                    }
+
+                    HStack(spacing: 8) {
+                        macroAdjChip(label: "Cal",  delta: combined.caloriesDelta, unit: "kcal")
+                        macroAdjChip(label: "Carbs",delta: combined.carbsDelta,    unit: "g")
+                        macroAdjChip(label: "Pro",  delta: combined.proteinDelta,  unit: "g")
+                        macroAdjChip(label: "Fat",  delta: combined.fatDelta,      unit: "g")
+                    }
+
+                    Text("Applied to today's goals only · resets tomorrow")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.white.opacity(0.25))
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+            }
+        }
         .frame(maxWidth: .infinity)
         .background(cardBg, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.20), lineWidth: 1))
+    }
+
+    private func macroAdjChip(label: String, delta: Int, unit: String) -> some View {
+        let positive = delta >= 0
+        let color: Color = positive
+            ? Color(red: 0.30, green: 0.90, blue: 0.55)
+            : Color(red: 1.00, green: 0.45, blue: 0.45)
+        let sign = positive ? "+" : ""
+        return VStack(spacing: 2) {
+            Text("\(sign)\(delta)\(unit)")
+                .font(.system(size: 12, weight: .black, design: .rounded))
+                .foregroundStyle(color)
+            Text(label)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.40))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 7)
+        .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(color.opacity(0.20), lineWidth: 1))
     }
 
     private func statBlock(value: String, label: String, color: Color) -> some View {
