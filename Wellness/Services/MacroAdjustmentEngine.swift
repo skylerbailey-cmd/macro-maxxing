@@ -162,6 +162,21 @@ enum MacroAdjustmentEngine {
         NotificationCenter.default.post(name: macroAdjustedNotification, object: nil)
     }
 
+    /// Immediately restores base goals for today regardless of day.
+    /// Called when the user turns off macro adjustments while editing a workout.
+    static func revert() {
+        let ud = UserDefaults.standard
+        guard ud.object(forKey: baseCalKey) != nil else { return }
+
+        ud.set(ud.double(forKey: baseCalKey), forKey: "goalCalories")
+        ud.set(ud.double(forKey: basePrtKey), forKey: "goalProtein")
+        ud.set(ud.double(forKey: baseCrbKey), forKey: "goalCarbs")
+        ud.set(ud.double(forKey: baseFatKey), forKey: "goalFat")
+        ud.removeObject(forKey: adjDateKey)
+
+        NotificationCenter.default.post(name: macroAdjustedNotification, object: nil)
+    }
+
     // MARK: Preview (no side effects)
 
     /// Returns what the adjusted goals would look like without writing anything.

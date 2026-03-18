@@ -592,7 +592,11 @@ struct LogWorkoutSheet: View {
             }
 
             if applyAdjustment {
+                // Re-applies for the (possibly changed) workout type — safe to call on new or edited entries
                 MacroAdjustmentEngine.apply(for: workoutType, bodyWeightLbs: bodyWeightLbs)
+            } else if editingEntry != nil {
+                // Editing with adjustment OFF: restore base goals
+                MacroAdjustmentEngine.revert()
             }
 
             savedWorkoutName  = name
