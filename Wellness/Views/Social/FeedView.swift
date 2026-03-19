@@ -24,7 +24,10 @@ private extension Color {
 struct FeedView: View {
     let userSettings: UserSettings
 
-    @State private var viewModel = FeedViewModel()
+    @State private var viewModel        = FeedViewModel()
+    @State private var selectedPost:    FeedPost? = nil
+    @State private var commentPost:     FeedPost? = nil
+    @State private var profilePost:     FeedPost? = nil
 
     var body: some View {
         ZStack {
@@ -57,6 +60,33 @@ struct FeedView: View {
             if viewModel.posts.isEmpty { await viewModel.loadInitialFeed() }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.errorMessage)
+        .sheet(item: $selectedPost) { post in
+            NavigationStack {
+                FeedPostDetailView(post: post, currentUserSettings: userSettings)
+            }
+            .presentationDetents([.large])
+        }
+        .sheet(item: $commentPost) { post in
+            NavigationStack {
+                FeedPostDetailView(post: post, currentUserSettings: userSettings, focusComment: true)
+            }
+            .presentationDetents([.large])
+        }
+        .sheet(item: $profilePost) { post in
+            NavigationStack {
+                ProfileView(
+                    profileUserID:       post.userID,
+                    profileUsername:     post.username,
+                    profileDisplayName:  post.whoName,
+                    profileAuraLevel:    post.auraLevel,
+                    profileAuraPoints:   post.auraPoints,
+                    profileImageData:    nil,
+                    currentUserSettings: userSettings,
+                    isDismissable:       true
+                )
+            }
+            .presentationDetents([.large])
+        }
     }
 
     // MARK: - Feed list
@@ -69,8 +99,11 @@ struct FeedView: View {
         return FeedPostCard(
             post:          post,
             currentUserID: userSettings.userID,
-            onRep: { Task { await viewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
-            onDelete:      deleteAction
+            onRep:         { Task { await viewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
+            onDelete:      deleteAction,
+            onTap:         { selectedPost  = post },
+            onAvatarTap:   { profilePost   = post },
+            onCommentTap:  { commentPost   = post }
         )
     }
 
@@ -186,6 +219,9 @@ struct FeedPostCard: View {
     let currentUserID: String
     let onRep:         () -> Void
     var onDelete:      (() -> Void)? = nil
+    var onTap:         (() -> Void)? = nil
+    var onAvatarTap:   (() -> Void)? = nil
+    var onCommentTap:  (() -> Void)? = nil
     var showStreak:    Bool          = true
 
     @State private var showDeleteConfirm = false
@@ -239,6 +275,8 @@ struct FeedPostCard: View {
         }
         .background(cardBg)
         .cornerRadius(16)
+        .contentShape(Rectangle())
+        .onTapGesture { onTap?() }
         .confirmationDialog("Delete this post?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete Post", role: .destructive) { onDelete?() }
             Button("Cancel", role: .cancel) {}
@@ -251,17 +289,20 @@ struct FeedPostCard: View {
 
     private var authorHeader: some View {
         HStack(spacing: 10) {
-            // Avatar
-            CachedAsyncImage(
-                url: URL(string: post.userProfilePhotoURL),
-                content: { image in
-                    image.resizable()
-                        .scaledToFill()
-                        .frame(width: 38, height: 38)
-                        .clipShape(Circle())
-                },
-                placeholder: { initialCircle(size: 38, name: post.whoName) }
-            )
+            // Avatar (tappable → profile)
+            Button { onAvatarTap?() } label: {
+                CachedAsyncImage(
+                    url: URL(string: post.userProfilePhotoURL),
+                    content: { image in
+                        image.resizable()
+                            .scaledToFill()
+                            .frame(width: 38, height: 38)
+                            .clipShape(Circle())
+                    },
+                    placeholder: { initialCircle(size: 38, name: post.whoName) }
+                )
+            }
+            .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
@@ -686,14 +727,17 @@ struct FeedPostCard: View {
             .scaleEffect(post.hasRepped(userID: currentUserID) ? 1.05 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: post.hasRepped(userID: currentUserID))
 
-            // 💬 Comment count
-            HStack(spacing: 4) {
-                Image(systemName: "bubble.left")
-                    .font(.system(size: 13))
-                Text("\(post.commentsCount)")
-                    .font(.caption)
+            // 💬 Comment count (tappable → open detail with comment focused)
+            Button { onCommentTap?() } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "bubble.left")
+                        .font(.system(size: 13))
+                    Text("\(post.commentsCount)")
+                        .font(.caption)
+                }
+                .foregroundStyle(.white.opacity(0.30))
             }
-            .foregroundStyle(.white.opacity(0.30))
+            .buttonStyle(.plain)
         }
     }
 

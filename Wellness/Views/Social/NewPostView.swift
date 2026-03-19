@@ -779,7 +779,7 @@ struct NewPostView: View {
             userID:              userSettings.userID,
             username:            userSettings.username.isEmpty ? "me" : userSettings.username,
             whoName:             userSettings.name,
-            userProfilePhotoURL: "",
+            userProfilePhotoURL: userSettings.profilePhotoURL,
             auraLevel:           userSettings.auraLevel,
             auraPoints:          userSettings.auraPoints,
             auraTitle:           userSettings.auraTitle,

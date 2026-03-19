@@ -49,6 +49,11 @@ struct SocialView: View {
     @State private var localLoading:        Bool        = false
     @State private var localError:          String?     = nil
 
+    /// Selected Firestore post for detail sheet.
+    @State private var selectedFeedPost:  FeedPost? = nil
+    @State private var commentFeedPost:   FeedPost? = nil
+    @State private var profileFeedPost:   FeedPost? = nil
+
     enum Feed: String, CaseIterable {
         case team      = "Team"
         case following = "Following"
@@ -245,10 +250,11 @@ struct SocialView: View {
                                     FeedPostCard(
                                         post:          post,
                                         currentUserID: userSettings.userID,
-                                        onRep: { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
-                                        onDelete: post.userID == userSettings.userID
-                                            ? { Task { await arenaViewModel.deletePost(post) } }
-                                            : nil
+                                        onRep:        { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
+                                        onDelete:     post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
+                                        onTap:        { selectedFeedPost = post },
+                                        onAvatarTap:  { profileFeedPost  = post },
+                                        onCommentTap: { commentFeedPost  = post }
                                     )
                                     .onAppear { Task { await arenaViewModel.loadMoreIfNeeded(currentPost: post) } }
                                 }
@@ -289,10 +295,11 @@ struct SocialView: View {
                                     FeedPostCard(
                                         post:          post,
                                         currentUserID: userSettings.userID,
-                                        onRep: { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
-                                        onDelete: post.userID == userSettings.userID
-                                            ? { Task { await arenaViewModel.deletePost(post) } }
-                                            : nil
+                                        onRep:        { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
+                                        onDelete:     post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
+                                        onTap:        { selectedFeedPost = post },
+                                        onAvatarTap:  { profileFeedPost  = post },
+                                        onCommentTap: { commentFeedPost  = post }
                                     )
                                 }
                             }
@@ -402,6 +409,34 @@ struct SocialView: View {
             }
         }
         .sheet(item: $selectedPost) { post in PostDetailView(post: post, userSettings: userSettings) }
+        .sheet(item: $selectedFeedPost) { post in
+            NavigationStack {
+                FeedPostDetailView(post: post, currentUserSettings: userSettings)
+            }
+            .presentationDetents([.large])
+        }
+        .sheet(item: $commentFeedPost) { post in
+            NavigationStack {
+                FeedPostDetailView(post: post, currentUserSettings: userSettings, focusComment: true)
+            }
+            .presentationDetents([.large])
+        }
+        .sheet(item: $profileFeedPost, onDismiss: { Task { await loadFollowingIDs() } }) { post in
+            NavigationStack {
+                ProfileView(
+                    profileUserID:       post.userID,
+                    profileUsername:     post.username,
+                    profileDisplayName:  post.whoName,
+                    profileAuraLevel:    post.auraLevel,
+                    profileAuraPoints:   post.auraPoints,
+                    profileImageData:    nil,
+                    currentUserSettings: post.userID == userSettings.userID ? nil : userSettings,
+                    ownUserSettings:     post.userID == userSettings.userID ? userSettings : nil,
+                    isDismissable:       true
+                )
+            }
+            .presentationDetents([.large])
+        }
         .sheet(item: $viewingProfile, onDismiss: { Task { await loadFollowingIDs() } }) { post in
             NavigationStack {
                 ProfileView(
