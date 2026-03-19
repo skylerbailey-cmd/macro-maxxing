@@ -39,6 +39,7 @@ struct UserProfile: Codable, Identifiable {
     var isPrivateAccount: Bool
     var currentWeight:    Double
     var goalWeight:       Double
+    var heightInches:     Int
     var proteinPerLb:     Double
     var fastingEnabled:   Bool
     var auraPopupsEnabled: Bool
@@ -79,6 +80,7 @@ struct UserProfile: Codable, Identifiable {
         isPrivateAccount: Bool   = false,
         currentWeight:    Double = 160,
         goalWeight:       Double = 160,
+        heightInches:     Int    = 0,
         proteinPerLb:     Double = 0.9,
         fastingEnabled:   Bool   = false,
         auraPopupsEnabled: Bool  = true,
@@ -103,6 +105,7 @@ struct UserProfile: Codable, Identifiable {
         self.isPrivateAccount = isPrivateAccount
         self.currentWeight    = currentWeight
         self.goalWeight       = goalWeight
+        self.heightInches     = heightInches
         self.proteinPerLb     = proteinPerLb
         self.fastingEnabled   = fastingEnabled
         self.auraPopupsEnabled = auraPopupsEnabled
@@ -136,6 +139,7 @@ extension UserProfile {
             "auraPoints":     0,
             "joinDate":       0,
             "weeklyAuraPoints": 0,
+            "heightInches":   0,
         ]
         for (key, value) in intDefaults where data[key] == nil {
             data[key] = value

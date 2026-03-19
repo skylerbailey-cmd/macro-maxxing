@@ -245,27 +245,10 @@ struct FeedPostCard: View {
                 }
                 if !post.fuelLogItems.isEmpty {
                     fuelLogTable
-                    if post.goalCalories > 0 {
-                        MacroDisciplineCard(
-                            totalCalories: Double(post.calories),  goalCalories: Double(post.goalCalories),
-                            totalProtein:  post.protein,           goalProtein:  post.goalProtein,
-                            totalCarbs:    post.carbs,             goalCarbs:    post.goalCarbs,
-                            totalFat:      post.fat,               goalFat:      post.goalFat
-                        )
-                    }
                 } else if !post.workoutItems.isEmpty {
                     workoutTable
                 } else if !post.mogBoardSnapshot.isEmpty {
                     mogBoardSnapshotCard
-                } else if post.goalCalories > 0 {
-                    MacroDisciplineCard(
-                        totalCalories: Double(post.calories),  goalCalories: Double(post.goalCalories),
-                        totalProtein:  post.protein,           goalProtein:  post.goalProtein,
-                        totalCarbs:    post.carbs,             goalCarbs:    post.goalCarbs,
-                        totalFat:      post.fat,               goalFat:      post.goalFat
-                    )
-                } else {
-                    macroRow
                 }
                 actionRow
             }

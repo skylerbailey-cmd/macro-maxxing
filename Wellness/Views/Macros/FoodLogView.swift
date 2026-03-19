@@ -1823,6 +1823,7 @@ private struct FuelLogPostSheet: View {
                     locationName: locationName,
                     latitude:     latitude,
                     longitude:    longitude,
+                    postLabel:    PostLabel.fuelLog.rawValue,
                     calories:     Int(totalCalories),
                     protein:      totalProtein,
                     carbs:        totalCarbs,

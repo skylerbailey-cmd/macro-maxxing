@@ -219,17 +219,17 @@ struct FeedFuelLogItem: Codable, Identifiable {
     var protein:   Double
     var carbs:     Double
     var fat:       Double
-    var photoURL:  String
-    var sortOrder: Int
+    var photoURL:  String = ""
+    var sortOrder: Int    = 0
 }
 
 struct FeedWorkoutItem: Codable, Identifiable {
     var id:              String = UUID().uuidString
-    var workoutName:     String
-    var workoutType:     String   // WorkoutType.rawValue
-    var durationMinutes: Int
-    var caloriesBurned:  Int
-    var sortOrder:       Int
+    var workoutName:     String = ""
+    var workoutType:     String = ""  // WorkoutType.rawValue
+    var durationMinutes: Int    = 0
+    var caloriesBurned:  Int    = 0
+    var sortOrder:       Int    = 0
 
     var formattedDuration: String {
         durationMinutes >= 60

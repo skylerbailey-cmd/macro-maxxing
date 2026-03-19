@@ -96,7 +96,7 @@ private let faqItems: [FAQItem] = [
 // MARK: - SettingsView
 
 private enum ActivePicker: Identifiable {
-    case currentWeight, goalWeight, proteinPerLb
+    case currentWeight, goalWeight, height, proteinPerLb
     var id: Self { self }
 }
 
@@ -112,6 +112,7 @@ struct SettingsView: View {
     @State private var usernameText:     String = ""
     @State private var currentWeightVal: Double = 160
     @State private var goalWeightVal:    Double = 160
+    @State private var heightInchesVal:  Int    = 0
     @State private var proteinPerLbVal:  Double = 0.9
     @State private var activePicker: ActivePicker? = nil
     @State private var dobDate:          Date   = Calendar.current.date(byAdding: .year, value: -18, to: Date()) ?? Date()
@@ -270,6 +271,9 @@ struct SettingsView: View {
                 pickerRow(label: "Goal Weight", display: "\(Int(goalWeightVal)) lbs") {
                     activePicker = .goalWeight
                 }
+                pickerRow(label: "Height", display: heightInchesVal > 0 ? Self.formatHeight(heightInchesVal) : "Not set") {
+                    activePicker = .height
+                }
             }
 
             // MARK: Nutrition
@@ -355,6 +359,7 @@ struct SettingsView: View {
                          username:      userSettings.username,
                          currentWeight: userSettings.currentWeight,
                          goalWeight:    userSettings.goalWeight,
+                         heightInches:  userSettings.heightInches,
                          proteinPerLb:  userSettings.proteinPerLb)
         }
         .onDisappear { Task { await saveProfile() } }
@@ -380,6 +385,7 @@ struct SettingsView: View {
             NumberPickerSheet(picker: picker,
                               currentWeight: $currentWeightVal,
                               goalWeight:    $goalWeightVal,
+                              heightInches:  $heightInchesVal,
                               proteinPerLb:  $proteinPerLbVal)
             { Task { await saveProfile() } }
                 .presentationDetents([.height(280)])
@@ -412,6 +418,11 @@ struct SettingsView: View {
         .buttonStyle(.plain)
     }
 
+    static func formatHeight(_ inches: Int) -> String {
+        guard inches > 0 else { return "Not set" }
+        return "\(inches / 12)'\(inches % 12)\""
+    }
+
     private static let dobFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
@@ -421,11 +432,12 @@ struct SettingsView: View {
 
     private func applyProfile(name: String, username: String,
                                currentWeight: Double, goalWeight: Double,
-                               proteinPerLb: Double) {
+                               heightInches: Int, proteinPerLb: Double) {
         nameText         = name
         usernameText     = username
         currentWeightVal = currentWeight > 0 ? currentWeight : 160
         goalWeightVal    = goalWeight    > 0 ? goalWeight    : 160
+        heightInchesVal  = heightInches
         proteinPerLbVal  = proteinPerLb
         if !userSettings.dateOfBirth.isEmpty,
            let d = Self.dobFormatter.date(from: userSettings.dateOfBirth) {
@@ -443,6 +455,8 @@ struct SettingsView: View {
         let dobString = Self.dobFormatter.string(from: dobDate)
         userSettings.dateOfBirth = dobString
 
+        userSettings.heightInches = heightInchesVal
+
         let fields: [String: Any] = [
             "username": trimmedUsername, "name": trimmedName,
             "location": userSettings.location,
@@ -453,6 +467,7 @@ struct SettingsView: View {
             "isPrivateAccount": userSettings.isPrivateAccount,
             "currentWeight": currentWeightVal,
             "goalWeight": goalWeightVal,
+            "heightInches": heightInchesVal,
             "proteinPerLb": proteinPerLbVal,
             "fastingEnabled": userSettings.fastingEnabled,
             "auraPopupsEnabled": userSettings.auraPopupsEnabled,
@@ -498,12 +513,15 @@ private struct NumberPickerSheet: View {
     let picker: ActivePicker
     @Binding var currentWeight: Double
     @Binding var goalWeight:    Double
+    @Binding var heightInches:  Int
     @Binding var proteinPerLb:  Double
     let onDone: () -> Void
 
     @Environment(\.dismiss) private var dismiss
 
     private let weightValues  = Array(100...300).map { Double($0) }
+    // 4'6" (54 in) through 7'0" (84 in)
+    private let heightValues  = Array(54...84)
     private let proteinValues = stride(from: 0.70, through: 1.00, by: 0.05).map { Double(String(format: "%.2f", $0))! }
 
     var body: some View {
@@ -522,6 +540,13 @@ private struct NumberPickerSheet: View {
                     values: weightValues,
                     selection: $goalWeight,
                     label: { "\(Int($0)) lbs" }
+                )
+            case .height:
+                intWheelPicker(
+                    title: "Height",
+                    values: heightValues,
+                    selection: $heightInches,
+                    label: { SettingsView.formatHeight($0) }
                 )
             case .proteinPerLb:
                 wheelPicker(
@@ -550,6 +575,32 @@ private struct NumberPickerSheet: View {
         .pickerStyle(.wheel)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done") { onDone(); dismiss() }.fontWeight(.semibold)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func intWheelPicker(
+        title: String,
+        values: [Int],
+        selection: Binding<Int>,
+        label: @escaping (Int) -> String
+    ) -> some View {
+        Picker(title, selection: selection) {
+            ForEach(values, id: \.self) { v in
+                Text(label(v)).tag(v)
+            }
+        }
+        .pickerStyle(.wheel)
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            // Default to 5'9" (69 in) if not yet set
+            if selection.wrappedValue == 0 { selection.wrappedValue = 69 }
+        }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") { onDone(); dismiss() }.fontWeight(.semibold)

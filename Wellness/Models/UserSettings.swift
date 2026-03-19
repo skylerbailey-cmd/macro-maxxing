@@ -36,6 +36,7 @@ struct AuraGain: Identifiable, Equatable {
 
     var currentWeight: Double = 160
     var goalWeight:    Double = 160
+    var heightInches:  Int    = 0
     var proteinPerLb:  Double = 0.9
 
     // MARK: - Fasting
@@ -377,6 +378,7 @@ struct AuraGain: Identifiable, Equatable {
         dateOfBirth       = profile.dateOfBirth
         currentWeight     = profile.currentWeight
         goalWeight        = profile.goalWeight
+        heightInches      = profile.heightInches
         proteinPerLb      = profile.proteinPerLb
         fastingEnabled    = profile.fastingEnabled
         auraPopupsEnabled = profile.auraPopupsEnabled
@@ -418,6 +420,7 @@ struct AuraGain: Identifiable, Equatable {
         dateOfBirth       = ""
         currentWeight     = 160
         goalWeight        = 160
+        heightInches      = 0
         proteinPerLb      = 0.9
         fastingEnabled    = false
         auraPopupsEnabled = true
