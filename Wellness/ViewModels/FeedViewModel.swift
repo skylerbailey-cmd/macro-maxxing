@@ -22,12 +22,6 @@ import FirebaseFirestore
     private let pageSize                               = 20
     private var isInitialLoadStarted                   = false   // prevents duplicate initial loads
 
-    // MARK: - Real-time listener
-
-    private nonisolated(unsafe) var listenerRegistration: ListenerRegistration?
-
-    deinit { listenerRegistration?.remove() }
-
     // MARK: - Initial load
 
     func loadInitialFeed() async {
@@ -46,15 +40,14 @@ import FirebaseFirestore
         }
 
         isLoading = false
-        startListening()
     }
 
     // MARK: - Pull-to-refresh
 
     func refresh() async {
-        stopListening()
         isRefreshing = true
         errorMessage = nil
+        isInitialLoadStarted = false  // allow re-fetch
 
         do {
             let (newPosts, cursor) = try await PostService.shared.fetchFeedPosts(limit: pageSize)
@@ -66,7 +59,6 @@ import FirebaseFirestore
         }
 
         isRefreshing = false
-        startListening()
     }
 
     // MARK: - Pagination
@@ -91,35 +83,6 @@ import FirebaseFirestore
         }
 
         isLoading = false
-    }
-
-    // MARK: - Real-time listener
-
-    private func startListening() {
-        stopListening()
-        listenerRegistration = PostService.shared.addFeedListener(
-            onAdded: { [weak self] newPosts in
-                guard let self else { return }
-                let existingIDs = Set(self.posts.compactMap { $0.postID })
-                let truly = newPosts.filter { !existingIDs.contains($0.postID ?? "") }
-                if !truly.isEmpty {
-                    self.posts.insert(contentsOf: truly, at: 0)
-                }
-            },
-            onRemoved: { [weak self] removedIDs in
-                guard let self else { return }
-                let idSet = Set(removedIDs)
-                self.posts.removeAll { idSet.contains($0.postID ?? "") }
-            },
-            onError: { [weak self] message in
-                self?.errorMessage = message
-            }
-        )
-    }
-
-    private func stopListening() {
-        listenerRegistration?.remove()
-        listenerRegistration = nil
     }
 
     // MARK: - Toggle rep (optimistic)
