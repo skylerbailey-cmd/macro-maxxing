@@ -767,6 +767,14 @@ struct NewPostView: View {
         let latitude        = locationManager.coordinate?.latitude  ?? 0
         let longitude       = locationManager.coordinate?.longitude ?? 0
         let snapshotJSON    = selectedLabel == .mogBoard ? post.mogBoardSnapshot : ""
+        let feedFuelLogItems: [FeedFuelLogItem] = selectedLabel == .fuelLog
+            ? todayFoodEntries.enumerated().map { i, e in
+                FeedFuelLogItem(foodName: e.foodName, calories: e.calories,
+                                protein: e.protein, carbs: e.carbs, fat: e.fat,
+                                photoURL: e.photoURL, sortOrder: i)
+              }
+            : []
+
         let feedWorkoutItems: [FeedWorkoutItem] = selectedLabel == .workout
             ? todayWorkouts.enumerated().map { i, e in
                 FeedWorkoutItem(workoutName: e.name, workoutType: e.workoutType.rawValue,
@@ -810,6 +818,7 @@ struct NewPostView: View {
                     goalProtein:   isGoalPost ? ud("goalProtein", fallback: 150)        : 0,
                     goalCarbs:     isGoalPost ? ud("goalCarbs",   fallback: 200)        : 0,
                     goalFat:       isGoalPost ? ud("goalFat",     fallback: 65)         : 0,
+                    fuelLogItems:  feedFuelLogItems,
                     workoutItems:  feedWorkoutItems,
                     postID:        fbPostID
                 )
