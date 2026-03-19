@@ -76,8 +76,9 @@ struct FeedPost: Codable, Identifiable {
     var postLabel: String
 
     /// Mog Board sub-selections (only relevant when postLabel == "Mog Board").
-    var mogBoardScope: String
-    var mogBoardType:  String
+    var mogBoardScope:    String
+    var mogBoardType:     String
+    var mogBoardSnapshot: String
 
     // MARK: - Location
 
@@ -92,6 +93,11 @@ struct FeedPost: Codable, Identifiable {
 
     /// False if the author had a private account when posting.
     var isPublic: Bool
+
+    // MARK: - Fuel log items (written when posting a fuel log so all users see the table)
+
+    var fuelLogItems:   [FeedFuelLogItem]   = []
+    var workoutItems:   [FeedWorkoutItem]   = []
 
     // MARK: - Dates
 
@@ -160,7 +166,10 @@ struct FeedPost: Codable, Identifiable {
         fastingWindowDisplay: String = "",
         postLabel:           String = "",
         mogBoardScope:       String = "",
-        mogBoardType:        String = ""
+        mogBoardType:        String = "",
+        mogBoardSnapshot:    String = "",
+        fuelLogItems:        [FeedFuelLogItem] = [],
+        workoutItems:        [FeedWorkoutItem] = []
     ) {
         self.userID              = userID
         self.username            = username
@@ -195,6 +204,37 @@ struct FeedPost: Codable, Identifiable {
         self.postLabel            = postLabel
         self.mogBoardScope        = mogBoardScope
         self.mogBoardType         = mogBoardType
+        self.mogBoardSnapshot     = mogBoardSnapshot
+        self.fuelLogItems         = fuelLogItems
+        self.workoutItems         = workoutItems
+    }
+}
+
+// MARK: - FeedFuelLogItem
+
+struct FeedFuelLogItem: Codable, Identifiable {
+    var id:        String = UUID().uuidString
+    var foodName:  String
+    var calories:  Double
+    var protein:   Double
+    var carbs:     Double
+    var fat:       Double
+    var photoURL:  String
+    var sortOrder: Int
+}
+
+struct FeedWorkoutItem: Codable, Identifiable {
+    var id:              String = UUID().uuidString
+    var workoutName:     String
+    var workoutType:     String   // WorkoutType.rawValue
+    var durationMinutes: Int
+    var caloriesBurned:  Int
+    var sortOrder:       Int
+
+    var formattedDuration: String {
+        durationMinutes >= 60
+            ? "\(durationMinutes / 60)h \(durationMinutes % 60)m"
+            : "\(durationMinutes)m"
     }
 }
 

@@ -68,6 +68,9 @@ struct MogBoardSnapshotEntry: Codable, Identifiable {
     @Relationship(deleteRule: .cascade)
     var fuelLogEntries: [FuelLogEntry] = []
 
+    @Relationship(deleteRule: .cascade)
+    var workoutEntries: [WorkoutLogEntry] = []
+
     func hasRepped(userID: String) -> Bool {
         guard !reppedByRaw.isEmpty else { return false }
         return reppedByRaw.split(separator: ",").map(String.init).contains(userID)

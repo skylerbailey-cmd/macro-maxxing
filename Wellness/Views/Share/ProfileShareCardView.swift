@@ -15,6 +15,7 @@ struct ProfileShareCardData {
     let auraPoints:      Int
     let auraTitleString: String
     let profileImage:    UIImage?
+    var balanceScore:    Int?    = nil
 }
 
 // MARK: - Card  (360 × 640 pt → 1080 × 1920 px at 3×)
@@ -24,107 +25,119 @@ struct ProfileShareCardView: View {
 
     private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
     private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+    private let neon   = Color(red: 0.35, green: 1.00, blue: 0.60)
+    private let bg     = Color(red: 0.04, green: 0.03, blue: 0.08)
+    private let cardBg = Color(red: 0.08, green: 0.06, blue: 0.12)
+
+    private var scoreColor: Color {
+        guard let s = data.balanceScore else { return purpl }
+        return s >= 75 ? neon : s >= 50 ? gold : Color(red: 1.0, green: 0.35, blue: 0.35)
+    }
+
+    private var scoreLabel: String {
+        guard let s = data.balanceScore else { return "" }
+        return s >= 75 ? "Dialed In" : s >= 50 ? "On Track" : "Building"
+    }
 
     var body: some View {
         ZStack {
-            // Background gradient
-            LinearGradient(
-                colors: [
-                    Color(red: 0.08, green: 0.02, blue: 0.15),
-                    Color(red: 0.03, green: 0.01, blue: 0.08)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            bg
 
-            // Ambient glow
+            // Subtle ambient glow behind avatar
             Circle()
-                .fill(purpl.opacity(0.20))
-                .frame(width: 280, height: 280)
-                .blur(radius: 60)
-                .offset(y: -20)
+                .fill(purpl.opacity(0.12))
+                .frame(width: 260, height: 260)
+                .blur(radius: 70)
+                .offset(y: -60)
 
             VStack(spacing: 0) {
                 Spacer()
 
-                // App branding
-                VStack(spacing: 6) {
-                    Text("💪")
-                        .font(.system(size: 46))
-                    Text("Macro Maxxing")
-                        .font(.system(size: 26, weight: .black, design: .rounded))
-                        .foregroundStyle(purpl)
-                }
-
-                Spacer().frame(height: 32)
-
                 // Avatar
                 avatarView
                     .overlay(Circle().stroke(
-                        LinearGradient(colors: [purpl, Color(red: 0.40, green: 0.20, blue: 0.85)],
-                                       startPoint: .topLeading, endPoint: .bottomTrailing),
+                        AngularGradient(colors: [gold, purpl, neon, gold], center: .center),
                         lineWidth: 3
                     ))
-                    .shadow(color: purpl.opacity(0.55), radius: 20)
+                    .shadow(color: purpl.opacity(0.40), radius: 18)
 
-                Spacer().frame(height: 20)
+                Spacer().frame(height: 22)
 
-                // Name + handle
-                VStack(spacing: 6) {
-                    Text(data.displayName)
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.center)
-                    if !data.username.isEmpty {
-                        Text("@\(data.username)")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.50))
-                    }
-                }
-
-                Spacer().frame(height: 18)
-
-                // Aura badge
-                if data.auraPoints > 0 {
-                    HStack(spacing: 8) {
-                        Text("⭐")
-                            .font(.system(size: 14))
-                        VStack(spacing: 2) {
-                            Text("Lv \(data.auraLevel)\(data.auraTitleString.isEmpty ? "" : " · \(data.auraTitleString)")")
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
-                                .foregroundStyle(gold)
-                            Text("\(data.auraPoints) aura pts")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.white.opacity(0.40))
-                        }
-                    }
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 9)
-                    .background(cardBg)
-                    .cornerRadius(12)
-
-                    Spacer().frame(height: 22)
-                }
-
-                // Follow CTA
-                Text("Follow me on Macro Maxxing! 🔥")
-                    .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.85))
+                // Name
+                Text(data.displayName)
+                    .font(.system(size: 30, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
 
-                Spacer()
+                // Username
+                if !data.username.isEmpty {
+                    Text("@\(data.username)")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.45))
+                        .padding(.top, 4)
+                }
 
-                // Download prompt strip
-                VStack(spacing: 5) {
-                    Text("Download the app")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.white.opacity(0.35))
+                Spacer().frame(height: 24)
+
+                // Level pill
+                if data.auraLevel > 0 {
+                    HStack(spacing: 6) {
+                        Text("Lv \(data.auraLevel)")
+                            .font(.system(size: 12, weight: .black))
+                            .tracking(1)
+                            .foregroundStyle(purpl)
+                        Text("·")
+                            .foregroundStyle(.white.opacity(0.30))
+                        Text(data.auraTitleString.uppercased())
+                            .font(.system(size: 12, weight: .black))
+                            .tracking(2)
+                            .foregroundStyle(gold)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 8)
+                    .background(cardBg)
+                    .overlay(Capsule().stroke(purpl.opacity(0.25), lineWidth: 1))
+                    .clipShape(Capsule())
+
+                    Spacer().frame(height: 16)
+                }
+
+                // Balance Score
+                if let score = data.balanceScore {
+                    VStack(spacing: 4) {
+                        Text("\(score)")
+                            .font(.system(size: 42, weight: .black, design: .rounded))
+                            .foregroundStyle(scoreColor)
+                        Text(scoreLabel.uppercased())
+                            .font(.system(size: 10, weight: .black))
+                            .tracking(3)
+                            .foregroundStyle(scoreColor.opacity(0.70))
+                        Text("Balance Score")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.30))
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 14)
+                    .background(cardBg)
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(scoreColor.opacity(0.20), lineWidth: 1))
+                    .cornerRadius(14)
+
+                    Spacer().frame(height: 28)
+                } else {
+                    Spacer().frame(height: 8)
+                }
+
+                // CTA
+                VStack(spacing: 3) {
+                    Text("Follow me on")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.40))
                     Text("Macro Maxxing")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .font(.system(size: 18, weight: .black, design: .rounded))
                         .foregroundStyle(purpl)
                 }
-                .padding(.bottom, 36)
+
+                Spacer()
             }
             .padding(.horizontal, 32)
         }
@@ -142,7 +155,7 @@ struct ProfileShareCardView: View {
                 .clipShape(Circle())
         } else {
             Circle()
-                .fill(purpl.opacity(0.22))
+                .fill(purpl.opacity(0.18))
                 .frame(width: 110, height: 110)
                 .overlay {
                     Text(String(data.displayName.prefix(1)).uppercased())

@@ -283,13 +283,16 @@ import Foundation
             return h + m / 60.0
         }
 
-        // Only record goal status for today — never rewrite a past day's outcome
+        // Keep the local goals-met cache current (used as fallback when Firestore history is missing).
         if isSelectedDateToday {
             let allMet = totalCalories > 0 && macroGoalsMet.allSatisfy { $0 }
             userSettings.setGoalsMet(allMet, for: selectedDate)
+        }
 
-            // Persist the date goals were last fully met so the Cloud Function
-            // can reset the streak server-side at midnight without the app open.
+        // Update lastGoalsMetDate on Firestore so the Cloud Function can reset
+        // expired streaks server-side (runs at 8 AM UTC every day).
+        if isSelectedDateToday {
+            let allMet = totalCalories > 0 && macroGoalsMet.allSatisfy { $0 }
             if allMet {
                 let fmt = DateFormatter()
                 fmt.dateFormat = "yyyy-MM-dd"
@@ -399,16 +402,33 @@ import Foundation
     // MARK: - Private
 
     private func loadStreak() {
-        let streak = StreakService.recalculate()
-
-        macroStreak              = streak
-        userSettings.macroStreak = streak
-        checkStreakMilestones(streak)
-        let id = userSettings.userID
+        // Only treat today as met when we're actually viewing today —
+        // browsing a past date loads that date's totals, not today's.
+        let allMet = isSelectedDateToday
+            && totalCalories > 0
+            && macroGoalsMet.allSatisfy { $0 }
+        let saved = userSettings.macroStreak
+        let id    = userSettings.userID
         Task {
+            let computed = await StreakService.compute(todayAllMet: allMet, userID: id)
+
+            // When today's goals aren't met yet, don't lower the streak just because
+            // the historical cache is incomplete. If yesterday was confirmed met
+            // (computed > 0), trust whichever value is higher. If yesterday was
+            // genuinely not met (computed == 0), the streak resets to 0.
+            let finalStreak: Int
+            if !allMet {
+                finalStreak = computed > 0 ? max(computed, saved) : 0
+            } else {
+                finalStreak = computed
+            }
+
+            macroStreak              = finalStreak
+            userSettings.macroStreak = finalStreak
+            checkStreakMilestones(finalStreak)
             try? await UserProfileService.shared.updateProfile(
                 userID: id,
-                fields: ["streakDays": streak]
+                fields: ["streakDays": finalStreak]
             )
         }
     }

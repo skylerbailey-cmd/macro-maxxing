@@ -18,6 +18,10 @@ final class FuelLogService {
     static let shared = FuelLogService()
     private init() {}
 
+    /// Posted on the main queue whenever a meal is added or deleted (today only).
+    /// HomeView observes this to trigger an immediate streak/totals refresh.
+    static let mealChangedNotification = Notification.Name("FuelLogMealChanged")
+
     // MARK: - Private refs
 
     private var db:      Firestore        { FirebaseManager.shared.db }
@@ -124,6 +128,9 @@ final class FuelLogService {
                          goalCalories: goalCalories, goalProtein: goalProtein,
                          goalCarbs: goalCarbs, goalFat: goalFat, streakDay: streakDay)
 
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: Self.mealChangedNotification, object: nil)
+        }
         return meal
     }
 
@@ -173,6 +180,9 @@ final class FuelLogService {
             syncMacroHistory(log: log, userID: userID,
                              goalCalories: goalCalories, goalProtein: goalProtein,
                              goalCarbs: goalCarbs, goalFat: goalFat, streakDay: streakDay)
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: Self.mealChangedNotification, object: nil)
+            }
         }
     }
 

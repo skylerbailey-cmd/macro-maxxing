@@ -90,6 +90,44 @@ final class UserProfileService {
         }
     }
 
+    // MARK: - Weekly Aura Board
+
+    struct WeeklyAuraBoardEntry {
+        let userID:                      String
+        let name:                        String
+        let username:                    String
+        let auraPoints:                  Int
+        let weeklyAuraPoints:            Int
+        let weeklyAuraWeekStartTimestamp: Double
+        let location:                    String
+        let isPrivate:                   Bool
+        let streakDays:                  Int
+    }
+
+    /// Fetches the top `limit` users by `weeklyAuraPoints` this week.
+    /// Single-field index on `weeklyAuraPoints` is auto-created by Firestore.
+    func fetchWeeklyAuraBoard(limit: Int = 200) async throws -> [WeeklyAuraBoardEntry] {
+        let snapshot = try await db.collection(collectionName)
+            .whereField("weeklyAuraPoints", isGreaterThan: 0)
+            .order(by: "weeklyAuraPoints", descending: true)
+            .limit(to: limit)
+            .getDocuments()
+        return snapshot.documents.compactMap { doc in
+            let data = doc.data()
+            return WeeklyAuraBoardEntry(
+                userID:                       doc.documentID,
+                name:                         data["name"]                        as? String ?? "",
+                username:                     data["username"]                    as? String ?? "",
+                auraPoints:                   data["auraPoints"]                  as? Int    ?? 0,
+                weeklyAuraPoints:             data["weeklyAuraPoints"]            as? Int    ?? 0,
+                weeklyAuraWeekStartTimestamp: data["weeklyAuraWeekStartTimestamp"] as? Double ?? 0,
+                location:                     data["location"]                    as? String ?? "",
+                isPrivate:                    data["isPrivateAccount"]            as? Bool   ?? false,
+                streakDays:                   data["streakDays"]                  as? Int    ?? 0
+            )
+        }
+    }
+
     // MARK: - 4. Update Profile Fields
 
     /// Merges `fields` into the existing user document.
@@ -113,6 +151,7 @@ final class UserProfileService {
             "location":          userSettings.location,
             "auraPoints":        userSettings.auraPoints,
             "streakDays":        userSettings.macroStreak,
+            "bio":               userSettings.bio,
             "instagramHandle":   userSettings.instagramHandle,
             "tiktokHandle":      userSettings.tiktokHandle,
             "isPrivateAccount":  userSettings.isPrivateAccount,

@@ -60,6 +60,17 @@ import Foundation
             )
         }
 
+        // Read fasting window if enabled
+        let fastingEnabled = ud.bool(forKey: "fastingEnabled")
+        let fastingWindow: ClaudeAnalysisService.NutritionInput.FastingWindow? = fastingEnabled ? (
+            startHour:     ud.integer(forKey: "windowStartHour"),
+            startMinute:   ud.integer(forKey: "windowStartMinute"),
+            durationHours: {
+                let d = ud.integer(forKey: "windowDurationHours")
+                return d > 0 ? d : 16
+            }()
+        ) : nil
+
         let input = ClaudeAnalysisService.NutritionInput(
             entries:      entries.map { (name: $0.foodName, calories: $0.calories,
                                          protein: $0.protein, carbs: $0.carbs, fat: $0.fat,
@@ -69,7 +80,8 @@ import Foundation
             goalCarbs:    goal("goalCarbs",    fallback: 200),
             goalFat:      goal("goalFat",      fallback: 65),
             date:         selectedDate,
-            workouts:     workoutSummaries
+            workouts:     workoutSummaries,
+            fastingWindow: fastingWindow
         )
 
         do {

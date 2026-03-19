@@ -123,7 +123,7 @@ struct WellnessApp: App {
     }
 
     let modelContainer: ModelContainer = {
-        let schema = Schema([FoodEntry.self, SocialPost.self, SocialComment.self, FuelLogEntry.self])
+        let schema = Schema([FoodEntry.self, SocialPost.self, SocialComment.self, FuelLogEntry.self, WorkoutLogEntry.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do { return try ModelContainer(for: schema, configurations: [config]) }
         catch { fatalError("Failed to create ModelContainer: \(error)") }

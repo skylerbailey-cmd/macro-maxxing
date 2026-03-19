@@ -186,6 +186,7 @@ struct FeedPostCard: View {
     let currentUserID: String
     let onRep:         () -> Void
     var onDelete:      (() -> Void)? = nil
+    var showStreak:    Bool          = true
 
     @State private var showDeleteConfirm = false
 
@@ -206,7 +207,21 @@ struct FeedPostCard: View {
                 if !post.caption.isEmpty {
                     captionView(post.caption)
                 }
-                if post.goalCalories > 0 {
+                if !post.fuelLogItems.isEmpty {
+                    fuelLogTable
+                    if post.goalCalories > 0 {
+                        MacroDisciplineCard(
+                            totalCalories: Double(post.calories),  goalCalories: Double(post.goalCalories),
+                            totalProtein:  post.protein,           goalProtein:  post.goalProtein,
+                            totalCarbs:    post.carbs,             goalCarbs:    post.goalCarbs,
+                            totalFat:      post.fat,               goalFat:      post.goalFat
+                        )
+                    }
+                } else if !post.workoutItems.isEmpty {
+                    workoutTable
+                } else if !post.mogBoardSnapshot.isEmpty {
+                    mogBoardSnapshotCard
+                } else if post.goalCalories > 0 {
                     MacroDisciplineCard(
                         totalCalories: Double(post.calories),  goalCalories: Double(post.goalCalories),
                         totalProtein:  post.protein,           goalProtein:  post.goalProtein,
@@ -260,10 +275,30 @@ struct FeedPostCard: View {
                             .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
                     }
 
-                    if post.streak > 0 {
+                    if showStreak && post.streak > 0 {
                         Text("🔥 \(post.streak)d streak")
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
                             .foregroundStyle(Color(red: 1.0, green: 0.60, blue: 0.20))
+                    }
+
+                    if let label = PostLabel(rawValue: post.postLabel) {
+                        let labelColor = feedPostLabelColor(label)
+                        HStack(spacing: 3) {
+                            Image(systemName: label.icon)
+                                .font(.system(size: 8, weight: .bold))
+                            if label == .mogBoard, !post.mogBoardScope.isEmpty {
+                                Text("\(post.mogBoardScope) Mog")
+                                    .font(.system(size: 9, weight: .bold))
+                            } else {
+                                Text(label.rawValue)
+                                    .font(.system(size: 9, weight: .bold))
+                            }
+                        }
+                        .foregroundStyle(labelColor)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(labelColor.opacity(0.15), in: Capsule())
+                        .overlay(Capsule().stroke(labelColor.opacity(0.35), lineWidth: 0.75))
                     }
                 }
 
@@ -362,6 +397,209 @@ struct FeedPostCard: View {
             .font(.subheadline)
             .foregroundStyle(.white.opacity(0.70))
             .lineLimit(3)
+    }
+
+    // MARK: Mog Board snapshot card
+
+    private var mogBoardSnapshotEntries: [MogBoardSnapshotEntry] {
+        guard !post.mogBoardSnapshot.isEmpty,
+              let data = post.mogBoardSnapshot.data(using: .utf8),
+              let entries = try? JSONDecoder().decode([MogBoardSnapshotEntry].self, from: data)
+        else { return [] }
+        return entries
+    }
+
+    @ViewBuilder
+    private var mogBoardSnapshotCard: some View {
+        let gold    = Color(red: 1.0, green: 0.80, blue: 0.20)
+        let entries = mogBoardSnapshotEntries
+        let scoreLabel: String = {
+            switch post.mogBoardType {
+            case "Streak":     return "days"
+            case "Engagement": return "score"
+            default:           return "pts"
+            }
+        }()
+
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "list.number")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(gold)
+                Text(post.mogBoardType.isEmpty ? "Board" : post.mogBoardType)
+                    .font(.system(size: 11, weight: .black, design: .rounded))
+                    .foregroundStyle(gold)
+                Spacer()
+                Text(scoreLabel.uppercased())
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.30))
+            }
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
+            .padding(.bottom, 6)
+
+            Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
+
+            VStack(spacing: 0) {
+                ForEach(Array(entries.prefix(5).enumerated()), id: \.element.id) { rank, entry in
+                    HStack(spacing: 8) {
+                        Text("#\(rank + 1)")
+                            .font(.system(size: 11, weight: .black, design: .monospaced))
+                            .foregroundStyle(rank == 0 ? gold : .white.opacity(0.30))
+                            .frame(width: 26, alignment: .trailing)
+                        Text(entry.displayName.isEmpty ? "@\(entry.username)" : entry.displayName)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.85))
+                            .lineLimit(1)
+                        Spacer()
+                        Text("\(entry.score)")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(rank == 0 ? gold : .white.opacity(0.55))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(rank == 0 ? gold.opacity(0.07) : Color.clear)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+        .background(Color(red: 0.10, green: 0.07, blue: 0.18))
+        .cornerRadius(10)
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(gold.opacity(0.20), lineWidth: 1))
+    }
+
+    // MARK: Workout table
+
+    private let workoutGreen = Color(red: 0.30, green: 0.90, blue: 0.55)
+
+    @ViewBuilder
+    private var workoutTable: some View {
+        let sorted   = post.workoutItems.sorted { $0.sortOrder < $1.sortOrder }
+        let totalCal = sorted.reduce(0) { $0 + $1.caloriesBurned }
+        let totalMin = sorted.reduce(0) { $0 + $1.durationMinutes }
+        let totalTime = totalMin >= 60 ? "\(totalMin / 60)h \(totalMin % 60)m" : "\(totalMin)m"
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(sorted) { item in
+                workoutRow(item: item, isLast: item.id == sorted.last?.id)
+            }
+            if sorted.count > 1 {
+                Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
+                HStack {
+                    Spacer()
+                    Text("Total: \(totalTime) · \(totalCal) cal burned")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(workoutGreen.opacity(0.80))
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+            }
+        }
+        .background(Color(red: 0.10, green: 0.07, blue: 0.18))
+        .cornerRadius(10)
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(workoutGreen.opacity(0.20), lineWidth: 1))
+    }
+
+    private func workoutRow(item: FeedWorkoutItem, isLast: Bool) -> some View {
+        let icon      = WorkoutType(rawValue: item.workoutType)?.icon ?? "figure.mixed.cardio"
+        let typeLabel = WorkoutType(rawValue: item.workoutType)?.shortLabel ?? item.workoutType
+        return VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(workoutGreen.opacity(0.12))
+                    .frame(width: 40, height: 40)
+                    .overlay {
+                        Image(systemName: icon)
+                            .font(.system(size: 16))
+                            .foregroundStyle(workoutGreen)
+                    }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.workoutName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.90))
+                        .lineLimit(1)
+                    Text("\(item.formattedDuration) · \(typeLabel)")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.40))
+                }
+                Spacer()
+                Text("\(item.caloriesBurned) cal")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(workoutGreen)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            if !isLast {
+                Rectangle().fill(Color.white.opacity(0.05)).frame(height: 1).padding(.horizontal, 10)
+            }
+        }
+    }
+
+    // MARK: Fuel log table
+
+    private var fuelLogTable: some View {
+        let sorted = post.fuelLogItems.sorted { $0.sortOrder < $1.sortOrder }
+        let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+        return VStack(alignment: .leading, spacing: 0) {
+            ForEach(sorted) { item in
+                VStack(spacing: 0) {
+                    HStack(spacing: 10) {
+                        if !item.photoURL.isEmpty, let url = URL(string: item.photoURL) {
+                            CachedAsyncImage(
+                                url: url,
+                                content: { img in
+                                    img.resizable().scaledToFill()
+                                        .frame(width: 40, height: 40)
+                                        .clipped().cornerRadius(8)
+                                },
+                                placeholder: {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.white.opacity(0.07))
+                                        .frame(width: 40, height: 40)
+                                        .overlay {
+                                            Image(systemName: "fork.knife")
+                                                .font(.system(size: 14))
+                                                .foregroundStyle(.white.opacity(0.30))
+                                        }
+                                }
+                            )
+                        } else {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.white.opacity(0.07))
+                                .frame(width: 40, height: 40)
+                                .overlay {
+                                    Image(systemName: "fork.knife")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(.white.opacity(0.30))
+                                }
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.foodName)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white)
+                            Text("\(Int(item.calories)) kcal · \(Int(item.protein))g P · \(Int(item.carbs))g C · \(Int(item.fat))g F")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.45))
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                    if item.id != sorted.last?.id {
+                        Divider().background(Color.white.opacity(0.08))
+                    }
+                }
+            }
+            Divider().background(purpl.opacity(0.40)).padding(.top, 4)
+            HStack {
+                Text("Total")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.white)
+                Spacer()
+                Text("\(post.calories) kcal · \(Int(post.protein))g P · \(Int(post.carbs))g C · \(Int(post.fat))g F")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(purpl)
+            }
+            .padding(.top, 8)
+        }
     }
 
     // MARK: Macro row
@@ -470,6 +708,18 @@ struct FeedPostCard: View {
                     .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
                     .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0))
             }
+    }
+
+    private func feedPostLabelColor(_ label: PostLabel) -> Color {
+        switch label {
+        case .transformation: return Color(red: 0.35, green: 0.75, blue: 1.00)
+        case .fuelLog:        return Color(red: 1.00, green: 0.55, blue: 0.15)
+        case .mealInspo:      return Color(red: 1.00, green: 0.30, blue: 0.55)
+        case .mogBoard:       return Color(red: 1.00, green: 0.80, blue: 0.20)
+        case .advice:         return Color(red: 1.00, green: 0.90, blue: 0.20)
+        case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
+        case .goalPost:       return Color(red: 0.65, green: 0.45, blue: 1.00)
+        }
     }
 
     private func timeAgo(from date: Date) -> String {

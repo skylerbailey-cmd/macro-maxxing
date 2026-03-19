@@ -194,3 +194,67 @@ struct FriendsListView: View {
         min(points / 1000, 100)
     }
 }
+
+// MARK: - ConnectionsSheet
+
+/// Unified sheet with Friends / Following / Followers tabs.
+struct ConnectionsSheet: View {
+
+    let userID:              String
+    var currentUserSettings: UserSettings? = nil
+
+    @State private var selectedTab = 0
+
+    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let pageBg = Color(red: 0.04, green: 0.03, blue: 0.08)
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Tab picker
+                Picker("", selection: $selectedTab) {
+                    Text("Friends").tag(0)
+                    Text("Following").tag(1)
+                    Text("Followers").tag(2)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 4)
+
+                Divider()
+                    .background(purpl.opacity(0.15))
+
+                // Tab content
+                switch selectedTab {
+                case 1:
+                    FollowListView(
+                        userID:              userID,
+                        mode:                .following,
+                        currentUserSettings: currentUserSettings
+                    )
+                    .navigationTitle("Connections")
+                case 2:
+                    FollowListView(
+                        userID:              userID,
+                        mode:                .followers,
+                        currentUserSettings: currentUserSettings
+                    )
+                    .navigationTitle("Connections")
+                default:
+                    FriendsListView(
+                        userID:              userID,
+                        currentUserSettings: currentUserSettings
+                    )
+                    .navigationTitle("Connections")
+                }
+            }
+            .background(pageBg.ignoresSafeArea())
+            .navigationTitle("Connections")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .preferredColorScheme(.dark)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+}

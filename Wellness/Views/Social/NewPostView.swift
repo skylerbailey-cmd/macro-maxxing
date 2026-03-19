@@ -138,6 +138,11 @@ struct NewPostView: View {
                             workoutPreview
                         }
 
+                        // Goal post preview (only when Goal label is selected)
+                        if selectedLabel == .goalPost {
+                            goalPostPreview
+                        }
+
                         // Mog Board sub-options
                         if selectedLabel == .mogBoard {
                             mogBoardOptions
@@ -202,6 +207,7 @@ struct NewPostView: View {
             .onChange(of: selectedLabel) { _, label in
                 if label == .workout    { Task { await loadTodayWorkouts() } }
                 if label == .fuelLog    { Task { await loadTodayFoodEntries() } }
+                if label == .goalPost   { Task { await loadTodayFoodEntries() } }
                 if let label { prefillForLabel(label) }
             }
             .toolbar {
@@ -407,6 +413,67 @@ struct NewPostView: View {
         )
     }
 
+    // MARK: - Goal totals helpers
+
+    private var goalTotalCalories: Double { todayFoodEntries.reduce(0) { $0 + $1.calories } }
+    private var goalTotalProtein:  Double { todayFoodEntries.reduce(0) { $0 + $1.protein  } }
+    private var goalTotalCarbs:    Double { todayFoodEntries.reduce(0) { $0 + $1.carbs    } }
+    private var goalTotalFat:      Double { todayFoodEntries.reduce(0) { $0 + $1.fat      } }
+
+    private func ud(_ key: String, fallback: Double) -> Double {
+        let ud = UserDefaults.standard
+        return ud.object(forKey: key) != nil ? ud.double(forKey: key) : fallback
+    }
+
+    // MARK: - Goal post preview
+
+    @ViewBuilder
+    private var goalPostPreview: some View {
+        let goalCal  = ud("goalCalories", fallback: 2000)
+        let goalPro  = ud("goalProtein",  fallback: 150)
+        let goalCarb = ud("goalCarbs",    fallback: 200)
+        let goalFat  = ud("goalFat",      fallback: 65)
+        let goalPurple = Color(red: 0.65, green: 0.45, blue: 1.00)
+
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "target")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(goalPurple)
+                Text("Today's progress toward your goal")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                Spacer()
+                if isLoadingFood {
+                    ProgressView().tint(goalPurple).scaleEffect(0.8)
+                }
+            }
+
+            if !isLoadingFood {
+                if goalCal <= 0 {
+                    Text("No daily goals set. Set your goals in Profile → Settings to see progress here.")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.40))
+                        .padding(.top, 2)
+                } else {
+                    MacroDisciplineCard(
+                        totalCalories: goalTotalCalories, goalCalories: goalCal,
+                        totalProtein:  goalTotalProtein,  goalProtein:  goalPro,
+                        totalCarbs:    goalTotalCarbs,    goalCarbs:    goalCarb,
+                        totalFat:      goalTotalFat,      goalFat:      goalFat
+                    )
+                }
+            }
+        }
+        .padding(12)
+        .background(cardBg)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(goalPurple.opacity(0.30), lineWidth: 1)
+        )
+    }
+
     // MARK: - Load food entries
 
     private func loadTodayFoodEntries() async {
@@ -594,7 +661,6 @@ struct NewPostView: View {
         case .advice:         return Color(red: 1.00, green: 0.90, blue: 0.20)
         case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
         case .goalPost:       return Color(red: 0.65, green: 0.45, blue: 1.00)
-        case .makeupPost:     return Color(red: 0.25, green: 0.85, blue: 0.70)
         }
     }
 
@@ -603,9 +669,6 @@ struct NewPostView: View {
         case .goalPost:
             if titleText.isEmpty { titleText = "My goal" }
             if bodyText.isEmpty  { bodyText  = "Here's what I'm locking in on. holding myself accountable to the feed." }
-        case .makeupPost:
-            if titleText.isEmpty { titleText = "Bounce back day" }
-            if bodyText.isEmpty  { bodyText  = "Missed yesterday. making it up today. no excuses, just discipline." }
         default:
             break
         }
@@ -617,6 +680,7 @@ struct NewPostView: View {
 
         // 1. Save locally to SwiftData so the Aura Stream tab updates immediately
         let fbPostID = UUID().uuidString   // shared ID for SwiftData ↔ Firestore link
+        let isGoalPost = selectedLabel == .goalPost
         let post = SocialPost(
             authorID:          userSettings.userID,
             authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
@@ -625,10 +689,14 @@ struct NewPostView: View {
             memeHeadline:      t,
             memeSub:           bodyText.trimmingCharacters(in: .whitespaces),
             macroDate:         Date(),
-            totalCalories: 0, goalCalories: 0,
-            totalProtein:  0, goalProtein:  0,
-            totalCarbs:    0, goalCarbs:    0,
-            totalFat:      0, goalFat:      0
+            totalCalories: isGoalPost ? goalTotalCalories : 0,
+            goalCalories:  isGoalPost ? ud("goalCalories", fallback: 2000) : 0,
+            totalProtein:  isGoalPost ? goalTotalProtein  : 0,
+            goalProtein:   isGoalPost ? ud("goalProtein",  fallback: 150)  : 0,
+            totalCarbs:    isGoalPost ? goalTotalCarbs     : 0,
+            goalCarbs:     isGoalPost ? ud("goalCarbs",    fallback: 200)  : 0,
+            totalFat:      isGoalPost ? goalTotalFat       : 0,
+            goalFat:       isGoalPost ? ud("goalFat",      fallback: 65)   : 0
         )
         post.isCustomPost           = true
         post.authorAuraLevel        = userSettings.auraLevel
@@ -677,12 +745,35 @@ struct NewPostView: View {
             }
         }
 
+        if selectedLabel == .workout {
+            for (i, entry) in todayWorkouts.enumerated() {
+                let workoutEntry = WorkoutLogEntry(
+                    workoutName:     entry.name,
+                    workoutType:     entry.workoutType.rawValue,
+                    durationMinutes: entry.durationMinutes,
+                    caloriesBurned:  entry.caloriesBurned,
+                    loggedAt:        entry.loggedAt,
+                    sortOrder:       i
+                )
+                post.workoutEntries.append(workoutEntry)
+                modelContext.insert(workoutEntry)
+            }
+        }
+
         // 2. Mirror to Firebase in the background (non-blocking)
         let images       = photos.map { $0.image }
         let caption      = bodyText.trimmingCharacters(in: .whitespaces)
-        let locationName = locationManager.city.isEmpty ? userSettings.location : locationManager.city
-        let latitude     = locationManager.coordinate?.latitude  ?? 0
-        let longitude    = locationManager.coordinate?.longitude ?? 0
+        let locationName    = locationManager.city.isEmpty ? userSettings.location : locationManager.city
+        let latitude        = locationManager.coordinate?.latitude  ?? 0
+        let longitude       = locationManager.coordinate?.longitude ?? 0
+        let snapshotJSON    = selectedLabel == .mogBoard ? post.mogBoardSnapshot : ""
+        let feedWorkoutItems: [FeedWorkoutItem] = selectedLabel == .workout
+            ? todayWorkouts.enumerated().map { i, e in
+                FeedWorkoutItem(workoutName: e.name, workoutType: e.workoutType.rawValue,
+                                durationMinutes: e.durationMinutes, caloriesBurned: e.caloriesBurned,
+                                sortOrder: i)
+              }
+            : []
 
         let author = PostService.PostAuthor(
             userID:              userSettings.userID,
@@ -707,9 +798,19 @@ struct NewPostView: View {
                     locationName: locationName,
                     latitude:     latitude,
                     longitude:    longitude,
-                    postLabel:     selectedLabel?.rawValue ?? "",
-                    mogBoardScope: selectedLabel == .mogBoard ? mogBoardScope : "",
-                    mogBoardType:  selectedLabel == .mogBoard ? mogBoardType  : "",
+                    postLabel:        selectedLabel?.rawValue ?? "",
+                    mogBoardScope:    selectedLabel == .mogBoard ? mogBoardScope : "",
+                    mogBoardType:     selectedLabel == .mogBoard ? mogBoardType  : "",
+                    mogBoardSnapshot: snapshotJSON,
+                    calories:      isGoalPost ? Int(goalTotalCalories) : 0,
+                    protein:       isGoalPost ? goalTotalProtein       : 0,
+                    carbs:         isGoalPost ? goalTotalCarbs         : 0,
+                    fat:           isGoalPost ? goalTotalFat           : 0,
+                    goalCalories:  isGoalPost ? Int(ud("goalCalories", fallback: 2000)) : 0,
+                    goalProtein:   isGoalPost ? ud("goalProtein", fallback: 150)        : 0,
+                    goalCarbs:     isGoalPost ? ud("goalCarbs",   fallback: 200)        : 0,
+                    goalFat:       isGoalPost ? ud("goalFat",     fallback: 65)         : 0,
+                    workoutItems:  feedWorkoutItems,
                     postID:        fbPostID
                 )
             } catch {

@@ -74,7 +74,7 @@ enum TutorialSteps {
         ),
         .init(
             title: "Aura Stream",
-            body: "Your community feed. Every post earns the creator aura points — likes, comments, and consistent posting boost them further.",
+            body: "Your community feed. Every post earns the creator aura XP — likes, comments, and consistent posting boost them further.",
             tabIndex: 2
         ),
         .init(
@@ -89,12 +89,12 @@ enum TutorialSteps {
         ),
         .init(
             title: "Mog Board",
-            body: "The weekly leaderboard resets every Monday. Earn points by logging meals, hitting streak milestones, and posting consistently.",
+            body: "The weekly leaderboard resets every Monday. Your rank is based on the aura XP you earn during the week — hit your macro goals daily, keep your streak alive, and stay active to climb.",
             tabIndex: 3
         ),
         .init(
-            title: "Leaderboard Types",
-            body: "Switch between Weekly Aura, Engagement (all-time), and Streak boards. Use the scope picker to compare across Team, Local, or Arena.",
+            title: "Leaderboard Scopes",
+            body: "Use the scope picker to compare across Team, Local, or Arena — see how you rank against friends, nearby users, or everyone on the platform.",
             tabIndex: 3
         ),
     ]
@@ -114,7 +114,7 @@ enum TutorialSteps {
         .init(
             title: "Streaks & Aura",
             body: "Hit all four macro KPIs — calories, protein, carbs, and fat — each day to extend your streak. Aura XP stacks from streaks, posts, and achievements.",
-            anchorID: "hub.header"
+            anchorID: "hub.stats"
         ),
         .init(
             title: "Macro Goal Bars",
@@ -124,36 +124,36 @@ enum TutorialSteps {
         .init(
             title: "Discipline Score",
             body: "Averages how closely you hit each active macro goal. 100% = perfect. Both over-goal and under-goal penalize the score — precision is the game.",
-            anchorID: "hub.macros"
+            anchorID: "hub.discipline"
+        ),
+        .init(
+            title: "AI Meal Planner",
+            body: "Tap 'Brainstorm next meal' and Claude will suggest specific meals or snacks tailored to your remaining macro gaps for the day. You get 2 suggestions per day — use them wisely.",
+            anchorID: "hub.mealPlanner"
         ),
     ]
 
     // MARK: Per-Tab — Log
     static let log: [TutorialStep] = [
         .init(
-            title: "Fuel Tab — Log a Meal",
-            body: "Tap the camera icon or photo icon at the bottom right to add a meal. AI analyzes the image and pre-fills your macros. Edit before saving.",
-            anchorID: "log.header"
-        ),
-        .init(
-            title: "Notifications & Profile",
-            body: "The bell icon shows streak alerts, new followers, and likes. Tap your profile picture to view your stats, posts, and aura progress.",
-            anchorID: "log.notifications"
-        ),
-        .init(
             title: "Fuel / Duel Tabs",
-            body: "Switch between Fuel (your food log) and Duel (macro comparison with a friend). Send a challenge or accept a pending one in Duel.",
+            body: "Fuel is your daily food log. Duel lets you compare macros head-to-head with a friend — send a challenge or accept one from here.",
             anchorID: "log.tabBar"
         ),
         .init(
-            title: "Daily Macro Summary",
-            body: "The running total at the top updates in real time as you log meals. Check your remaining macros before each meal to stay on track.",
-            anchorID: "log.macroSummary"
+            title: "Log a Meal or Workout",
+            body: "Tap the gold + button to log a meal or workout. It's always visible no matter which tab you're on, so you can log from anywhere in the app.",
+            anchorID: nil
         ),
         .init(
             title: "Meal Score Circle",
             body: "Each logged entry shows a small circle score (0–100) based on how well that meal's macro ratio aligns with your personal goals.",
-            anchorID: "log.entries"
+            anchorID: nil
+        ),
+        .init(
+            title: "AI Nutrition Coach",
+            body: "Scroll to the bottom of your food log to find the AI Nutrition Coach. It analyzes everything you logged today — meals, macros, and workouts — then gives you one actionable recommendation to make tomorrow better. Available once per day.",
+            anchorID: "log.nutritionCoach"
         ),
     ]
 
@@ -165,24 +165,14 @@ enum TutorialSteps {
             anchorID: "feed.header"
         ),
         .init(
-            title: "Notifications & Profile",
-            body: "The bell icon shows streak alerts, new followers, and likes. Tap your profile picture to view your stats, posts, and aura progress.",
-            anchorID: "feed.notifications"
-        ),
-        .init(
             title: "Scope Filters",
-            body: "Arena = everyone on the platform. Team = your crew. Following = people you've followed. Local = users near you.",
+            body: "Arena = everyone on the platform. Team = your friends. Following = people you've followed. Local = users near you.",
             anchorID: "feed.scopePicker"
         ),
         .init(
             title: "Post Label Chips",
-            body: "Tap any label chip to filter the feed. Fuel Log, Workout, Transformation, Goal, Makeup Day — find exactly what you want to see.",
+            body: "Tap any label chip to filter the feed. Fuel Log, Workout, Transformation, Goal — find exactly what you want to see.",
             anchorID: "feed.labelChips"
-        ),
-        .init(
-            title: "Inline Macro Charts",
-            body: "Fuel Log posts show a discipline chart right in the feed. No tapping needed — you can see the full macro breakdown at a glance.",
-            anchorID: "feed.posts"
         ),
         .init(
             title: "Create a Post",
@@ -195,27 +185,17 @@ enum TutorialSteps {
     static let board: [TutorialStep] = [
         .init(
             title: "Mog Board",
-            body: "The weekly competition resets every Monday. Stay consistent — every day you hit all four macro goals earns points and keeps you on the board.",
+            body: "The weekly leaderboard resets every Monday. Your rank is based on the aura XP you earn during the week — hit your macro goals daily, keep your streak alive, and stay active to climb.",
             anchorID: "board.header"
         ),
         .init(
-            title: "Notifications & Profile",
-            body: "The bell icon shows streak alerts, new followers, and likes. Tap your profile picture to view your stats, posts, and aura progress.",
-            anchorID: "board.notifications"
-        ),
-        .init(
             title: "Scope Selector",
-            body: "Compare yourself within your Team, your Local area, or across the full Arena. Scope changes apply to all leaderboard types.",
+            body: "Compare yourself within your Team, your Local area, or across the full Arena. Switch scopes to see how you stack up against friends, nearby users, or everyone on the platform.",
             anchorID: "board.scopePicker"
         ),
         .init(
-            title: "Weekly Aura",
-            body: "Points earned this week from meal logs, streak bonuses, and post engagement. Top earners are featured at the top of the board.",
-            anchorID: "board.rows"
-        ),
-        .init(
-            title: "Engagement & Streak Boards",
-            body: "Engagement tracks all-time likes and interactions. Streak tracks the longest active logging chain — these never reset.",
+            title: "Your Standing",
+            body: "Your row is always highlighted so you can find your rank at a glance. Pull down to refresh the board with the latest data.",
             anchorID: "board.rows"
         ),
     ]

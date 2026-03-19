@@ -33,6 +33,7 @@ struct UserProfile: Codable, Identifiable {
 
     // MARK: - Settings (persisted so they survive sign-out / device switches)
 
+    var bio:              String
     var instagramHandle:  String
     var tiktokHandle:     String
     var isPrivateAccount: Bool
@@ -72,6 +73,7 @@ struct UserProfile: Codable, Identifiable {
         friendCount:      Int,
         followingCount:   Int    = 0,
         followerCount:    Int    = 0,
+        bio:              String = "",
         instagramHandle:  String = "",
         tiktokHandle:     String = "",
         isPrivateAccount: Bool   = false,
@@ -95,6 +97,7 @@ struct UserProfile: Codable, Identifiable {
         self.friendCount      = friendCount
         self.followingCount   = followingCount
         self.followerCount    = followerCount
+        self.bio              = bio
         self.instagramHandle  = instagramHandle
         self.tiktokHandle     = tiktokHandle
         self.isPrivateAccount = isPrivateAccount
@@ -159,6 +162,7 @@ extension UserProfile {
             "location":        "",
             "name":            "",
             "username":        "",   // guard against missing field causing decode failure
+            "bio":             "",
             "instagramHandle": "",
             "tiktokHandle":    "",
             "dateOfBirth":     "",

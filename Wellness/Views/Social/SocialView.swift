@@ -31,6 +31,7 @@ struct SocialView: View {
     @State private var friendIDs: Set<String> = []
 
     @State private var showingTutorial   = false
+    @State private var tutorialAnchors:  [String: Anchor<CGRect>] = [:]
     @State private var showingNewPost    = false
     @State private var selectedPost:     SocialPost?
     @State private var selectedFeed:     Feed        = .arena
@@ -39,6 +40,14 @@ struct SocialView: View {
     @State private var showingSearch     = false
     @State private var showingNotifications = false
     @State private var labelFilter:      PostLabel?  = nil
+
+    /// Firestore-backed Arena feed — used instead of SwiftData for the Arena tab.
+    @State private var arenaViewModel = FeedViewModel()
+
+    /// Firestore-backed Local feed state.
+    @State private var localFirestorePosts: [FeedPost] = []
+    @State private var localLoading:        Bool        = false
+    @State private var localError:          String?     = nil
 
     enum Feed: String, CaseIterable {
         case team      = "Team"
@@ -63,47 +72,53 @@ struct SocialView: View {
         }
     }
 
+
+    private var arenaPosts: [SocialPost] {
+        posts.filter { isVisible($0) }
+    }
+
+    /// Label-filtered view of the Firestore Arena feed.
+    private var arenaDisplayed: [FeedPost] {
+        guard let filter = labelFilter else { return arenaViewModel.posts }
+        return arenaViewModel.posts.filter { $0.postLabel == filter.rawValue }
+    }
+
     private static let localRadiusMeters: Double = 160_934 // 100 miles
 
-    private var localPosts: [SocialPost] {
+    /// Distance-filtered + label-filtered view of the Firestore Local feed.
+    private var localDisplayed: [FeedPost] {
         guard let coord = locationManager.coordinate else { return [] }
         let userLoc = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
 
-        // Filter to visible posts within 100 miles (own posts always included)
-        let nearby = posts.filter { post in
-            guard isVisible(post) else { return false }
-            if post.authorID == userSettings.userID { return true }
-            guard post.authorLatitude != 0 || post.authorLongitude != 0 else { return false }
-            return CLLocation(latitude: post.authorLatitude, longitude: post.authorLongitude)
+        // Keep own posts + public posts within 100 miles that have valid coordinates
+        let nearby = localFirestorePosts.filter { post in
+            if post.userID == userSettings.userID { return true }
+            guard post.isPublic else { return false }
+            guard post.latitude != 0 || post.longitude != 0 else { return false }
+            return CLLocation(latitude: post.latitude, longitude: post.longitude)
                 .distance(from: userLoc) <= Self.localRadiusMeters
         }
 
         // Deduplicate authors, keep 500 closest, then return all their posts
         var authorDist: [String: Double] = [:]
         for post in nearby {
-            guard authorDist[post.authorID] == nil else { continue }
-            if post.authorID == userSettings.userID {
-                authorDist[post.authorID] = 0
-            } else {
-                authorDist[post.authorID] = CLLocation(latitude: post.authorLatitude, longitude: post.authorLongitude)
-                    .distance(from: userLoc)
-            }
+            guard authorDist[post.userID] == nil else { continue }
+            authorDist[post.userID] = post.userID == userSettings.userID ? 0 :
+                CLLocation(latitude: post.latitude, longitude: post.longitude).distance(from: userLoc)
         }
         let top500 = Set(authorDist.sorted { $0.value < $1.value }.prefix(500).map(\.key))
-        return nearby.filter { top500.contains($0.authorID) }
-    }
+        let filtered = nearby.filter { top500.contains($0.userID) }
 
-    private var arenaPosts: [SocialPost] {
-        posts.filter { isVisible($0) }
+        guard let filter = labelFilter else { return filtered }
+        return filtered.filter { $0.postLabel == filter.rawValue }
     }
 
     private var displayedPosts: [SocialPost] {
         let base: [SocialPost]
         switch selectedFeed {
-        case .team:      base = ranked(teamPosts)
-        case .following: base = ranked(followingPosts)
-        case .local:     base = ranked(localPosts)
-        case .arena:     base = ranked(arenaPosts)
+        case .team:            base = ranked(teamPosts)
+        case .following:       base = ranked(followingPosts)
+        case .local, .arena:   base = [] // handled by Firestore paths
         }
         guard let filter = labelFilter else { return base }
         return base.filter { $0.postLabel == filter.rawValue }
@@ -162,6 +177,7 @@ struct SocialView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 4)
+                .tutorialAnchor("feed.header")
 
                 HStack(spacing: 0) {
                     ForEach(Feed.allCases, id: \.self) { feed in
@@ -185,11 +201,17 @@ struct SocialView: View {
                 .background(Capsule().fill(Color.cardBg))
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
+                .tutorialAnchor("feed.scopePicker")
                 .onAppear {
                     if selectedFeed == .local { locationManager.requestLocationIfNeeded() }
                 }
                 .onChange(of: selectedFeed) { _, feed in
-                    if feed == .local { locationManager.requestLocationIfNeeded() }
+                    if feed == .local {
+                        locationManager.requestLocationIfNeeded()
+                        if localFirestorePosts.isEmpty {
+                            Task { await loadLocalFeed() }
+                        }
+                    }
                 }
 
                 // Label filter chips
@@ -203,71 +225,163 @@ struct SocialView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 6)
                 }
+                .tutorialAnchor("feed.labelChips")
 
-                if userSettings.isPrivateAccount && (selectedFeed == .local || selectedFeed == .arena) {
-                    privateAccountBanner
-                }
-                if displayedPosts.isEmpty {
-                    emptyFeed
-                } else {
-                    List {
-                        ForEach(displayedPosts) { post in
-                            PostCard(post: post, userID: userSettings.userID,
-                                     userSettings: userSettings,
-                                     followingIDs: $followingIDs,
-                                     onAvatarTap: { viewingProfile = post })
-                                .contentShape(Rectangle())
-                                .onTapGesture { selectedPost = post }
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    if post.authorID == userSettings.userID {
-                                        Button(role: .destructive) {
-                                            let fbID   = post.firebasePostID
-                                            let userID = post.authorID
-                                            modelContext.delete(post)
-                                            if !fbID.isEmpty {
-                                                Task {
-                                                    do {
-                                                        try await PostService.shared.deletePostByID(
-                                                            postID: fbID,
-                                                            userID: userID
-                                                        )
-                                                    } catch {
-                                                        print("[SocialView] Firebase delete failed: \(error.localizedDescription)")
-                                                    }
-                                                }
-                                            }
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
-                                    }
+                if selectedFeed == .arena {
+                    // ── Firestore-backed Arena feed ──────────────────────────
+                    if userSettings.isPrivateAccount {
+                        privateAccountBanner
+                    }
+                    if arenaViewModel.isLoading && arenaViewModel.posts.isEmpty {
+                        arenaSkeletonFeed
+                    } else if let err = arenaViewModel.errorMessage {
+                        arenaErrorView(err)
+                    } else if arenaDisplayed.isEmpty {
+                        emptyFeed
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 12) {
+                                ForEach(arenaDisplayed) { post in
+                                    FeedPostCard(
+                                        post:          post,
+                                        currentUserID: userSettings.userID,
+                                        onRep: { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
+                                        onDelete: post.userID == userSettings.userID
+                                            ? { Task { await arenaViewModel.deletePost(post) } }
+                                            : nil
+                                    )
+                                    .onAppear { Task { await arenaViewModel.loadMoreIfNeeded(currentPost: post) } }
                                 }
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                                if arenaViewModel.isLoading && !arenaViewModel.posts.isEmpty {
+                                    ProgressView().tint(Color.purpleHi).padding(.vertical, 20)
+                                }
+                                if !arenaViewModel.hasMore && !arenaViewModel.posts.isEmpty {
+                                    Text("You've seen it all 💪")
+                                        .font(.caption)
+                                        .foregroundStyle(.white.opacity(0.25))
+                                        .padding(.vertical, 20)
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+                            .padding(.bottom, 40)
+                        }
+                        .refreshable {
+                            await arenaViewModel.refresh()
+                            await notificationState.refresh(userID: userSettings.userID)
                         }
                     }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                    .refreshable {
-                        await loadFollowingIDs()
-                        await notificationState.refresh(userID: userSettings.userID)
+                } else if selectedFeed == .local {
+                    // ── Firestore-backed Local feed ──────────────────────────
+                    if userSettings.isPrivateAccount {
+                        privateAccountBanner
+                    }
+                    if localLoading && localFirestorePosts.isEmpty {
+                        arenaSkeletonFeed
+                    } else if let err = localError {
+                        arenaErrorView(err)
+                    } else if localDisplayed.isEmpty {
+                        emptyFeed
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 12) {
+                                ForEach(localDisplayed) { post in
+                                    FeedPostCard(
+                                        post:          post,
+                                        currentUserID: userSettings.userID,
+                                        onRep: { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
+                                        onDelete: post.userID == userSettings.userID
+                                            ? { Task { await arenaViewModel.deletePost(post) } }
+                                            : nil
+                                    )
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+                            .padding(.bottom, 40)
+                        }
+                        .refreshable {
+                            await loadLocalFeed()
+                            await notificationState.refresh(userID: userSettings.userID)
+                        }
+                    }
+                } else {
+                    // ── SwiftData-backed Team / Following feeds ───────────────
+                    if displayedPosts.isEmpty {
+                        emptyFeed
+                    } else {
+                        List {
+                            ForEach(displayedPosts) { post in
+                                PostCard(post: post, userID: userSettings.userID,
+                                         userSettings: userSettings,
+                                         followingIDs: $followingIDs,
+                                         onAvatarTap: { viewingProfile = post })
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { selectedPost = post }
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        if post.authorID == userSettings.userID {
+                                            Button(role: .destructive) {
+                                                let fbID   = post.firebasePostID
+                                                let userID = post.authorID
+                                                modelContext.delete(post)
+                                                if !fbID.isEmpty {
+                                                    Task {
+                                                        do {
+                                                            try await PostService.shared.deletePostByID(
+                                                                postID: fbID,
+                                                                userID: userID
+                                                            )
+                                                        } catch {
+                                                            print("[SocialView] Firebase delete failed: \(error.localizedDescription)")
+                                                        }
+                                                    }
+                                                }
+                                            } label: {
+                                                Label("Delete", systemImage: "trash")
+                                            }
+                                        }
+                                    }
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
+                                    .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                            }
+                        }
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
+                        .refreshable {
+                            await loadFollowingIDs()
+                            await notificationState.refresh(userID: userSettings.userID)
+                        }
                     }
                 }
             }
             if showingTutorial {
-                TutorialOverlayView(steps: TutorialSteps.feed, onDismiss: {
+                TutorialOverlayView(steps: TutorialSteps.feed, anchors: tutorialAnchors, onDismiss: {
                     withAnimation(.easeOut(duration: 0.25)) { showingTutorial = false }
                 })
                 .transition(.opacity.animation(.easeInOut(duration: 0.25)))
                 .zIndex(100)
             }
         }
+        .onPreferenceChange(TutorialAnchorKey.self) { tutorialAnchors = $0 }
         .preferredColorScheme(.dark)
         .navigationBarHidden(true)
-        .task { await loadFollowingIDs() }
+        .task {
+            // Run both in parallel — they're independent
+            async let followingLoad: Void = loadFollowingIDs()
+            async let arenaLoad: Void = arenaViewModel.loadInitialFeed()
+            _ = await (followingLoad, arenaLoad)
+        }
         .sheet(isPresented: $showingNewPost) {
             NewPostView(userSettings: userSettings)
                 .environment(locationManager)
+        }
+        .onChange(of: showingNewPost) { _, isShowing in
+            // Refresh Firestore feeds when the post sheet closes so new posts appear immediately
+            if !isShowing {
+                Task { await arenaViewModel.refresh() }
+                if !localFirestorePosts.isEmpty { Task { await loadLocalFeed() } }
+            }
         }
         .sheet(isPresented: $showingNotifications) {
             NotificationsView(userSettings: userSettings, notificationState: notificationState)
@@ -357,6 +471,62 @@ struct SocialView: View {
             .overlay(Capsule().stroke(color.opacity(isActive ? 0 : (label == nil ? 0.20 : 0.30)), lineWidth: 1))
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Arena error / skeleton
+
+    private func arenaErrorView(_ message: String) -> some View {
+        VStack(spacing: 14) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 36))
+                .foregroundStyle(.orange.opacity(0.75))
+            Text("Couldn't load Arena")
+                .font(.headline)
+                .foregroundStyle(.white.opacity(0.70))
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.40))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button {
+                arenaViewModel.errorMessage = nil
+                Task { await arenaViewModel.refresh() }
+            } label: {
+                Text("Retry")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.purpleHi)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var arenaSkeletonFeed: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                ForEach(0..<4, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.cardBg)
+                        .frame(height: 260)
+                        .opacity(0.55)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+        }
+        .allowsHitTesting(false)
+    }
+
+    // MARK: - Local feed
+
+    private func loadLocalFeed() async {
+        localLoading = true
+        localError   = nil
+        defer { localLoading = false }
+        guard let (posts, _) = try? await PostService.shared.fetchFeedPosts(limit: 200) else {
+            localError = "Couldn't load nearby posts. Pull down to retry."
+            return
+        }
+        localFirestorePosts = posts
     }
 
     // MARK: - Following IDs
@@ -468,7 +638,6 @@ func postLabelColor(_ label: PostLabel) -> Color {
     case .advice:         return Color(red: 1.00, green: 0.90, blue: 0.20)
     case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
     case .goalPost:       return Color(red: 0.65, green: 0.45, blue: 1.00)
-    case .makeupPost:     return Color(red: 0.25, green: 0.85, blue: 0.70)
     }
 }
 
@@ -741,8 +910,84 @@ struct PostCard: View {
                 .foregroundStyle(.white.opacity(0.65))
                 .lineLimit(3)
         }
+        if post.postLabel == PostLabel.goalPost.rawValue && post.goalCalories > 0 {
+            MacroDisciplineCard(
+                totalCalories: post.totalCalories, goalCalories: post.goalCalories,
+                totalProtein:  post.totalProtein,  goalProtein:  post.goalProtein,
+                totalCarbs:    post.totalCarbs,    goalCarbs:    post.goalCarbs,
+                totalFat:      post.totalFat,      goalFat:      post.goalFat
+            )
+        }
+        if post.postLabel == PostLabel.workout.rawValue && !post.workoutEntries.isEmpty {
+            workoutCard
+        }
         if post.postLabel == PostLabel.mogBoard.rawValue && !mogBoardSnapshotEntries.isEmpty {
             mogBoardSnapshotCard
+        }
+    }
+
+    private let socialWorkoutGreen = Color(red: 0.30, green: 0.90, blue: 0.55)
+
+    @ViewBuilder
+    private var workoutCard: some View {
+        let sorted    = post.workoutEntries.sorted { $0.sortOrder < $1.sortOrder }
+        let totalCal  = sorted.reduce(0) { $0 + $1.caloriesBurned }
+        let totalMin  = sorted.reduce(0) { $0 + $1.durationMinutes }
+        let totalTime = totalMin >= 60 ? "\(totalMin / 60)h \(totalMin % 60)m" : "\(totalMin)m"
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(sorted) { item in
+                socialWorkoutRow(item: item, isLast: item.id == sorted.last?.id)
+            }
+            if sorted.count > 1 {
+                Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
+                HStack {
+                    Spacer()
+                    Text("Total: \(totalTime) · \(totalCal) cal burned")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(socialWorkoutGreen.opacity(0.80))
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+            }
+        }
+        .background(Color(red: 0.10, green: 0.07, blue: 0.18))
+        .cornerRadius(10)
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(socialWorkoutGreen.opacity(0.20), lineWidth: 1))
+        .padding(.top, 4)
+    }
+
+    private func socialWorkoutRow(item: WorkoutLogEntry, isLast: Bool) -> some View {
+        let icon      = WorkoutType(rawValue: item.workoutType)?.icon ?? "figure.mixed.cardio"
+        let typeLabel = WorkoutType(rawValue: item.workoutType)?.shortLabel ?? item.workoutType
+        return VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(socialWorkoutGreen.opacity(0.12))
+                    .frame(width: 40, height: 40)
+                    .overlay {
+                        Image(systemName: icon)
+                            .font(.system(size: 16))
+                            .foregroundStyle(socialWorkoutGreen)
+                    }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.workoutName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.90))
+                        .lineLimit(1)
+                    Text("\(item.formattedDuration) · \(typeLabel)")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.40))
+                }
+                Spacer()
+                Text("\(item.caloriesBurned) cal")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(socialWorkoutGreen)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            if !isLast {
+                Rectangle().fill(Color.white.opacity(0.05)).frame(height: 1).padding(.horizontal, 10)
+            }
         }
     }
 

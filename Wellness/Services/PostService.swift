@@ -358,6 +358,17 @@ final class PostService {
         postLabel:            String = "",
         mogBoardScope:        String = "",
         mogBoardType:         String = "",
+        mogBoardSnapshot:     String = "",
+        calories:             Int    = 0,
+        protein:              Double = 0,
+        carbs:                Double = 0,
+        fat:                  Double = 0,
+        goalCalories:         Int    = 0,
+        goalProtein:          Double = 0,
+        goalCarbs:            Double = 0,
+        goalFat:              Double = 0,
+        fuelLogItems:         [FeedFuelLogItem] = [],
+        workoutItems:         [FeedWorkoutItem] = [],
         postID:               String = UUID().uuidString
     ) async throws -> String {
         let postID = postID
@@ -399,10 +410,14 @@ final class PostService {
             additionalPhotoURLs:  additionalURLs,
             caption:              caption,
             title:                title,
-            calories:             0,
-            protein:              0,
-            carbs:                0,
-            fat:                  0,
+            calories:             calories,
+            protein:              protein,
+            carbs:                carbs,
+            fat:                  fat,
+            goalCalories:         goalCalories,
+            goalProtein:          goalProtein,
+            goalCarbs:            goalCarbs,
+            goalFat:              goalFat,
             auraLevel:            author.auraLevel,
             auraPoints:           author.auraPoints,
             auraTitle:            author.auraTitle,
@@ -415,7 +430,10 @@ final class PostService {
             fastingWindowDisplay: fastingWindowDisplay,
             postLabel:            postLabel,
             mogBoardScope:        mogBoardScope,
-            mogBoardType:         mogBoardType
+            mogBoardType:         mogBoardType,
+            mogBoardSnapshot:     mogBoardSnapshot,
+            fuelLogItems:         fuelLogItems,
+            workoutItems:         workoutItems
         )
 
         let data = try post.firestoreData()
@@ -424,26 +442,46 @@ final class PostService {
         return postID
     }
 
-    // MARK: - 7. Real-time new-posts listener
+    // MARK: - 7. Real-time feed listener
 
-    /// Attaches a Firestore snapshot listener that fires whenever a new public post
-    /// is created *after* `since`. Returns the `ListenerRegistration` so the caller
-    /// can detach it on `deinit`.
-    func addNewPostsListener(
-        since date: Date,
-        onNew: @escaping ([FeedPost]) -> Void
+    /// Attaches a Firestore snapshot listener on the most recent public posts.
+    /// Fires `onAdded` for new posts and `onRemoved` with post IDs for deleted posts.
+    /// Returns the `ListenerRegistration` so the caller can detach it on `deinit`.
+    ///
+    /// Dropping the `createdAt > since` filter so deletions of already-loaded posts
+    /// are also captured. Initial snapshot costs 20 reads — the same as one pagination page.
+    func addFeedListener(
+        onAdded:   @escaping ([FeedPost]) -> Void,
+        onRemoved: @escaping ([String])   -> Void,
+        onError:   @escaping (String)     -> Void = { _ in }
     ) -> ListenerRegistration {
         db.collection(collectionName)
-            .whereField("isPublic",   isEqualTo: true)
-            .whereField("createdAt",  isGreaterThan: Timestamp(date: date))
-            .order(by: "createdAt",   descending: true)
+            .whereField("isPublic", isEqualTo: true)
+            .order(by: "createdAt", descending: true)
             .limit(to: 20)
-            .addSnapshotListener { snapshot, _ in
+            .addSnapshotListener { snapshot, error in
+                if let error {
+                    print("[PostService] Feed listener error: \(error.localizedDescription)")
+                    onError(error.localizedDescription)
+                    return
+                }
                 guard let snapshot else { return }
-                let added = snapshot.documentChanges
-                    .filter { $0.type == .added }
-                    .compactMap { FeedPost(document: $0.document) }
-                if !added.isEmpty { onNew(added) }
+                var added:   [FeedPost] = []
+                var removed: [String]   = []
+                for change in snapshot.documentChanges {
+                    switch change.type {
+                    case .added:
+                        if let post = FeedPost(document: change.document) { added.append(post) }
+                    case .removed:
+                        removed.append(change.document.documentID)
+                    case .modified:
+                        break
+                    @unknown default:
+                        break
+                    }
+                }
+                if !added.isEmpty   { onAdded(added) }
+                if !removed.isEmpty { onRemoved(removed) }
             }
     }
 

@@ -17,7 +17,8 @@ struct PostDetailView: View {
 
     @State private var commentText     = ""
     @State private var commentImage:   UIImage? = nil
-    @State private var showCommentCamera = false
+    @State private var showCommentCamera   = false
+    @State private var showCommentLibrary  = false
     @State private var showingProfile  = false
     @FocusState private var commentFocused: Bool
 
@@ -54,6 +55,9 @@ struct PostDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showCommentCamera) {
                 ImagePickerView(sourceType: .camera, selectedImage: $commentImage)
+            }
+            .sheet(isPresented: $showCommentLibrary) {
+                ImagePickerView(sourceType: .photoLibrary, selectedImage: $commentImage)
             }
             .sheet(isPresented: $showingProfile) {
                 NavigationStack {
@@ -331,30 +335,29 @@ struct PostDetailView: View {
                         .clipped().cornerRadius(10)
                         .padding(.top, 4)
                 }
-
-                // 💪 Rep button on comment
-                Button {
-                    let isNewRep = !comment.hasRepped(userID: userSettings.userID)
-                    comment.toggleRep(userID: userSettings.userID)
-                    if isNewRep {
-                        userSettings.awardAura(points: 1, silent: true)
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text("💪")
-                            .font(.system(size: 12))
-                        Text("\(comment.repsCount) Reps")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(
-                                comment.hasRepped(userID: userSettings.userID)
-                                    ? Color(red: 1.0, green: 0.75, blue: 0.2)
-                                    : .white.opacity(0.35)
-                            )
-                    }
-                }
-                .buttonStyle(.plain)
             }
             Spacer()
+            // 💪 Rep button on the right
+            Button {
+                let isNewRep = !comment.hasRepped(userID: userSettings.userID)
+                comment.toggleRep(userID: userSettings.userID)
+                if isNewRep {
+                    userSettings.awardAura(points: 1, silent: true)
+                }
+            } label: {
+                VStack(spacing: 2) {
+                    Text("💪")
+                        .font(.system(size: 14))
+                    Text("\(comment.repsCount)")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(
+                            comment.hasRepped(userID: userSettings.userID)
+                                ? Color(red: 1.0, green: 0.75, blue: 0.2)
+                                : .white.opacity(0.35)
+                        )
+                }
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -387,11 +390,19 @@ struct PostDetailView: View {
                 Button {
                     showCommentCamera = true
                 } label: {
-                    Image(systemName: commentImage != nil ? "camera.fill" : "camera")
+                    Image(systemName: "camera")
                         .font(.system(size: 20))
                         .foregroundStyle(commentImage != nil ? purpl : .white.opacity(0.40))
                 }
                 .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
+                // Photo library button
+                Button {
+                    showCommentLibrary = true
+                } label: {
+                    Image(systemName: "photo")
+                        .font(.system(size: 20))
+                        .foregroundStyle(commentImage != nil ? purpl : .white.opacity(0.40))
+                }
 
                 TextField("Add a comment…", text: $commentText)
                     .padding(10)

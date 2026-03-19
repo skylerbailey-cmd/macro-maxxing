@@ -93,19 +93,28 @@ import FirebaseFirestore
         isLoading = false
     }
 
-    // MARK: - Real-time listener (new posts only)
+    // MARK: - Real-time listener
 
     private func startListening() {
         stopListening()
-        let since = Date()
-        listenerRegistration = PostService.shared.addNewPostsListener(since: since) { [weak self] newPosts in
-            guard let self else { return }
-            let existingIDs = Set(self.posts.compactMap { $0.postID })
-            let truly = newPosts.filter { !existingIDs.contains($0.postID ?? "") }
-            if !truly.isEmpty {
-                self.posts.insert(contentsOf: truly, at: 0)
+        listenerRegistration = PostService.shared.addFeedListener(
+            onAdded: { [weak self] newPosts in
+                guard let self else { return }
+                let existingIDs = Set(self.posts.compactMap { $0.postID })
+                let truly = newPosts.filter { !existingIDs.contains($0.postID ?? "") }
+                if !truly.isEmpty {
+                    self.posts.insert(contentsOf: truly, at: 0)
+                }
+            },
+            onRemoved: { [weak self] removedIDs in
+                guard let self else { return }
+                let idSet = Set(removedIDs)
+                self.posts.removeAll { idSet.contains($0.postID ?? "") }
+            },
+            onError: { [weak self] message in
+                self?.errorMessage = message
             }
-        }
+        )
     }
 
     private func stopListening() {

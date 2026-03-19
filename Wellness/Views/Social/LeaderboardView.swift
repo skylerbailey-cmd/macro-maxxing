@@ -50,10 +50,14 @@ struct LeaderboardView: View {
     @State private var selectedScope:    Scope            = .arena
     @State private var selectedProfile:  LeaderboardEntry? = nil
     @State private var showingTutorial   = false
+    @State private var tutorialAnchors:  [String: Anchor<CGRect>] = [:]
     @State private var showingProfile    = false
     @State private var showPostPicker    = false
     @State private var showingNotifications = false
-    @State private var previewBoard:     ShareableBoard?  = nil
+    @State private var previewBoard:       ShareableBoard?    = nil
+    @State private var infoBoard:          Board?             = nil
+    @State private var firestoreAura:      [LeaderboardEntry] = []
+    @State private var weeklyAuraLoading:  Bool               = false
 
     enum Scope: String, CaseIterable {
         case team  = "Team"
@@ -101,6 +105,7 @@ struct LeaderboardView: View {
                 .padding(.bottom, 4)
 
                 scopePicker
+                    .tutorialAnchor("board.scopePicker")
                 ScrollView {
                     VStack(spacing: 24) {
                         if userSettings.isPrivateAccount && (selectedScope == .local || selectedScope == .arena) {
@@ -111,51 +116,45 @@ struct LeaderboardView: View {
                             icon: "bolt.fill",
                             subtitle: "Resets \(nextSundayString)",
                             entries: weeklyAuraDisplayed,
-                            board: .weeklyAura
+                            board: .weeklyAura,
+                            isLoading: weeklyAuraLoading
                         )
-                        boardSection(
-                            title: "Engagement",
-                            icon: "heart.fill",
-                            subtitle: "All-time reps + comments received",
-                            entries: engagementDisplayed,
-                            board: .engagement
-                        )
-                        boardSection(
-                            title: "Streak",
-                            icon: "flame.fill",
-                            subtitle: "Consecutive days hitting all macro goals",
-                            entries: streakDisplayed,
-                            board: .streak
-                        )
+                        .tutorialAnchor("board.rows")
+
+                        Text("More boards coming soon")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.35))
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 4)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
                     .padding(.bottom, 32)
                 }
+                .refreshable {
+                    await loadFollowingIDs()
+                    await loadWeeklyAuraBoard()
+                }
             }
             if showingTutorial {
-                TutorialOverlayView(steps: TutorialSteps.board, onDismiss: {
+                TutorialOverlayView(steps: TutorialSteps.board, anchors: tutorialAnchors, onDismiss: {
                     withAnimation(.easeOut(duration: 0.25)) { showingTutorial = false }
                 })
                 .transition(.opacity.animation(.easeInOut(duration: 0.25)))
                 .zIndex(100)
             }
         }
+        .onPreferenceChange(TutorialAnchorKey.self) { tutorialAnchors = $0 }
         .preferredColorScheme(.dark)
         .navigationBarHidden(true)
-        .task { await loadFollowingIDs() }
+        .task {
+            await loadFollowingIDs()
+            await loadWeeklyAuraBoard()
+        }
         .confirmationDialog("Post a Board", isPresented: $showPostPicker, titleVisibility: .visible) {
             Button("Weekly Aura") {
                 previewBoard = ShareableBoard(title: "Weekly Aura", scoreLabel: "pts",
                                              entries: weeklyAuraDisplayed)
-            }
-            Button("Engagement") {
-                previewBoard = ShareableBoard(title: "Engagement", scoreLabel: "score",
-                                             entries: engagementDisplayed)
-            }
-            Button("Streak") {
-                previewBoard = ShareableBoard(title: "Streak", scoreLabel: "days",
-                                             entries: streakDisplayed)
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -167,6 +166,14 @@ struct LeaderboardView: View {
                 scope:  selectedScope.rawValue,
                 onPost: { image in postBoardToFeed(board: board, overrideImage: image) }
             )
+        }
+        .alert(infoBoardTitle, isPresented: Binding(
+            get: { infoBoard != nil },
+            set: { if !$0 { infoBoard = nil } }
+        )) {
+            Button("Got it", role: .cancel) {}
+        } message: {
+            Text(infoBoardMessage)
         }
         .onAppear {
             userSettings.checkWeeklyReset()
@@ -321,11 +328,15 @@ struct LeaderboardView: View {
         Task {
             do {
                 try await PostService.shared.createCustomPost(
-                    photos:  [image],
-                    author:  author,
-                    title:   title,
-                    caption: caption,
-                    postID:  fbPostID
+                    photos:           [image],
+                    author:           author,
+                    title:            title,
+                    caption:          caption,
+                    postLabel:        PostLabel.mogBoard.rawValue,
+                    mogBoardScope:    post.mogBoardScope,
+                    mogBoardType:     post.mogBoardType,
+                    mogBoardSnapshot: post.mogBoardSnapshot,
+                    postID:           fbPostID
                 )
             } catch {
                 print("[LeaderboardView] Firebase post failed: \(error.localizedDescription)")
@@ -350,13 +361,28 @@ struct LeaderboardView: View {
             .first?.windows.first?.rootViewController?.present(av, animated: true)
     }
 
+    private var infoBoardTitle: String {
+        switch infoBoard {
+        case .weeklyAura: return "Weekly Aura Board"
+        case nil:         return ""
+        }
+    }
+
+    private var infoBoardMessage: String {
+        switch infoBoard {
+        case .weeklyAura:
+            return "Ranks everyone by Aura points earned this week. Post content, get reps and comments, and level up to climb the board. Resets every Sunday."
+        case nil:
+            return ""
+        }
+    }
+
     @ViewBuilder
     private func boardSection(title: String, icon: String, subtitle: String,
-                               entries: [LeaderboardEntry], board: Board) -> some View {
-        let scoreLabel = board == .streak ? "days" : board == .engagement ? "score" : "pts"
-        let iconColor: Color = board == .weeklyAura ? purpl
-            : board == .engagement ? Color(red: 1.0, green: 0.45, blue: 0.55)
-            : .orange
+                               entries: [LeaderboardEntry], board: Board,
+                               isLoading: Bool = false) -> some View {
+        let scoreLabel = "pts"
+        let iconColor: Color = purpl
 
         VStack(alignment: .leading, spacing: 0) {
             // Card header
@@ -368,9 +394,17 @@ struct LeaderboardView: View {
                     .background(iconColor.opacity(0.15))
                     .clipShape(Circle())
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(title)
-                        .font(.system(size: 15, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
+                    HStack(spacing: 5) {
+                        Text(title)
+                            .font(.system(size: 15, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
+                        Button { infoBoard = board } label: {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.35))
+                        }
+                        .buttonStyle(.plain)
+                    }
                     Text(subtitle)
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.white.opacity(0.35))
@@ -386,7 +420,12 @@ struct LeaderboardView: View {
             let noLocation = selectedScope == .local && locationManager.coordinate == nil
             let localTooFew = selectedScope == .local && !noLocation && entries.count < 10
 
-            if entries.isEmpty || localTooFew {
+            if isLoading {
+                ProgressView()
+                    .tint(Color(red: 0.65, green: 0.45, blue: 1.00))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+            } else if entries.isEmpty || localTooFew {
                 Group {
                     if selectedScope == .local && !noLocation {
                         localInviteBanner(full: true)
@@ -557,7 +596,7 @@ struct LeaderboardView: View {
             .first?.windows.first?.rootViewController?.present(av, animated: true)
     }
 
-    enum Board { case weeklyAura, engagement, streak }
+    enum Board { case weeklyAura }
 
     private var scopePicker: some View {
         HStack(spacing: 0) {
@@ -615,152 +654,65 @@ struct LeaderboardView: View {
     // MARK: - Displayed entries
 
     private var weeklyAuraDisplayed: [LeaderboardEntry] {
-        Array(scopeFiltered(allWeeklyAuraEntries).prefix(10))
+        Array(scopeFiltered(firestoreAura).prefix(10))
     }
 
-    private var engagementDisplayed: [LeaderboardEntry] {
-        Array(scopeFiltered(allEngagementEntries).prefix(10))
-    }
 
-    private var streakDisplayed: [LeaderboardEntry] {
-        Array(scopeFiltered(allStreakEntries).prefix(10))
-    }
+    private func loadWeeklyAuraBoard() async {
+        weeklyAuraLoading = true
+        defer { weeklyAuraLoading = false }
 
-    private var allStreakEntries: [LeaderboardEntry] {
-        var data: [String: (name: String, username: String, imgData: Data?, level: Int, streak: Int, location: String, lat: Double, lon: Double)] = [:]
+        guard let entries = try? await UserProfileService.shared.fetchWeeklyAuraBoard() else { return }
 
-        let selfName = userSettings.name.isEmpty ? userSettings.username : userSettings.name
-        data[userSettings.userID] = (selfName, userSettings.username,
-                                     userSettings.profileImageData,
-                                     userSettings.auraLevel,
-                                     userSettings.macroStreak,
-                                     userSettings.location,
-                                     locationManager.coordinate?.latitude  ?? 0,
-                                     locationManager.coordinate?.longitude ?? 0)
+        let currentWeekStart = UserSettings.currentWeekStart().timeIntervalSince1970
 
-        for post in allPosts where post.authorID != userSettings.userID {
-            let name = post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName
-            if let existing = data[post.authorID] {
-                if post.authorStreak > existing.streak {
-                    data[post.authorID] = (name, post.authorUsername,
-                                           post.authorProfileImageData,
-                                           post.authorAuraLevel,
-                                           post.authorStreak,
-                                           post.authorLocation,
-                                           post.authorLatitude,
-                                           post.authorLongitude)
-                }
-            } else {
-                data[post.authorID] = (name, post.authorUsername,
-                                       post.authorProfileImageData,
-                                       post.authorAuraLevel,
-                                       post.authorStreak,
-                                       post.authorLocation,
-                                       post.authorLatitude,
-                                       post.authorLongitude)
-            }
+        var result: [LeaderboardEntry] = entries.compactMap { e in
+            // Filter out stale entries from a previous week
+            guard e.weeklyAuraWeekStartTimestamp >= currentWeekStart else { return nil }
+            let isCurrentUser = e.userID == userSettings.userID
+            let auraLvl = isCurrentUser ? userSettings.auraLevel : UserSettings.auraLevel(for: e.auraPoints)
+            let displayName = e.name.isEmpty ? e.username : e.name
+            return LeaderboardEntry(
+                id:               e.userID,
+                displayName:      displayName,
+                username:         e.username,
+                profileImageData: isCurrentUser ? userSettings.profileImageData : nil,
+                auraLevel:        auraLvl,
+                location:         isCurrentUser ? userSettings.location : e.location,
+                latitude:         isCurrentUser ? (locationManager.coordinate?.latitude  ?? 0) : 0,
+                longitude:        isCurrentUser ? (locationManager.coordinate?.longitude ?? 0) : 0,
+                score:            isCurrentUser ? userSettings.weeklyAuraPoints : e.weeklyAuraPoints,
+                reps:             0,
+                comments:         0,
+                streak:           isCurrentUser ? userSettings.macroStreak : e.streakDays,
+                isCurrentUser:    isCurrentUser,
+                isPrivate:        isCurrentUser ? userSettings.isPrivateAccount : e.isPrivate
+            )
         }
 
-        return data.map { id, d in
-            let isPrivate = id == userSettings.userID
-                ? userSettings.isPrivateAccount
-                : (allPosts.first { $0.authorID == id }?.isAuthorPrivate ?? false)
-            return LeaderboardEntry(id: id, displayName: d.name, username: d.username,
-                             profileImageData: d.imgData, auraLevel: d.level,
-                             location: d.location, latitude: d.lat, longitude: d.lon,
-                             score: d.streak, reps: 0, comments: 0, streak: d.streak,
-                             isCurrentUser: id == userSettings.userID, isPrivate: isPrivate)
-        }
-        .sorted { $0.score != $1.score ? $0.score > $1.score : $0.displayName < $1.displayName }
-    }
-
-    private var allWeeklyAuraEntries: [LeaderboardEntry] {
-        var scores: [String: (name: String, username: String, imgData: Data?, level: Int, score: Int)] = [:]
-
-        let selfName = userSettings.name.isEmpty ? userSettings.username : userSettings.name
-        scores[userSettings.userID] = (selfName, userSettings.username,
-                                       userSettings.profileImageData,
-                                       userSettings.auraLevel,
-                                       userSettings.weeklyAuraPoints)
-
-        let weekStart = UserSettings.currentWeekStart()
-        for post in allPosts where post.postedAt >= weekStart && post.authorID != userSettings.userID {
-            let pts = post.goalCalories > 0 ? 50 : 10
-            let name = post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName
-            if var existing = scores[post.authorID] {
-                existing.score += pts
-                scores[post.authorID] = existing
-            } else {
-                scores[post.authorID] = (name, post.authorUsername,
-                                         post.authorProfileImageData,
-                                         post.authorAuraLevel, pts)
-            }
+        // Seed current user so they always appear even with 0 pts
+        if !result.contains(where: { $0.isCurrentUser }) {
+            let selfName = userSettings.name.isEmpty ? userSettings.username : userSettings.name
+            result.append(LeaderboardEntry(
+                id:               userSettings.userID,
+                displayName:      selfName,
+                username:         userSettings.username,
+                profileImageData: userSettings.profileImageData,
+                auraLevel:        userSettings.auraLevel,
+                location:         userSettings.location,
+                latitude:         locationManager.coordinate?.latitude  ?? 0,
+                longitude:        locationManager.coordinate?.longitude ?? 0,
+                score:            userSettings.weeklyAuraPoints,
+                reps:             0, comments: 0,
+                streak:           userSettings.macroStreak,
+                isCurrentUser:    true,
+                isPrivate:        userSettings.isPrivateAccount
+            ))
         }
 
-        return scores.map { id, d in
-            let loc = id == userSettings.userID ? userSettings.location
-                : (allPosts.first { $0.authorID == id }?.authorLocation ?? "")
-            let lat = id == userSettings.userID ? (locationManager.coordinate?.latitude  ?? 0)
-                : (allPosts.first { $0.authorID == id }?.authorLatitude  ?? 0)
-            let lon = id == userSettings.userID ? (locationManager.coordinate?.longitude ?? 0)
-                : (allPosts.first { $0.authorID == id }?.authorLongitude ?? 0)
-            let isPrivate = id == userSettings.userID
-                ? userSettings.isPrivateAccount
-                : (allPosts.first { $0.authorID == id }?.isAuthorPrivate ?? false)
-            let entryStreak = id == userSettings.userID ? userSettings.macroStreak
-                : (allPosts.filter { $0.authorID == id }.map { $0.authorStreak }.max() ?? 0)
-            return LeaderboardEntry(id: id, displayName: d.name, username: d.username,
-                             profileImageData: d.imgData, auraLevel: d.level, location: loc,
-                             latitude: lat, longitude: lon,
-                             score: d.score, reps: 0, comments: 0, streak: entryStreak,
-                             isCurrentUser: id == userSettings.userID, isPrivate: isPrivate)
+        firestoreAura = result.sorted {
+            $0.score != $1.score ? $0.score > $1.score : $0.displayName < $1.displayName
         }
-        .sorted { $0.score != $1.score ? $0.score > $1.score : $0.displayName < $1.displayName }
-    }
-
-    private var allEngagementEntries: [LeaderboardEntry] {
-        var data: [String: (name: String, username: String, imgData: Data?, level: Int, reps: Int, comments: Int)] = [:]
-
-        let selfName = userSettings.name.isEmpty ? userSettings.username : userSettings.name
-        data[userSettings.userID] = (selfName, userSettings.username,
-                                     userSettings.profileImageData,
-                                     userSettings.auraLevel, 0, 0)
-
-        let engagementWeekStart = UserSettings.lastSundayAwardCutoff() ?? Date.distantPast
-        for post in allPosts where post.postedAt >= engagementWeekStart {
-            let name = post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName
-            if var existing = data[post.authorID] {
-                existing.reps     += post.repsCount
-                existing.comments += post.comments.count
-                data[post.authorID] = existing
-            } else {
-                data[post.authorID] = (name, post.authorUsername,
-                                       post.authorProfileImageData,
-                                       post.authorAuraLevel,
-                                       post.repsCount, post.comments.count)
-            }
-        }
-
-        return data.map { id, d in
-            let loc = id == userSettings.userID ? userSettings.location
-                : (allPosts.first { $0.authorID == id }?.authorLocation ?? "")
-            let lat = id == userSettings.userID ? (locationManager.coordinate?.latitude  ?? 0)
-                : (allPosts.first { $0.authorID == id }?.authorLatitude  ?? 0)
-            let lon = id == userSettings.userID ? (locationManager.coordinate?.longitude ?? 0)
-                : (allPosts.first { $0.authorID == id }?.authorLongitude ?? 0)
-            let isPrivate = id == userSettings.userID
-                ? userSettings.isPrivateAccount
-                : (allPosts.first { $0.authorID == id }?.isAuthorPrivate ?? false)
-            let entryStreak = id == userSettings.userID ? userSettings.macroStreak
-                : (allPosts.filter { $0.authorID == id }.map { $0.authorStreak }.max() ?? 0)
-            return LeaderboardEntry(id: id, displayName: d.name, username: d.username,
-                             profileImageData: d.imgData, auraLevel: d.level, location: loc,
-                             latitude: lat, longitude: lon,
-                             score: d.reps + d.comments, reps: d.reps, comments: d.comments,
-                             streak: entryStreak,
-                             isCurrentUser: id == userSettings.userID, isPrivate: isPrivate)
-        }
-        .sorted { $0.score != $1.score ? $0.score > $1.score : $0.displayName < $1.displayName }
     }
 
     private static let localRadiusMeters: Double = 160_934 // 100 miles
@@ -1195,14 +1147,12 @@ private struct LeaderboardRow: View {
     private var avatarView: some View {
         ZStack(alignment: .bottomTrailing) {
             avatarCircle(size: 44, data: entry.profileImageData, initial: entry.displayName)
-            if entry.auraLevel > 0 {
-                Text("⭐")
-                    .font(.system(size: 9))
-                    .padding(2)
-                    .background(Color.black.opacity(0.60))
-                    .clipShape(Circle())
-                    .offset(x: 2, y: 2)
-            }
+            Text("⭐")
+                .font(.system(size: 9))
+                .padding(2)
+                .background(Color.black.opacity(0.60))
+                .clipShape(Circle())
+                .offset(x: 2, y: 2)
         }
     }
 
@@ -1227,60 +1177,25 @@ private struct LeaderboardRow: View {
                 Text("@\(entry.username)")
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.32))
-                if entry.auraLevel > 0 {
-                    Text("· Lv \(entry.auraLevel)")
-                        .font(.caption2)
-                        .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20).opacity(0.70))
-                }
+                Text("· Lv \(entry.auraLevel)")
+                    .font(.caption2)
+                    .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20).opacity(0.70))
             }
         }
     }
 
     private var scoreStack: some View {
         VStack(alignment: .trailing, spacing: 3) {
-            switch board {
-            case .weeklyAura:
-                Text("\(entry.score.formatted())")
-                    .font(.system(size: 15, weight: .black, design: .rounded))
-                    .foregroundStyle(rankColor)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(rankColor.opacity(0.12))
-                    .clipShape(Capsule())
-                Text("pts")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.28))
-            case .engagement:
-                Text("\(entry.score)")
-                    .font(.system(size: 15, weight: .black, design: .rounded))
-                    .foregroundStyle(rankColor)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(rankColor.opacity(0.12))
-                    .clipShape(Capsule())
-                HStack(spacing: 4) {
-                    Text("💪\(entry.reps)")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.38))
-                    Text("·")
-                        .foregroundStyle(.white.opacity(0.20))
-                        .font(.system(size: 9))
-                    Text("💬\(entry.comments)")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.38))
-                }
-            case .streak:
-                Text("\(entry.score)")
-                    .font(.system(size: 15, weight: .black, design: .rounded))
-                    .foregroundStyle(rankColor)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(rankColor.opacity(0.12))
-                    .clipShape(Capsule())
-                Text(entry.score == 1 ? "day" : "days")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.28))
-            }
+            Text("\(entry.score.formatted())")
+                .font(.system(size: 15, weight: .black, design: .rounded))
+                .foregroundStyle(rankColor)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(rankColor.opacity(0.12))
+                .clipShape(Capsule())
+            Text("pts")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.28))
         }
     }
 

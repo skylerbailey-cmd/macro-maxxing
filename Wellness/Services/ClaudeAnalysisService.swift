@@ -18,6 +18,8 @@ final class ClaudeAnalysisService {
     }
 
     struct NutritionInput {
+        typealias FastingWindow = (startHour: Int, startMinute: Int, durationHours: Int)
+
         let entries:      [(name: String, calories: Double, protein: Double, carbs: Double, fat: Double, loggedAt: Date)]
         let goalCalories: Double
         let goalProtein:  Double
@@ -25,6 +27,8 @@ final class ClaudeAnalysisService {
         let goalFat:      Double
         let date:         Date
         var workouts:     [WorkoutSummary] = []
+        /// nil = fasting not enabled
+        var fastingWindow: FastingWindow? = nil
     }
 
     func analyze(_ input: NutritionInput) async throws -> String {
@@ -76,6 +80,27 @@ final class ClaudeAnalysisService {
             return "\(Int((val / goal) * 100))%"
         }
 
+        // Build fasting window string if enabled
+        var fastingLine = ""
+        if let fw = input.fastingWindow {
+            let startTotalMin = fw.startHour * 60 + fw.startMinute
+            let endTotalMin   = (startTotalMin + fw.durationHours * 60) % (24 * 60)
+            func fmt(_ totalMin: Int) -> String {
+                let h = (totalMin / 60) % 24
+                let m = totalMin % 60
+                let suffix = h < 12 ? "AM" : "PM"
+                let h12 = h == 0 ? 12 : (h > 12 ? h - 12 : h)
+                return m == 0 ? "\(h12) \(suffix)" : "\(h12):\(String(format: "%02d", m)) \(suffix)"
+            }
+            let fastHours = 24 - fw.durationHours
+            fastingLine = "\n**Intermittent Fasting — Active**\n" +
+                "- Eating window: \(fmt(startTotalMin)) – \(fmt(endTotalMin)) (\(fw.durationHours)h window)\n" +
+                "- Fasting period: \(fastHours)h\n" +
+                "Any recommendation must respect this eating window. " +
+                "Do not suggest eating outside of it. " +
+                "Factor in how the window affects meal timing and macro distribution.\n"
+        }
+
         var p = """
         You are a sharp nutrition coach who lives and breathes the gym lifestyle. \
         You care about physique, consistency, and getting macros dialed in — \
@@ -88,7 +113,7 @@ final class ClaudeAnalysisService {
         - Calories: \(Int(input.goalCalories)) kcal
         - Protein: \(Int(input.goalProtein))g
         - Carbs: \(Int(input.goalCarbs))g
-        - Fat: \(Int(input.goalFat))g\n\n
+        - Fat: \(Int(input.goalFat))g\(fastingLine)\n
         """
 
         // Workouts
@@ -118,27 +143,24 @@ final class ClaudeAnalysisService {
             p += "- Fat:      \(Int(totalFat))/\(Int(input.goalFat))g (\(pct(totalFat, input.goalFat)))\n"
         }
 
-        if !input.workouts.isEmpty {
-            p += """
-            \n
-            Consider the workout timing relative to the meals logged. \
-            Look at pre-workout and post-workout nutrition: were there enough carbs before training \
-            and enough protein within 1–2 hours after? Is the macro distribution across the day \
-            well-timed relative to the session?
+        p += """
+        \n
+        Based on everything logged today, identify the SINGLE most impactful adjustment \
+        this person should make TOMORROW. Use today's full picture — what they ate, \
+        when they ate it, how their macros landed vs. goals, and any workouts — to give \
+        a forward-looking recommendation they can act on the next day. \
+        Consider all options and choose whichever will move the needle most:
+        - Swap a habitual meal for something with a better macro profile
+        - Improve nutrient timing relative to their typical workout schedule
+        - Redistribute macros across the day (e.g. more protein at breakfast, carbs around training)
+        - Replace a low-quality macro source with a higher-quality one
+        - Add or reduce a specific food to better hit a consistently missed goal
 
-            Look at the specific meals logged and pick ONE meal to swap or tweak — \
-            focusing on timing or macro balance relative to the workout. \
-            Name the exact meal and the exact change. \
-            One sentence only — no intro, no list, no extra commentary. Keep it direct and motivating.
-            """
-        } else {
-            p += """
-            \n
-            Look at the specific meals logged and pick ONE meal to swap or tweak to better hit \
-            the macro goals. Name the exact meal and the exact change. \
-            One sentence only — no intro, no list, no extra commentary. Keep it direct and motivating.
-            """
-        }
+        Choose the option that produces the biggest improvement based on today's patterns. \
+        Do NOT default to a food swap if a timing or distribution fix is clearly better. \
+        State the recommendation in ONE direct sentence — no intro, no list, no extra commentary. \
+        Name the specific meal or food involved. Keep it direct and motivating.
+        """
         return p
     }
 

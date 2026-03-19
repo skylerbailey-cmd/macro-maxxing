@@ -36,34 +36,34 @@ private let faqItems: [FAQItem] = [
         """
     ),
     FAQItem(
-        question: "What are Aura Points?",
+        question: "What is Aura XP?",
         answer: """
-        Aura Points are the currency of your gains journey. Every rep in the gym and \
+        Aura XP is the currency of your gains journey. Every rep in the gym and \
         every meal you track earns you Aura.
 
         Streaks — consecutive days hitting ALL macro goals (each milestone awarded once):
-        • 3-day streak → +50 pts
-        • 7-day streak → +150 pts
-        • 14-day streak → +300 pts
-        • 30-day streak → +500 pts
-        • 60-day streak → +750 pts
-        • 100-day streak → +1,000 pts
+        • 3-day streak → +50 XP
+        • 7-day streak → +150 XP
+        • 14-day streak → +300 XP
+        • 30-day streak → +500 XP
+        • 60-day streak → +750 XP
+        • 100-day streak → +1,000 XP
 
         Logging food alone does not count — you have to actually hit your goals.
 
         Posts, Comments & Reps (Social):
-        • Post when you crush your macro goals → +50 pts
-        • Rep a post or comment → +1 pt per rep
-        • Comment on someone's post → +1 pt
-        • Comment with a photo → +5 pts
+        • Post when you crush your macro goals → +50 XP
+        • Rep a post or comment → +1 XP per rep
+        • Comment on someone's post → +1 XP
+        • Comment with a photo → +5 XP
 
         Leaderboard (Mog Board, resets every Monday):
         Local top 10:
-        • #1 → +75 pts  •  #2–3 → +50 pts  •  #4–10 → +25 pts
+        • #1 → +75 XP  •  #2–3 → +50 XP  •  #4–10 → +25 XP
         Arena top 10:
-        • #1 → +150 pts  •  #2–3 → +100 pts  •  #4–10 → +50 pts
+        • #1 → +150 XP  •  #2–3 → +100 XP  •  #4–10 → +50 XP
 
-        Points are calculated Sunday at 11:59 PM EST and awarded the next time \
+        XP is calculated Sunday at 11:59 PM EST and awarded the next time \
         you open the app. Arena pays more — you're up against everyone.
         """
     ),
@@ -71,17 +71,21 @@ private let faqItems: [FAQItem] = [
         question: "What are Aura Levels?",
         answer: """
         Aura Levels show where you stand on the looksmaxxing hierarchy. \
-        Every 1,000 Aura Points = 1 level, up to a max of Level 100.
+        Every 1,000 Aura XP = 1 level, up to a max of Level 100.
 
         Level titles:
-        • Level 0 — (no title yet)
-        • Levels 1–9 — Initiate
-        • Levels 10–24 — Disciple
-        • Levels 25–39 — Ascender
-        • Levels 40–59 — Mog Apprentice
-        • Levels 60–79 — Aura Farmer
-        • Levels 80–94 — Elite Aesthetic
-        • Levels 95–100 — Final Form
+        • Levels 1–5 — Initiate
+        • Levels 6–10 — Rookie
+        • Levels 11–15 — Grinder
+        • Levels 16–20 — Disciple
+        • Levels 21–25 — Ascender
+        • Levels 26–35 — Mog Apprentice
+        • Levels 36–45 — Aura Seeker
+        • Levels 46–55 — Aura Farmer
+        • Levels 56–65 — Aesthetic
+        • Levels 66–75 — Elite Aesthetic
+        • Levels 76–90 — Transcendent
+        • Levels 91–100 — Final Form
 
         Your level and title appear under your name on the Home screen and \
         next to your name on every post you make. Stack those points and ascend.
@@ -303,13 +307,13 @@ struct SettingsView: View {
 
             // MARK: Aura
             Section {
-                Toggle("Aura Points Popups", isOn: $userSettings.auraPopupsEnabled)
+                Toggle("Aura XP Popups", isOn: $userSettings.auraPopupsEnabled)
             } header: {
                 Text("Aura")
             } footer: {
                 Text(userSettings.auraPopupsEnabled
-                     ? "A popup appears whenever you earn Aura Points, showing your level, total, and progress to the next level."
-                     : "Aura Points are still earned silently — no popup will appear.")
+                     ? "A popup appears whenever you earn Aura XP, showing your level, total, and progress to the next level."
+                     : "Aura XP is still earned silently — no popup will appear.")
             }
 
             // MARK: Intermittent Fasting

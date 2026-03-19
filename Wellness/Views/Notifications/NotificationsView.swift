@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 // MARK: - Shared state
 
@@ -22,12 +23,26 @@ struct NotificationsView: View {
     let userSettings: UserSettings
     let notificationState: NotificationState
 
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dismiss)       private var dismiss
+    @Environment(\.modelContext)  private var modelContext
+
     @State private var notifications: [AppNotification] = []
     @State private var loading = true
     @State private var followingIDs:   Set<String> = []
     @State private var checkmarkedIDs: Set<String> = []
     @State private var followLoading:  Set<String> = []
+
+    // Navigation
+    @State private var selectedPost:     SocialPost?  = nil
+    @State private var loadingPostID:    String?       = nil
+    @State private var viewingActor:     ActorData?    = nil
+
+    private struct ActorData: Identifiable {
+        let id: String          // actorID
+        let username: String
+        let displayName: String
+        let photoURL: String
+    }
 
     private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
     private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
@@ -79,6 +94,25 @@ struct NotificationsView: View {
             }
         }
         .task { await loadNotifications() }
+        .sheet(item: $selectedPost) { post in
+            NavigationStack {
+                PostDetailView(post: post, userSettings: userSettings)
+            }
+        }
+        .sheet(item: $viewingActor) { actor in
+            NavigationStack {
+                ProfileView(
+                    profileUserID:       actor.id,
+                    profileUsername:     actor.username,
+                    profileDisplayName:  actor.displayName,
+                    profileAuraLevel:    0,
+                    profileAuraPoints:   0,
+                    profileImageData:    nil,
+                    currentUserSettings: userSettings,
+                    isDismissable:       true
+                )
+            }
+        }
     }
 
     // MARK: - Empty state
@@ -108,8 +142,25 @@ struct NotificationsView: View {
 
     @ViewBuilder
     private func notifRow(_ notif: AppNotification) -> some View {
+        let isPostNotif = !notif.postID.isEmpty &&
+            (notif.type == .rep || notif.type == .comment || notif.type == .newPost)
+        let canViewProfile = notif.type != .leaderboard && !notif.actorID.isEmpty
+
         HStack(alignment: .top, spacing: 14) {
-            notifAvatar(notif)
+            // Avatar — taps to profile
+            Button {
+                guard canViewProfile else { return }
+                viewingActor = ActorData(
+                    id:          notif.actorID,
+                    username:    notif.actorUsername,
+                    displayName: notif.actorDisplayName,
+                    photoURL:    notif.actorProfilePhotoURL
+                )
+            } label: {
+                notifAvatar(notif)
+            }
+            .buttonStyle(.plain)
+            .disabled(!canViewProfile)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(notif.message)
@@ -136,7 +187,9 @@ struct NotificationsView: View {
                 }
             }
 
-            if !notif.isRead {
+            if loadingPostID == notif.postID {
+                ProgressView().scaleEffect(0.65).tint(purpl).padding(.top, 4)
+            } else if !notif.isRead {
                 Circle()
                     .fill(purpl)
                     .frame(width: 8, height: 8)
@@ -146,6 +199,11 @@ struct NotificationsView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .background(notif.isRead ? Color.clear : purpl.opacity(0.04))
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard isPostNotif else { return }
+            Task { await openPost(notif.postID) }
+        }
     }
 
     private var followCheckmark: some View {
@@ -259,6 +317,63 @@ struct NotificationsView: View {
         case .leaderboard: return Color(red: 1.00, green: 0.80, blue: 0.20)
         case .newPost:     return Color(red: 1.00, green: 0.60, blue: 0.20)
         }
+    }
+
+    // MARK: - Post navigation
+
+    private func openPost(_ postID: String) async {
+        guard !postID.isEmpty else { return }
+        loadingPostID = postID
+        defer { loadingPostID = nil }
+
+        // 1. Check local SwiftData store first
+        let descriptor = FetchDescriptor<SocialPost>(
+            predicate: #Predicate { $0.firebasePostID == postID }
+        )
+        if let local = (try? modelContext.fetch(descriptor))?.first {
+            selectedPost = local
+            return
+        }
+
+        // 2. Fetch from Firebase and insert into the store
+        guard let feed = try? await PostService.shared.fetchPost(postID: postID) else { return }
+        let post = makeSocialPost(from: feed)
+        modelContext.insert(post)
+        selectedPost = post
+    }
+
+    private func makeSocialPost(from feed: FeedPost) -> SocialPost {
+        let post = SocialPost(
+            authorID:          feed.userID,
+            authorUsername:    feed.username,
+            authorDisplayName: feed.whoName,
+            memeEmoji:         "",
+            memeHeadline:      feed.title,
+            memeSub:           feed.caption,
+            macroDate:         feed.macroDateDate ?? Date(),
+            totalCalories:     Double(feed.calories),
+            goalCalories:      Double(feed.goalCalories),
+            totalProtein:      feed.protein,   goalProtein:  feed.goalProtein,
+            totalCarbs:        feed.carbs,     goalCarbs:    feed.goalCarbs,
+            totalFat:          feed.fat,       goalFat:      feed.goalFat
+        )
+        post.firebasePostID       = feed.postID ?? ""
+        post.postedAt             = feed.createdAtDate ?? Date()
+        post.repsCount            = feed.reps
+        post.reppedByRaw          = feed.reppedBy.joined(separator: ",")
+        post.postLabel            = feed.postLabel
+        post.fastingWindowDisplay = feed.fastingWindowDisplay
+        post.mogBoardScope        = feed.mogBoardScope
+        post.mogBoardType         = feed.mogBoardType
+        post.authorAuraLevel      = feed.auraLevel
+        post.authorAuraPoints     = feed.auraPoints
+        post.authorAuraTitle      = feed.auraTitle
+        post.authorStreak         = feed.streak
+        post.authorLocation       = feed.locationName
+        post.authorLatitude       = feed.latitude
+        post.authorLongitude      = feed.longitude
+        post.isAuthorPrivate      = !feed.isPublic
+        return post
     }
 
     // MARK: - Actions

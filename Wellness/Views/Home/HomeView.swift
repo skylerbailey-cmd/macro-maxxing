@@ -26,7 +26,6 @@ struct HomeView: View {
     @Environment(\.scenePhase) private var scenePhase
     /// Calendar date when data was last loaded — used to detect midnight crossings.
     @State private var lastLoadedDay: Date = Calendar.current.startOfDay(for: Date())
-    @State private var showingWindowPicker = false
     @State private var selectedMacro: MacroType? = nil
     @State private var showingShare       = false
     @State private var showingTutorial    = false
@@ -36,7 +35,6 @@ struct HomeView: View {
     @State private var goalPostMeme       = GymMeme.random()
     @State private var brainstormAlert: BrainstormAlert? = nil
     @State private var showingNotifications = false
-    @State private var isMacroAdjustedToday = MacroAdjustmentEngine.isAdjustedToday()
 
     private enum BrainstormAlert: Identifiable {
         case confirm, limitReached
@@ -82,23 +80,6 @@ struct HomeView: View {
         return name.isEmpty ? phrase : "\(phrase), \(name)"
     }
 
-    private var windowStartDate: Binding<Date> {
-        Binding(
-            get: {
-                Calendar.current.date(
-                    bySettingHour: viewModel.windowStartHour,
-                    minute: viewModel.windowStartMinute,
-                    second: 0,
-                    of: Date()
-                ) ?? Date()
-            },
-            set: { newDate in
-                viewModel.windowStartHour   = Calendar.current.component(.hour,   from: newDate)
-                viewModel.windowStartMinute = Calendar.current.component(.minute, from: newDate)
-            }
-        )
-    }
-
     private func timeString(hour: Int, minute: Int) -> String {
         var comps = DateComponents()
         comps.hour = hour; comps.minute = minute
@@ -134,9 +115,11 @@ struct HomeView: View {
                 }
             }
             .onAppear { handleAppear() }
+            .onReceive(NotificationCenter.default.publisher(for: FuelLogService.mealChangedNotification)) { _ in
+                Task { viewModel.loadTodayTotals() }
+            }
             .onReceive(NotificationCenter.default.publisher(for: MacroAdjustmentEngine.macroAdjustedNotification)) { _ in
                 viewModel.reloadGoalsFromDefaults()
-                isMacroAdjustedToday = MacroAdjustmentEngine.isAdjustedToday()
             }
             .onChange(of: selectedDate) { _, newDate in handleDateChange(newDate) }
             .onChange(of: scenePhase) { _, phase in
@@ -157,7 +140,6 @@ struct HomeView: View {
             .onChange(of: viewModel.macrosMetToday) { oldVal, newVal in handleMacrosMetChange(oldVal, newVal) }
 
         return contentWithOverlays
-            .sheet(isPresented: $showingWindowPicker) { windowPickerSheet() }
             .sheet(item: $selectedMacro) { macro in macroHistorySheet(macro: macro) }
             .sheet(isPresented: $showingGoalPost) { goalPostSheet() }
     }
@@ -170,15 +152,11 @@ struct HomeView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     greetingHeader
-                        .tutorialAnchor("hub.header")
                     DateNavigatorView(selectedDate: $selectedDate)
                     goalsSection
-                    if viewModel.userSettings.fastingEnabled {
-                        eatingWindowCard
-                    }
                     macrosSection
-                        .tutorialAnchor("hub.macros")
                     brainstormSection
+                        .tutorialAnchor("hub.mealPlanner")
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -215,6 +193,7 @@ struct HomeView: View {
                         .allowsHitTesting(false)
                         .clipped()
                 }
+                .tutorialAnchor("hub.header")
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 0) {
                     VStack(alignment: .leading, spacing: 4) {
@@ -245,29 +224,29 @@ struct HomeView: View {
                     }
                     .tutorialAnchor("hub.notifications")
                 }
-                HStack(spacing: 0) {
-                    headerStat(icon: "flame.fill", iconColor: .orange,
-                               value: "\(viewModel.macroStreak)",
-                               label: "day streak")
-                    if viewModel.userSettings.auraLevel > 0 {
-                        headerStatDivider
-                        headerStat(icon: "bolt.fill",
-                                   iconColor: Color(red: 1.0, green: 0.80, blue: 0.20),
-                                   value: "Lv \(viewModel.userSettings.auraLevel)",
-                                   label: viewModel.userSettings.auraTitle.isEmpty ? "aura" : viewModel.userSettings.auraTitle.lowercased())
-                    }
-                    if viewModel.userSettings.currentWeight > 0 {
-                        headerStatDivider
-                        headerStat(icon: "scalemass.fill", iconColor: .purpleHi,
-                                   value: "\(Int(viewModel.userSettings.currentWeight)) lbs",
-                                   label: viewModel.userSettings.goalWeight > 0
-                                       ? "→ \(Int(viewModel.userSettings.goalWeight)) lbs"
-                                       : "current weight")
-                    }
+                // Level + title line
+                let _level = UserSettings.auraLevel(for: viewModel.userSettings.auraPoints)
+                let _title = viewModel.userSettings.auraTitle
+                HStack(spacing: 6) {
+                    Text("Lv \(_level)")
+                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .foregroundStyle(Color.purpleHi)
+                    Text("·")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.30))
+                    Text(_title.uppercased())
+                        .font(.system(size: 11, weight: .black))
+                        .tracking(1.5)
+                        .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
+                    Spacer()
+                    Text("🔥 \(viewModel.macroStreak) day streak")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.85))
                 }
 
                 if viewModel.userSettings.auraPoints > 0 {
                     auraXPBar
+                        .tutorialAnchor("hub.stats")
                 }
             }
             .padding(20)
@@ -304,9 +283,9 @@ struct HomeView: View {
     private var auraXPBar: some View {
         let pts        = viewModel.userSettings.auraPoints
         let level      = UserSettings.auraLevel(for: pts)
-        let levelStart = UserSettings.auraThreshold(level)
+        let levelStart = level <= 1 ? 0 : UserSettings.auraThreshold(level)
         let levelEnd   = UserSettings.auraThreshold(level + 1)
-        let inLevel    = pts - levelStart
+        let inLevel    = max(0, pts - levelStart)
         let forLevel   = max(1, levelEnd - levelStart)
         let progress   = level >= 100 ? 1.0 : Double(inLevel) / Double(forLevel)
         let pctText    = level >= 100 ? "MAX" : "\(Int(progress * 100))%"
@@ -345,12 +324,12 @@ struct HomeView: View {
                     .lineLimit(1)
             }
             HStack {
-                Text("\(pts) pts")
+                Text("\(pts) XP")
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(.white.opacity(0.45))
                 Spacer()
                 if level < 100 {
-                    Text("\(ptsToNext) pts to Lv \(level + 1)")
+                    Text("\(ptsToNext) XP to Lv \(level + 1)")
                         .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.white.opacity(0.45))
                 }
@@ -414,15 +393,6 @@ struct HomeView: View {
         )
     }
 
-    private func windowPickerSheet() -> some View {
-        @Bindable var bvm = viewModel
-        return WindowPickerSheet(
-            windowStartDate: windowStartDate,
-            windowDurationHours: $bvm.windowDurationHours
-        )
-        .presentationDetents([.medium])
-    }
-    
     private func macroHistorySheet(macro: MacroType) -> some View {
         MacroHistorySheet(macro: macro, goalValue: goalForMacro(macro))
             .presentationDetents([.medium, .large])
@@ -480,8 +450,8 @@ struct HomeView: View {
     // MARK: - Goals section
 
     private var goalsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center) {
                 Text(goalsTitle)
                     .font(.system(size: 20, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
@@ -494,35 +464,27 @@ struct HomeView: View {
                     .padding(.vertical, 4)
                     .background(met == 4 ? Color.macroMint.opacity(0.14) : Color.white.opacity(0.07))
                     .cornerRadius(8)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("DISCIPLINE")
+                        .font(.system(size: 9, weight: .bold))
+                        .tracking(1.2)
+                        .foregroundStyle(.white.opacity(0.35))
+                    Text("\(Int(disciplineProgress * 100))%")
+                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .foregroundStyle(disciplineProgress >= 1.0
+                            ? Color(red: 0.35, green: 1.00, blue: 0.60)
+                            : Color(red: 0.65, green: 0.45, blue: 1.00))
+                        .animation(.easeOut(duration: 0.5), value: disciplineProgress)
+                }
+                .tutorialAnchor("hub.discipline")
             }
-            HStack(spacing: 10) {
-                GoalKPICard(title: "WEIGHT", icon: "scalemass.fill", iconColor: .purpleHi) {
-                    if viewModel.userSettings.goalWeight > 0 {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(alignment: .lastTextBaseline, spacing: 3) {
-                                Text(String(format: "%.1f", viewModel.userSettings.currentWeight))
-                                    .font(.title3.bold()).foregroundStyle(.white)
-                                Text("lbs").font(.caption).foregroundStyle(.white.opacity(0.45))
-                            }
-                            Text("Goal \(String(format: "%.0f", viewModel.userSettings.goalWeight)) lbs")
-                                .font(.caption2).foregroundStyle(.white.opacity(0.35))
-                        }
-                    } else {
-                        Text("Set goal")
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.30))
-                    }
-                }
-                GoalKPICard(title: "STREAK", icon: "flame.fill", iconColor: .orange) {
-                    HStack(alignment: .lastTextBaseline, spacing: 3) {
-                        Text("\(viewModel.macroStreak)")
-                            .font(.title3.bold()).foregroundStyle(.white)
-                        Text("days").font(.caption).foregroundStyle(.white.opacity(0.45))
-                    }
-                }
-                GoalKPICard(title: "MACROS", icon: "checkmark.seal.fill", iconColor: macrosKPIColor) {
-                    macroIndicatorGrid
-                }
+            let current = viewModel.userSettings.currentWeight
+            let goal    = viewModel.userSettings.goalWeight
+            if current > 0 && goal > 0 {
+                Text("Based on your current weight of \(String(format: "%.1f", current)) lbs and your goal to reach \(String(format: "%.0f", goal)) lbs.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .lineSpacing(2)
             }
         }
     }
@@ -553,64 +515,6 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Eating window card
-
-    private var eatingWindowCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                HStack(spacing: 10) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 9)
-                            .fill(Color.purpleHi.opacity(0.18))
-                            .frame(width: 30, height: 30)
-                        Image(systemName: "moon.stars.fill")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Color.purpleHi)
-                    }
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Fasting Window")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.white)
-                        Text(
-                            "\(timeString(hour: viewModel.displayedWindowStartHour, minute: viewModel.displayedWindowStartMinute))" +
-                            " – " +
-                            "\(timeString(hour: viewModel.windowEndHour, minute: viewModel.windowEndMinute))" +
-                            " · \(viewModel.displayedWindowDuration)h"
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.45))
-                    }
-                }
-                Spacer()
-                if viewModel.isSelectedDateToday {
-                    Button("Edit") { showingWindowPicker = true }
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.purpleHi)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Color.purpleHi.opacity(0.14))
-                        .cornerRadius(8)
-                } else {
-                    Text("Locked")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.25))
-                }
-            }
-            FastingTimelineView(
-                windowStart: viewModel.windowStartFractional,
-                windowEnd: viewModel.windowEndFractional,
-                mealLogTimes: viewModel.mealLogTimes
-            )
-        }
-        .padding(16)
-        .background(Color(red: 0.11, green: 0.08, blue: 0.20))
-        .cornerRadius(18)
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(Color.purpleHi.opacity(0.18), lineWidth: 1)
-        )
-    }
-
     // MARK: - Macros section
 
     private var disciplineProgress: Double {
@@ -628,66 +532,6 @@ struct HomeView: View {
 
     private var macrosSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .bottom) {
-                Text("Today's Macros")
-                    .font(.system(size: 20, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-
-                if isMacroAdjustedToday {
-                    Button {
-                        MacroAdjustmentEngine.revert()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.counterclockwise")
-                                .font(.system(size: 10, weight: .bold))
-                            Text("Reset Goals")
-                                .font(.system(size: 11, weight: .semibold))
-                        }
-                        .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color(red: 1.0, green: 0.80, blue: 0.20).opacity(0.12),
-                                    in: Capsule())
-                        .overlay(Capsule().stroke(Color(red: 1.0, green: 0.80, blue: 0.20).opacity(0.25), lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Spacer()
-
-                // Daily Discipline bar
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("DISCIPLINE")
-                        .font(.system(size: 9, weight: .bold))
-                        .tracking(1.2)
-                        .foregroundStyle(.white.opacity(0.35))
-                    HStack(spacing: 6) {
-                        ZStack(alignment: .leading) {
-                            Capsule()
-                                .fill(Color.white.opacity(0.08))
-                                .frame(width: 80, height: 5)
-                            Capsule()
-                                .fill(LinearGradient(
-                                    colors: disciplineProgress >= 1.0
-                                        ? [Color(red: 0.35, green: 1.00, blue: 0.60),
-                                           Color(red: 0.20, green: 0.85, blue: 0.50)]
-                                        : [Color(red: 0.65, green: 0.45, blue: 1.00),
-                                           Color(red: 0.35, green: 0.75, blue: 1.00)],
-                                    startPoint: .leading, endPoint: .trailing
-                                ))
-                                .frame(width: max(5, 80 * disciplineProgress), height: 5)
-                                .animation(.easeOut(duration: 0.5), value: disciplineProgress)
-                        }
-                        Text("\(Int(disciplineProgress * 100))%")
-                            .font(.system(size: 12, weight: .black, design: .rounded))
-                            .foregroundStyle(disciplineProgress >= 1.0
-                                ? Color(red: 0.35, green: 1.00, blue: 0.60)
-                                : Color(red: 0.65, green: 0.45, blue: 1.00))
-                            .animation(.easeOut(duration: 0.5), value: disciplineProgress)
-                    }
-                }
-            }
-
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 MacroGaugeCard(label: "Calories", value: viewModel.totalCalories,
                                goal: viewModel.displayGoalCalories, unit: "kcal",
@@ -710,6 +554,7 @@ struct HomeView: View {
                                action: { selectedMacro = .fat },
                                rangeText: minRange(viewModel.displayGoalFat))
             }
+            .tutorialAnchor("hub.macros")
         }
     }
 
@@ -813,8 +658,13 @@ struct HomeView: View {
         .background(Color(red: 0.11, green: 0.08, blue: 0.20))
         .cornerRadius(18)
         .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(Color(red: 1.0, green: 0.80, blue: 0.20).opacity(0.14), lineWidth: 1)
+            ShootingStarBorder(
+                cornerRadius: 18,
+                color: Color(red: 1.0, green: 0.80, blue: 0.20),
+                lineWidth: 1.5,
+                duration: 2.8,
+                reversed: true
+            )
         )
     }
 
@@ -1104,7 +954,7 @@ private struct MacroGaugeCard: View {
 
 // MARK: - Window Picker Sheet
 
-private struct WindowPickerSheet: View {
+struct WindowPickerSheet: View {
     @Binding var windowStartDate: Date
     @Binding var windowDurationHours: Int
     @Environment(\.dismiss) private var dismiss

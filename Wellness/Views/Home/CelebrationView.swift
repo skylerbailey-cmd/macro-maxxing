@@ -511,6 +511,7 @@ struct CelebrationPostEditorSheet: View {
         post.isAuthorPrivate        = userSettings.isPrivateAccount
         post.authorProfileImageData = userSettings.profileImageData
         post.fastingWindowDisplay   = postData.fastingWindowDisplay
+        post.postLabel              = PostLabel.goalPost.rawValue
         let datas = photos.map { $0.image.jpegData(compressionQuality: 0.8) }
         post.imageData  = datas.count > 0 ? datas[0] : nil
         post.imageData2 = datas.count > 1 ? datas[1] : nil
@@ -549,6 +550,15 @@ struct CelebrationPostEditorSheet: View {
                     latitude:             latitude,
                     longitude:            longitude,
                     fastingWindowDisplay: postData.fastingWindowDisplay,
+                    postLabel:            PostLabel.goalPost.rawValue,
+                    calories:             Int(postData.totalCalories),
+                    protein:              postData.totalProtein,
+                    carbs:                postData.totalCarbs,
+                    fat:                  postData.totalFat,
+                    goalCalories:         Int(postData.goalCalories),
+                    goalProtein:          postData.goalProtein,
+                    goalCarbs:            postData.goalCarbs,
+                    goalFat:              postData.goalFat,
                     postID:               fbPostID
                 )
             } catch {

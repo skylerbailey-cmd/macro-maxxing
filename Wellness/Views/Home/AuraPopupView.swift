@@ -101,11 +101,11 @@ struct AuraPopupView: View {
 
                 // Total + progress to next level
                 VStack(spacing: 4) {
-                    Text("\(total) total aura pts")
+                    Text("\(total) total aura XP")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.45))
                     if let needed = ptsToNextLevel {
-                        Text("\(needed) pts to Level \(level + 1)")
+                        Text("\(needed) XP to Level \(level + 1)")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(purpl.opacity(0.80))
                     } else {

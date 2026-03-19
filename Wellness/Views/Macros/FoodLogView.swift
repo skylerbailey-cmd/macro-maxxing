@@ -35,6 +35,15 @@ struct FoodLogView: View {
 
     @State private var logTab = 0     // 0 = Fuel, 1 = Duel
 
+    // Eating window state (mirrors UserDefaults written by HomeViewModel)
+    @State private var wStartHour: Int = UserDefaults.standard.integer(forKey: "windowStartHour")
+    @State private var wStartMin:  Int = UserDefaults.standard.integer(forKey: "windowStartMinute")
+    @State private var wDuration:  Int = {
+        let d = UserDefaults.standard.integer(forKey: "windowDurationHours")
+        return d > 0 ? d : 16
+    }()
+    @State private var showingWindowPicker = false
+
     @Environment(\.modelContext) private var modelContext
 
     init(modelContext: ModelContext, selectedDate: Binding<Date>, userSettings: UserSettings,
@@ -55,168 +64,256 @@ struct FoodLogView: View {
     private var isToday: Bool { Calendar.current.isDateInToday(selectedDate) }
 
     var body: some View {
+        mainContent
+            .onPreferenceChange(TutorialAnchorKey.self) { tutorialAnchors = $0 }
+            .preferredColorScheme(.dark)
+            .navigationBarHidden(true)
+            .sheet(isPresented: $showingNotifications) {
+                NotificationsView(userSettings: userSettings, notificationState: notificationState)
+            }
+            .sheet(isPresented: $showingProfile) {
+                profileSheet
+            }
+            .onAppear(perform: handleOnAppear)
+            .onChange(of: selectedDate, handleDateChange)
+            .onChange(of: viewModel.selectedImage) { _, newValue in
+                if newValue != nil { showingAnalysisSheet = true }
+            }
+            .onChange(of: externalImage, handleExternalImage)
+            .sheet(isPresented: $viewModel.showingCamera) {
+                ImagePickerView(sourceType: .camera, selectedImage: $viewModel.selectedImage)
+            }
+            .sheet(isPresented: $viewModel.showingPhotoLibrary) {
+                ImagePickerView(sourceType: .photoLibrary, selectedImage: $viewModel.selectedImage)
+            }
+            .sheet(item: $editingEntry) { entry in
+                editSheet(for: entry)
+            }
+            .sheet(isPresented: $showingAnalysisSheet, onDismiss: {
+                viewModel.discardEntry()
+            }) {
+                analysisSheet
+            }
+            .sheet(isPresented: $showingFuelLogPost) {
+                fuelLogPostSheet
+            }
+            .sheet(isPresented: $showingWindowPicker) {
+                windowPickerSheet
+            }
+            .onChange(of: wDuration) { _, newVal in
+                UserDefaults.standard.set(newVal, forKey: "windowDurationHours")
+            }
+    }
+    
+    // MARK: - Main Content
+    
+    private var mainContent: some View {
         ZStack {
             Color.pageBg.ignoresSafeArea()
-
+            
             VStack(spacing: 0) {
-                // Custom header (nav bar is hidden)
-                HStack {
-                    Text("Fuel Log")
-                        .font(.system(size: 22, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                    Spacer()
-                    HStack(spacing: 14) {
-                        Button { showingTutorial = true } label: {
-                            Image(systemName: "questionmark.circle")
-                                .font(.system(size: 20))
-                                .foregroundStyle(.white.opacity(0.65))
-                        }
-                        .buttonStyle(.plain)
-                        BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
-                        Button { showingProfile = true } label: {
-                            profileAvatarIcon
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 4)
-
+                headerView
+                
                 DateNavigatorView(selectedDate: $selectedDate)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-
-                // MARK: Fuel / Duel tab bar
+                
                 logTabBar
                     .padding(.horizontal, 16)
                     .padding(.bottom, 8)
-
-                if logTab == 0 {
-                    // MARK: Fuel tab — existing food log content
-                    ScrollView {
-                        LazyVStack(spacing: 10) {
-                            // Food entries or compact empty state
-                            if viewModel.todayEntries.isEmpty {
-                                emptyState
-                            } else {
-                                macroSummaryBanner
-
-                                Text("\(viewModel.todayEntries.count) Meal\(viewModel.todayEntries.count == 1 ? "" : "s")")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(.white.opacity(0.30))
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.top, 2)
-
-                                ForEach(viewModel.todayEntries) { entry in
-                                    FoodEntryRow(entry: entry,
-                                                 onEdit:   isToday ? { editingEntry = entry } : {},
-                                                 onDelete: { viewModel.deleteEntry(entry) },
-                                                 canEdit:  isToday)
-                                }
-                            }
-
-                            // Past-date read-only notice
-                            if !isToday {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "lock.fill")
-                                        .font(.caption)
-                                    Text("Past dates are view-only. Navigate to today to log or edit.")
-                                        .font(.caption)
-                                }
-                                .foregroundStyle(.white.opacity(0.30))
-                                .padding(.vertical, 4)
-                            }
-
-                            // AI Coach section — always visible below the list
-                            analyzeSection
-                                .padding(.top, 8)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 4)
-                        .padding(.bottom, 100)
-                    }
-                } else {
-                    // MARK: Duel tab
-                    duelTab
+                    .tutorialAnchor("log.tabBar")
+                
+                tabContent
+            }
+            
+            tutorialOverlay
+        }
+    }
+    
+    // MARK: - Header
+    
+    private var headerView: some View {
+        HStack {
+            Text("Fuel Log")
+                .font(.system(size: 22, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+            Spacer()
+            headerButtons
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+    }
+    
+    private var headerButtons: some View {
+        HStack(spacing: 14) {
+            Button { showingTutorial = true } label: {
+                Image(systemName: "questionmark.circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(.white.opacity(0.65))
+            }
+            .buttonStyle(.plain)
+            
+            BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
+            
+            Button { showingProfile = true } label: {
+                profileAvatarIcon
+            }
+        }
+    }
+    
+    // MARK: - Tab Content
+    
+    @ViewBuilder
+    private var tabContent: some View {
+        if logTab == 0 {
+            fuelTabContent
+        } else {
+            duelTab
+        }
+    }
+    
+    private var fuelTabContent: some View {
+        ScrollView {
+            LazyVStack(spacing: 10) {
+                if isToday {
+                    eatingWindowCard
                 }
+                
+                foodEntriesContent
+                
+                if !isToday {
+                    pastDateNotice
+                }
+                
+                analyzeSection
+                    .padding(.top, 8)
+                    .tutorialAnchor("log.nutritionCoach")
             }
-
-            if showingTutorial {
-                TutorialOverlayView(steps: TutorialSteps.log, onDismiss: {
-                    withAnimation(.easeOut(duration: 0.25)) { showingTutorial = false }
-                })
-                .transition(.opacity.animation(.easeInOut(duration: 0.25)))
-                .zIndex(100)
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+            .padding(.bottom, 100)
+        }
+    }
+    
+    @ViewBuilder
+    private var foodEntriesContent: some View {
+        if viewModel.todayEntries.isEmpty {
+            emptyState
+        } else {
+            Text("\(viewModel.todayEntries.count) Meal\(viewModel.todayEntries.count == 1 ? "" : "s")")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.30))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 2)
+            
+            ForEach(viewModel.todayEntries) { entry in
+                FoodEntryRow(entry: entry,
+                             onEdit:   isToday ? { editingEntry = entry } : {},
+                             onDelete: { viewModel.deleteEntry(entry) },
+                             canEdit:  isToday)
             }
         }
-        .preferredColorScheme(.dark)
-        .navigationBarHidden(true)
-        .sheet(isPresented: $showingNotifications) {
-            NotificationsView(userSettings: userSettings, notificationState: notificationState)
+    }
+    
+    private var pastDateNotice: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "lock.fill")
+                .font(.caption)
+            Text("Past dates are view-only. Navigate to today to log or edit.")
+                .font(.caption)
         }
-        .sheet(isPresented: $showingProfile) {
-            NavigationStack {
-                ProfileView(
-                    profileUserID:      userSettings.userID,
-                    profileUsername:    userSettings.username,
-                    profileDisplayName: userSettings.name,
-                    profileAuraLevel:   userSettings.auraLevel,
-                    profileAuraPoints:  userSettings.auraPoints,
-                    profileImageData:   userSettings.profileImageData,
-                    profileLocation:    userSettings.location,
-                    ownUserSettings:    userSettings,
-                    isDismissable:      true
-                )
-            }
-        }
-        .onAppear {
-            viewModel.selectedDate = selectedDate
-            Task { await viewModel.loadTodayEntries() }
-        }
-        .onChange(of: selectedDate) { _, newDate in
-            viewModel.selectedDate   = newDate
-            analyzeVM.selectedDate   = newDate
-            analyzeVM.reset()
-        }
-        .onChange(of: viewModel.selectedImage) { _, newValue in
-            if newValue != nil { showingAnalysisSheet = true }
-        }
-        .onChange(of: externalImage) { _, image in
-            guard let img = image else { return }
-            viewModel.selectedImage = img
-            externalImage = nil
-        }
-        .sheet(isPresented: $viewModel.showingCamera) {
-            ImagePickerView(sourceType: .camera, selectedImage: $viewModel.selectedImage)
-        }
-        .sheet(isPresented: $viewModel.showingPhotoLibrary) {
-            ImagePickerView(sourceType: .photoLibrary, selectedImage: $viewModel.selectedImage)
-        }
-        .sheet(item: $editingEntry) { entry in
-            EditEntrySheet(entry: entry) { name, cal, pro, carb, fat, time in
-                viewModel.updateEntry(entry, foodName: name,
-                                      calories: cal, protein: pro,
-                                      carbs: carb, fat: fat,
-                                      loggedAt: time)
-            }
-            .presentationDetents([.medium])
-        }
-        .sheet(isPresented: $showingAnalysisSheet, onDismiss: {
-            viewModel.discardEntry()
-        }) {
-            AnalysisSheet(viewModel: viewModel, onSaved: {
-                showingAnalysisSheet = false
+        .foregroundStyle(.white.opacity(0.30))
+        .padding(.vertical, 4)
+    }
+    
+    // MARK: - Tutorial Overlay
+    
+    @ViewBuilder
+    private var tutorialOverlay: some View {
+        if showingTutorial {
+            TutorialOverlayView(steps: TutorialSteps.log, anchors: tutorialAnchors, onDismiss: {
+                withAnimation(.easeOut(duration: 0.25)) { showingTutorial = false }
             })
-            .presentationDetents([.large])
+            .transition(.opacity.animation(.easeInOut(duration: 0.25)))
+            .zIndex(100)
         }
-        .sheet(isPresented: $showingFuelLogPost) {
-            FuelLogPostSheet(
-                entries:      viewModel.todayEntries,
-                logDate:      selectedDate,
-                userSettings: userSettings,
-                modelContext: modelContext
+    }
+    
+    // MARK: - Sheet Views
+    
+    private var profileSheet: some View {
+        NavigationStack {
+            ProfileView(
+                profileUserID:      userSettings.userID,
+                profileUsername:    userSettings.username,
+                profileDisplayName: userSettings.name,
+                profileAuraLevel:   userSettings.auraLevel,
+                profileAuraPoints:  userSettings.auraPoints,
+                profileImageData:   userSettings.profileImageData,
+                profileLocation:    userSettings.location,
+                ownUserSettings:    userSettings,
+                isDismissable:      true
             )
         }
+    }
+    
+    private func editSheet(for entry: FoodEntry) -> some View {
+        EditEntrySheet(entry: entry) { name, cal, pro, carb, fat, time in
+            viewModel.updateEntry(entry, foodName: name,
+                                  calories: cal, protein: pro,
+                                  carbs: carb, fat: fat,
+                                  loggedAt: time)
+        }
+        .presentationDetents([.medium])
+    }
+    
+    private var analysisSheet: some View {
+        AnalysisSheet(viewModel: viewModel, onSaved: {
+            showingAnalysisSheet = false
+        })
+        .presentationDetents([.large])
+    }
+    
+    private var fuelLogPostSheet: some View {
+        FuelLogPostSheet(
+            entries:      viewModel.todayEntries,
+            logDate:      selectedDate,
+            userSettings: userSettings,
+            modelContext: modelContext
+        )
+    }
+    
+    private var windowPickerSheet: some View {
+        WindowPickerSheet(
+            windowStartDate: windowStartDate,
+            windowDurationHours: $wDuration
+        )
+        .presentationDetents([.medium])
+    }
+    
+    // MARK: - Lifecycle Handlers
+    
+    private func handleOnAppear() {
+        viewModel.selectedDate = selectedDate
+        Task { await viewModel.loadTodayEntries() }
+        // Refresh eating window state from UserDefaults
+        wStartHour = UserDefaults.standard.integer(forKey: "windowStartHour")
+        wStartMin  = UserDefaults.standard.integer(forKey: "windowStartMinute")
+        let d = UserDefaults.standard.integer(forKey: "windowDurationHours")
+        wDuration  = d > 0 ? d : 16
+    }
+    
+    private func handleDateChange(_ oldDate: Date, _ newDate: Date) {
+        viewModel.selectedDate   = newDate
+        analyzeVM.selectedDate   = newDate
+        analyzeVM.reset()
+    }
+    
+    private func handleExternalImage(_ oldImage: UIImage?, _ image: UIImage?) {
+        guard let img = image else { return }
+        viewModel.selectedImage = img
+        externalImage = nil
     }
 
     private var profileAvatarIcon: some View {
@@ -237,65 +334,6 @@ struct FoodLogView: View {
                 }
             }
         }
-    }
-
-    // MARK: - Macro summary banner
-
-    @ViewBuilder
-    private var macroSummaryBanner: some View {
-        let entries = viewModel.todayEntries
-        let cal  = entries.reduce(0.0) { $0 + $1.calories }
-        let pro  = entries.reduce(0.0) { $0 + $1.protein }
-        let carb = entries.reduce(0.0) { $0 + $1.carbs }
-        let fat  = entries.reduce(0.0) { $0 + $1.fat }
-
-        HStack(alignment: .center, spacing: 0) {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text("\(Int(cal))")
-                        .font(.system(size: 30, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                    Text("kcal")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.orange.opacity(0.80))
-                }
-                Text("\(entries.count) meal\(entries.count == 1 ? "" : "s") logged today")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.white.opacity(0.38))
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Rectangle()
-                .fill(Color.white.opacity(0.08))
-                .frame(width: 1, height: 40)
-
-            HStack(spacing: 0) {
-                summaryMacroStat(value: pro,  label: "Protein", color: .macroBlue)
-                summaryMacroStat(value: carb, label: "Carbs",   color: Color(red: 0.40, green: 0.90, blue: 0.72))
-                summaryMacroStat(value: fat,  label: "Fat",     color: Color(red: 1.00, green: 0.50, blue: 0.72))
-            }
-            .padding(.leading, 12)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(Color(red: 0.11, green: 0.08, blue: 0.20))
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.purpleHi.opacity(0.12), lineWidth: 1)
-        )
-    }
-
-    private func summaryMacroStat(value: Double, label: String, color: Color) -> some View {
-        VStack(spacing: 2) {
-            Text("\(Int(value))g")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(color)
-            Text(label)
-                .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(.white.opacity(0.38))
-        }
-        .frame(maxWidth: .infinity)
     }
 
     // MARK: - FAB with label
@@ -374,7 +412,7 @@ struct FoodLogView: View {
                             .foregroundStyle(.white.opacity(0.50))
                     }
                 } else {
-                    Text("Tap Analyze Meals to get a personalised one-meal swap suggestion based on what you've logged today. Can only be run once per day.")
+                    Text("Analyzes everything you logged today — meals, macros, and workouts — then gives you one actionable recommendation to make tomorrow better. Once per day.")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.50))
                         .lineSpacing(2)
@@ -399,7 +437,7 @@ struct FoodLogView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: analyzeVM.hasRunToday ? "checkmark.circle.fill" : "wand.and.stars")
-                    Text(analyzeVM.hasRunToday ? "Analyzed Today" : "Analyze Meals")
+                    Text(analyzeVM.hasRunToday ? "Done for Today" : "Get My Recommendation")
                 }
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity)
@@ -408,16 +446,25 @@ struct FoodLogView: View {
             .buttonStyle(.borderedProminent)
             .tint(analyzeVM.hasRunToday ? .gray : Color.purpleHi)
             .disabled(analyzeVM.state == .analyzing || analyzeVM.hasRunToday)
-            .alert("Analyze Meals?", isPresented: $showLogMealsConfirm) {
-                Button("Run It", role: .none) { Task { await analyzeVM.analyze() } }
+            .alert("Get My Recommendation?", isPresented: $showLogMealsConfirm) {
+                Button("Let's Go", role: .none) { Task { await analyzeVM.analyze() } }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("This will analyse everything you've logged today and give you one personalised meal suggestion. You can only run this once per day.")
+                Text("Reviews today's meals, macros, and workouts to give you one actionable tip for tomorrow. Once per day.")
             }
         }
         .padding(16)
         .background(Color.cardBg)
         .cornerRadius(16)
+        .overlay(
+            ShootingStarBorder(
+                cornerRadius: 16,
+                color: Color(red: 1.0, green: 0.80, blue: 0.20),
+                lineWidth: 1.5,
+                duration: 3.2,
+                reversed: true
+            )
+        )
     }
 
     @ViewBuilder
@@ -439,6 +486,96 @@ struct FoodLogView: View {
                 .foregroundStyle(.white.opacity(0.80))
                 .lineSpacing(3)
                 .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    // MARK: - Eating window card (Fuel tab only)
+
+    private func timeString(hour: Int, minute: Int) -> String {
+        var comps = DateComponents()
+        comps.hour = hour; comps.minute = minute
+        guard let date = Calendar.current.date(from: comps) else { return "" }
+        let f = DateFormatter(); f.dateFormat = "h:mm a"
+        return f.string(from: date)
+    }
+
+    private var windowStartDate: Binding<Date> {
+        Binding(
+            get: {
+                Calendar.current.date(
+                    bySettingHour: wStartHour, minute: wStartMin, second: 0, of: Date()
+                ) ?? Date()
+            },
+            set: { newDate in
+                wStartHour = Calendar.current.component(.hour,   from: newDate)
+                wStartMin  = Calendar.current.component(.minute, from: newDate)
+                UserDefaults.standard.set(wStartHour, forKey: "windowStartHour")
+                UserDefaults.standard.set(wStartMin,  forKey: "windowStartMinute")
+            }
+        )
+    }
+
+    @ViewBuilder
+    private var eatingWindowCard: some View {
+        if userSettings.fastingEnabled {
+            let startFrac = Double(wStartHour) + Double(wStartMin) / 60.0
+            let endFrac   = startFrac + Double(wDuration)
+            let endHour   = Int(endFrac) % 24
+            let endMin    = Int((endFrac - Double(Int(endFrac))) * 60)
+            let mealTimes = viewModel.todayEntries.map { e -> Double in
+                let cal = Calendar.current
+                return Double(cal.component(.hour,   from: e.loggedAt))
+                     + Double(cal.component(.minute, from: e.loggedAt)) / 60.0
+            }
+
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    HStack(spacing: 10) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 9)
+                                .fill(Color.purpleHi.opacity(0.18))
+                                .frame(width: 30, height: 30)
+                            Image(systemName: "moon.stars.fill")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Color.purpleHi)
+                        }
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Eating Window")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.white)
+                            Text("\(timeString(hour: wStartHour, minute: wStartMin)) – \(timeString(hour: endHour, minute: endMin)) · \(wDuration)h")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.45))
+                        }
+                    }
+                    Spacer()
+                    if isToday {
+                        Button("Edit") { showingWindowPicker = true }
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color.purpleHi)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color.purpleHi.opacity(0.14))
+                            .cornerRadius(8)
+                    } else {
+                        Text("Locked")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.25))
+                    }
+                }
+                FastingTimelineView(
+                    windowStart: startFrac,
+                    windowEnd:   endFrac.truncatingRemainder(dividingBy: 24),
+                    mealLogTimes: mealTimes
+                )
+            }
+            .padding(16)
+            .background(Color(red: 0.11, green: 0.08, blue: 0.20))
+            .cornerRadius(18)
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Color.purpleHi.opacity(0.18), lineWidth: 1)
+            )
         }
     }
 
@@ -1597,6 +1734,10 @@ private struct FuelLogPostSheet: View {
             return "\(fmt.string(from: logDate)) Fuel Log"
         }()
 
+        let ud = UserDefaults.standard
+        func g(_ key: String, fallback: Double) -> Double {
+            ud.object(forKey: key) != nil ? ud.double(forKey: key) : fallback
+        }
         let post = SocialPost(
             authorID:          userSettings.userID,
             authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
@@ -1605,10 +1746,10 @@ private struct FuelLogPostSheet: View {
             memeHeadline:      title.isEmpty ? fallbackLabel : title,
             memeSub:           message,
             macroDate:         logDate,
-            totalCalories: totalCalories, goalCalories: 0,
-            totalProtein:  totalProtein,  goalProtein:  0,
-            totalCarbs:    totalCarbs,    goalCarbs:    0,
-            totalFat:      totalFat,      goalFat:      0
+            totalCalories: totalCalories, goalCalories: g("goalCalories", fallback: 2000),
+            totalProtein:  totalProtein,  goalProtein:  g("goalProtein", fallback: 150),
+            totalCarbs:    totalCarbs,    goalCarbs:    g("goalCarbs", fallback: 200),
+            totalFat:      totalFat,      goalFat:      g("goalFat", fallback: 65)
         )
         post.isCustomPost           = true
         post.authorAuraLevel        = userSettings.auraLevel
@@ -1660,6 +1801,18 @@ private struct FuelLogPostSheet: View {
         let entryPhotos: [UIImage] = entries
             .compactMap { $0.imageData.flatMap { UIImage(data: $0) } }
 
+        let firestoreFuelItems = entries.enumerated().map { i, e in
+            FeedFuelLogItem(
+                foodName:  e.foodName,
+                calories:  e.calories,
+                protein:   e.protein,
+                carbs:     e.carbs,
+                fat:       e.fat,
+                photoURL:  e.photoURL,
+                sortOrder: i
+            )
+        }
+
         Task {
             do {
                 try await PostService.shared.createCustomPost(
@@ -1670,6 +1823,15 @@ private struct FuelLogPostSheet: View {
                     locationName: locationName,
                     latitude:     latitude,
                     longitude:    longitude,
+                    calories:     Int(totalCalories),
+                    protein:      totalProtein,
+                    carbs:        totalCarbs,
+                    fat:          totalFat,
+                    goalCalories: Int(g("goalCalories", fallback: 2000)),
+                    goalProtein:  g("goalProtein", fallback: 150),
+                    goalCarbs:    g("goalCarbs", fallback: 200),
+                    goalFat:      g("goalFat", fallback: 65),
+                    fuelLogItems: firestoreFuelItems,
                     postID:       fbPostID
                 )
             } catch {

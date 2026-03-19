@@ -25,6 +25,7 @@ struct AuraGain: Identifiable, Equatable {
     var name:             String = ""
     var location:         String = ""
     var profilePhotoURL:  String = ""
+    var bio:              String = ""
     var instagramHandle:  String = ""
     var tiktokHandle:     String = ""
     var isPrivateAccount: Bool   = false
@@ -37,10 +38,11 @@ struct AuraGain: Identifiable, Equatable {
     var goalWeight:    Double = 160
     var proteinPerLb:  Double = 0.9
 
-    // MARK: - Fasting (side-effect only, no UserDefaults write)
+    // MARK: - Fasting
 
     var fastingEnabled: Bool = false {
         didSet {
+            UserDefaults.standard.set(fastingEnabled, forKey: "fastingEnabled")
             if fastingEnabled {
                 let hour   = UserDefaults.standard.integer(forKey: "windowStartHour")
                 let minute = UserDefaults.standard.integer(forKey: "windowStartMinute")
@@ -128,28 +130,27 @@ struct AuraGain: Identifiable, Equatable {
     private var achievedMilestonesRaw: String = "" {
         didSet { UserDefaults.standard.set(achievedMilestonesRaw, forKey: "achievedMilestones") }
     }
-    /// Comma-separated "yyyy-MM-dd" dates on which ALL macro goals were met.
-    private var goalsMetDatesRaw: String = "" {
+    /// Comma-separated "yyyy-MM-dd" dates on which ALL macro goals were confirmed met.
+    /// Acts as a local fallback so the streak survives even when Firestore history is missing.
+    var goalsMetDatesRaw: String = "" {
         didSet { UserDefaults.standard.set(goalsMetDatesRaw, forKey: "goalsMetDates") }
     }
-    /// The calendar date on which the macro-goals celebration was last shown (once per day).
-    var lastCelebrationDate: Date = .distantPast {
-        didSet { UserDefaults.standard.set(lastCelebrationDate.timeIntervalSince1970, forKey: "lastCelebrationDate") }
-    }
-
     var goalsMetDates: Set<String> {
         Set(goalsMetDatesRaw.split(separator: ",").map { String($0) })
     }
-
-    /// Records or removes a date from the goals-met set.
-    /// Call this whenever the daily totals are reloaded so the set stays accurate.
+    /// Records or removes a date from the local goals-met cache.
     func setGoalsMet(_ met: Bool, for date: Date) {
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyy-MM-dd"
+        fmt.locale = Locale(identifier: "en_US_POSIX")
         let key = fmt.string(from: date)
         var dates = goalsMetDates
         if met { dates.insert(key) } else { dates.remove(key) }
         goalsMetDatesRaw = dates.joined(separator: ",")
+    }
+    /// The calendar date on which the macro-goals celebration was last shown (once per day).
+    var lastCelebrationDate: Date = .distantPast {
+        didSet { UserDefaults.standard.set(lastCelebrationDate.timeIntervalSince1970, forKey: "lastCelebrationDate") }
     }
 
     /// Whether to automatically apply macro adjustments when a workout is logged.
@@ -172,20 +173,26 @@ struct AuraGain: Identifiable, Equatable {
     // Incremental cost grows from 300 pts (Lv 1) to 1,700 pts (Lv 100).
 
     /// Cumulative aura points required to *reach* `level` (0–100).
+    ///
+    /// Per-level cost starts at 150 XP (level 1→2) and increases by ~17.55 XP
+    /// each level, so every level always costs more than the one before it.
+    /// Anchors: threshold(1) = 0, threshold(2) = 150, threshold(100) = 100,000.
     static func auraThreshold(_ level: Int) -> Int {
-        guard level > 0   else { return 0 }
+        guard level > 1   else { return 0 }
         guard level < 100 else { return 100_000 }
         let n = Double(level)
-        let b = 700.0 / 99.0
-        let a = 300.0 - b
-        return Int((a * n + b * n * n).rounded())
+        // perLevel(n) = a + (n-1)*d  →  threshold(n) = (n-1)*a + d*(n-1)*(n-2)/2
+        // Anchors: threshold(2)=300 → a=300; threshold(100)=100,000 → d=70,300/4,851
+        let a = 150.0
+        let d = 85_150.0 / 4_851.0
+        return Int(((n - 1) * a + d * (n - 1) * (n - 2) / 2).rounded())
     }
 
     /// Level (0–100) for a given point total, using the quadratic curve.
     static func auraLevel(for points: Int) -> Int {
-        guard points > 0        else { return 0 }
+        guard points > 0        else { return 1 }
         guard points < 100_000  else { return 100 }
-        var lo = 0, hi = 99
+        var lo = 1, hi = 99
         while lo < hi {
             let mid = (lo + hi + 1) / 2
             if auraThreshold(mid) <= points { lo = mid } else { hi = mid - 1 }
@@ -199,13 +206,17 @@ struct AuraGain: Identifiable, Equatable {
 
     var auraTitle: String {
         switch auraLevel {
-        case 0:       return ""
-        case 1...9:   return "Initiate"
-        case 10...24: return "Disciple"
-        case 25...39: return "Ascender"
-        case 40...59: return "Mog Apprentice"
-        case 60...79: return "Aura Farmer"
-        case 80...94: return "Elite Aesthetic"
+        case 1...5:   return "Initiate"
+        case 6...10:  return "Rookie"
+        case 11...15: return "Grinder"
+        case 16...20: return "Disciple"
+        case 21...25: return "Ascender"
+        case 26...35: return "Mog Apprentice"
+        case 36...45: return "Aura Seeker"
+        case 46...55: return "Aura Farmer"
+        case 56...65: return "Aesthetic"
+        case 66...75: return "Elite Aesthetic"
+        case 76...90: return "Transcendent"
         default:      return "Final Form"
         }
     }
@@ -359,6 +370,7 @@ struct AuraGain: Identifiable, Equatable {
         name              = profile.name
         location          = profile.location
         profilePhotoURL   = profile.profilePhotoURL
+        bio               = profile.bio
         instagramHandle   = profile.instagramHandle
         tiktokHandle      = profile.tiktokHandle
         isPrivateAccount  = profile.isPrivateAccount
@@ -399,6 +411,7 @@ struct AuraGain: Identifiable, Equatable {
         name              = ""
         location          = ""
         profilePhotoURL   = ""
+        bio               = ""
         instagramHandle   = ""
         tiktokHandle      = ""
         isPrivateAccount  = false
@@ -412,8 +425,8 @@ struct AuraGain: Identifiable, Equatable {
         profileImageData  = nil
 
         // Streak & goals-met history
-        macroStreak          = 0
-        goalsMetDatesRaw     = ""
+        macroStreak           = 0
+        goalsMetDatesRaw      = ""
         achievedMilestonesRaw = ""
         lastCelebrationDate  = .distantPast
 
@@ -459,10 +472,10 @@ struct AuraGain: Identifiable, Equatable {
         self.lastLeaderboardAwardDate = storedLBDate > 0
             ? Date(timeIntervalSince1970: storedLBDate) : .distantPast
         self.achievedMilestonesRaw = UserDefaults.standard.string(forKey: "achievedMilestones") ?? ""
-        self.goalsMetDatesRaw      = UserDefaults.standard.string(forKey: "goalsMetDates") ?? ""
         let storedCelebDate = UserDefaults.standard.double(forKey: "lastCelebrationDate")
         self.lastCelebrationDate = storedCelebDate > 0
             ? Date(timeIntervalSince1970: storedCelebDate) : .distantPast
+        self.goalsMetDatesRaw      = UserDefaults.standard.string(forKey: "goalsMetDates") ?? ""
         self.macroStreak           = UserDefaults.standard.integer(forKey: "macroStreak")
         self.brainstormUsageCount  = UserDefaults.standard.integer(forKey: "brainstormUsageCount")
         let storedBSDate = UserDefaults.standard.double(forKey: "brainstormUsageDate")

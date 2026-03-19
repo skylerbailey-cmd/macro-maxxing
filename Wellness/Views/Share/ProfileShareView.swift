@@ -14,6 +14,7 @@ struct ProfileShareView: View {
     let auraPoints:      Int
     let auraTitleString: String
     let profileImage:    UIImage?
+    var balanceScore:    Int?    = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var renderedImage: UIImage?
@@ -144,7 +145,8 @@ struct ProfileShareView: View {
             auraLevel:       auraLevel,
             auraPoints:      auraPoints,
             auraTitleString: auraTitleString,
-            profileImage:    profileImage
+            profileImage:    profileImage,
+            balanceScore:    balanceScore
         ))
         let renderer   = ImageRenderer(content: card)
         renderer.scale = 3.0
