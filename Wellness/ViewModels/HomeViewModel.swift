@@ -461,11 +461,11 @@ import FirebaseFirestore
 
     private func checkStreakMilestones(_ streak: Int) {
         let milestones: [(days: Int, pts: Int, reason: String, msg: String)] = [
-            (3,    50,  "🔥 3-Day Streak",   "3 days of hitting every goal. that's discipline."),
-            (7,   150,  "🔥 7-Day Streak",   "one full week of locking in on every macro. keep it going."),
-            (14,  300,  "🔥 14-Day Streak",  "two straight weeks of meeting every goal. real consistency."),
-            (30,  500,  "🔥 30-Day Streak",  "30 days of actually hitting your numbers. that's rare."),
-            (60,  750,  "🔥 60-Day Streak",  "60 days of goal-hitting discipline. the results are showing."),
+            (3,    20,  "🔥 3-Day Streak",   "3 days of hitting every goal. that's discipline."),
+            (7,    60,  "🔥 7-Day Streak",   "one full week of locking in on every macro. keep it going."),
+            (14,  120,  "🔥 14-Day Streak",  "two straight weeks of meeting every goal. real consistency."),
+            (30,  200,  "🔥 30-Day Streak",  "30 days of actually hitting your numbers. that's rare."),
+            (60,  300,  "🔥 60-Day Streak",  "60 days of goal-hitting discipline. the results are showing."),
             (100, 1000, "🔥 100-Day Streak", "100 days of meeting every macro goal. you're built different."),
         ]
         for m in milestones where streak >= m.days && !userSettings.achievedMilestones.contains(m.days) {

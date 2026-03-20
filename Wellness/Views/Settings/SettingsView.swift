@@ -42,11 +42,11 @@ private let faqItems: [FAQItem] = [
         every meal you track earns you Aura.
 
         Streaks — consecutive days hitting ALL macro goals (each milestone awarded once):
-        • 3-day streak → +50 XP
-        • 7-day streak → +150 XP
-        • 14-day streak → +300 XP
-        • 30-day streak → +500 XP
-        • 60-day streak → +750 XP
+        • 3-day streak → +20 XP
+        • 7-day streak → +60 XP
+        • 14-day streak → +120 XP
+        • 30-day streak → +200 XP
+        • 60-day streak → +300 XP
         • 100-day streak → +1,000 XP
 
         Logging food alone does not count — you have to actually hit your goals.
