@@ -882,7 +882,8 @@ private struct MacroGaugeCard: View {
     private var deltaColor: Color {
         guard goal > 0 else { return .yellow }
         let pct = value / goal
-        return (pct >= 0.85 && pct <= 1.15) ? .green : .yellow
+        if pct >= 0.85 && pct <= 1.15 { return .green }
+        return pct > 1.15 ? Color(red: 1.0, green: 0.35, blue: 0.35) : .yellow
     }
 
     var body: some View {
