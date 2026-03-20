@@ -343,46 +343,28 @@ struct OnboardingView: View {
             subtitle: "We'll use these to calculate your daily macro goals."
         ) {
             VStack(spacing: 20) {
-                weightStepper(label: "Current Weight", value: $currentWeight)
-                weightStepper(label: "Goal Weight", value: $goalWeight)
+                weightSlider(label: "Current Weight", value: $currentWeight)
+                weightSlider(label: "Goal Weight", value: $goalWeight)
             }
         }
     }
 
-    private func weightStepper(label: String, value: Binding<Double>) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(label)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.65))
-            HStack(spacing: 16) {
-                Button {
-                    if value.wrappedValue > 50 { value.wrappedValue -= 1 }
-                } label: {
-                    Image(systemName: "minus.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(purpl)
-                }
-                .buttonStyle(.plain)
-
+    private func weightSlider(label: String, value: Binding<Double>) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(label)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.65))
+                Spacer()
                 Text("\(Int(value.wrappedValue)) lbs")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .font(.system(size: 22, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
-                    .frame(minWidth: 110)
-                    .multilineTextAlignment(.center)
-
-                Button {
-                    if value.wrappedValue < 500 { value.wrappedValue += 1 }
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(purpl)
-                }
-                .buttonStyle(.plain)
             }
-            .frame(maxWidth: .infinity)
-            .padding(16)
-            .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+            Slider(value: value, in: 80...400, step: 1)
+                .tint(purpl)
         }
+        .padding(16)
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
     }
 
     // Page 5: Privacy
