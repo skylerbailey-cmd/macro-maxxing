@@ -13,6 +13,7 @@ import CryptoKit
 import AuthenticationServices
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseFunctions
 import GoogleSignIn
 
 @Observable @MainActor
@@ -388,13 +389,16 @@ final class SessionManager {
         successMessage = nil
         defer { isLoading = false }
 
-        guard let user = Auth.auth().currentUser else {
+        guard Auth.auth().currentUser != nil else {
             errorMessage = "No signed-in user found."
             return
         }
         do {
-            try? await db.collection("users").document(userID).delete()
-            try await user.delete()
+            // Call server-side cascading delete (Firestore data, Storage files, Auth user)
+            let callable = Functions.functions().httpsCallable("deleteAccount")
+            _ = try await callable.call()
+            // Server deleted the Auth user, so sign out locally
+            try? Auth.auth().signOut()
         } catch let nsError as NSError
             where nsError.domain == AuthErrorDomain &&
                   nsError.code == AuthErrorCode.requiresRecentLogin.rawValue {
