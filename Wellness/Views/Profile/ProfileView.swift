@@ -187,7 +187,7 @@ struct ProfileView: View {
         .task {
             // Show the profile tutorial once, only on the user's own profile
             if isOwnProfile && !hasSeenProfileTutorial {
-                try? await Task.sleep(for: .seconds(0.6))
+                try? await Task.sleep(for: .seconds(1.0))
                 showingTutorial = true
             }
         }
