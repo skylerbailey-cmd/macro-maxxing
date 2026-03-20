@@ -27,6 +27,8 @@ struct OnboardingView: View {
     @State private var username:        String   = ""
     @State private var dateOfBirth:     Date     = Calendar.current.date(
         byAdding: .year, value: -20, to: Date()) ?? Date()
+    @State private var heightFeet:       Int      = 5
+    @State private var heightInches:    Int      = 9
     @State private var currentWeight:   Double   = 160
     @State private var goalWeight:      Double   = 160
     @State private var isPrivate:       Bool     = true
@@ -343,10 +345,49 @@ struct OnboardingView: View {
             subtitle: "We'll use these to calculate your daily macro goals."
         ) {
             VStack(spacing: 20) {
+                heightPicker
                 weightSlider(label: "Current Weight", value: $currentWeight)
                 weightSlider(label: "Goal Weight", value: $goalWeight)
             }
         }
+    }
+
+    private var heightPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Height")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.65))
+                Spacer()
+                Text("\(heightFeet)'\(heightInches)\"")
+                    .font(.system(size: 22, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+            HStack(spacing: 16) {
+                HStack(spacing: 6) {
+                    Picker("Feet", selection: $heightFeet) {
+                        ForEach(3...7, id: \.self) { ft in
+                            Text("\(ft) ft").tag(ft)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(width: 90, height: 100)
+                    .clipped()
+
+                    Picker("Inches", selection: $heightInches) {
+                        ForEach(0...11, id: \.self) { inch in
+                            Text("\(inch) in").tag(inch)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(width: 90, height: 100)
+                    .clipped()
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(16)
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
     }
 
     private func weightSlider(label: String, value: Binding<Double>) -> some View {
@@ -480,10 +521,12 @@ struct OnboardingView: View {
                 try await session.updateProfilePhoto(image: image)
             }
 
+            let totalInches = heightFeet * 12 + heightInches
             try await session.updateProfile(fields: [
                 "name":             name.trimmingCharacters(in: .whitespacesAndNewlines),
                 "username":         username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
                 "dateOfBirth":      dobString,
+                "heightInches":     totalInches,
                 "currentWeight":    currentWeight,
                 "goalWeight":       goalWeight,
                 "isPrivateAccount": isPrivate
