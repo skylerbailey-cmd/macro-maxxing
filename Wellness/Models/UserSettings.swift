@@ -10,6 +10,13 @@ import Foundation
 struct AuraGain: Identifiable, Equatable {
     let id           = UUID()
     let pointsEarned: Int
+    /// Optional label shown in the popup explaining why XP was earned (e.g. "🔥 7-Day Streak").
+    let reason:       String?
+
+    init(pointsEarned: Int, reason: String? = nil) {
+        self.pointsEarned = pointsEarned
+        self.reason       = reason
+    }
 
     static func == (lhs: AuraGain, rhs: AuraGain) -> Bool {
         lhs.id == rhs.id && lhs.pointsEarned == rhs.pointsEarned
@@ -324,12 +331,12 @@ struct AuraGain: Identifiable, Equatable {
 
     // MARK: Aura award
 
-    func awardAura(points: Int, silent: Bool = false) {
+    func awardAura(points: Int, silent: Bool = false, reason: String? = nil) {
         checkWeeklyReset()
         auraPoints += points
         weeklyAuraPoints += points
         if auraPopupsEnabled && !silent {
-            pendingAuraGain = AuraGain(pointsEarned: points)
+            pendingAuraGain = AuraGain(pointsEarned: points, reason: reason)
         }
         let id     = userID
         let pts    = auraPoints

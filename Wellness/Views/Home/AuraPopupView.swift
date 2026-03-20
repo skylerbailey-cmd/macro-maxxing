@@ -85,6 +85,13 @@ struct AuraPopupView: View {
                         )
                     )
 
+                // Reason (e.g. streak milestone)
+                if let reason = gain.reason {
+                    Text(reason)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(gold.opacity(0.90))
+                }
+
                 // Level + title
                 HStack(spacing: 6) {
                     Text("Level \(level)")

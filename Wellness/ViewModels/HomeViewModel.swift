@@ -470,7 +470,7 @@ import FirebaseFirestore
         ]
         for m in milestones where streak >= m.days && !userSettings.achievedMilestones.contains(m.days) {
             userSettings.markMilestoneAchieved(m.days)
-            userSettings.awardAura(points: m.pts)
+            userSettings.awardAura(points: m.pts, reason: m.reason)
         }
     }
 }
