@@ -844,13 +844,9 @@ struct LeaderboardView: View {
     }
 
     private var nextSundayString: String {
-        let lastSunday = UserSettings.lastSundayAwardCutoff() ?? Date()
-        guard let nextSunday = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: lastSunday) else {
-            return "Sunday"
-        }
         let f = DateFormatter()
         f.dateFormat = "MMM d"
-        return f.string(from: nextSunday)
+        return f.string(from: UserSettings.nextWeekReset())
     }
 }
 
@@ -994,13 +990,10 @@ private struct WeeklyWinnerPopup: View {
     private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
 
     private var rankEmoji: String {
-        switch rank { case 1: return "🥇"; case 2: return "🥈"; default: return "🥉" }
-    }
-    private var rankLabel: String {
-        switch rank { case 1: return "1st Place"; case 2: return "2nd Place"; default: return "3rd Place" }
+        switch rank { case 1: return "🥇"; case 2: return "🥈"; case 3: return "🥉"; default: return "🏅" }
     }
     private var ordinalSuffix: String {
-        switch rank { case 1: return "st"; case 2: return "nd"; default: return "rd" }
+        switch rank { case 1: return "st"; case 2: return "nd"; case 3: return "rd"; default: return "th" }
     }
 
     var body: some View {

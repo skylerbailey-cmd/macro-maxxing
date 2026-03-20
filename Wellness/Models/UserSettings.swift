@@ -193,10 +193,6 @@ struct AuraGain: Identifiable, Equatable {
     private var weeklyAuraWeekStart: Date = Date.distantPast {
         didSet { UserDefaults.standard.set(weeklyAuraWeekStart.timeIntervalSince1970, forKey: "weeklyAuraWeekStart") }
     }
-    /// The Sunday 11:59 PM EST cutoff on which leaderboard points were last awarded.
-    private var lastLeaderboardAwardDate: Date = Date.distantPast {
-        didSet { UserDefaults.standard.set(lastLeaderboardAwardDate.timeIntervalSince1970, forKey: "lastLeaderboardAwardDate") }
-    }
     /// "YYYY-MM-DD" of the last weekly reset for which a winner award was already claimed.
     /// Prevents the winner popup from re-showing on subsequent app opens.
     var lastClaimedWinnerWeek: String = "" {
@@ -409,54 +405,6 @@ struct AuraGain: Identifiable, Equatable {
         return cal.date(byAdding: .weekOfYear, value: 1, to: last) ?? last
     }
 
-    /// True when Sunday 11:59 PM EST has passed but leaderboard points haven't been awarded yet.
-    var hasUnclaimedLeaderboardAward: Bool {
-        guard let cutoff = UserSettings.lastSundayAwardCutoff() else { return false }
-        return cutoff > lastLeaderboardAwardDate
-    }
-
-    /// The most recent Sunday at 11:59 PM EST that has already passed.
-    static func lastSundayAwardCutoff() -> Date? {
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(identifier: "America/New_York")!
-        let now = Date()
-        // weekday: 1 = Sunday, 2 = Monday … 7 = Saturday
-        let weekday = cal.component(.weekday, from: now)
-        let daysSinceSunday = weekday - 1
-        guard let lastSunday = cal.date(byAdding: .day, value: -daysSinceSunday, to: now) else { return nil }
-        var comps = cal.dateComponents([.year, .month, .day], from: lastSunday)
-        comps.hour = 23; comps.minute = 59; comps.second = 0
-        comps.timeZone = TimeZone(identifier: "America/New_York")
-        guard let cutoff = cal.date(from: comps) else { return nil }
-        // If that cutoff hasn't passed yet (it's still before Sunday 11:59 PM), go back one week
-        return cutoff > now ? cal.date(byAdding: .weekOfYear, value: -1, to: cutoff) : cutoff
-    }
-
-    /// Awards leaderboard placement points based on ranks (1-indexed, nil = not in top 10).
-    /// Marks the current Sunday cutoff as claimed so it only fires once per week.
-    func awardLeaderboardPoints(localRank: Int?, arenaRank: Int?) {
-        guard hasUnclaimedLeaderboardAward,
-              let cutoff = UserSettings.lastSundayAwardCutoff() else { return }
-        lastLeaderboardAwardDate = cutoff
-
-        var total = 0
-        if let rank = localRank, rank <= 10 {
-            switch rank {
-            case 1:     total += 75
-            case 2...3: total += 50
-            default:    total += 25
-            }
-        }
-        if let rank = arenaRank, rank <= 10 {
-            switch rank {
-            case 1:     total += 150
-            case 2...3: total += 100
-            default:    total += 50
-            }
-        }
-        if total > 0 { awardAura(points: total) }
-    }
-
     func markMilestoneAchieved(_ milestone: Int) {
         var set = achievedMilestones
         set.insert(milestone)
@@ -569,12 +517,6 @@ struct AuraGain: Identifiable, Equatable {
             }
         }
 
-        // On a fresh install (no stored leaderboard date), mark the current Sunday
-        // cutoff as already seen so the first login doesn't fire a spurious award.
-        if lastLeaderboardAwardDate == .distantPast,
-           let cutoff = UserSettings.lastSundayAwardCutoff() {
-            lastLeaderboardAwardDate = cutoff
-        }
     }
 
     /// Called by SessionManager on sign-out.
@@ -616,7 +558,6 @@ struct AuraGain: Identifiable, Equatable {
         // Aura / leaderboard
         weeklyAuraPoints         = 0
         weeklyAuraWeekStart      = .distantPast
-        lastLeaderboardAwardDate = .distantPast
         lastClaimedWinnerWeek    = ""
         pendingWeeklyWinnerRank  = nil
         pendingWeeklyWinnerXP    = 0
@@ -654,9 +595,6 @@ struct AuraGain: Identifiable, Equatable {
         let storedWeekStart = UserDefaults.standard.double(forKey: "weeklyAuraWeekStart")
         self.weeklyAuraWeekStart = storedWeekStart > 0
             ? Date(timeIntervalSince1970: storedWeekStart) : .distantPast
-        let storedLBDate = UserDefaults.standard.double(forKey: "lastLeaderboardAwardDate")
-        self.lastLeaderboardAwardDate = storedLBDate > 0
-            ? Date(timeIntervalSince1970: storedLBDate) : .distantPast
         self.achievedMilestonesRaw = UserDefaults.standard.string(forKey: "achievedMilestones") ?? ""
         let storedCelebDate = UserDefaults.standard.double(forKey: "lastCelebrationDate")
         self.lastCelebrationDate = storedCelebDate > 0

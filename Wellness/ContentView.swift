@@ -87,7 +87,6 @@ struct ContentView: View {
             .task(id: userSettings.userID) {
                 guard !userSettings.userID.isEmpty else { return }
                 InAppNotificationService.shared.startNewPostListener(userID: userSettings.userID)
-                checkLeaderboardAward()
                 if !hasSeenAppTour {
                     try? await Task.sleep(for: .seconds(0.6))
                     showingAppTour = true
@@ -273,60 +272,6 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Leaderboard award on app open
-
-    private func checkLeaderboardAward() {
-        guard userSettings.hasUnclaimedLeaderboardAward else { return }
-
-        let weekStart = UserSettings.currentWeekStart()
-
-        var scores: [String: (score: Int, location: String)] = [:]
-        scores[userSettings.userID] = (userSettings.weeklyAuraPoints, userSettings.location)
-
-        for post in allPosts where post.postedAt >= weekStart && post.authorID != userSettings.userID {
-            let pts = post.goalCalories > 0 ? 50 : 10
-            let loc = post.authorLocation
-            if var existing = scores[post.authorID] {
-                existing.score += pts
-                scores[post.authorID] = existing
-            } else {
-                scores[post.authorID] = (pts, loc)
-            }
-        }
-
-        let sorted = scores.sorted {
-            $0.value.score != $1.value.score
-                ? $0.value.score > $1.value.score
-                : $0.key < $1.key
-        }
-
-        let arenaRank = sorted.firstIndex(where: { $0.key == userSettings.userID }).map { $0 + 1 }
-
-        let myLocation = userSettings.location.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let localRank: Int?
-        if myLocation.isEmpty {
-            localRank = nil
-        } else {
-            let localSorted = sorted.filter {
-                $0.key == userSettings.userID ||
-                $0.value.location.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == myLocation
-            }
-            localRank = localSorted.firstIndex(where: { $0.key == userSettings.userID }).map { $0 + 1 }
-        }
-
-        userSettings.awardLeaderboardPoints(localRank: localRank, arenaRank: arenaRank)
-        Task {
-            if let rank = arenaRank {
-                await InAppNotificationService.shared.sendLeaderboard(
-                    to: userSettings.userID, rank: rank, scope: "arena")
-            }
-            if let rank = localRank {
-                await InAppNotificationService.shared.sendLeaderboard(
-                    to: userSettings.userID, rank: rank, scope: "local")
-            }
-            await notificationState.refresh(userID: userSettings.userID)
-        }
-    }
 }
 
 // MARK: - Quick Action FAB

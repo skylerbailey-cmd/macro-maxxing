@@ -231,17 +231,25 @@ exports.resetWeeklyAura = onSchedule(
     });
     console.log(`[resetWeeklyAura] Snapshot saved: ${top100.length} entries`);
 
-    // Award XP to top 3 and tag their docs so the iOS app can show the popup.
-    const winnerXP = [500, 300, 150]; // 1st, 2nd, 3rd
-    for (let i = 0; i < Math.min(3, top100.length); i++) {
+    // Award XP to top 10 and tag their docs so the iOS app can show the popup.
+    // Values mirror the leaderboard placement awards: 1st=150, 2nd-3rd=100, 4th-10th=50
+    const xpForRank = (rank) => {
+      if (rank === 1)           return 150;
+      if (rank <= 3)            return 100;
+      if (rank <= 10)           return 50;
+      return 0;
+    };
+    for (let i = 0; i < Math.min(10, top100.length); i++) {
       const entry = top100[i];
+      const xp    = xpForRank(i + 1);
+      if (xp === 0) continue;
       await db.collection("users").doc(entry.userID).update({
-        auraPoints:          FieldValue.increment(winnerXP[i]),
-        weeklyWinnerRank:    i + 1,
-        weeklyWinnerXP:      winnerXP[i],
-        weeklyWinnerWeek:    snapshotKey,  // "YYYY-MM-DD" of the Sunday
+        auraPoints:       FieldValue.increment(xp),
+        weeklyWinnerRank: i + 1,
+        weeklyWinnerXP:   xp,
+        weeklyWinnerWeek: snapshotKey,  // "YYYY-MM-DD" of the Sunday
       });
-      console.log(`[resetWeeklyAura] Awarded ${winnerXP[i]} XP to rank ${i + 1}: ${entry.userID}`);
+      console.log(`[resetWeeklyAura] Awarded ${xp} XP to rank ${i + 1}: ${entry.userID}`);
     }
 
     // Reset all users in batches.
