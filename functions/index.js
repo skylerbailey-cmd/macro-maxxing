@@ -271,7 +271,7 @@ exports.resetWeeklyAura = onSchedule(
     }
 
     for (const [loc, users] of locationGroups) {
-      if (users.length < 2) continue; // need at least 2 to have a local board
+      if (users.length < 10) continue; // matches the app's 10-user minimum for the local board
       users.sort((a, b) => b.pts - a.pts);
       const topLocal = users.slice(0, 10);
       for (let i = 0; i < topLocal.length; i++) {
