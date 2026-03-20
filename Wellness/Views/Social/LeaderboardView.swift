@@ -216,11 +216,14 @@ struct LeaderboardView: View {
                 }
             }
         }
-        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
-            timeUntilReset = max(0, UserSettings.nextWeekReset().timeIntervalSinceNow)
-            countdownBlink = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                withAnimation(.easeInOut(duration: 0.2)) { countdownBlink = false }
+        .onReceive(Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()) { _ in
+            let remaining = max(0, UserSettings.nextWeekReset().timeIntervalSinceNow)
+            let oldSec = Int(timeUntilReset)
+            timeUntilReset = remaining
+            // Blink once per second
+            if Int(remaining) != oldSec {
+                countdownBlink = true
+                withAnimation(.easeInOut(duration: 0.4)) { countdownBlink = false }
             }
         }
         .onChange(of: userSettings.pendingWeeklyWinnerRank) { _, rank in
@@ -821,15 +824,17 @@ struct LeaderboardView: View {
     }
 
     private var countdownText: String {
-        let total = max(0, Int(timeUntilReset))
-        let days  = total / 86400
-        let hours = (total % 86400) / 3600
-        let mins  = (total % 3600) / 60
-        let secs  = total % 60
+        let clamped = max(0, timeUntilReset)
+        let total   = Int(clamped)
+        let millis  = Int((clamped - Double(total)) * 10) // tenths
+        let days    = total / 86400
+        let hours   = (total % 86400) / 3600
+        let mins    = (total % 3600) / 60
+        let secs    = total % 60
         if days > 0 {
-            return String(format: "%dd %dh %dm %02ds", days, hours, mins, secs)
+            return String(format: "%dd : %02dh : %02dm : %02d.%ds", days, hours, mins, secs, millis)
         } else {
-            return String(format: "%d:%02d:%02d", hours, mins, secs)
+            return String(format: "%02d:%02d:%02d.%d", hours, mins, secs, millis)
         }
     }
 
