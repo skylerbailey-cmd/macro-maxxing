@@ -64,6 +64,7 @@ struct LeaderboardView: View {
     @State private var firestoreAura:      [LeaderboardEntry] = []
     @State private var weeklyAuraLoading:  Bool               = false
     @State private var timeUntilReset:     TimeInterval       = 0
+    @State private var countdownBlink:     Bool               = false
     @State private var showingWinnerPopup: Bool               = false
 
     enum Scope: String, CaseIterable {
@@ -217,6 +218,7 @@ struct LeaderboardView: View {
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
             timeUntilReset = max(0, UserSettings.nextWeekReset().timeIntervalSinceNow)
+            withAnimation(.easeInOut(duration: 0.3)) { countdownBlink.toggle() }
         }
         .onChange(of: userSettings.pendingWeeklyWinnerRank) { _, rank in
             if rank != nil { showingWinnerPopup = true }
@@ -837,6 +839,7 @@ struct LeaderboardView: View {
             Text(countdownText)
                 .font(.system(size: 28, weight: .black, design: .monospaced))
                 .foregroundStyle(gold)
+                .opacity(countdownBlink ? 1.0 : 0.6)
             Text("Sunday 8 PM ET")
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.white.opacity(0.30))
