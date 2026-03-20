@@ -105,7 +105,7 @@ enum TutorialSteps {
     static let log: [TutorialStep] = [
         .init(
             title: "Fuel / Duel Tabs",
-            body: "Fuel is your daily food log. Duel lets you compare macros head-to-head with a friend — send a challenge or accept one from here.",
+            body: "Fuel is your daily food log. Duel is where you log workouts — track exercises, duration, and calories burned.",
             anchorID: "log.tabBar"
         ),
         .init(
