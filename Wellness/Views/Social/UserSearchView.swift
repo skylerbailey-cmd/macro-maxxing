@@ -167,7 +167,8 @@ struct UserSearchView: View {
                 profileImageData:   nil,
                 profileLocation:    profile.location,
                 profileStreak:      profile.streakDays,
-                currentUserSettings: currentUserSettings
+                currentUserSettings: currentUserSettings,
+                profileIsPrivate:   profile.isPrivateAccount
             )
         } label: {
             HStack(spacing: 12) {

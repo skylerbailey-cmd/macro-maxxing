@@ -197,6 +197,16 @@ struct AuraGain: Identifiable, Equatable {
     private var lastLeaderboardAwardDate: Date = Date.distantPast {
         didSet { UserDefaults.standard.set(lastLeaderboardAwardDate.timeIntervalSince1970, forKey: "lastLeaderboardAwardDate") }
     }
+    /// "YYYY-MM-DD" of the last weekly reset for which a winner award was already claimed.
+    /// Prevents the winner popup from re-showing on subsequent app opens.
+    var lastClaimedWinnerWeek: String = "" {
+        didSet { UserDefaults.standard.set(lastClaimedWinnerWeek, forKey: "lastClaimedWinnerWeek") }
+    }
+    /// Set by populate(from:) when the Cloud Function tagged this user as a weekly winner.
+    /// Observed by LeaderboardView to trigger the winner popup.
+    var pendingWeeklyWinnerRank: Int? = nil
+    /// XP awarded for the pending winner finish.
+    var pendingWeeklyWinnerXP:   Int  = 0
     /// Comma-separated streak milestones already awarded, e.g. "3,7,14"
     private var achievedMilestonesRaw: String = "" {
         didSet { UserDefaults.standard.set(achievedMilestonesRaw, forKey: "achievedMilestones") }
@@ -359,11 +369,44 @@ struct AuraGain: Identifiable, Equatable {
         }
     }
 
+    /// Returns the most recent Sunday at 8 PM Eastern time (the weekly reset boundary).
     static func currentWeekStart() -> Date {
+        let etZone = TimeZone(identifier: "America/New_York")!
+        var cal    = Calendar(identifier: .gregorian)
+        cal.timeZone = etZone
+
+        let now     = Date()
+        // weekday: 1 = Sunday … 7 = Saturday in ET
+        let weekday  = cal.component(.weekday, from: now)
+        let daysBack = weekday - 1   // 0 when today is Sunday
+
+        guard let lastSunday = cal.date(byAdding: .day, value: -daysBack, to: now) else {
+            return now
+        }
+
+        // Build "last Sunday at 20:00 ET"
+        var comps        = cal.dateComponents([.year, .month, .day], from: lastSunday)
+        comps.hour       = 20
+        comps.minute     = 0
+        comps.second     = 0
+        comps.timeZone   = etZone
+
+        guard let sunday8PM = cal.date(from: comps) else { return now }
+
+        // If that moment is still in the future (it's Sunday before 8 PM ET),
+        // step back one full week.
+        if sunday8PM > now {
+            return cal.date(byAdding: .weekOfYear, value: -1, to: sunday8PM) ?? sunday8PM
+        }
+        return sunday8PM
+    }
+
+    /// Returns the next upcoming Sunday at 8 PM Eastern time (the next weekly reset).
+    static func nextWeekReset() -> Date {
+        let last = currentWeekStart()
         var cal = Calendar(identifier: .gregorian)
-        cal.firstWeekday = 2 // Monday
-        let comps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())
-        return cal.date(from: comps) ?? cal.startOfDay(for: Date())
+        cal.timeZone = TimeZone(identifier: "America/New_York")!
+        return cal.date(byAdding: .weekOfYear, value: 1, to: last) ?? last
     }
 
     /// True when Sunday 11:59 PM EST has passed but leaderboard points haven't been awarded yet.
@@ -509,6 +552,23 @@ struct AuraGain: Identifiable, Equatable {
         }
         checkWeeklyReset()
 
+        // Check for pending weekly winner award set by the Cloud Function.
+        // weeklyWinnerXP > 0 means the server tagged this user as a top-3 finisher.
+        // lastClaimedWinnerWeek prevents showing the popup more than once.
+        if profile.weeklyWinnerXP > 0 && profile.weeklyWinnerWeek != lastClaimedWinnerWeek {
+            lastClaimedWinnerWeek   = profile.weeklyWinnerWeek
+            pendingWeeklyWinnerRank = profile.weeklyWinnerRank
+            pendingWeeklyWinnerXP   = profile.weeklyWinnerXP
+            auraPoints              = profile.auraPoints   // Cloud Function already incremented
+            // Clear winner fields from Firestore so they don't re-trigger on next open
+            let uid = profile.userID
+            Task {
+                try? await UserProfileService.shared.updateProfile(
+                    userID: uid,
+                    fields: ["weeklyWinnerRank": 0, "weeklyWinnerXP": 0, "weeklyWinnerWeek": ""])
+            }
+        }
+
         // On a fresh install (no stored leaderboard date), mark the current Sunday
         // cutoff as already seen so the first login doesn't fire a spurious award.
         if lastLeaderboardAwardDate == .distantPast,
@@ -554,9 +614,12 @@ struct AuraGain: Identifiable, Equatable {
         lastCelebrationDate   = .distantPast
 
         // Aura / leaderboard
-        weeklyAuraPoints      = 0
-        weeklyAuraWeekStart   = .distantPast
+        weeklyAuraPoints         = 0
+        weeklyAuraWeekStart      = .distantPast
         lastLeaderboardAwardDate = .distantPast
+        lastClaimedWinnerWeek    = ""
+        pendingWeeklyWinnerRank  = nil
+        pendingWeeklyWinnerXP    = 0
 
         // Brainstorm
         lastBrainstormResult = ""
@@ -609,6 +672,7 @@ struct AuraGain: Identifiable, Equatable {
         let storedBSDate = UserDefaults.standard.double(forKey: "brainstormUsageDate")
         self.brainstormUsageDate   = storedBSDate > 0
             ? Date(timeIntervalSince1970: storedBSDate) : .distantPast
+        self.lastClaimedWinnerWeek = UserDefaults.standard.string(forKey: "lastClaimedWinnerWeek") ?? ""
         self.lastBrainstormResult  = UserDefaults.standard.string(forKey: "lastBrainstormResult") ?? ""
         let storedBSResultDate = UserDefaults.standard.double(forKey: "lastBrainstormDate")
         self.lastBrainstormDate    = storedBSResultDate > 0

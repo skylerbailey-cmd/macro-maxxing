@@ -29,6 +29,10 @@ struct ProfileView: View {
     /// Set true when ProfileView is presented as a sheet so an X dismiss button is shown.
     var isDismissable: Bool = false
 
+    /// Whether the profile owner has a private account. When true and the viewer
+    /// is not a follower, only the header is shown — posts and stats are hidden.
+    var profileIsPrivate: Bool = false
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss)      private var dismiss
 
@@ -53,6 +57,7 @@ struct ProfileView: View {
     @State private var postsLoading   = false
 
     // Follow state
+    @State private var followStateLoaded:     Bool   = false
     @State private var isFollowing:           Bool   = false
     @State private var followerCount:         Int    = 0
     @State private var followingCount:        Int    = 0
@@ -67,7 +72,18 @@ struct ProfileView: View {
     @State private var isSubscribed:     Bool = false
     @State private var subscribeLoading: Bool = false
 
+    // Tutorial
+    @AppStorage("hasSeenProfileTutorial") private var hasSeenProfileTutorial = false
+    @State private var showingTutorial  = false
+    @State private var tutorialAnchors: [String: Anchor<CGRect>] = [:]
+
     private var isOwnProfile: Bool { ownUserSettings != nil }
+
+    /// True once follow state is known AND the viewer isn't allowed to see content.
+    private var isLocked: Bool {
+        guard !isOwnProfile, profileIsPrivate, followStateLoaded else { return false }
+        return !isFollowing
+    }
 
     private var resolvedStreak: Int {
         if let own = ownUserSettings { return own.macroStreak }
@@ -103,17 +119,38 @@ struct ProfileView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     headerBanner
-                    socialStatsBar
-                        .padding(.top, 24)
-                    socialLinks
-                    if !isOwnProfile { addToTeamButton }
-                    if !isOwnProfile && isFollowing { subscribeButton }
-                    postsGrid
-                        .padding(.top, 8)
+                        .tutorialAnchor("profile.header")
+
+                    if isLocked {
+                        lockedProfileView
+                    } else {
+                        socialStatsBar
+                            .tutorialAnchor("profile.stats")
+                            .padding(.top, 24)
+                        socialLinks
+                        if !isOwnProfile { addToTeamButton }
+                        if !isOwnProfile && isFollowing { subscribeButton }
+                        postsGrid
+                            .padding(.top, 8)
+                    }
                 }
                 .padding(.bottom, 40)
             }
+
+            if showingTutorial {
+                TutorialOverlayView(
+                    steps:   TutorialSteps.profile,
+                    anchors: tutorialAnchors,
+                    onDismiss: {
+                        withAnimation(.easeOut(duration: 0.25)) { showingTutorial = false }
+                        hasSeenProfileTutorial = true
+                    }
+                )
+                .transition(.opacity.animation(.easeInOut(duration: 0.25)))
+                .zIndex(100)
+            }
         }
+        .onPreferenceChange(TutorialAnchorKey.self) { tutorialAnchors = $0 }
         .preferredColorScheme(.dark)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
@@ -147,6 +184,13 @@ struct ProfileView: View {
         .task { await loadFollowState() }
         .task { await loadPosts() }
         .task { await loadBalanceScore() }
+        .task {
+            // Show the profile tutorial once, only on the user's own profile
+            if isOwnProfile && !hasSeenProfileTutorial {
+                try? await Task.sleep(for: .seconds(0.6))
+                showingTutorial = true
+            }
+        }
         .sheet(isPresented: $showingBalanceInfo) { balanceInfoSheet }
         .sheet(isPresented: $showingConnections) {
             ConnectionsSheet(
@@ -285,6 +329,7 @@ struct ProfileView: View {
                 // Balance Score
                 if isOwnProfile {
                     balanceScoreBubble
+                        .tutorialAnchor("profile.balanceScore")
                         .padding(.top, 8)
                 }
 
@@ -847,6 +892,36 @@ struct ProfileView: View {
 
     // MARK: - Posts Grid
 
+    // MARK: - Locked Profile View
+
+    private var lockedProfileView: some View {
+        VStack(spacing: 20) {
+            Divider()
+                .background(Color.white.opacity(0.08))
+                .padding(.top, 24)
+
+            Image(systemName: "lock.fill")
+                .font(.system(size: 36, weight: .bold))
+                .foregroundStyle(purpl.opacity(0.70))
+                .padding(.top, 16)
+
+            VStack(spacing: 8) {
+                Text("This account is private")
+                    .font(.system(size: 17, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("Follow \(displayName) to see their posts, stats, and progress.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.white.opacity(0.50))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+
+            addToTeamButton
+                .padding(.top, 4)
+        }
+        .padding(.bottom, 40)
+    }
+
     private var postsGrid: some View {
         VStack(alignment: .leading, spacing: 10) {
             Rectangle()
@@ -1161,10 +1236,14 @@ struct ProfileView: View {
                let profile = try? await UserProfileService.shared.fetchProfile(userID: uid) {
                 targetProfilePhotoURL = profile.profilePhotoURL
             }
+            followStateLoaded = true
             return
         }
         let viewer = currentUserSettings ?? ownUserSettings
-        guard let viewerID = viewer?.userID, !viewerID.isEmpty else { return }
+        guard let viewerID = viewer?.userID, !viewerID.isEmpty else {
+            followStateLoaded = true
+            return
+        }
 
         async let followingCheck = FollowService.shared.isFollowing(currentUserID: viewerID, targetUserID: profileUserID)
         async let targetProfile  = UserProfileService.shared.fetchProfile(userID: profileUserID)
@@ -1180,6 +1259,7 @@ struct ProfileView: View {
             subscriberID: viewerID, targetUserID: profileUserID) {
             isSubscribed = subscribed
         }
+        followStateLoaded = true
     }
 
     private func toggleFollow() async {

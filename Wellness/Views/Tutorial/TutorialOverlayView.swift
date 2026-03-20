@@ -99,6 +99,30 @@ enum TutorialSteps {
         ),
     ]
 
+    // MARK: Profile
+    static let profile: [TutorialStep] = [
+        .init(
+            title: "Your Profile",
+            body: "This is your public-facing page. If your account is set to public in Settings, anyone on the platform can view your profile, posts, and stats.",
+            anchorID: "profile.header"
+        ),
+        .init(
+            title: "Balance Score",
+            body: "Your Balance Score (0–100) measures how precisely you hit all four macro goals — calories, protein, carbs, and fat. Hitting every target perfectly gives you 100. Going over OR under both lower the score equally. Tap the ring to learn more.",
+            anchorID: "profile.balanceScore"
+        ),
+        .init(
+            title: "Streak & Aura XP",
+            body: "Your current streak and total Aura XP are pinned here so anyone who views your profile can see your consistency at a glance.",
+            anchorID: "profile.stats"
+        ),
+        .init(
+            title: "Connections & Posts",
+            body: "Tap Connections to see followers and following. Your logged meals, workouts, and posts appear in the grid below — everything you've shared lives here.",
+            anchorID: "profile.stats"
+        ),
+    ]
+
     // MARK: Per-Tab — Hub
     static let hub: [TutorialStep] = [
         .init(

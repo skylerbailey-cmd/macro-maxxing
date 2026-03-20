@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import Combine
 import CoreLocation
 
 // MARK: - Data model
@@ -56,8 +57,13 @@ struct LeaderboardView: View {
     @State private var showingNotifications = false
     @State private var previewBoard:       ShareableBoard?    = nil
     @State private var infoBoard:          Board?             = nil
+    @State private var showingLastWeek:    Bool               = false
+    @State private var lastWeekSnapshot:   UserProfileService.WeeklySnapshot? = nil
+    @State private var lastWeekLoading:    Bool               = false
     @State private var firestoreAura:      [LeaderboardEntry] = []
     @State private var weeklyAuraLoading:  Bool               = false
+    @State private var timeUntilReset:     TimeInterval       = 0
+    @State private var showingWinnerPopup: Bool               = false
 
     enum Scope: String, CaseIterable {
         case team  = "Team"
@@ -111,6 +117,7 @@ struct LeaderboardView: View {
                         if userSettings.isPrivateAccount && (selectedScope == .local || selectedScope == .arena) {
                             privateAccountBanner
                         }
+                        resetCountdownBanner
                         boardSection(
                             title: "Weekly Aura",
                             icon: "bolt.fill",
@@ -167,6 +174,23 @@ struct LeaderboardView: View {
                 onPost: { image in postBoardToFeed(board: board, overrideImage: image) }
             )
         }
+        .sheet(isPresented: $showingLastWeek) {
+            LastWeekResultsSheet(
+                snapshot: lastWeekSnapshot,
+                isLoading: lastWeekLoading,
+                currentUserID: userSettings.userID
+            )
+        }
+        .sheet(isPresented: $showingWinnerPopup, onDismiss: {
+            userSettings.pendingWeeklyWinnerRank = nil
+            userSettings.pendingWeeklyWinnerXP   = 0
+        }) {
+            WeeklyWinnerPopup(
+                rank:         userSettings.pendingWeeklyWinnerRank ?? 1,
+                xpEarned:     userSettings.pendingWeeklyWinnerXP,
+                boardEntries: weeklyAuraDisplayed
+            )
+        }
         .alert(infoBoardTitle, isPresented: Binding(
             get: { infoBoard != nil },
             set: { if !$0 { infoBoard = nil } }
@@ -178,6 +202,19 @@ struct LeaderboardView: View {
         .onAppear {
             userSettings.checkWeeklyReset()
             if selectedScope == .local { locationManager.requestLocationIfNeeded() }
+            timeUntilReset = UserSettings.nextWeekReset().timeIntervalSinceNow
+            // Show winner popup if one is pending (user just earned a top-3 finish)
+            if userSettings.pendingWeeklyWinnerRank != nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    showingWinnerPopup = true
+                }
+            }
+        }
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
+            timeUntilReset = max(0, UserSettings.nextWeekReset().timeIntervalSinceNow)
+        }
+        .onChange(of: userSettings.pendingWeeklyWinnerRank) { _, rank in
+            if rank != nil { showingWinnerPopup = true }
         }
         .onChange(of: selectedScope) { _, scope in
             if scope == .local { locationManager.requestLocationIfNeeded() }
@@ -371,7 +408,7 @@ struct LeaderboardView: View {
     private var infoBoardMessage: String {
         switch infoBoard {
         case .weeklyAura:
-            return "Ranks everyone by Aura points earned this week. Post content, get reps and comments, and level up to climb the board. Resets every Sunday."
+            return "Ranks everyone by Aura XP earned during the current week. Post content, earn reps and comments, hit your macro goals, and keep your streak alive to climb.\n\nThe board resets every Sunday at 8 PM Eastern time. At reset, a snapshot of that week's final standings is saved and viewable via \"Last Week's Results\"."
         case nil:
             return ""
         }
@@ -410,6 +447,21 @@ struct LeaderboardView: View {
                         .foregroundStyle(.white.opacity(0.35))
                 }
                 Spacer()
+                Button {
+                    showingLastWeek = true
+                    if lastWeekSnapshot == nil {
+                        Task { await loadLastWeekSnapshot() }
+                    }
+                } label: {
+                    Text("Last week")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(purpl)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(purpl.opacity(0.12), in: Capsule())
+                        .overlay(Capsule().stroke(purpl.opacity(0.25), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
             }
             .padding(14)
 
@@ -538,12 +590,10 @@ struct LeaderboardView: View {
                     .font(.system(size: full ? 32 : 22))
                     .foregroundStyle(gold)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(full ? "No local competitors yet" : "Not enough local competitors")
+                    Text("Not enough local competitors yet")
                         .font(.system(size: 14, weight: .black, design: .rounded))
                         .foregroundStyle(.white)
-                    Text(full
-                         ? "You're the first one here! Invite friends in your area to join and compete on the local board."
-                         : "There are fewer than 10 people competing near you. Invite friends to join and climb the ranks!")
+                    Text("You need more local competitors in your area to compete on the local board. Invite friends nearby to join!")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.55))
                         .fixedSize(horizontal: false, vertical: true)
@@ -749,6 +799,50 @@ struct LeaderboardView: View {
 
     // MARK: - Helpers
 
+    private func loadLastWeekSnapshot() async {
+        lastWeekLoading = true
+        defer { lastWeekLoading = false }
+        lastWeekSnapshot = try? await UserProfileService.shared.fetchLastWeekSnapshot()
+    }
+
+    private var countdownText: String {
+        let total = max(0, Int(timeUntilReset))
+        let days  = total / 86400
+        let hours = (total % 86400) / 3600
+        let mins  = (total % 3600) / 60
+        let secs  = total % 60
+        if days > 0 {
+            return "\(days)d \(hours)h \(mins)m"
+        } else {
+            return String(format: "%d:%02d:%02d", hours, mins, secs)
+        }
+    }
+
+    private var resetCountdownBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "timer")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(purpl)
+            Text("Next reset in")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white.opacity(0.55))
+            Text(countdownText)
+                .font(.system(size: 13, weight: .black, design: .monospaced))
+                .foregroundStyle(purpl)
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(cardBg)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(purpl.opacity(0.20), lineWidth: 1)
+                )
+        )
+    }
+
     private var nextSundayString: String {
         let lastSunday = UserSettings.lastSundayAwardCutoff() ?? Date()
         guard let nextSunday = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: lastSunday) else {
@@ -757,6 +851,253 @@ struct LeaderboardView: View {
         let f = DateFormatter()
         f.dateFormat = "MMM d"
         return f.string(from: nextSunday)
+    }
+}
+
+// MARK: - Last Week Results Sheet
+
+private struct LastWeekResultsSheet: View {
+    let snapshot:      UserProfileService.WeeklySnapshot?
+    let isLoading:     Bool
+    let currentUserID: String
+
+    @Environment(\.dismiss) private var dismiss
+
+    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
+    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    private var weekLabel: String {
+        guard let key = snapshot?.weekStartDate,
+              let date = Self.dateFormatter.date(from: key) else { return "Last Week" }
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
+        return "Week of \(f.string(from: date))"
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                pageBg.ignoresSafeArea()
+
+                if isLoading {
+                    ProgressView()
+                        .tint(purpl)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let snap = snapshot, !snap.entries.isEmpty {
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 10) {
+                            ForEach(snap.entries) { entry in
+                                rowView(entry: entry)
+                            }
+                        }
+                        .padding(16)
+                        .padding(.bottom, 24)
+                    }
+                } else {
+                    VStack(spacing: 12) {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.system(size: 36))
+                            .foregroundStyle(purpl.opacity(0.50))
+                        Text("No results yet")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text("Last week's standings will appear here after the Sunday 8 PM ET reset.")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.45))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .navigationTitle(weekLabel)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .foregroundStyle(purpl)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    @ViewBuilder
+    private func rowView(entry: UserProfileService.WeeklySnapshotEntry) -> some View {
+        let isMe = entry.id == currentUserID
+        HStack(spacing: 12) {
+            // Rank
+            Text("#\(entry.rank)")
+                .font(.system(size: 13, weight: .black, design: .rounded))
+                .foregroundStyle(entry.rank <= 3 ? gold : .white.opacity(0.40))
+                .frame(width: 32, alignment: .trailing)
+
+            // Avatar placeholder
+            Circle()
+                .fill(purpl.opacity(0.18))
+                .frame(width: 36, height: 36)
+                .overlay(
+                    Text(String((entry.displayName.isEmpty ? entry.username : entry.displayName).prefix(1)).uppercased())
+                        .font(.system(size: 14, weight: .black))
+                        .foregroundStyle(purpl)
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.displayName.isEmpty ? entry.username : entry.displayName)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(isMe ? gold : .white)
+                if !entry.location.isEmpty {
+                    Text(entry.location)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.35))
+                }
+            }
+
+            Spacer()
+
+            Text("\(entry.auraPoints) xp")
+                .font(.system(size: 13, weight: .black, design: .rounded))
+                .foregroundStyle(isMe ? gold : purpl)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isMe ? purpl.opacity(0.12) : cardBg)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(isMe ? purpl.opacity(0.30) : Color.white.opacity(0.05), lineWidth: 1)
+                )
+        )
+    }
+}
+
+// MARK: - Weekly Winner Popup
+
+private struct WeeklyWinnerPopup: View {
+    let rank:         Int
+    let xpEarned:     Int
+    let boardEntries: [LeaderboardEntry]
+
+    @Environment(\.dismiss) private var dismiss
+
+    private let pageBg = Color(red: 0.05, green: 0.03, blue: 0.12)
+    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+
+    private var rankEmoji: String {
+        switch rank { case 1: return "🥇"; case 2: return "🥈"; default: return "🥉" }
+    }
+    private var rankLabel: String {
+        switch rank { case 1: return "1st Place"; case 2: return "2nd Place"; default: return "3rd Place" }
+    }
+    private var ordinalSuffix: String {
+        switch rank { case 1: return "st"; case 2: return "nd"; default: return "rd" }
+    }
+
+    var body: some View {
+        ZStack {
+            pageBg.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // Header
+                VStack(spacing: 12) {
+                    Text(rankEmoji)
+                        .font(.system(size: 72))
+                        .padding(.top, 40)
+
+                    Text("Congratulations!")
+                        .font(.system(size: 26, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+
+                    Text("You finished \(rank)\(ordinalSuffix) this week")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.70))
+
+                    // XP pill
+                    HStack(spacing: 6) {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("+\(xpEarned) Aura XP")
+                            .font(.system(size: 15, weight: .black, design: .rounded))
+                    }
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(gold)
+                    .clipShape(Capsule())
+                    .padding(.top, 4)
+                }
+                .frame(maxWidth: .infinity)
+
+                // Board snapshot
+                if !boardEntries.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("This week's final standings")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.40))
+                            .padding(.horizontal, 16)
+                            .padding(.top, 24)
+                            .padding(.bottom, 10)
+
+                        VStack(spacing: 6) {
+                            ForEach(Array(boardEntries.prefix(10).enumerated()), id: \.element.id) { idx, entry in
+                                HStack(spacing: 10) {
+                                    Text(boardRankEmoji(idx + 1))
+                                        .font(.system(size: 16))
+                                        .frame(width: 28)
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(entry.displayName)
+                                            .font(.system(size: 13, weight: .bold))
+                                            .foregroundStyle(entry.isCurrentUser ? gold : .white)
+                                            .lineLimit(1)
+                                    }
+                                    Spacer()
+                                    Text("\(entry.score) xp")
+                                        .font(.system(size: 12, weight: .black, design: .rounded))
+                                        .foregroundStyle(entry.isCurrentUser ? gold : purpl)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(entry.isCurrentUser ? purpl.opacity(0.12) : Color.white.opacity(0.04))
+                                )
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                    }
+                }
+
+                Spacer()
+
+                Button(action: { dismiss() }) {
+                    Text("Awesome!")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(gold)
+                        .cornerRadius(14)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 40)
+                .padding(.top, 24)
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private func boardRankEmoji(_ rank: Int) -> String {
+        switch rank { case 1: return "🥇"; case 2: return "🥈"; case 3: return "🥉"; default: return "#\(rank)" }
     }
 }
 

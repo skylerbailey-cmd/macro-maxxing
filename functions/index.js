@@ -1,7 +1,7 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { initializeApp } = require("firebase-admin/app");
-const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestore");
 
 initializeApp();
 
@@ -175,6 +175,98 @@ exports.computeStreak = onCall(async (request) => {
   await userRef.set({ streakDays: newStreak, lastStreakDate: yesterday }, { merge: true });
   return { streakDays: newStreak };
 });
+
+// ---------------------------------------------------------------------------
+// resetWeeklyAura  (scheduled — runs every Sunday at 8 PM Eastern time)
+// ---------------------------------------------------------------------------
+
+/**
+ * 1. Snapshots the current week's leaderboard into
+ *    `weeklySnapshots/{YYYY-MM-DD}` (keyed by the Sunday date in ET),
+ *    storing up to 100 entries sorted by weeklyAuraPoints descending.
+ *
+ * 2. Resets `weeklyAuraPoints` → 0 and `weeklyAuraWeekStartTimestamp` →
+ *    current Unix timestamp (seconds) for every user with points > 0.
+ *
+ * The iOS app reads `weeklySnapshots` to display last week's results.
+ */
+exports.resetWeeklyAura = onSchedule(
+  { schedule: "0 20 * * 0", timeZone: "America/New_York" },
+  async (_event) => {
+    const db  = getFirestore();
+    const now = new Date();
+
+    // Key the snapshot by the Sunday date in ET (e.g. "2026-03-22").
+    const snapshotKey = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/New_York",
+      year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(now);
+
+    console.log(`[resetWeeklyAura] Running. Snapshot key: ${snapshotKey}`);
+
+    // Read every user with active weekly points.
+    const snapshot = await db.collection("users")
+      .where("weeklyAuraPoints", ">", 0)
+      .get();
+
+    // Build + store the snapshot (top 100).
+    const entries = snapshot.docs.map((doc) => {
+      const d = doc.data();
+      return {
+        userID:          doc.id,
+        username:        d.username        ?? "",
+        displayName:     d.name            ?? "",
+        auraPoints:      d.weeklyAuraPoints ?? 0,
+        profilePhotoURL: d.profilePhotoURL  ?? "",
+        location:        d.location         ?? "",
+      };
+    });
+    entries.sort((a, b) => b.auraPoints - a.auraPoints);
+    const top100 = entries.slice(0, 100).map((e, i) => ({ ...e, rank: i + 1 }));
+
+    await db.collection("weeklySnapshots").doc(snapshotKey).set({
+      entries:       top100,
+      createdAt:     Timestamp.fromDate(now),
+      weekStartDate: snapshotKey,
+    });
+    console.log(`[resetWeeklyAura] Snapshot saved: ${top100.length} entries`);
+
+    // Award XP to top 3 and tag their docs so the iOS app can show the popup.
+    const winnerXP = [500, 300, 150]; // 1st, 2nd, 3rd
+    for (let i = 0; i < Math.min(3, top100.length); i++) {
+      const entry = top100[i];
+      await db.collection("users").doc(entry.userID).update({
+        auraPoints:          FieldValue.increment(winnerXP[i]),
+        weeklyWinnerRank:    i + 1,
+        weeklyWinnerXP:      winnerXP[i],
+        weeklyWinnerWeek:    snapshotKey,  // "YYYY-MM-DD" of the Sunday
+      });
+      console.log(`[resetWeeklyAura] Awarded ${winnerXP[i]} XP to rank ${i + 1}: ${entry.userID}`);
+    }
+
+    // Reset all users in batches.
+    const newWeekStartTs = Math.floor(now.getTime() / 1000); // seconds
+    const BATCH_LIMIT = 499;
+    let batch = db.batch();
+    let pendingWrites = 0;
+
+    for (const doc of snapshot.docs) {
+      batch.update(doc.ref, {
+        weeklyAuraPoints:             0,
+        weeklyAuraWeekStartTimestamp: newWeekStartTs,
+      });
+      pendingWrites++;
+      if (pendingWrites === BATCH_LIMIT) {
+        await batch.commit();
+        batch = db.batch();
+        pendingWrites = 0;
+      }
+    }
+    if (pendingWrites > 0) await batch.commit();
+
+    console.log(`[resetWeeklyAura] Reset complete. ${snapshot.size} users zeroed.`);
+  }
+);
 
 // ---------------------------------------------------------------------------
 // resetExpiredStreaks  (scheduled — runs daily at 8 AM UTC)

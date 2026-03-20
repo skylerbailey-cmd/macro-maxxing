@@ -92,7 +92,8 @@ struct FeedPostDetailView: View {
                     profileAuraPoints:   post.auraPoints,
                     profileImageData:    nil,
                     currentUserSettings: currentUserSettings,
-                    isDismissable:       true
+                    isDismissable:       true,
+                    profileIsPrivate:    !post.isPublic
                 )
             }
             .presentationDetents([.large])

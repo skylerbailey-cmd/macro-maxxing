@@ -63,6 +63,14 @@ struct UserProfile: Codable, Identifiable {
     /// Unix timestamp (seconds) of the Monday that opened the current weekly window.
     var weeklyAuraWeekStartTimestamp: Double
 
+    // MARK: - Weekly winner notification (set by Cloud Function, cleared after display)
+    /// Finishing rank (1/2/3) from the most recent weekly reset. 0 = not a winner.
+    var weeklyWinnerRank: Int
+    /// XP awarded for winning. 0 = not a winner.
+    var weeklyWinnerXP:   Int
+    /// "YYYY-MM-DD" of the Sunday this award was for. Used to avoid double-showing.
+    var weeklyWinnerWeek: String
+
     // MARK: - Dates
 
     /// Unix timestamp (seconds) of when the profile was created.
@@ -106,6 +114,9 @@ struct UserProfile: Codable, Identifiable {
         lastGoalsMetDate:     String   = "",
         weeklyAuraPoints: Int    = 0,
         weeklyAuraWeekStartTimestamp: Double = 0,
+        weeklyWinnerRank: Int    = 0,
+        weeklyWinnerXP:   Int    = 0,
+        weeklyWinnerWeek: String = "",
         joinDate:         Int,
         dateOfBirth:      String = ""
     ) {
@@ -138,6 +149,9 @@ struct UserProfile: Codable, Identifiable {
         self.lastGoalsMetDate    = lastGoalsMetDate
         self.weeklyAuraPoints = weeklyAuraPoints
         self.weeklyAuraWeekStartTimestamp = weeklyAuraWeekStartTimestamp
+        self.weeklyWinnerRank = weeklyWinnerRank
+        self.weeklyWinnerXP   = weeklyWinnerXP
+        self.weeklyWinnerWeek = weeklyWinnerWeek
         self.joinDate         = joinDate
         self.dateOfBirth      = dateOfBirth
     }
@@ -171,6 +185,8 @@ extension UserProfile {
             "windowStartHour":     9,
             "windowStartMinute":   0,
             "windowDurationHours": 8,
+            "weeklyWinnerRank":    0,
+            "weeklyWinnerXP":      0,
         ]
         for (key, value) in intDefaults where data[key] == nil {
             data[key] = value
@@ -195,6 +211,7 @@ extension UserProfile {
         if data["goalsMetDates"]       == nil { data["goalsMetDates"]       = [String]() }
         if data["lastGoalsMetDate"]    == nil { data["lastGoalsMetDate"]    = "" }
         if data["lastStreakCheckDate"] == nil { data["lastStreakCheckDate"] = "" }
+        if data["weeklyWinnerWeek"]    == nil { data["weeklyWinnerWeek"]    = "" }
         let stringDefaults: [String: Any] = [
             "profilePhotoURL": "",
             "location":        "",

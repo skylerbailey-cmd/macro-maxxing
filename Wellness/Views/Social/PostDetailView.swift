@@ -72,7 +72,8 @@ struct PostDetailView: View {
                         profileStreak:      post.authorStreak,
                         ownUserSettings:    post.authorID == userSettings.userID ? userSettings : nil,
                         currentUserSettings: post.authorID == userSettings.userID ? nil : userSettings,
-                        isDismissable:      true
+                        isDismissable:      true,
+                        profileIsPrivate:   post.isAuthorPrivate
                     )
                 }
                 .presentationDetents([.large])

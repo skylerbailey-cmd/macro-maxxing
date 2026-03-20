@@ -419,9 +419,9 @@ struct SocialView: View {
                     profileAuraPoints:   post.auraPoints,
                     profileImageData:    nil,
                     ownUserSettings:     post.userID == userSettings.userID ? userSettings : nil,
-                    currentUserSettings: post.userID == userSettings.userID ? nil :
-                        userSettings,
-                    isDismissable:       true
+                    currentUserSettings: post.userID == userSettings.userID ? nil : userSettings,
+                    isDismissable:       true,
+                    profileIsPrivate:    !post.isPublic
                 )
             }
             .presentationDetents([.large])
@@ -542,8 +542,9 @@ struct SocialView: View {
         teamError   = nil
         defer { teamLoading = false }
         await loadFollowingIDs()
-        // Team = mutual follows (friends)
-        let ids = Array(friendIDs)
+        // Team = mutual follows (friends) + the current user's own posts
+        var ids = Array(friendIDs)
+        if !userSettings.userID.isEmpty { ids.append(userSettings.userID) }
         guard !ids.isEmpty else { return }
         guard let posts = try? await PostService.shared.fetchPostsByAuthors(authorIDs: ids, limit: 200) else {
             teamError = "Couldn't load team posts. Pull down to retry."

@@ -78,7 +78,8 @@ struct FriendsListView: View {
                 profileAuraPoints:   profile.auraPoints,
                 profileImageData:    nil,
                 currentUserSettings: currentUserSettings,
-                isDismissable:       false
+                isDismissable:       false,
+                profileIsPrivate:    profile.isPrivateAccount
             )
         } label: {
             HStack(spacing: 12) {

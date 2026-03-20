@@ -128,6 +128,48 @@ final class UserProfileService {
         }
     }
 
+    // MARK: - Last week's snapshot
+
+    struct WeeklySnapshotEntry: Identifiable {
+        let id:             String   // userID
+        let rank:           Int
+        let username:       String
+        let displayName:    String
+        let auraPoints:     Int
+        let location:       String
+    }
+
+    struct WeeklySnapshot {
+        let weekStartDate: String
+        let entries:       [WeeklySnapshotEntry]
+    }
+
+    /// Fetches the most recent `weeklySnapshots` document (last week's results).
+    func fetchLastWeekSnapshot() async throws -> WeeklySnapshot? {
+        let snap = try await db.collection("weeklySnapshots")
+            .order(by: "createdAt", descending: true)
+            .limit(to: 1)
+            .getDocuments()
+
+        guard let doc = snap.documents.first else { return nil }
+        let data         = doc.data()
+        let weekStart    = data["weekStartDate"] as? String ?? doc.documentID
+        let rawEntries   = data["entries"] as? [[String: Any]] ?? []
+
+        let entries: [WeeklySnapshotEntry] = rawEntries.compactMap { e in
+            guard let userID = e["userID"] as? String else { return nil }
+            return WeeklySnapshotEntry(
+                id:          userID,
+                rank:        e["rank"]        as? Int    ?? 0,
+                username:    e["username"]    as? String ?? "",
+                displayName: e["displayName"] as? String ?? "",
+                auraPoints:  e["auraPoints"]  as? Int    ?? 0,
+                location:    e["location"]    as? String ?? ""
+            )
+        }
+        return WeeklySnapshot(weekStartDate: weekStart, entries: entries)
+    }
+
     // MARK: - 4. Update Profile Fields
 
     /// Merges `fields` into the existing user document.
