@@ -220,8 +220,8 @@ struct LeaderboardView: View {
             let remaining = max(0, UserSettings.nextWeekReset().timeIntervalSinceNow)
             let oldSec = Int(timeUntilReset)
             timeUntilReset = remaining
-            // Blink once per second
-            if Int(remaining) != oldSec {
+            // Blink once per second, only when under 10 hours
+            if remaining < 36000 && Int(remaining) != oldSec {
                 countdownBlink = true
                 withAnimation(.easeInOut(duration: 0.4)) { countdownBlink = false }
             }
@@ -826,16 +826,24 @@ struct LeaderboardView: View {
     private var countdownText: String {
         let clamped = max(0, timeUntilReset)
         let total   = Int(clamped)
-        let millis  = Int((clamped - Double(total)) * 10) // tenths
         let days    = total / 86400
         let hours   = (total % 86400) / 3600
         let mins    = (total % 3600) / 60
         let secs    = total % 60
-        if days > 0 {
-            return String(format: "%dd:%02dh:%02dm:%02d.%ds", days, hours, mins, secs, millis)
-        } else {
-            return String(format: "%02d:%02d:%02d.%d", hours, mins, secs, millis)
+        if total >= 36000 { // 10+ hours: days/hours/minutes only
+            if days > 0 {
+                return String(format: "%dd:%02dh:%02dm", days, hours, mins)
+            } else {
+                return String(format: "%02d:%02d", hours, mins)
+            }
+        } else { // under 10 hours: show seconds + tenths
+            let tenths = Int((clamped - Double(total)) * 10)
+            return String(format: "%d:%02d:%02d.%d", hours, mins, secs, tenths)
         }
+    }
+
+    private var countdownIsUrgent: Bool {
+        timeUntilReset < 36000 // under 10 hours
     }
 
     private var resetCountdownBanner: some View {
@@ -847,7 +855,7 @@ struct LeaderboardView: View {
             Text(countdownText)
                 .font(.system(size: 28, weight: .black, design: .monospaced))
                 .foregroundStyle(gold)
-                .opacity(countdownBlink ? 1.0 : 0.5)
+                .opacity(countdownIsUrgent ? (countdownBlink ? 1.0 : 0.5) : 1.0)
             Text("Sunday 8 PM ET")
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.white.opacity(0.30))
