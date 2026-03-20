@@ -623,7 +623,10 @@ struct AuraGain: Identifiable, Equatable {
             "workoutAdjustmentDate",
             "savedWorkoutTemplates",
             "wt_startTime", "wt_pausedAt", "wt_pausedSeconds",
-            "cachedUserID"
+            "cachedUserID",
+            // Tutorial flags — reset so a new account gets all tutorials
+            "hasSeenAppTour",
+            "hasSeenProfileTutorial",
         ] { ud.removeObject(forKey: key) }
     }
 
