@@ -116,25 +116,33 @@ struct ProfileView: View {
         ZStack {
             pageBg.ignoresSafeArea()
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    headerBanner
-                        .tutorialAnchor("profile.header")
+            ScrollViewReader { scrollProxy in
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        headerBanner
+                            .tutorialAnchor("profile.header")
 
-                    if isLocked {
-                        lockedProfileView
-                    } else {
-                        socialStatsBar
-                            .tutorialAnchor("profile.stats")
-                            .padding(.top, 24)
-                        socialLinks
-                        if !isOwnProfile { addToTeamButton }
-                        if !isOwnProfile && isFollowing { subscribeButton }
-                        postsGrid
-                            .padding(.top, 8)
+                        if isLocked {
+                            lockedProfileView
+                        } else {
+                            socialStatsBar
+                                .tutorialAnchor("profile.stats")
+                                .padding(.top, 24)
+                            socialLinks
+                            if !isOwnProfile { addToTeamButton }
+                            if !isOwnProfile && isFollowing { subscribeButton }
+                            postsGrid
+                                .padding(.top, 8)
+                        }
+                    }
+                    .padding(.bottom, 40)
+                }
+                .onChange(of: showingTutorial) { _, showing in
+                    if showing {
+                        // Scroll balance score into view so the spotlight can highlight it
+                        withAnimation { scrollProxy.scrollTo("balanceScoreAnchor", anchor: .top) }
                     }
                 }
-                .padding(.bottom, 40)
             }
 
             if showingTutorial {
@@ -329,6 +337,7 @@ struct ProfileView: View {
                 // Balance Score
                 if isOwnProfile {
                     balanceScoreBubble
+                        .id("balanceScoreAnchor")
                         .tutorialAnchor("profile.balanceScore")
                         .padding(.top, 8)
                 }
