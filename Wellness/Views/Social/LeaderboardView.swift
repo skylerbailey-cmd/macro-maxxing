@@ -15,6 +15,7 @@ struct LeaderboardEntry: Identifiable, Hashable {
     let displayName:     String
     let username:        String
     let profileImageData: Data?
+    let profilePhotoURL: String
     let auraLevel:       Int
     let location:        String
     let latitude:        Double
@@ -734,6 +735,7 @@ struct LeaderboardView: View {
                 displayName:      displayName,
                 username:         e.username,
                 profileImageData: isCurrentUser ? userSettings.profileImageData : nil,
+                profilePhotoURL:  isCurrentUser ? userSettings.profilePhotoURL : e.profilePhotoURL,
                 auraLevel:        auraLvl,
                 location:         isCurrentUser ? userSettings.location : e.location,
                 latitude:         isCurrentUser ? (locationManager.coordinate?.latitude  ?? 0) : 0,
@@ -755,6 +757,7 @@ struct LeaderboardView: View {
                 displayName:      selfName,
                 username:         userSettings.username,
                 profileImageData: userSettings.profileImageData,
+                profilePhotoURL:  userSettings.profilePhotoURL,
                 auraLevel:        userSettings.auraLevel,
                 location:         userSettings.location,
                 latitude:         locationManager.coordinate?.latitude  ?? 0,
@@ -1531,7 +1534,7 @@ private struct LeaderboardRow: View {
 
     private var avatarView: some View {
         ZStack(alignment: .bottomTrailing) {
-            avatarCircle(size: 44, data: entry.profileImageData, initial: entry.displayName)
+            avatarCircle(size: 44, data: entry.profileImageData, urlString: entry.profilePhotoURL, initial: entry.displayName)
             Text("⭐")
                 .font(.system(size: 9))
                 .padding(2)

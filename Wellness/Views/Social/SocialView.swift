@@ -425,6 +425,7 @@ struct SocialView: View {
                 )
             }
             .presentationDetents([.large])
+            
         }
         .sheet(isPresented: $showingSearch) {
             NavigationStack {
@@ -686,23 +687,44 @@ func postLabelColor(_ label: PostLabel) -> Color {
 
 // Reusable avatar circle used by PostCard and PostDetailView
 func avatarCircle(size: CGFloat, data: Data?, initial: String) -> some View {
+    avatarCircle(size: size, data: data, urlString: "", initial: initial)
+}
+
+/// Avatar circle that supports local image data, a remote URL fallback, or an initial letter.
+func avatarCircle(size: CGFloat, data: Data?, urlString: String, initial: String) -> some View {
     Group {
         if let d = data, let img = UIImage(data: d) {
             Image(uiImage: img)
                 .resizable().scaledToFill()
                 .frame(width: size, height: size)
                 .clipShape(Circle())
-        } else {
-            Circle()
-                .fill(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.25))
-                .frame(width: size, height: size)
-                .overlay {
-                    Text(String(initial.prefix(1)).uppercased())
-                        .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0))
+        } else if let url = URL(string: urlString), !urlString.isEmpty {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable().scaledToFill()
+                        .frame(width: size, height: size)
+                        .clipShape(Circle())
+                default:
+                    avatarPlaceholder(size: size, initial: initial)
                 }
+            }
+        } else {
+            avatarPlaceholder(size: size, initial: initial)
         }
     }
+}
+
+private func avatarPlaceholder(size: CGFloat, initial: String) -> some View {
+    Circle()
+        .fill(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.25))
+        .frame(width: size, height: size)
+        .overlay {
+            Text(String(initial.prefix(1)).uppercased())
+                .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
+                .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0))
+        }
 }
 
 struct PostCard: View {

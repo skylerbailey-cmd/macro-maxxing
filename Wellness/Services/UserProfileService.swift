@@ -102,6 +102,7 @@ final class UserProfileService {
         let location:                    String
         let isPrivate:                   Bool
         let streakDays:                  Int
+        let profilePhotoURL:             String
     }
 
     /// Fetches the top `limit` users by `weeklyAuraPoints` this week.
@@ -123,7 +124,8 @@ final class UserProfileService {
                 weeklyAuraWeekStartTimestamp: data["weeklyAuraWeekStartTimestamp"] as? Double ?? 0,
                 location:                     data["location"]                    as? String ?? "",
                 isPrivate:                    data["isPrivateAccount"]            as? Bool   ?? false,
-                streakDays:                   data["streakDays"]                  as? Int    ?? 0
+                streakDays:                   data["streakDays"]                  as? Int    ?? 0,
+                profilePhotoURL:              data["profilePhotoURL"]             as? String ?? ""
             )
         }
     }
