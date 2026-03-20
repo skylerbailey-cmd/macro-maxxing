@@ -163,7 +163,7 @@ enum TutorialSteps {
     static let board: [TutorialStep] = [
         .init(
             title: "Mog Board",
-            body: "The weekly leaderboard resets every Monday. Your rank is based on the aura XP you earn during the week — hit your macro goals daily, keep your streak alive, and stay active to climb.",
+            body: "The weekly leaderboard resets every Sunday at 8 PM ET. Your rank is based on the aura XP you earn during the week — hit your macro goals daily, keep your streak alive, and stay active to climb.",
             anchorID: "board.header"
         ),
         .init(
