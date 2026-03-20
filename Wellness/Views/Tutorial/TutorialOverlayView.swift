@@ -76,18 +76,13 @@ enum TutorialSteps {
     static let hub: [TutorialStep] = [
         .init(
             title: "Stats at a Glance",
-            body: "Your streak count and aura level are pinned at the top so you always know where you stand before you start your day.",
+            body: "Your streak count and aura level are pinned at the top. Streaks grow each day you hit all four macro goals — calories, protein, carbs, and fat. Aura XP stacks from streaks, posts, and achievements to level you up over time.",
             anchorID: "hub.header"
         ),
         .init(
             title: "Notifications & Profile",
             body: "The bell icon shows in-app notifications — new followers, likes, and streak alerts. Tap your profile picture to view and edit your profile.",
             anchorID: "hub.notifications"
-        ),
-        .init(
-            title: "Streaks & Aura",
-            body: "Hit all four macro KPIs — calories, protein, carbs, and fat — each day to extend your streak. Aura XP stacks from streaks, posts, and achievements.",
-            anchorID: "hub.stats"
         ),
         .init(
             title: "Macro Goal Bars",
