@@ -182,10 +182,9 @@ struct FoodLogView: View {
     private var fuelTabContent: some View {
         ScrollView {
             LazyVStack(spacing: 10) {
-                // Eating window card hidden — fasting feature not yet released
-                // if isToday {
-                //     eatingWindowCard
-                // }
+                if isToday && userSettings.fastingEnabled {
+                    eatingWindowCard
+                }
 
                 foodEntriesContent
                 

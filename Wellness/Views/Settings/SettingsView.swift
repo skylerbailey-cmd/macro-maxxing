@@ -320,16 +320,16 @@ struct SettingsView: View {
                      : "Aura XP is still earned silently — no popup will appear.")
             }
 
-            // MARK: Intermittent Fasting (hidden — feature not yet released)
-            // Section {
-            //     Toggle("Track Intermittent Fasting Window", isOn: $userSettings.fastingEnabled)
-            // } header: {
-            //     Text("Intermittent Fasting")
-            // } footer: {
-            //     Text(userSettings.fastingEnabled
-            //          ? "Your intermittent fasting window is shown on the Home screen. Tap Edit to adjust the start time and duration."
-            //          : "Enable to track your daily intermittent fasting window on the Home screen.")
-            // }
+            // MARK: Intermittent Fasting
+            Section {
+                Toggle("Track Intermittent Fasting Window", isOn: $userSettings.fastingEnabled)
+            } header: {
+                Text("Intermittent Fasting")
+            } footer: {
+                Text(userSettings.fastingEnabled
+                     ? "Your intermittent fasting window is shown on the Home screen. Tap Edit to adjust the start time and duration."
+                     : "Enable to track your daily intermittent fasting window on the Home screen.")
+            }
 
             // MARK: Account Actions
             Section {
