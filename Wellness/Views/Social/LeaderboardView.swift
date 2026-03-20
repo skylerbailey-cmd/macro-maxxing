@@ -829,26 +829,26 @@ struct LeaderboardView: View {
     }
 
     private var resetCountdownBanner: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "timer")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(purpl)
-            Text("Next reset in")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white.opacity(0.55))
+        VStack(spacing: 6) {
+            Text("NEXT RESET")
+                .font(.system(size: 11, weight: .bold))
+                .tracking(2)
+                .foregroundStyle(.white.opacity(0.40))
             Text(countdownText)
-                .font(.system(size: 13, weight: .black, design: .monospaced))
+                .font(.system(size: 28, weight: .black, design: .monospaced))
                 .foregroundStyle(purpl)
-            Spacer()
+            Text("Sunday 8 PM ET")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white.opacity(0.30))
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 16)
                 .fill(cardBg)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(purpl.opacity(0.20), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(purpl.opacity(0.25), lineWidth: 1)
                 )
         )
     }
