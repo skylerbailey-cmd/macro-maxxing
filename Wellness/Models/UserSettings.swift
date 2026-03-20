@@ -424,6 +424,14 @@ struct AuraGain: Identifiable, Equatable {
         var set = achievedMilestones
         set.insert(milestone)
         achievedMilestonesRaw = set.map { String($0) }.joined(separator: ",")
+        // Persist to Firestore so milestones survive reinstalls / device switches
+        let uid = userID
+        let raw = achievedMilestonesRaw
+        guard !uid.isEmpty else { return }
+        Task {
+            try? await UserProfileService.shared.updateProfile(
+                userID: uid, fields: ["achievedMilestones": raw])
+        }
     }
 
     // MARK: - Profile image (local file in Documents dir)
@@ -490,6 +498,13 @@ struct AuraGain: Identifiable, Equatable {
             goalsMetDatesRaw = local.joined(separator: ",")
         }
         auraPopupsEnabled = profile.auraPopupsEnabled
+        // Merge achieved milestones from Firestore with any local values
+        if !profile.achievedMilestones.isEmpty {
+            var local = achievedMilestones   // existing local Set<Int>
+            let remote = Set(profile.achievedMilestones.split(separator: ",").compactMap { Int($0) })
+            local.formUnion(remote)
+            achievedMilestonesRaw = local.map { String($0) }.joined(separator: ",")
+        }
         auraPoints        = profile.auraPoints
         // Restore streak fields from Firestore. Take the higher streak value so a
         // local cache never overwrites a streak that was already correctly computed.

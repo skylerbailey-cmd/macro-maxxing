@@ -50,6 +50,9 @@ struct UserProfile: Codable, Identifiable {
     var windowStartMinute:    Int
     var windowDurationHours:  Int
     var auraPopupsEnabled:    Bool
+    /// Comma-separated streak milestone days already awarded, e.g. "3,7,14".
+    /// Synced to Firestore so milestones survive reinstalls and device switches.
+    var achievedMilestones:   String
     /// Canonical list of "yyyy-MM-dd" date strings on which all macro goals were met.
     /// Used as the primary source of truth for streak calculation across devices.
     var goalsMetDates:        [String]
@@ -116,6 +119,7 @@ struct UserProfile: Codable, Identifiable {
         windowStartMinute:    Int      = 0,
         windowDurationHours:  Int      = 8,
         auraPopupsEnabled:    Bool     = true,
+        achievedMilestones:   String   = "",
         goalsMetDates:        [String] = [],
         lastGoalsMetDate:     String   = "",
         weeklyAuraPoints: Int    = 0,
@@ -154,6 +158,7 @@ struct UserProfile: Codable, Identifiable {
         self.windowStartMinute   = windowStartMinute
         self.windowDurationHours = windowDurationHours
         self.auraPopupsEnabled   = auraPopupsEnabled
+        self.achievedMilestones  = achievedMilestones
         self.goalsMetDates       = goalsMetDates
         self.lastGoalsMetDate    = lastGoalsMetDate
         self.weeklyAuraPoints = weeklyAuraPoints
@@ -222,6 +227,7 @@ extension UserProfile {
         for (key, value) in boolDefaults where data[key] == nil {
             data[key] = value
         }
+        if data["achievedMilestones"]  == nil { data["achievedMilestones"]  = "" }
         if data["goalsMetDates"]       == nil { data["goalsMetDates"]       = [String]() }
         if data["lastGoalsMetDate"]    == nil { data["lastGoalsMetDate"]    = "" }
         if data["lastStreakCheckDate"] == nil { data["lastStreakCheckDate"] = "" }
