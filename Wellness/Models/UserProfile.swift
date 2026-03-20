@@ -109,7 +109,7 @@ struct UserProfile: Codable, Identifiable {
         bio:              String = "",
         instagramHandle:  String = "",
         tiktokHandle:     String = "",
-        isPrivateAccount: Bool   = false,
+        isPrivateAccount: Bool   = true,
         currentWeight:    Double = 160,
         goalWeight:       Double = 160,
         heightInches:     Int    = 0,

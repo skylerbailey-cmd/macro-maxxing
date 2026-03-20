@@ -29,7 +29,7 @@ struct OnboardingView: View {
         byAdding: .year, value: -20, to: Date()) ?? Date()
     @State private var currentWeight:   Double   = 160
     @State private var goalWeight:      Double   = 160
-    @State private var isPrivate:       Bool     = false
+    @State private var isPrivate:       Bool     = true
 
     // Photo picker state
     @State private var showingPhotoPicker  = false
@@ -389,23 +389,23 @@ struct OnboardingView: View {
     private var privacyPage: some View {
         OnboardingPageShell(
             emoji: "🔒",
-            title: "Who can see your posts?",
-            subtitle: "You can change this anytime in Settings."
+            title: "Who can see your profile?",
+            subtitle: "You can always change this later in Settings."
         ) {
             VStack(spacing: 12) {
                 privacyOption(
-                    icon: "globe",
-                    title: "Public",
-                    desc: "Anyone can view your posts and follow you.",
-                    selected: !isPrivate
-                ) { isPrivate = false }
-
-                privacyOption(
                     icon: "lock.fill",
                     title: "Private",
-                    desc: "Only approved followers can see your posts.",
+                    desc: "Only approved followers can see your profile and posts.",
                     selected: isPrivate
                 ) { isPrivate = true }
+
+                privacyOption(
+                    icon: "globe",
+                    title: "Public",
+                    desc: "Anyone can view your profile, follow you, and see your posts. Go public to compete on the Arena and Local leaderboards and earn bonus Aura XP each week.",
+                    selected: !isPrivate
+                ) { isPrivate = false }
 
                 if let error = saveError {
                     Text(error)
