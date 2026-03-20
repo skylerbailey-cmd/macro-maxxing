@@ -22,6 +22,7 @@ struct ContentView: View {
 
     @AppStorage("hasSeenAppTour") private var hasSeenAppTour = false
     @State private var showingAppTour = false
+    @State private var tutorialAnchors: [String: Anchor<CGRect>] = [:]
 
     // Aura popup
     @State private var pendingAuraGain: AuraGain? = nil
@@ -83,6 +84,7 @@ struct ContentView: View {
             }
             .environment(locationManager)
             .environment(notificationState)
+            .onPreferenceChange(TutorialAnchorKey.self) { tutorialAnchors = $0 }
             .task { await notificationState.refresh(userID: userSettings.userID) }
             .task(id: userSettings.userID) {
                 guard !userSettings.userID.isEmpty else { return }
@@ -175,6 +177,7 @@ struct ContentView: View {
                 TutorialOverlayView(
                     steps: TutorialSteps.appTour,
                     selectedTab: $selectedTab,
+                    anchors: tutorialAnchors,
                     onDismiss: {
                         withAnimation(.easeOut(duration: 0.25)) { showingAppTour = false }
                         hasSeenAppTour = true

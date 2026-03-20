@@ -30,74 +30,23 @@ struct TutorialStep {
 
 enum TutorialSteps {
 
-    // MARK: Full App Tour
-    static let appTour: [TutorialStep] = [
-        .init(
-            title: "Welcome to Your Hub",
-            body: "This is your daily command center. Your greeting, streak, aura level, and weight are always visible at the top. Everything starts here.",
-            tabIndex: 0
-        ),
-        .init(
-            title: "Fasting Window",
-            body: "Tap the fasting card to start or stop your fast. The arc fills as you move through your chosen window — 16:8, 18:6, or whatever you set.",
-            tabIndex: 0
-        ),
-        .init(
-            title: "Daily Macro Goals",
-            body: "Your calorie, protein, carb, and fat targets live here. Log meals in the Fuel tab and these bars fill in automatically throughout the day.",
-            tabIndex: 0
-        ),
-        .init(
-            title: "Discipline Score",
-            body: "A 0–100% score that averages how precisely you hit each macro goal. Going over OR under your target both lower the score equally.",
-            tabIndex: 0
-        ),
-        .init(
-            title: "Streaks & Aura XP",
-            body: "Hit all four macro goals every day to extend your streak. Aura XP stacks from streaks, posts, and goal hits to level you up over time.",
-            tabIndex: 0
-        ),
-        .init(
-            title: "Notifications & Profile",
-            body: "The bell icon shows streak alerts, new followers, and likes. Tap your profile picture to view your stats and aura progress.",
-            tabIndex: 0
-        ),
-        .init(
-            title: "Fuel Log — Log a Meal",
-            body: "Snap or upload a photo of your meal. AI reads the plate and estimates your macros instantly. You can edit any value before saving.",
-            tabIndex: 1
-        ),
-        .init(
-            title: "Duel Mode",
-            body: "Tap 'Duel' to compare your daily macros head-to-head with a friend. Challenge someone or accept a pending challenge from here.",
-            tabIndex: 1
-        ),
-        .init(
-            title: "Aura Stream",
-            body: "Your community feed. Every post earns the creator aura XP — likes, comments, and consistent posting boost them further.",
-            tabIndex: 2
-        ),
-        .init(
-            title: "Feed Filters",
-            body: "Switch between Arena (everyone), Team, Following, and Local to control whose content you see.",
-            tabIndex: 2
-        ),
-        .init(
-            title: "Post Label Chips",
-            body: "Tap a chip — Fuel Log, Workout, Transformation, Goal, etc. — to filter the feed to that content type only.",
-            tabIndex: 2
-        ),
-        .init(
-            title: "Mog Board",
-            body: "The weekly leaderboard resets every Monday. Your rank is based on the aura XP you earn during the week — hit your macro goals daily, keep your streak alive, and stay active to climb.",
-            tabIndex: 3
-        ),
-        .init(
-            title: "Leaderboard Scopes",
-            body: "Use the scope picker to compare across Team, Local, or Arena — see how you rank against friends, nearby users, or everyone on the platform.",
-            tabIndex: 3
-        ),
-    ]
+    // MARK: Full App Tour (combines per-tab steps with tab switching + highlighting)
+    static let appTour: [TutorialStep] = {
+        var steps: [TutorialStep] = []
+        for s in hub {
+            steps.append(.init(title: s.title, body: s.body, tabIndex: 0, anchorID: s.anchorID))
+        }
+        for s in log {
+            steps.append(.init(title: s.title, body: s.body, tabIndex: 1, anchorID: s.anchorID))
+        }
+        for s in feed {
+            steps.append(.init(title: s.title, body: s.body, tabIndex: 2, anchorID: s.anchorID))
+        }
+        for s in board {
+            steps.append(.init(title: s.title, body: s.body, tabIndex: 3, anchorID: s.anchorID))
+        }
+        return steps
+    }()
 
     // MARK: Profile
     static let profile: [TutorialStep] = [
