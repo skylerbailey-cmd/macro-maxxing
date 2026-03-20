@@ -231,25 +231,60 @@ exports.resetWeeklyAura = onSchedule(
     });
     console.log(`[resetWeeklyAura] Snapshot saved: ${top100.length} entries`);
 
-    // Award XP to top 10 and tag their docs so the iOS app can show the popup.
-    // Values mirror the leaderboard placement awards: 1st=150, 2nd-3rd=100, 4th-10th=50
-    const xpForRank = (rank) => {
-      if (rank === 1)           return 150;
-      if (rank <= 3)            return 100;
-      if (rank <= 10)           return 50;
+    // XP helpers
+    const arenaXpForRank = (rank) => {
+      if (rank === 1)  return 150;
+      if (rank <= 3)   return 100;
+      if (rank <= 10)  return 50;
       return 0;
     };
+    const localXpForRank = (rank) => {
+      if (rank === 1)  return 75;
+      if (rank <= 3)   return 50;
+      if (rank <= 10)  return 25;
+      return 0;
+    };
+
+    // Award arena XP to top 10 global finishers.
     for (let i = 0; i < Math.min(10, top100.length); i++) {
       const entry = top100[i];
-      const xp    = xpForRank(i + 1);
+      const xp    = arenaXpForRank(i + 1);
       if (xp === 0) continue;
       await db.collection("users").doc(entry.userID).update({
         auraPoints:       FieldValue.increment(xp),
         weeklyWinnerRank: i + 1,
         weeklyWinnerXP:   xp,
-        weeklyWinnerWeek: snapshotKey,  // "YYYY-MM-DD" of the Sunday
+        weeklyWinnerWeek: snapshotKey,
       });
-      console.log(`[resetWeeklyAura] Awarded ${xp} XP to rank ${i + 1}: ${entry.userID}`);
+      console.log(`[resetWeeklyAura] Arena rank ${i + 1}: +${xp} XP → ${entry.userID}`);
+    }
+
+    // Award local XP to top 10 per location group (need full user list for this).
+    // Group all users with weeklyAuraPoints > 0 by their trimmed/lowercased location string.
+    const locationGroups = new Map(); // location → [{ userID, weeklyAuraPoints }]
+    for (const doc of snapshot.docs) {
+      const d   = doc.data();
+      const loc = (d.location ?? "").trim().toLowerCase();
+      if (!loc) continue;
+      if (!locationGroups.has(loc)) locationGroups.set(loc, []);
+      locationGroups.get(loc).push({ userID: doc.id, pts: d.weeklyAuraPoints ?? 0 });
+    }
+
+    for (const [loc, users] of locationGroups) {
+      if (users.length < 2) continue; // need at least 2 to have a local board
+      users.sort((a, b) => b.pts - a.pts);
+      const topLocal = users.slice(0, 10);
+      for (let i = 0; i < topLocal.length; i++) {
+        const xp = localXpForRank(i + 1);
+        if (xp === 0) continue;
+        await db.collection("users").doc(topLocal[i].userID).update({
+          auraPoints:      FieldValue.increment(xp),
+          localWinnerRank: i + 1,
+          localWinnerXP:   xp,
+          localWinnerWeek: snapshotKey,
+        });
+        console.log(`[resetWeeklyAura] Local (${loc}) rank ${i + 1}: +${xp} XP → ${topLocal[i].userID}`);
+      }
     }
 
     // Reset all users in batches.

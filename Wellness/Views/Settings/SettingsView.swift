@@ -57,14 +57,14 @@ private let faqItems: [FAQItem] = [
         • Comment on someone's post → +1 XP
         • Comment with a photo → +5 XP
 
-        Leaderboard (Mog Board, resets every Monday):
+        Leaderboard (Mog Board, resets every Sunday at 8 PM ET):
         Local top 10:
         • #1 → +75 XP  •  #2–3 → +50 XP  •  #4–10 → +25 XP
         Arena top 10:
         • #1 → +150 XP  •  #2–3 → +100 XP  •  #4–10 → +50 XP
 
-        XP is calculated Sunday at 11:59 PM EST and awarded the next time \
-        you open the app. Arena pays more — you're up against everyone.
+        XP is awarded automatically at reset and added to your profile \
+        the next time you open the app. Arena pays more — you're up against everyone.
         """
     ),
     FAQItem(

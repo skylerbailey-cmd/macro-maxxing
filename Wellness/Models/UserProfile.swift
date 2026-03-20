@@ -64,12 +64,18 @@ struct UserProfile: Codable, Identifiable {
     var weeklyAuraWeekStartTimestamp: Double
 
     // MARK: - Weekly winner notification (set by Cloud Function, cleared after display)
-    /// Finishing rank (1/2/3) from the most recent weekly reset. 0 = not a winner.
+    /// Arena finishing rank (1–10) from the most recent weekly reset. 0 = not a winner.
     var weeklyWinnerRank: Int
-    /// XP awarded for winning. 0 = not a winner.
+    /// Arena XP awarded for the weekly finish. 0 = not a winner.
     var weeklyWinnerXP:   Int
-    /// "YYYY-MM-DD" of the Sunday this award was for. Used to avoid double-showing.
+    /// "YYYY-MM-DD" of the Sunday this arena award was for. Used to avoid double-showing.
     var weeklyWinnerWeek: String
+    /// Local-board finishing rank (1–10) from the most recent weekly reset. 0 = not a winner.
+    var localWinnerRank:  Int
+    /// Local XP awarded for the weekly finish. 0 = not a winner.
+    var localWinnerXP:    Int
+    /// "YYYY-MM-DD" of the Sunday this local award was for. Used to avoid double-showing.
+    var localWinnerWeek:  String
 
     // MARK: - Dates
 
@@ -117,6 +123,9 @@ struct UserProfile: Codable, Identifiable {
         weeklyWinnerRank: Int    = 0,
         weeklyWinnerXP:   Int    = 0,
         weeklyWinnerWeek: String = "",
+        localWinnerRank:  Int    = 0,
+        localWinnerXP:    Int    = 0,
+        localWinnerWeek:  String = "",
         joinDate:         Int,
         dateOfBirth:      String = ""
     ) {
@@ -152,6 +161,9 @@ struct UserProfile: Codable, Identifiable {
         self.weeklyWinnerRank = weeklyWinnerRank
         self.weeklyWinnerXP   = weeklyWinnerXP
         self.weeklyWinnerWeek = weeklyWinnerWeek
+        self.localWinnerRank  = localWinnerRank
+        self.localWinnerXP    = localWinnerXP
+        self.localWinnerWeek  = localWinnerWeek
         self.joinDate         = joinDate
         self.dateOfBirth      = dateOfBirth
     }
@@ -187,6 +199,8 @@ extension UserProfile {
             "windowDurationHours": 8,
             "weeklyWinnerRank":    0,
             "weeklyWinnerXP":      0,
+            "localWinnerRank":     0,
+            "localWinnerXP":       0,
         ]
         for (key, value) in intDefaults where data[key] == nil {
             data[key] = value
@@ -212,6 +226,7 @@ extension UserProfile {
         if data["lastGoalsMetDate"]    == nil { data["lastGoalsMetDate"]    = "" }
         if data["lastStreakCheckDate"] == nil { data["lastStreakCheckDate"] = "" }
         if data["weeklyWinnerWeek"]    == nil { data["weeklyWinnerWeek"]    = "" }
+        if data["localWinnerWeek"]     == nil { data["localWinnerWeek"]     = "" }
         let stringDefaults: [String: Any] = [
             "profilePhotoURL": "",
             "location":        "",

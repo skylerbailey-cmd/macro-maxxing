@@ -184,10 +184,14 @@ struct LeaderboardView: View {
         .sheet(isPresented: $showingWinnerPopup, onDismiss: {
             userSettings.pendingWeeklyWinnerRank = nil
             userSettings.pendingWeeklyWinnerXP   = 0
+            userSettings.pendingLocalWinnerRank  = nil
+            userSettings.pendingLocalWinnerXP    = 0
         }) {
             WeeklyWinnerPopup(
-                rank:         userSettings.pendingWeeklyWinnerRank ?? 1,
-                xpEarned:     userSettings.pendingWeeklyWinnerXP,
+                arenaRank:    userSettings.pendingWeeklyWinnerRank,
+                arenaXP:      userSettings.pendingWeeklyWinnerXP,
+                localRank:    userSettings.pendingLocalWinnerRank,
+                localXP:      userSettings.pendingLocalWinnerXP,
                 boardEntries: weeklyAuraDisplayed
             )
         }
@@ -203,8 +207,8 @@ struct LeaderboardView: View {
             userSettings.checkWeeklyReset()
             if selectedScope == .local { locationManager.requestLocationIfNeeded() }
             timeUntilReset = UserSettings.nextWeekReset().timeIntervalSinceNow
-            // Show winner popup if one is pending (user just earned a top-3 finish)
-            if userSettings.pendingWeeklyWinnerRank != nil {
+            // Show winner popup if either an arena or local win is pending
+            if userSettings.pendingWeeklyWinnerRank != nil || userSettings.pendingLocalWinnerRank != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                     showingWinnerPopup = true
                 }
@@ -214,6 +218,9 @@ struct LeaderboardView: View {
             timeUntilReset = max(0, UserSettings.nextWeekReset().timeIntervalSinceNow)
         }
         .onChange(of: userSettings.pendingWeeklyWinnerRank) { _, rank in
+            if rank != nil { showingWinnerPopup = true }
+        }
+        .onChange(of: userSettings.pendingLocalWinnerRank) { _, rank in
             if rank != nil { showingWinnerPopup = true }
         }
         .onChange(of: selectedScope) { _, scope in
@@ -978,8 +985,10 @@ private struct LastWeekResultsSheet: View {
 // MARK: - Weekly Winner Popup
 
 private struct WeeklyWinnerPopup: View {
-    let rank:         Int
-    let xpEarned:     Int
+    let arenaRank:    Int?
+    let arenaXP:      Int
+    let localRank:    Int?
+    let localXP:      Int
     let boardEntries: [LeaderboardEntry]
 
     @Environment(\.dismiss) private var dismiss
@@ -989,10 +998,12 @@ private struct WeeklyWinnerPopup: View {
     private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
     private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
 
-    private var rankEmoji: String {
+    private var totalXP: Int { arenaXP + localXP }
+
+    private func rankEmoji(_ rank: Int) -> String {
         switch rank { case 1: return "🥇"; case 2: return "🥈"; case 3: return "🥉"; default: return "🏅" }
     }
-    private var ordinalSuffix: String {
+    private func ordinal(_ rank: Int) -> String {
         switch rank { case 1: return "st"; case 2: return "nd"; case 3: return "rd"; default: return "th" }
     }
 
@@ -1000,93 +1011,133 @@ private struct WeeklyWinnerPopup: View {
         ZStack {
             pageBg.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // Header
-                VStack(spacing: 12) {
-                    Text(rankEmoji)
-                        .font(.system(size: 72))
-                        .padding(.top, 40)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    // Trophy icon + headline
+                    VStack(spacing: 10) {
+                        Text("🏆")
+                            .font(.system(size: 64))
+                            .padding(.top, 40)
 
-                    Text("Congratulations!")
-                        .font(.system(size: 26, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
+                        Text("Congratulations!")
+                            .font(.system(size: 26, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
 
-                    Text("You finished \(rank)\(ordinalSuffix) this week")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.70))
-
-                    // XP pill
-                    HStack(spacing: 6) {
-                        Image(systemName: "bolt.fill")
-                            .font(.system(size: 14, weight: .bold))
-                        Text("+\(xpEarned) Aura XP")
-                            .font(.system(size: 15, weight: .black, design: .rounded))
+                        Text("You finished in the top 10 this week")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.65))
                     }
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(gold)
-                    .clipShape(Capsule())
-                    .padding(.top, 4)
-                }
-                .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 20)
 
-                // Board snapshot
-                if !boardEntries.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("This week's final standings")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.40))
-                            .padding(.horizontal, 16)
-                            .padding(.top, 24)
-                            .padding(.bottom, 10)
+                    // Award rows
+                    VStack(spacing: 10) {
+                        if let rank = arenaRank, arenaXP > 0 {
+                            awardRow(label: "Arena Board", detail: "\(rankEmoji(rank)) \(rank)\(ordinal(rank)) place", xp: arenaXP)
+                        }
+                        if let rank = localRank, localXP > 0 {
+                            awardRow(label: "Local Board", detail: "\(rankEmoji(rank)) \(rank)\(ordinal(rank)) place", xp: localXP)
+                        }
+                    }
+                    .padding(.horizontal, 24)
 
-                        VStack(spacing: 6) {
-                            ForEach(Array(boardEntries.prefix(10).enumerated()), id: \.element.id) { idx, entry in
-                                HStack(spacing: 10) {
-                                    Text(boardRankEmoji(idx + 1))
-                                        .font(.system(size: 16))
-                                        .frame(width: 28)
-                                    VStack(alignment: .leading, spacing: 1) {
+                    // Total XP pill
+                    if totalXP > 0 {
+                        HStack(spacing: 6) {
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 14, weight: .bold))
+                            Text("+\(totalXP) Aura XP added to your profile")
+                                .font(.system(size: 14, weight: .black, design: .rounded))
+                        }
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(gold)
+                        .clipShape(Capsule())
+                        .padding(.top, 16)
+                    }
+
+                    // Arena board snapshot
+                    if !boardEntries.isEmpty {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("Arena final standings")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.40))
+                                .padding(.horizontal, 16)
+                                .padding(.top, 28)
+                                .padding(.bottom, 10)
+
+                            VStack(spacing: 6) {
+                                ForEach(Array(boardEntries.prefix(10).enumerated()), id: \.element.id) { idx, entry in
+                                    HStack(spacing: 10) {
+                                        Text(boardRankEmoji(idx + 1))
+                                            .font(.system(size: 16))
+                                            .frame(width: 28)
                                         Text(entry.displayName)
                                             .font(.system(size: 13, weight: .bold))
                                             .foregroundStyle(entry.isCurrentUser ? gold : .white)
                                             .lineLimit(1)
+                                        Spacer()
+                                        Text("\(entry.score) xp")
+                                            .font(.system(size: 12, weight: .black, design: .rounded))
+                                            .foregroundStyle(entry.isCurrentUser ? gold : purpl)
                                     }
-                                    Spacer()
-                                    Text("\(entry.score) xp")
-                                        .font(.system(size: 12, weight: .black, design: .rounded))
-                                        .foregroundStyle(entry.isCurrentUser ? gold : purpl)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(entry.isCurrentUser ? purpl.opacity(0.12) : Color.white.opacity(0.04))
+                                    )
                                 }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(entry.isCurrentUser ? purpl.opacity(0.12) : Color.white.opacity(0.04))
-                                )
                             }
+                            .padding(.horizontal, 16)
                         }
-                        .padding(.horizontal, 16)
                     }
-                }
 
-                Spacer()
-
-                Button(action: { dismiss() }) {
-                    Text("Awesome!")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.black)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(gold)
-                        .cornerRadius(14)
+                    Button(action: { dismiss() }) {
+                        Text("Awesome!")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.black)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(gold)
+                            .cornerRadius(14)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 40)
+                    .padding(.top, 28)
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 40)
-                .padding(.top, 24)
             }
         }
         .preferredColorScheme(.dark)
+    }
+
+    @ViewBuilder
+    private func awardRow(label: String, detail: String, xp: Int) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(label)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.45))
+                Text(detail)
+                    .font(.system(size: 15, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+            Spacer()
+            HStack(spacing: 4) {
+                Image(systemName: "bolt.fill")
+                    .font(.system(size: 11, weight: .bold))
+                Text("+\(xp) XP")
+                    .font(.system(size: 13, weight: .black, design: .rounded))
+            }
+            .foregroundStyle(gold)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(gold.opacity(0.12), in: Capsule())
+        }
+        .padding(14)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(gold.opacity(0.20), lineWidth: 1))
     }
 
     private func boardRankEmoji(_ rank: Int) -> String {

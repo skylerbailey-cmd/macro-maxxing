@@ -198,11 +198,19 @@ struct AuraGain: Identifiable, Equatable {
     var lastClaimedWinnerWeek: String = "" {
         didSet { UserDefaults.standard.set(lastClaimedWinnerWeek, forKey: "lastClaimedWinnerWeek") }
     }
-    /// Set by populate(from:) when the Cloud Function tagged this user as a weekly winner.
+    /// Set by populate(from:) when the Cloud Function tagged this user as a weekly arena winner.
     /// Observed by LeaderboardView to trigger the winner popup.
     var pendingWeeklyWinnerRank: Int? = nil
-    /// XP awarded for the pending winner finish.
+    /// XP awarded for the pending arena winner finish.
     var pendingWeeklyWinnerXP:   Int  = 0
+    /// "YYYY-MM-DD" of the last weekly reset for which a local winner award was already claimed.
+    var lastClaimedLocalWinnerWeek: String = "" {
+        didSet { UserDefaults.standard.set(lastClaimedLocalWinnerWeek, forKey: "lastClaimedLocalWinnerWeek") }
+    }
+    /// Set by populate(from:) when the Cloud Function tagged this user as a local weekly winner.
+    var pendingLocalWinnerRank: Int? = nil
+    /// XP awarded for the pending local winner finish.
+    var pendingLocalWinnerXP:   Int  = 0
     /// Comma-separated streak milestones already awarded, e.g. "3,7,14"
     private var achievedMilestonesRaw: String = "" {
         didSet { UserDefaults.standard.set(achievedMilestonesRaw, forKey: "achievedMilestones") }
@@ -500,20 +508,31 @@ struct AuraGain: Identifiable, Equatable {
         }
         checkWeeklyReset()
 
-        // Check for pending weekly winner award set by the Cloud Function.
-        // weeklyWinnerXP > 0 means the server tagged this user as a top-3 finisher.
-        // lastClaimedWinnerWeek prevents showing the popup more than once.
+        // Check for pending arena winner award set by the Cloud Function.
         if profile.weeklyWinnerXP > 0 && profile.weeklyWinnerWeek != lastClaimedWinnerWeek {
             lastClaimedWinnerWeek   = profile.weeklyWinnerWeek
             pendingWeeklyWinnerRank = profile.weeklyWinnerRank
             pendingWeeklyWinnerXP   = profile.weeklyWinnerXP
             auraPoints              = profile.auraPoints   // Cloud Function already incremented
-            // Clear winner fields from Firestore so they don't re-trigger on next open
             let uid = profile.userID
             Task {
                 try? await UserProfileService.shared.updateProfile(
                     userID: uid,
                     fields: ["weeklyWinnerRank": 0, "weeklyWinnerXP": 0, "weeklyWinnerWeek": ""])
+            }
+        }
+
+        // Check for pending local winner award set by the Cloud Function.
+        if profile.localWinnerXP > 0 && profile.localWinnerWeek != lastClaimedLocalWinnerWeek {
+            lastClaimedLocalWinnerWeek = profile.localWinnerWeek
+            pendingLocalWinnerRank     = profile.localWinnerRank
+            pendingLocalWinnerXP       = profile.localWinnerXP
+            auraPoints                 = profile.auraPoints   // Cloud Function already incremented
+            let uid = profile.userID
+            Task {
+                try? await UserProfileService.shared.updateProfile(
+                    userID: uid,
+                    fields: ["localWinnerRank": 0, "localWinnerXP": 0, "localWinnerWeek": ""])
             }
         }
 
@@ -558,9 +577,12 @@ struct AuraGain: Identifiable, Equatable {
         // Aura / leaderboard
         weeklyAuraPoints         = 0
         weeklyAuraWeekStart      = .distantPast
-        lastClaimedWinnerWeek    = ""
-        pendingWeeklyWinnerRank  = nil
-        pendingWeeklyWinnerXP    = 0
+        lastClaimedWinnerWeek      = ""
+        pendingWeeklyWinnerRank    = nil
+        pendingWeeklyWinnerXP      = 0
+        lastClaimedLocalWinnerWeek = ""
+        pendingLocalWinnerRank     = nil
+        pendingLocalWinnerXP       = 0
 
         // Brainstorm
         lastBrainstormResult = ""
@@ -610,7 +632,8 @@ struct AuraGain: Identifiable, Equatable {
         let storedBSDate = UserDefaults.standard.double(forKey: "brainstormUsageDate")
         self.brainstormUsageDate   = storedBSDate > 0
             ? Date(timeIntervalSince1970: storedBSDate) : .distantPast
-        self.lastClaimedWinnerWeek = UserDefaults.standard.string(forKey: "lastClaimedWinnerWeek") ?? ""
+        self.lastClaimedWinnerWeek      = UserDefaults.standard.string(forKey: "lastClaimedWinnerWeek") ?? ""
+        self.lastClaimedLocalWinnerWeek = UserDefaults.standard.string(forKey: "lastClaimedLocalWinnerWeek") ?? ""
         self.lastBrainstormResult  = UserDefaults.standard.string(forKey: "lastBrainstormResult") ?? ""
         let storedBSResultDate = UserDefaults.standard.double(forKey: "lastBrainstormDate")
         self.lastBrainstormDate    = storedBSResultDate > 0
