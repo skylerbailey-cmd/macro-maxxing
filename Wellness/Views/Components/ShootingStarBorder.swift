@@ -98,6 +98,7 @@ struct ShootingStarBorder: View {
                 }
             }
         }
+        .allowsHitTesting(false)
         .onAppear { startDate = .now }
     }
 

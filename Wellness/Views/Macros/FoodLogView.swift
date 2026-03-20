@@ -62,6 +62,11 @@ struct FoodLogView: View {
     }
 
     private var isToday: Bool { Calendar.current.isDateInToday(selectedDate) }
+    /// Editing allowed for today and yesterday — anything older is view-only.
+    private var isEditableDate: Bool {
+        let cal = Calendar.current
+        return cal.isDateInToday(selectedDate) || cal.isDateInYesterday(selectedDate)
+    }
 
     var body: some View {
         mainContent
@@ -102,6 +107,7 @@ struct FoodLogView: View {
             }
             .onChange(of: wDuration) { _, newVal in
                 UserDefaults.standard.set(newVal, forKey: "windowDurationHours")
+                saveWindowToFirestore()
             }
     }
     
@@ -176,13 +182,14 @@ struct FoodLogView: View {
     private var fuelTabContent: some View {
         ScrollView {
             LazyVStack(spacing: 10) {
-                if isToday {
-                    eatingWindowCard
-                }
-                
+                // Eating window card hidden — fasting feature not yet released
+                // if isToday {
+                //     eatingWindowCard
+                // }
+
                 foodEntriesContent
                 
-                if !isToday {
+                if !isEditableDate {
                     pastDateNotice
                 }
                 
@@ -209,9 +216,9 @@ struct FoodLogView: View {
             
             ForEach(viewModel.todayEntries) { entry in
                 FoodEntryRow(entry: entry,
-                             onEdit:   isToday ? { editingEntry = entry } : {},
+                             onEdit:   isEditableDate ? { editingEntry = entry } : {},
                              onDelete: { viewModel.deleteEntry(entry) },
-                             canEdit:  isToday)
+                             canEdit:  isEditableDate)
             }
         }
     }
@@ -220,7 +227,7 @@ struct FoodLogView: View {
         HStack(spacing: 6) {
             Image(systemName: "lock.fill")
                 .font(.caption)
-            Text("Past dates are view-only. Navigate to today to log or edit.")
+            Text("Dates older than yesterday are view-only.")
                 .font(.caption)
         }
         .foregroundStyle(.white.opacity(0.30))
@@ -259,12 +266,14 @@ struct FoodLogView: View {
     }
     
     private func editSheet(for entry: FoodEntry) -> some View {
-        EditEntrySheet(entry: entry) { name, cal, pro, carb, fat, time in
+        EditEntrySheet(entry: entry, onSave: { name, cal, pro, carb, fat, time in
             viewModel.updateEntry(entry, foodName: name,
                                   calories: cal, protein: pro,
                                   carbs: carb, fat: fat,
                                   loggedAt: time)
-        }
+        }, onDelete: {
+            viewModel.deleteEntry(entry)
+        })
         .presentationDetents([.medium])
     }
     
@@ -489,7 +498,23 @@ struct FoodLogView: View {
         }
     }
 
-    // MARK: - Eating window card (Fuel tab only)
+    // MARK: - Eating window helpers
+
+    private func saveWindowToFirestore() {
+        let uid = userSettings.userID
+        guard !uid.isEmpty else { return }
+        let h = wStartHour, m = wStartMin, d = wDuration
+        Task {
+            try? await UserProfileService.shared.updateProfile(
+                userID: uid,
+                fields: [
+                    "windowStartHour":     h,
+                    "windowStartMinute":   m,
+                    "windowDurationHours": d
+                ]
+            )
+        }
+    }
 
     private func timeString(hour: Int, minute: Int) -> String {
         var comps = DateComponents()
@@ -511,6 +536,7 @@ struct FoodLogView: View {
                 wStartMin  = Calendar.current.component(.minute, from: newDate)
                 UserDefaults.standard.set(wStartHour, forKey: "windowStartHour")
                 UserDefaults.standard.set(wStartMin,  forKey: "windowStartMinute")
+                saveWindowToFirestore()
             }
         )
     }
@@ -1286,7 +1312,7 @@ private struct MealScoreInfoSheet: View {
     }
 
     private var mealRatios: (protein: Double, carbs: Double, fat: Double) {
-        let cal = max(entry.calories, 1)
+        let cal = max(entry.protein * 4 + entry.carbs * 4 + entry.fat * 9, 1)
         return ((entry.protein * 4) / cal,
                 (entry.carbs   * 4) / cal,
                 (entry.fat     * 9) / cal)
@@ -1421,6 +1447,7 @@ private struct MealScoreInfoSheet: View {
 private struct EditEntrySheet: View {
     let entry: FoodEntry
     let onSave: (String, Double, Double, Double, Double, Date) -> Void
+    var onDelete: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focus: Field?
 
@@ -1430,13 +1457,15 @@ private struct EditEntrySheet: View {
     @State private var carbsText:    String
     @State private var fatText:      String
     @State private var loggedAt:     Date
-    @State private var showEditError = false
+    @State private var showEditError    = false
+    @State private var showDeleteConfirm = false
 
     private enum Field: Hashable { case name, calories, protein, carbs, fat }
 
-    init(entry: FoodEntry, onSave: @escaping (String, Double, Double, Double, Double, Date) -> Void) {
-        self.entry  = entry
-        self.onSave = onSave
+    init(entry: FoodEntry, onSave: @escaping (String, Double, Double, Double, Double, Date) -> Void, onDelete: (() -> Void)? = nil) {
+        self.entry    = entry
+        self.onSave   = onSave
+        self.onDelete = onDelete
         _foodName     = State(initialValue: entry.foodName)
         _caloriesText = State(initialValue: String(format: "%.0f", entry.calories))
         _proteinText  = State(initialValue: String(format: "%.1f", entry.protein))
@@ -1478,6 +1507,26 @@ private struct EditEntrySheet: View {
                         .font(.caption)
                     }
                 }
+                if onDelete != nil {
+                    Section {
+                        Button(role: .destructive) {
+                            showDeleteConfirm = true
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Text("Delete Entry")
+                                Spacer()
+                            }
+                        }
+                    }
+                }
+            }
+            .confirmationDialog("Delete this entry?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+                Button("Delete", role: .destructive) {
+                    onDelete?()
+                    dismiss()
+                }
+                Button("Cancel", role: .cancel) {}
             }
             .onChange(of: caloriesText) { _, _ in if showEditError && isValid { showEditError = false } }
             .onChange(of: proteinText)  { _, _ in if showEditError && isValid { showEditError = false } }

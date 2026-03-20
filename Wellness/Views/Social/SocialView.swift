@@ -22,9 +22,6 @@ struct SocialView: View {
 
     @Environment(LocationManager.self) private var locationManager
     @Environment(NotificationState.self) private var notificationState
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \SocialPost.postedAt, order: .reverse) private var posts: [SocialPost]
-
     /// Firestore-loaded set of userIDs the current user follows.
     @State private var followingIDs: Set<String> = []
     /// Intersection of followingIDs and followerIDs — mutual friends.
@@ -33,16 +30,24 @@ struct SocialView: View {
     @State private var showingTutorial   = false
     @State private var tutorialAnchors:  [String: Anchor<CGRect>] = [:]
     @State private var showingNewPost    = false
-    @State private var selectedPost:     SocialPost?
     @State private var selectedFeed:     Feed        = .arena
-    @State private var viewingProfile:   SocialPost? = nil
     @State private var showingOwnProfile = false
     @State private var showingSearch     = false
     @State private var showingNotifications = false
     @State private var labelFilter:      PostLabel?  = nil
 
-    /// Firestore-backed Arena feed — used instead of SwiftData for the Arena tab.
+    /// Firestore-backed Arena feed.
     @State private var arenaViewModel = FeedViewModel()
+
+    /// Firestore-backed Team feed state.
+    @State private var teamFirestorePosts: [FeedPost] = []
+    @State private var teamLoading:        Bool        = false
+    @State private var teamError:          String?     = nil
+
+    /// Firestore-backed Following feed state.
+    @State private var followingFirestorePosts: [FeedPost] = []
+    @State private var followingLoading:        Bool        = false
+    @State private var followingError:          String?     = nil
 
     /// Firestore-backed Local feed state.
     @State private var localFirestorePosts: [FeedPost] = []
@@ -61,25 +66,16 @@ struct SocialView: View {
         case arena     = "Arena"
     }
 
-    private var teamPosts: [SocialPost] {
-        // Own posts + mutual follows (friends only)
-        posts.filter { post in
-            post.authorID == userSettings.userID ||
-            friendIDs.contains(post.authorID)
-        }
+    /// Label-filtered view of the Firestore Team feed.
+    private var teamDisplayed: [FeedPost] {
+        guard let filter = labelFilter else { return teamFirestorePosts }
+        return teamFirestorePosts.filter { $0.postLabel == filter.rawValue }
     }
 
-    private var followingPosts: [SocialPost] {
-        // Own posts + everyone the current user follows (one-way or mutual)
-        posts.filter { post in
-            post.authorID == userSettings.userID ||
-            followingIDs.contains(post.authorID)
-        }
-    }
-
-
-    private var arenaPosts: [SocialPost] {
-        posts.filter { isVisible($0) }
+    /// Label-filtered view of the Firestore Following feed.
+    private var followingDisplayed: [FeedPost] {
+        guard let filter = labelFilter else { return followingFirestorePosts }
+        return followingFirestorePosts.filter { $0.postLabel == filter.rawValue }
     }
 
     /// Label-filtered view of the Firestore Arena feed.
@@ -95,7 +91,6 @@ struct SocialView: View {
         guard let coord = locationManager.coordinate else { return [] }
         let userLoc = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
 
-        // Keep own posts + public posts within 100 miles that have valid coordinates
         let nearby = localFirestorePosts.filter { post in
             if post.userID == userSettings.userID { return true }
             guard post.isPublic else { return false }
@@ -104,7 +99,6 @@ struct SocialView: View {
                 .distance(from: userLoc) <= Self.localRadiusMeters
         }
 
-        // Deduplicate authors, keep 500 closest, then return all their posts
         var authorDist: [String: Double] = [:]
         for post in nearby {
             guard authorDist[post.userID] == nil else { continue }
@@ -116,43 +110,6 @@ struct SocialView: View {
 
         guard let filter = labelFilter else { return filtered }
         return filtered.filter { $0.postLabel == filter.rawValue }
-    }
-
-    private var displayedPosts: [SocialPost] {
-        let base: [SocialPost]
-        switch selectedFeed {
-        case .team:            base = ranked(teamPosts)
-        case .following:       base = ranked(followingPosts)
-        case .local, .arena:   base = [] // handled by Firestore paths
-        }
-        guard let filter = labelFilter else { return base }
-        return base.filter { $0.postLabel == filter.rawValue }
-    }
-
-    /// Returns true if a post should be visible in local/arena feeds.
-    /// Private accounts (including your own) are hidden from local and arena entirely.
-    private func isVisible(_ post: SocialPost) -> Bool {
-        if post.authorID == userSettings.userID { return !userSettings.isPrivateAccount }
-        return !post.isAuthorPrivate
-    }
-
-    /// Ranks posts by a blend of engagement and recency.
-    /// Posts under 1 hour old get a decaying boost (up to +30) on top of their engagement score.
-    /// Engagement: reps + comments × 2 (comments weighted higher — more effort than a rep).
-    private func ranked(_ input: [SocialPost]) -> [SocialPost] {
-        let now = Date()
-        return input.sorted { a, b in
-            feedScore(a, now: now) > feedScore(b, now: now)
-        }
-    }
-
-    private func feedScore(_ post: SocialPost, now: Date) -> Double {
-        let ageHours    = max(0, now.timeIntervalSince(post.postedAt) / 3600)
-        let engagement  = Double(post.repsCount) + Double(post.comments.count) * 2.0
-        // Large boost in the first hour, then a smaller tail that fades to zero at 24 hours
-        let firstHourBoost = ageHours < 1  ? (1.0 - ageHours) * 20.0        : 0.0
-        let dailyBoost     = ageHours < 24 ? (1.0 - ageHours / 24.0) * 10.0 : 0.0
-        return engagement + firstHourBoost + dailyBoost
     }
 
     var body: some View {
@@ -211,11 +168,16 @@ struct SocialView: View {
                     if selectedFeed == .local { locationManager.requestLocationIfNeeded() }
                 }
                 .onChange(of: selectedFeed) { _, feed in
-                    if feed == .local {
+                    switch feed {
+                    case .local:
                         locationManager.requestLocationIfNeeded()
-                        if localFirestorePosts.isEmpty {
-                            Task { await loadLocalFeed() }
-                        }
+                        if localFirestorePosts.isEmpty { Task { await loadLocalFeed() } }
+                    case .team:
+                        if teamFirestorePosts.isEmpty { Task { await loadTeamFeed() } }
+                    case .following:
+                        if followingFirestorePosts.isEmpty { Task { await loadFollowingFeed() } }
+                    case .arena:
+                        break
                     }
                 }
 
@@ -312,51 +274,69 @@ struct SocialView: View {
                             await notificationState.refresh(userID: userSettings.userID)
                         }
                     }
-                } else {
-                    // ── SwiftData-backed Team / Following feeds ───────────────
-                    if displayedPosts.isEmpty {
+                } else if selectedFeed == .team {
+                    // ── Firestore-backed Team feed ────────────────────────────
+                    if teamLoading && teamFirestorePosts.isEmpty {
+                        arenaSkeletonFeed
+                    } else if let err = teamError {
+                        arenaErrorView(err)
+                    } else if teamDisplayed.isEmpty {
                         emptyFeed
                     } else {
-                        List {
-                            ForEach(displayedPosts) { post in
-                                PostCard(post: post, userID: userSettings.userID,
-                                         userSettings: userSettings,
-                                         followingIDs: $followingIDs,
-                                         onAvatarTap: { viewingProfile = post })
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { selectedPost = post }
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                        if post.authorID == userSettings.userID {
-                                            Button(role: .destructive) {
-                                                let fbID   = post.firebasePostID
-                                                let userID = post.authorID
-                                                modelContext.delete(post)
-                                                if !fbID.isEmpty {
-                                                    Task {
-                                                        do {
-                                                            try await PostService.shared.deletePostByID(
-                                                                postID: fbID,
-                                                                userID: userID
-                                                            )
-                                                        } catch {
-                                                            print("[SocialView] Firebase delete failed: \(error.localizedDescription)")
-                                                        }
-                                                    }
-                                                }
-                                            } label: {
-                                                Label("Delete", systemImage: "trash")
-                                            }
-                                        }
-                                    }
-                                    .listRowBackground(Color.clear)
-                                    .listRowSeparator(.hidden)
-                                    .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                        ScrollView {
+                            LazyVStack(spacing: 12) {
+                                ForEach(teamDisplayed) { post in
+                                    FeedPostCard(
+                                        post:          post,
+                                        currentUserID: userSettings.userID,
+                                        onRep:        { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
+                                        onDelete:     post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
+                                        onTap:        { selectedFeedPost = post },
+                                        onAvatarTap:  { profileFeedPost  = post },
+                                        onCommentTap: { commentFeedPost  = post }
+                                    )
+                                }
                             }
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+                            .padding(.bottom, 40)
                         }
-                        .listStyle(.plain)
-                        .scrollContentBackground(.hidden)
                         .refreshable {
                             await loadFollowingIDs()
+                            await loadTeamFeed()
+                            await notificationState.refresh(userID: userSettings.userID)
+                        }
+                    }
+                } else {
+                    // ── Firestore-backed Following feed ───────────────────────
+                    if followingLoading && followingFirestorePosts.isEmpty {
+                        arenaSkeletonFeed
+                    } else if let err = followingError {
+                        arenaErrorView(err)
+                    } else if followingDisplayed.isEmpty {
+                        emptyFeed
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 12) {
+                                ForEach(followingDisplayed) { post in
+                                    FeedPostCard(
+                                        post:          post,
+                                        currentUserID: userSettings.userID,
+                                        onRep:        { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
+                                        onDelete:     post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
+                                        onTap:        { selectedFeedPost = post },
+                                        onAvatarTap:  { profileFeedPost  = post },
+                                        onCommentTap: { commentFeedPost  = post }
+                                    )
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+                            .padding(.bottom, 40)
+                        }
+                        .refreshable {
+                            await loadFollowingIDs()
+                            await loadFollowingFeed()
                             await notificationState.refresh(userID: userSettings.userID)
                         }
                     }
@@ -380,14 +360,23 @@ struct SocialView: View {
             _ = await (followingLoad, arenaLoad)
         }
         .sheet(isPresented: $showingNewPost) {
-            NewPostView(userSettings: userSettings)
-                .environment(locationManager)
+            NewPostView(userSettings: userSettings, onPostCompleted: {
+                // Secondary refresh after Firebase write completes — guarantees
+                // fuelLogItems are in Firestore before we fetch.
+                Task { await arenaViewModel.refresh() }
+                if !localFirestorePosts.isEmpty     { Task { await loadLocalFeed() } }
+                if !teamFirestorePosts.isEmpty      { Task { await loadTeamFeed() } }
+                if !followingFirestorePosts.isEmpty { Task { await loadFollowingFeed() } }
+            })
+            .environment(locationManager)
         }
         .onChange(of: showingNewPost) { _, isShowing in
             // Refresh Firestore feeds when the post sheet closes so new posts appear immediately
             if !isShowing {
                 Task { await arenaViewModel.refresh() }
-                if !localFirestorePosts.isEmpty { Task { await loadLocalFeed() } }
+                if !localFirestorePosts.isEmpty     { Task { await loadLocalFeed() } }
+                if !teamFirestorePosts.isEmpty      { Task { await loadTeamFeed() } }
+                if !followingFirestorePosts.isEmpty { Task { await loadFollowingFeed() } }
             }
         }
         .sheet(isPresented: $showingNotifications) {
@@ -408,7 +397,6 @@ struct SocialView: View {
                 )
             }
         }
-        .sheet(item: $selectedPost) { post in PostDetailView(post: post, userSettings: userSettings) }
         .sheet(item: $selectedFeedPost) { post in
             NavigationStack {
                 FeedPostDetailView(post: post, currentUserSettings: userSettings)
@@ -430,26 +418,9 @@ struct SocialView: View {
                     profileAuraLevel:    post.auraLevel,
                     profileAuraPoints:   post.auraPoints,
                     profileImageData:    nil,
-                    currentUserSettings: post.userID == userSettings.userID ? nil : userSettings,
                     ownUserSettings:     post.userID == userSettings.userID ? userSettings : nil,
-                    isDismissable:       true
-                )
-            }
-            .presentationDetents([.large])
-        }
-        .sheet(item: $viewingProfile, onDismiss: { Task { await loadFollowingIDs() } }) { post in
-            NavigationStack {
-                ProfileView(
-                    profileUserID:       post.authorID,
-                    profileUsername:     post.authorUsername,
-                    profileDisplayName:  post.authorDisplayName,
-                    profileAuraLevel:    post.authorAuraLevel,
-                    profileAuraPoints:   post.authorAuraPoints,
-                    profileImageData:    post.authorProfileImageData,
-                    profileLocation:     post.authorLocation,
-                    profileStreak:       post.authorStreak,
-                    ownUserSettings:     post.authorID == userSettings.userID ? userSettings : nil,
-                    currentUserSettings: post.authorID == userSettings.userID ? nil : userSettings,
+                    currentUserSettings: post.userID == userSettings.userID ? nil :
+                        userSettings,
                     isDismissable:       true
                 )
             }
@@ -562,6 +533,40 @@ struct SocialView: View {
             return
         }
         localFirestorePosts = posts
+    }
+
+    // MARK: - Team feed
+
+    private func loadTeamFeed() async {
+        teamLoading = true
+        teamError   = nil
+        defer { teamLoading = false }
+        await loadFollowingIDs()
+        // Team = mutual follows (friends)
+        let ids = Array(friendIDs)
+        guard !ids.isEmpty else { return }
+        guard let posts = try? await PostService.shared.fetchPostsByAuthors(authorIDs: ids, limit: 200) else {
+            teamError = "Couldn't load team posts. Pull down to retry."
+            return
+        }
+        teamFirestorePosts = posts
+    }
+
+    // MARK: - Following feed
+
+    private func loadFollowingFeed() async {
+        followingLoading = true
+        followingError   = nil
+        defer { followingLoading = false }
+        await loadFollowingIDs()
+        // Following = everyone the current user follows, excluding self
+        let ids = Array(followingIDs).filter { $0 != userSettings.userID }
+        guard !ids.isEmpty else { return }
+        guard let posts = try? await PostService.shared.fetchPostsByAuthors(authorIDs: ids, limit: 200) else {
+            followingError = "Couldn't load following posts. Pull down to retry."
+            return
+        }
+        followingFirestorePosts = posts
     }
 
     // MARK: - Following IDs
@@ -834,7 +839,7 @@ struct PostCard: View {
                         .clipShape(Capsule())
                     }
                 }
-                Text("@\(post.authorUsername)  ·  \(post.postedAt, format: .dateTime.month(.abbreviated).day().hour().minute())")
+                Text("@\(post.authorUsername)  ·  \(timeAgo(from: post.postedAt))")
                     .font(.caption2).foregroundStyle(.white.opacity(0.35))
             }
             Spacer()
@@ -1241,6 +1246,17 @@ struct PostCard: View {
                     .font(.system(size: 10, weight: .black, design: .rounded))
                     .foregroundStyle(color)
             }
+        }
+    }
+
+    private func timeAgo(from date: Date) -> String {
+        let s = Int(Date().timeIntervalSince(date))
+        switch s {
+        case ..<60:          return "just now"
+        case 60..<3600:      return "\(s / 60)m"
+        case 3600..<86400:   return "\(s / 3600)h"
+        case 86400..<604800: return "\(s / 86400)d"
+        default:             return "\(s / 604800)w"
         }
     }
 

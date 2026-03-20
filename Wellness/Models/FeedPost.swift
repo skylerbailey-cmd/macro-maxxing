@@ -59,40 +59,40 @@ struct FeedPost: Codable, Identifiable {
     // MARK: - Author snapshot
 
     /// Aura level at time of posting — displayed as a badge without a live lookup.
-    var auraLevel:  Int
-    var auraPoints: Int
-    var auraTitle:  String
+    var auraLevel:  Int    = 0
+    var auraPoints: Int    = 0
+    var auraTitle:  String = ""
 
     /// Macro streak at time of posting.
-    var streak: Int
+    var streak: Int = 0
 
     /// Meme badge key (e.g. "sigma", "gigachad", "roman"). Matches asset names.
-    var memeType: String
+    var memeType: String = ""
 
     /// Fasting window at time of posting, e.g. "9:00 AM – 5:00 PM · 8h window". Empty if not applicable.
-    var fastingWindowDisplay: String
+    var fastingWindowDisplay: String = ""
 
     /// Post label (PostLabel.rawValue). Empty string means no label.
-    var postLabel: String
+    var postLabel: String = ""
 
     /// Mog Board sub-selections (only relevant when postLabel == "Mog Board").
-    var mogBoardScope:    String
-    var mogBoardType:     String
-    var mogBoardSnapshot: String
+    var mogBoardScope:    String = ""
+    var mogBoardType:     String = ""
+    var mogBoardSnapshot: String = ""
 
     // MARK: - Location
 
     /// Human-readable city/region string shown on the post card.
-    var locationName: String
+    var locationName: String = ""
 
     /// Geo-coordinates stored for radius-based feed queries.
-    var latitude:  Double
-    var longitude: Double
+    var latitude:  Double = 0
+    var longitude: Double = 0
 
     // MARK: - Visibility
 
     /// False if the author had a private account when posting.
-    var isPublic: Bool
+    var isPublic: Bool = true
 
     // MARK: - Fuel log items (written when posting a fuel log so all users see the table)
 

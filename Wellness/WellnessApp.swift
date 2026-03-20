@@ -88,14 +88,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     private func handleStreakReset(_ task: BGAppRefreshTask) {
-        // Reschedule for the next midnight before doing any work
+        // Streak is now checked on app launch via StreakService.checkAndUpdateStreak.
+        // This background slot is kept registered so the OS doesn't penalise the app,
+        // but no streak logic runs here.
         Self.scheduleStreakReset()
-
-        let work = Task {
-            await StreakService.verifyAndResetInBackground()
-            task.setTaskCompleted(success: true)
-        }
-        task.expirationHandler = { work.cancel() }
+        task.setTaskCompleted(success: true)
     }
 }
 

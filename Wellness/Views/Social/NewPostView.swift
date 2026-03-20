@@ -82,6 +82,9 @@ private func dailyIndex(for prompts: [String]) -> Int {
 
 struct NewPostView: View {
     let userSettings: UserSettings
+    /// Called on the main actor after the Firestore post write completes.
+    /// Use this to trigger a feed refresh so fuel log items are guaranteed to be in Firestore.
+    var onPostCompleted: (() -> Void)? = nil
     @Environment(LocationManager.self) private var locationManager
 
     @Environment(\.modelContext) private var modelContext
@@ -106,7 +109,7 @@ struct NewPostView: View {
     @State private var isLoadingWorkouts = false
 
     private let mogBoardScopes = ["Team", "Local", "Arena"]
-    private let mogBoardTypes  = ["Weekly Aura", "Engagement", "Streak"]
+    private let mogBoardTypes  = ["Weekly Aura"]
 
     private enum Field: Hashable { case title, body }
 
@@ -215,7 +218,7 @@ struct NewPostView: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Post") { submit() }
+                    Button("Post") { Task { await submit() } }
                         .fontWeight(.bold)
                         .disabled(titleText.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
@@ -562,29 +565,6 @@ struct NewPostView: View {
                 }
             }
 
-            // Board type
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Board")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.50))
-                HStack(spacing: 8) {
-                    ForEach(mogBoardTypes, id: \.self) { type in
-                        let isSelected = mogBoardType == type
-                        Button {
-                            withAnimation(.spring(duration: 0.2)) { mogBoardType = type }
-                        } label: {
-                            Text(type)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(isSelected ? .black : .white.opacity(0.65))
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(Capsule().fill(isSelected ? gold : Color.white.opacity(0.08)))
-                                .overlay(Capsule().stroke(gold.opacity(isSelected ? 0 : 0.25), lineWidth: 1))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
         }
         .padding(12)
         .background(cardBg)
@@ -597,56 +577,38 @@ struct NewPostView: View {
 
     // MARK: - Helpers
 
-    /// Builds a top-10 leaderboard snapshot for the selected mogBoard scope/type.
-    /// Uses Arena-equivalent filtering (all public users) since followingIDs aren't
-    /// available synchronously at post time.
-    private func computeMogBoardSnapshot() -> [MogBoardSnapshotEntry] {
-        let weekStart = UserSettings.lastSundayAwardCutoff() ?? Date.distantPast
-        let selfName  = userSettings.name.isEmpty ? userSettings.username : userSettings.name
-        var data: [String: (name: String, username: String, score: Int)] = [:]
+    /// Fetches the top-10 Weekly Aura snapshot from Firestore — same source as the
+    /// board tab — so the post always matches what the leaderboard actually shows.
+    private func computeMogBoardSnapshot() async -> [MogBoardSnapshotEntry] {
+        let selfName        = userSettings.name.isEmpty ? userSettings.username : userSettings.name
+        let currentWeekStart = UserSettings.currentWeekStart().timeIntervalSince1970
 
-        switch mogBoardType {
-        case "Streak":
-            data[userSettings.userID] = (selfName, userSettings.username, userSettings.macroStreak)
-            for post in allSocialPosts where post.authorID != userSettings.userID && !post.isAuthorPrivate {
-                let name = post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName
-                if let existing = data[post.authorID] {
-                    if post.authorStreak > existing.score {
-                        data[post.authorID] = (name, post.authorUsername, post.authorStreak)
-                    }
-                } else {
-                    data[post.authorID] = (name, post.authorUsername, post.authorStreak)
-                }
-            }
-        case "Engagement":
-            data[userSettings.userID] = (selfName, userSettings.username, 0)
-            for post in allSocialPosts where post.postedAt >= weekStart && !post.isAuthorPrivate {
-                let name  = post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName
-                let score = post.repsCount + post.comments.count
-                if var existing = data[post.authorID] {
-                    existing.score += score
-                    data[post.authorID] = existing
-                } else {
-                    data[post.authorID] = (name, post.authorUsername, score)
-                }
-            }
-        default: // Weekly Aura
-            data[userSettings.userID] = (selfName, userSettings.username, userSettings.weeklyAuraPoints)
-            for post in allSocialPosts where post.postedAt >= weekStart
-                    && post.authorID != userSettings.userID && !post.isAuthorPrivate {
-                let pts  = post.goalCalories > 0 ? 50 : 10
-                let name = post.authorDisplayName.isEmpty ? post.authorUsername : post.authorDisplayName
-                if var existing = data[post.authorID] {
-                    existing.score += pts
-                    data[post.authorID] = existing
-                } else {
-                    data[post.authorID] = (name, post.authorUsername, pts)
-                }
-            }
+        let firestoreEntries = (try? await UserProfileService.shared.fetchWeeklyAuraBoard()) ?? []
+
+        // Start with self (always included, uses live local value)
+        var entries: [MogBoardSnapshotEntry] = [
+            MogBoardSnapshotEntry(
+                id:          userSettings.userID,
+                displayName: selfName,
+                username:    userSettings.username,
+                score:       userSettings.weeklyAuraPoints
+            )
+        ]
+
+        // Add everyone else from Firestore whose weekly window is current
+        for e in firestoreEntries where e.userID != userSettings.userID {
+            guard e.weeklyAuraWeekStartTimestamp >= currentWeekStart else { continue }
+            let displayName = e.name.isEmpty ? e.username : e.name
+            entries.append(MogBoardSnapshotEntry(
+                id:          e.userID,
+                displayName: displayName,
+                username:    e.username,
+                score:       e.weeklyAuraPoints
+            ))
         }
 
         return Array(
-            data.map { id, d in MogBoardSnapshotEntry(id: id, displayName: d.name, username: d.username, score: d.score) }
+            entries
                 .sorted { $0.score != $1.score ? $0.score > $1.score : $0.displayName < $1.displayName }
                 .prefix(10)
         )
@@ -674,7 +636,8 @@ struct NewPostView: View {
         }
     }
 
-    private func submit() {
+    @MainActor
+    private func submit() async {
         let t = titleText.trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty else { return }
 
@@ -712,7 +675,7 @@ struct NewPostView: View {
         if selectedLabel == .mogBoard {
             post.mogBoardScope = mogBoardScope
             post.mogBoardType  = mogBoardType
-            let snapshotEntries = computeMogBoardSnapshot()
+            let snapshotEntries = await computeMogBoardSnapshot()
             if let snapshotData = try? JSONEncoder().encode(snapshotEntries),
                let snapshotJSON = String(data: snapshotData, encoding: .utf8) {
                 post.mogBoardSnapshot = snapshotJSON
@@ -743,6 +706,12 @@ struct NewPostView: View {
                 post.fuelLogEntries.append(fuelEntry)
                 modelContext.insert(fuelEntry)
             }
+        }
+
+        // Award aura for workout post — once per day only
+        if selectedLabel == .workout, !userSettings.hasEarnedWorkoutPostAuraToday {
+            userSettings.awardAura(points: 25)
+            userSettings.lastWorkoutPostDate = Date()
         }
 
         if selectedLabel == .workout {
@@ -796,6 +765,7 @@ struct NewPostView: View {
             isPublic:            !userSettings.isPrivateAccount
         )
 
+        let postCompletedCallback = onPostCompleted
         Task {
             do {
                 try await PostService.shared.createCustomPost(
@@ -822,6 +792,10 @@ struct NewPostView: View {
                     workoutItems:  feedWorkoutItems,
                     postID:        fbPostID
                 )
+                // Notify the feed to refresh now that Firestore has the complete post data
+                // (including fuelLogItems). This avoids a race where the feed refresh fires
+                // before the write completes and shows the post without its fuel log.
+                await MainActor.run { postCompletedCallback?() }
             } catch {
                 print("[NewPostView] Firebase sync failed: \(error.localizedDescription)")
             }

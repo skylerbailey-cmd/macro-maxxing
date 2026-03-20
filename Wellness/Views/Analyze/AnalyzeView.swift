@@ -96,7 +96,7 @@ struct AnalyzeView: View {
                     .font(.title3.bold())
                     .foregroundStyle(.white)
 
-                Text("Tap **Analyze** and Claude will review everything you've logged for the selected day — your meals, current macro totals, and goals — then give you personalized suggestions.\n\nYou'll get specific meal swaps, snack ideas, or simple tweaks to help you hit your targets.")
+                Text("Tap **Analyze** and AI will review everything you've logged for the selected day — your meals, current macro totals, and goals — then give you personalized suggestions.\n\nYou'll get specific meal swaps, snack ideas, or simple tweaks to help you hit your targets.")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.55))
                     .multilineTextAlignment(.center)
@@ -143,7 +143,7 @@ struct AnalyzeView: View {
 
             Divider().background(Color.white.opacity(0.08))
 
-            // Render Claude's markdown response
+            // Render AI markdown response
             if let attrStr = try? AttributedString(
                 markdown: text,
                 options: AttributedString.MarkdownParsingOptions(

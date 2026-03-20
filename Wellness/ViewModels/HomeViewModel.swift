@@ -4,8 +4,9 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
-@Observable final class HomeViewModel {
+@MainActor @Observable final class HomeViewModel {
     // MARK: - Selected date
     var selectedDate: Date {
         didSet {
@@ -23,6 +24,7 @@ import Foundation
         didSet {
             UserDefaults.standard.set(windowStartHour, forKey: "windowStartHour")
             snapshotTodayWindow()
+            saveWindowToFirestore()
             if userSettings.fastingEnabled {
                 NotificationService.shared.scheduleFastingWindowNotification(
                     windowStartHour: windowStartHour, windowStartMinute: windowStartMinute)
@@ -33,6 +35,7 @@ import Foundation
         didSet {
             UserDefaults.standard.set(windowStartMinute, forKey: "windowStartMinute")
             snapshotTodayWindow()
+            saveWindowToFirestore()
             if userSettings.fastingEnabled {
                 NotificationService.shared.scheduleFastingWindowNotification(
                     windowStartHour: windowStartHour, windowStartMinute: windowStartMinute)
@@ -40,7 +43,11 @@ import Foundation
         }
     }
     var windowDurationHours: Int {
-        didSet { UserDefaults.standard.set(windowDurationHours, forKey: "windowDurationHours"); snapshotTodayWindow() }
+        didSet {
+            UserDefaults.standard.set(windowDurationHours, forKey: "windowDurationHours")
+            snapshotTodayWindow()
+            saveWindowToFirestore()
+        }
     }
 
     var isSelectedDateToday: Bool { Calendar.current.isDateInToday(selectedDate) }
@@ -82,6 +89,21 @@ import Foundation
         var snapshots = dailyWindowSnapshots
         snapshots[key] = ["startHour": windowStartHour, "startMinute": windowStartMinute, "durationHours": windowDurationHours]
         dailyWindowSnapshots = snapshots
+    }
+
+    private func saveWindowToFirestore() {
+        let uid = userSettings.userID
+        guard !uid.isEmpty else { return }
+        Task {
+            try? await UserProfileService.shared.updateProfile(
+                userID: uid,
+                fields: [
+                    "windowStartHour":     windowStartHour,
+                    "windowStartMinute":   windowStartMinute,
+                    "windowDurationHours": windowDurationHours
+                ]
+            )
+        }
     }
 
     private static let dateKeyFormatter: DateFormatter = {
@@ -153,12 +175,14 @@ import Foundation
     var brainstormState: BrainstormState = .idle
 
     // MARK: - Streak (consecutive days where ALL macro goals were met, ending yesterday)
-    var macroStreak: Int = 0
+    var macroStreak: Int
 
     init(selectedDate: Date = Calendar.current.startOfDay(for: Date()),
          userSettings: UserSettings) {
         self.selectedDate  = selectedDate
         self.userSettings  = userSettings
+        // Seed from the persisted value so the display isn't 0 while the async compute runs.
+        self.macroStreak   = userSettings.macroStreak
 
         let storedHour = UserDefaults.standard.object(forKey: "windowStartHour")
         self.windowStartHour   = storedHour != nil ? UserDefaults.standard.integer(forKey: "windowStartHour") : 9
@@ -283,32 +307,44 @@ import Foundation
             return h + m / 60.0
         }
 
-        // Keep the local goals-met cache current (used as fallback when Firestore history is missing).
-        if isSelectedDateToday {
-            let allMet = totalCalories > 0 && macroGoalsMet.allSatisfy { $0 }
-            userSettings.setGoalsMet(allMet, for: selectedDate)
-        }
+        // Run streak logic once per day on app launch (today only, goals must be set).
+        if isSelectedDateToday && goalCalories > 0 {
+            let uid = userSettings.userID
+            if !uid.isEmpty {
+                let needsRepair = userSettings.macroStreak == 0
+                              && userSettings.lastStreakCheckDate.isEmpty
 
-        // Update lastGoalsMetDate on Firestore so the Cloud Function can reset
-        // expired streaks server-side (runs at 8 AM UTC every day).
-        if isSelectedDateToday {
-            let allMet = totalCalories > 0 && macroGoalsMet.allSatisfy { $0 }
-            if allMet {
-                let fmt = DateFormatter()
-                fmt.dateFormat = "yyyy-MM-dd"
-                fmt.locale = Locale(identifier: "en_US_POSIX")
-                let dateStr = fmt.string(from: Date())
-                let uid = userSettings.userID
-                Task {
-                    try? await UserProfileService.shared.updateProfile(
-                        userID: uid,
-                        fields: ["lastGoalsMetDate": dateStr]
+                if needsRepair {
+                    // One-time retroactive repair: recovers any streak that existed
+                    // before the new daily-check system was in place.
+                    // After this runs, lastStreakCheckDate is set to today so the
+                    // normal daily check takes over from the following day onwards.
+                    let result = await StreakService.recalculateStreakFromHistory(
+                        userID:         uid,
+                        currentLongest: userSettings.longestStreak
                     )
+                    macroStreak                      = result.streak
+                    userSettings.macroStreak         = result.streak
+                    userSettings.longestStreak       = result.longest
+                    userSettings.lastStreakCheckDate  = MacroHistoryService.dateString(for: Date())
+                    if result.streak > 0 { checkStreakMilestones(result.streak) }
+                } else if let result = await StreakService.checkAndUpdateStreak(
+                    userID:         uid,
+                    currentStreak:  userSettings.macroStreak,
+                    currentLongest: userSettings.longestStreak,
+                    lastCheckDate:  userSettings.lastStreakCheckDate
+                ) {
+                    macroStreak                      = result.streak
+                    userSettings.macroStreak         = result.streak
+                    userSettings.longestStreak       = result.longest
+                    userSettings.lastStreakCheckDate  = MacroHistoryService.dateString(for: Date())
+                    checkStreakMilestones(result.streak)
+                } else {
+                    // Check was skipped (already ran today) — sync local display value.
+                    macroStreak = userSettings.macroStreak
                 }
             }
         }
-
-        loadStreak()
 
         // Schedule or cancel the 10 PM streak-warning notification based on today's progress
         if isSelectedDateToday {
@@ -400,38 +436,6 @@ import Foundation
     }
 
     // MARK: - Private
-
-    private func loadStreak() {
-        // Only treat today as met when we're actually viewing today —
-        // browsing a past date loads that date's totals, not today's.
-        let allMet = isSelectedDateToday
-            && totalCalories > 0
-            && macroGoalsMet.allSatisfy { $0 }
-        let saved = userSettings.macroStreak
-        let id    = userSettings.userID
-        Task {
-            let computed = await StreakService.compute(todayAllMet: allMet, userID: id)
-
-            // When today's goals aren't met yet, don't lower the streak just because
-            // the historical cache is incomplete. If yesterday was confirmed met
-            // (computed > 0), trust whichever value is higher. If yesterday was
-            // genuinely not met (computed == 0), the streak resets to 0.
-            let finalStreak: Int
-            if !allMet {
-                finalStreak = computed > 0 ? max(computed, saved) : 0
-            } else {
-                finalStreak = computed
-            }
-
-            macroStreak              = finalStreak
-            userSettings.macroStreak = finalStreak
-            checkStreakMilestones(finalStreak)
-            try? await UserProfileService.shared.updateProfile(
-                userID: id,
-                fields: ["streakDays": finalStreak]
-            )
-        }
-    }
 
     private func checkStreakMilestones(_ streak: Int) {
         let milestones: [(days: Int, pts: Int, reason: String, msg: String)] = [

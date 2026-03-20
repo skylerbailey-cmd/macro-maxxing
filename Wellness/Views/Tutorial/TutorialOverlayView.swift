@@ -128,7 +128,7 @@ enum TutorialSteps {
         ),
         .init(
             title: "AI Meal Planner",
-            body: "Tap 'Brainstorm next meal' and Claude will suggest specific meals or snacks tailored to your remaining macro gaps for the day. You get 2 suggestions per day — use them wisely.",
+            body: "Tap 'Brainstorm next meal' and AI will suggest specific meals or snacks tailored to your remaining macro gaps for the day. You get 2 suggestions per day — use them wisely.",
             anchorID: "hub.mealPlanner"
         ),
     ]

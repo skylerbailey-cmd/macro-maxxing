@@ -148,14 +148,10 @@ struct LogWorkoutSheet: View {
             }
             .preferredColorScheme(.dark)
             .onAppear { savedWorkouts = WorkoutService.shared.savedWorkouts }
-            .sheet(isPresented: $showingPostPrompt, onDismiss: { onSaved(); dismiss() }) {
-                PostWorkoutSheet(
-                    userSettings:    userSettings,
-                    workoutName:     savedWorkoutName,
-                    workoutType:     savedWorkoutType,
-                    durationMinutes: savedDuration,
-                    caloriesBurned:  savedCalories
-                )
+            .alert("Share for Points?", isPresented: $showingPostPrompt) {
+                Button("Got it") { onSaved(); dismiss() }
+            } message: {
+                Text("Tap the gold + icon and select the Workout label to post your workout and earn points.")
             }
         }
     }
@@ -650,7 +646,6 @@ struct LogWorkoutSheet: View {
                 onSaved()
                 dismiss()
             } else {
-                userSettings.awardAura(points: 25)
                 showingPostPrompt = true
             }
         } catch {

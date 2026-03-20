@@ -67,15 +67,24 @@ struct WorkoutDuelView: View {
             Task { await load() }
         }
         .sheet(item: $editingEntry) { entry in
-            LogWorkoutSheet(
-                userID:              userID,
-                selectedDate:        selectedDate,
-                bodyWeightLbs:       bodyWeightLbs,
-                autoAdjustByDefault: autoAdjustByDefault,
-                userSettings:        userSettings,
-                editingEntry:        entry,
-                onSaved:             { Task { await load() } }
-            )
+            EditWorkoutSheet(entry: entry, onSave: { name, type, duration, calories, time in
+                Task {
+                    var updated = entry
+                    updated.name            = name
+                    updated.workoutType     = type
+                    updated.durationMinutes = duration
+                    updated.caloriesBurned  = calories
+                    updated.loggedAt        = time
+                    try? await WorkoutService.shared.save(entry: updated, userID: userID)
+                    await load()
+                }
+            }, onDelete: {
+                Task {
+                    await WorkoutService.shared.delete(workoutID: entry.workoutID, userID: userID)
+                    entries.removeAll { $0.workoutID == entry.workoutID }
+                    if isToday { MacroAdjustmentEngine.revert() }
+                }
+            })
         }
     }
 
@@ -247,6 +256,138 @@ struct WorkoutDuelView: View {
 
 // MARK: - WorkoutRow
 
+// MARK: - EditWorkoutSheet
+
+private struct EditWorkoutSheet: View {
+    let entry:    WorkoutEntry
+    let onSave:   (String, WorkoutType, Int, Int, Date) -> Void
+    var onDelete: (() -> Void)? = nil
+
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var focus: Field?
+
+    @State private var name:             String
+    @State private var workoutType:      WorkoutType
+    @State private var durationText:     String
+    @State private var caloriesText:     String
+    @State private var loggedAt:         Date
+    @State private var showSaveError     = false
+    @State private var showDeleteConfirm = false
+
+    private enum Field: Hashable { case name, duration, calories }
+
+    init(entry: WorkoutEntry,
+         onSave: @escaping (String, WorkoutType, Int, Int, Date) -> Void,
+         onDelete: (() -> Void)? = nil) {
+        self.entry    = entry
+        self.onSave   = onSave
+        self.onDelete = onDelete
+        _name         = State(initialValue: entry.name)
+        _workoutType  = State(initialValue: entry.workoutType)
+        _durationText = State(initialValue: String(entry.durationMinutes))
+        _caloriesText = State(initialValue: String(entry.caloriesBurned))
+        _loggedAt     = State(initialValue: entry.loggedAt)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Workout") {
+                    HStack {
+                        Text("Name")
+                        Spacer()
+                        TextField("Workout name", text: $name)
+                            .multilineTextAlignment(.trailing)
+                            .focused($focus, equals: .name)
+                            .submitLabel(.next)
+                            .onSubmit { focus = .duration }
+                    }
+                    Picker("Type", selection: $workoutType) {
+                        ForEach(WorkoutType.allCases, id: \.self) { t in
+                            Text(t.rawValue).tag(t)
+                        }
+                    }
+                }
+                Section("Stats") {
+                    HStack {
+                        Text("Duration")
+                        Spacer()
+                        TextField("0", text: $durationText)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 60)
+                            .focused($focus, equals: .duration)
+                            .submitLabel(.next)
+                            .onSubmit { focus = .calories }
+                        Text("min").foregroundStyle(.secondary)
+                    }
+                    HStack {
+                        Text("Calories Burned")
+                        Spacer()
+                        TextField("0", text: $caloriesText)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 60)
+                            .focused($focus, equals: .calories)
+                            .submitLabel(.done)
+                            .onSubmit { focus = nil }
+                        Text("kcal").foregroundStyle(.secondary)
+                    }
+                }
+                Section("Time Logged") {
+                    DatePicker("Time", selection: $loggedAt, displayedComponents: .hourAndMinute)
+                }
+                if showSaveError {
+                    Section {
+                        Label("Duration and calories must be valid numbers.", systemImage: "exclamationmark.circle.fill")
+                            .foregroundStyle(.red)
+                            .font(.caption)
+                    }
+                }
+                if onDelete != nil {
+                    Section {
+                        Button(role: .destructive) {
+                            showDeleteConfirm = true
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Text("Delete Entry")
+                                Spacer()
+                            }
+                        }
+                    }
+                }
+            }
+            .confirmationDialog("Delete this workout?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+                Button("Delete", role: .destructive) {
+                    onDelete?()
+                    dismiss()
+                }
+                Button("Cancel", role: .cancel) {}
+            }
+            .navigationTitle("Edit Workout")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        guard let dur = Int(durationText), let cal = Int(caloriesText) else {
+                            showSaveError = true
+                            return
+                        }
+                        onSave(name, workoutType, dur, cal, loggedAt)
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - WorkoutRow
+
 private struct WorkoutRow: View {
     let entry:    WorkoutEntry
     let accent:   Color
@@ -277,21 +418,23 @@ private struct WorkoutRow: View {
 
             Spacer()
 
-            Text(entry.loggedAt.formatted(date: .omitted, time: .shortened))
-                .font(.system(size: 12))
-                .foregroundStyle(.white.opacity(0.30))
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(entry.loggedAt.formatted(date: .omitted, time: .shortened))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.30))
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.20))
+            }
         }
         .padding(14)
         .background(cardBg, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.06), lineWidth: 1))
         .contentShape(Rectangle())
+        .onTapGesture { onEdit() }
         .contextMenu {
-            Button(action: onEdit) {
-                Label("Edit", systemImage: "pencil")
-            }
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
-            }
+            Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
+            Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
         }
     }
 }

@@ -27,6 +27,8 @@ struct ContentView: View {
     @State private var pendingAuraGain: AuraGain? = nil
     // Celebration popup
     @State private var pendingCelebration: CelebrationPostData? = nil
+    // Firestore error alert
+    @State private var firestoreErrorMessage: String? = nil
 
     // FAB state
     @State private var fabExpanded           = false
@@ -96,6 +98,20 @@ struct ContentView: View {
             }
             .onChange(of: userSettings.pendingCelebration) { _, data in
                 if let data { pendingCelebration = data }
+            }
+            .onChange(of: userSettings.firestoreError) { _, err in
+                if let err {
+                    firestoreErrorMessage = err
+                    userSettings.firestoreError = nil
+                }
+            }
+            .alert("Firestore Write Error", isPresented: Binding(
+                get: { firestoreErrorMessage != nil },
+                set: { if !$0 { firestoreErrorMessage = nil } }
+            )) {
+                Button("OK") { firestoreErrorMessage = nil }
+            } message: {
+                Text(firestoreErrorMessage ?? "")
             }
 
             // Celebration popup — shown on top of all tabs

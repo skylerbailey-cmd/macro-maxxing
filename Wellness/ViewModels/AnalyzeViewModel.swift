@@ -5,7 +5,7 @@
 
 import Foundation
 
-@Observable final class AnalyzeViewModel {
+@MainActor @Observable final class AnalyzeViewModel {
     enum State: Equatable {
         case idle
         case analyzing

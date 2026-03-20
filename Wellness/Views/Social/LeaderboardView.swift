@@ -153,7 +153,7 @@ struct LeaderboardView: View {
         }
         .confirmationDialog("Post a Board", isPresented: $showPostPicker, titleVisibility: .visible) {
             Button("Weekly Aura") {
-                previewBoard = ShareableBoard(title: "Weekly Aura", scoreLabel: "pts",
+                previewBoard = ShareableBoard(title: "Weekly Aura", scoreLabel: "xp",
                                              entries: weeklyAuraDisplayed)
             }
             Button("Cancel", role: .cancel) {}
@@ -381,7 +381,7 @@ struct LeaderboardView: View {
     private func boardSection(title: String, icon: String, subtitle: String,
                                entries: [LeaderboardEntry], board: Board,
                                isLoading: Bool = false) -> some View {
-        let scoreLabel = "pts"
+        let scoreLabel = "xp"
         let iconColor: Color = purpl
 
         VStack(alignment: .leading, spacing: 0) {
@@ -1193,7 +1193,7 @@ private struct LeaderboardRow: View {
                 .padding(.vertical, 4)
                 .background(rankColor.opacity(0.12))
                 .clipShape(Capsule())
-            Text("pts")
+            Text("xp")
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.28))
         }

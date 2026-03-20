@@ -263,10 +263,16 @@ struct PostWorkoutSheet: View {
 
         let fbPostID  = UUID().uuidString
         let caption   = captionText.trimmingCharacters(in: .whitespaces)
-        let sub       = caption.isEmpty ? workoutStats : "\(workoutStats)\n\(caption)"
         let locName   = locationManager.city.isEmpty ? userSettings.location : locationManager.city
         let lat       = locationManager.coordinate?.latitude  ?? 0
         let lon       = locationManager.coordinate?.longitude ?? 0
+        let workoutItem = FeedWorkoutItem(
+            workoutName:     workoutName,
+            workoutType:     workoutType.rawValue,
+            durationMinutes: durationMinutes,
+            caloriesBurned:  caloriesBurned,
+            sortOrder:       0
+        )
 
         let post = SocialPost(
             authorID:          userSettings.userID,
@@ -274,7 +280,7 @@ struct PostWorkoutSheet: View {
             authorDisplayName: userSettings.name,
             memeEmoji:         "",
             memeHeadline:      workoutHeadline,
-            memeSub:           sub,
+            memeSub:           caption,
             macroDate:         Date(),
             totalCalories: 0, goalCalories: 0,
             totalProtein:  0, goalProtein:  0,
@@ -314,17 +320,16 @@ struct PostWorkoutSheet: View {
 
         do {
             try await PostService.shared.createCustomPost(
-                photos:        images,
-                author:        author,
-                title:         workoutHeadline,
-                caption:       sub,
-                locationName:  locName,
-                latitude:      lat,
-                longitude:     lon,
-                postLabel:     PostLabel.workout.rawValue,
-                mogBoardScope: "",
-                mogBoardType:  "",
-                postID:        fbPostID
+                photos:       images,
+                author:       author,
+                title:        workoutHeadline,
+                caption:      caption,
+                locationName: locName,
+                latitude:     lat,
+                longitude:    lon,
+                postLabel:    PostLabel.workout.rawValue,
+                workoutItems: [workoutItem],
+                postID:       fbPostID
             )
         } catch {
             print("[PostWorkoutSheet] Firebase sync failed: \(error.localizedDescription)")

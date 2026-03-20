@@ -373,12 +373,10 @@ struct CelebrationPostEditorSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Post") {
                         let t = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !t.isEmpty else { return }
-                        submit(title: t)
+                        submit(title: t.isEmpty ? "goals locked in 🎯" : t)
                     }
                     .fontWeight(.bold)
                     .foregroundStyle(gold)
-                    .disabled(titleText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }

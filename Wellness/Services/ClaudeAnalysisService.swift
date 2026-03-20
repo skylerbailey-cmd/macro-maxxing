@@ -200,10 +200,9 @@ final class ClaudeAnalysisService {
         - Carbs:    \(carbPct)% (\(Int(input.totalCarbs))g / \(Int(input.goalCarbs))g)
         - Fat:      \(fatPct)%  (\(Int(input.totalFat))g / \(Int(input.goalFat))g)
 
-        Give exactly 3 suggestions that all address the same macro gap but use completely different foods:
+        Give exactly 2 suggestions that both address the same macro gap but use completely different foods:
         1. A full meal option
         2. A quick snack option
-        3. A second snack option using a different food group than option 2
 
         Rules:
         - Each option must use a DIFFERENT primary ingredient / protein source — no repeating proteins across options
@@ -211,7 +210,7 @@ final class ClaudeAnalysisService {
           cottage cheese, tofu, turkey, tuna, lentils, oats, rice, fruit, nuts, seeds, etc.
         - Be very specific with amounts (e.g. "200g ground beef + sweet potato" not just "beef and potato")
         - Format: bold the food name, then one short sentence on why it fits the macro gap
-        - No intro line, no outro — just the 3 numbered options
+        - No intro line, no outro — just the 2 numbered options
         """
 
         let body = RequestBody(

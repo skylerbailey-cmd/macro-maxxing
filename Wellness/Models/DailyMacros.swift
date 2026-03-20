@@ -101,13 +101,19 @@ struct DailyMacros: Codable, Identifiable {
         let fatRate     = goalFat      > 0 ? min(totalFat     / goalFat,     1.0) : 0
         self.completionPercentage = (calRate + proteinRate + carbsRate + fatRate) / 4.0 * 100.0
 
-        // Mirror HomeViewModel.macroGoalsMet thresholds
+        // Mirror HomeViewModel.macroGoalsMet thresholds: all four must be within 85–115 %
         let calMet     = goalCalories > 0
             && Double(totalCalories) >= Double(goalCalories) * 0.85
             && Double(totalCalories) <= Double(goalCalories) * 1.15
-        let proteinMet = goalProtein > 0 && totalProtein >= goalProtein * 0.85
-        let carbsMet   = goalCarbs   > 0 && totalCarbs   >= goalCarbs   * 0.85
-        let fatMet     = goalFat     > 0 && totalFat     >= goalFat     * 0.85
+        let proteinMet = goalProtein > 0
+            && totalProtein >= goalProtein * 0.85
+            && totalProtein <= goalProtein * 1.15
+        let carbsMet   = goalCarbs   > 0
+            && totalCarbs   >= goalCarbs   * 0.85
+            && totalCarbs   <= goalCarbs   * 1.15
+        let fatMet     = goalFat     > 0
+            && totalFat     >= goalFat     * 0.85
+            && totalFat     <= goalFat     * 1.15
         self.allGoalsMet = calMet && proteinMet && carbsMet && fatMet
     }
 }

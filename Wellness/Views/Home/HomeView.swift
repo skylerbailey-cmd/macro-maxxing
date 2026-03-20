@@ -457,12 +457,13 @@ struct HomeView: View {
                     .foregroundStyle(.white)
                 Spacer()
                 let met = viewModel.macrosMetToday
+                let macroColor: Color = met == 4 ? Color.macroMint : met >= 2 ? .orange : .red
                 Text("\(met)/4 macros")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(met == 4 ? Color.macroMint : .white.opacity(0.35))
+                    .foregroundStyle(macroColor)
                     .padding(.horizontal, 9)
                     .padding(.vertical, 4)
-                    .background(met == 4 ? Color.macroMint.opacity(0.14) : Color.white.opacity(0.07))
+                    .background(macroColor.opacity(0.14))
                     .cornerRadius(8)
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("DISCIPLINE")
@@ -637,7 +638,7 @@ struct HomeView: View {
                 case .confirm:
                     Alert(
                         title: Text("Brainstorm Next Meal"),
-                        message: Text("Claude will suggest a specific meal based on your current macro balance. You have \(viewModel.userSettings.brainstormUsesRemaining) use\(viewModel.userSettings.brainstormUsesRemaining == 1 ? "" : "s") left today."),
+                        message: Text("AI will suggest a specific meal based on your current macro balance. You have \(viewModel.userSettings.brainstormUsesRemaining) use\(viewModel.userSettings.brainstormUsesRemaining == 1 ? "" : "s") left today."),
                         primaryButton: .default(Text("Let's Go")) {
                             if viewModel.userSettings.consumeBrainstormUse() {
                                 Task { await viewModel.brainstorm() }
@@ -868,6 +869,22 @@ private struct MacroGaugeCard: View {
     private let trackFraction: Double = 0.75
     private let lineWidth: CGFloat = 12
 
+    /// How far under or over the goal the current value is.
+    private var delta: Double { goal - value }
+
+    /// Text shown below the number: "–X left" when under goal, "+X over" when over.
+    private var deltaLabel: String? {
+        guard goal > 0, abs(delta) >= 1 else { return nil }
+        let n = String(format: format, abs(delta))
+        return delta > 0 ? "+\(n) left" : "–\(n) over"
+    }
+
+    private var deltaColor: Color {
+        guard goal > 0 else { return .yellow }
+        let pct = value / goal
+        return (pct >= 0.85 && pct <= 1.15) ? .green : .yellow
+    }
+
     var body: some View {
         VStack(spacing: 10) {
             ZStack {
@@ -903,6 +920,12 @@ private struct MacroGaugeCard: View {
                     Text(unit)
                         .font(.system(size: 9, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.35))
+                    if let label = deltaLabel {
+                        Text(label)
+                            .font(.system(size: 9, weight: .semibold, design: .rounded))
+                            .foregroundStyle(deltaColor)
+                            .padding(.top, 2)
+                    }
                 }
             }
             .frame(width: 118, height: 118)
@@ -1000,7 +1023,7 @@ private struct BrainstormSkeletonView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 ProgressView().scaleEffect(0.7).tint(purpl)
-                Text("Claude is thinking…")
+                Text("AI is thinking…")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.40))
             }

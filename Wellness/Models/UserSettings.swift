@@ -57,9 +57,17 @@ struct AuraGain: Identifiable, Equatable {
 
     // MARK: - Streak (device-local — persisted to UserDefaults)
 
-    /// Current macro streak — kept in sync by HomeViewModel so LeaderboardView can read it.
+    /// Current macro streak — updated once per day by StreakService on app launch.
     var macroStreak: Int = 0 {
         didSet { UserDefaults.standard.set(macroStreak, forKey: "macroStreak") }
+    }
+    /// All-time best streak.
+    var longestStreak: Int = 0 {
+        didSet { UserDefaults.standard.set(longestStreak, forKey: "longestStreak") }
+    }
+    /// "yyyy-MM-dd" of the last day the streak check ran. Prevents double-running.
+    var lastStreakCheckDate: String = "" {
+        didSet { UserDefaults.standard.set(lastStreakCheckDate, forKey: "lastStreakCheckDate") }
     }
 
     // MARK: - Brainstorm result persistence (device-local)
@@ -159,12 +167,24 @@ struct AuraGain: Identifiable, Equatable {
         didSet { UserDefaults.standard.set(autoAdjustMacrosForWorkout, forKey: "autoAdjustMacrosForWorkout") }
     }
 
+    /// Last date the user earned aura points by posting with the Workout label (once per day).
+    var lastWorkoutPostDate: Date = .distantPast {
+        didSet { UserDefaults.standard.set(lastWorkoutPostDate.timeIntervalSince1970, forKey: "lastWorkoutPostDate") }
+    }
+
+    /// True if workout-post aura has already been awarded today.
+    var hasEarnedWorkoutPostAuraToday: Bool {
+        Calendar.current.isDateInToday(lastWorkoutPostDate)
+    }
+
     /// Whether to show the aura gain popup when points are earned.
     var auraPopupsEnabled: Bool = true
     /// Set whenever points are awarded (when popups enabled). Observe to show popup.
     var pendingAuraGain: AuraGain? = nil
     /// Set whenever all macro goals are met for the first time today. Observe to show celebration.
     var pendingCelebration: CelebrationPostData? = nil
+    /// Set when a Firestore write fails. Observed by ContentView to surface an alert.
+    var firestoreError: String? = nil
 
     // MARK: - Aura Level Curve
     //
@@ -240,14 +260,21 @@ struct AuraGain: Identifiable, Equatable {
         let wkPts  = weeklyAuraPoints
         let wkTs   = weeklyAuraWeekStart.timeIntervalSince1970
         Task {
-            try? await UserProfileService.shared.updateProfile(
-                userID: id,
-                fields: [
-                    "auraPoints":                   pts,
-                    "weeklyAuraPoints":              wkPts,
-                    "weeklyAuraWeekStartTimestamp":  wkTs,
-                ]
-            )
+            do {
+                try await UserProfileService.shared.updateProfile(
+                    userID: id,
+                    fields: [
+                        "auraPoints":                   pts,
+                        "weeklyAuraPoints":              wkPts,
+                        "weeklyAuraWeekStartTimestamp":  wkTs,
+                    ]
+                )
+                print("[UserSettings] awardAura: synced +\(points) xp (total \(pts), weekly \(wkPts))")
+            } catch {
+                let msg = error.localizedDescription
+                print("[UserSettings] awardAura Firestore error: \(msg)")
+                await MainActor.run { self.firestoreError = "XP sync failed: \(msg)" }
+            }
         }
     }
 
@@ -381,9 +408,30 @@ struct AuraGain: Identifiable, Equatable {
         heightInches      = profile.heightInches
         proteinPerLb      = profile.proteinPerLb
         fastingEnabled    = profile.fastingEnabled
+        // Write window settings to UserDefaults so HomeViewModel and FoodLogView
+        // (which read from UserDefaults) pick up the synced values on next appear.
+        UserDefaults.standard.set(profile.windowStartHour,     forKey: "windowStartHour")
+        UserDefaults.standard.set(profile.windowStartMinute,   forKey: "windowStartMinute")
+        UserDefaults.standard.set(profile.windowDurationHours, forKey: "windowDurationHours")
+
+        // Merge Firestore goalsMetDates into local cache so streak is accurate
+        // across devices and after sign-out/sign-in.
+        if !profile.goalsMetDates.isEmpty {
+            var local = goalsMetDates               // existing local Set<String>
+            for d in profile.goalsMetDates { local.insert(d) }
+            goalsMetDatesRaw = local.joined(separator: ",")
+        }
         auraPopupsEnabled = profile.auraPopupsEnabled
         auraPoints        = profile.auraPoints
-        macroStreak       = profile.streakDays
+        // Restore streak fields from Firestore. Take the higher streak value so a
+        // local cache never overwrites a streak that was already correctly computed.
+        macroStreak         = max(macroStreak, profile.streakDays)
+        longestStreak       = max(longestStreak, profile.longestStreak)
+        // Take whichever check date is more recent (non-empty string comparison works
+        // because "yyyy-MM-dd" sorts lexicographically).
+        if profile.lastStreakCheckDate > lastStreakCheckDate {
+            lastStreakCheckDate = profile.lastStreakCheckDate
+        }
 
         // Restore weekly aura from Firestore, then check if a new week has started
         // (checkWeeklyReset handles the reset + Firestore update if needed).
@@ -429,9 +477,11 @@ struct AuraGain: Identifiable, Equatable {
 
         // Streak & goals-met history
         macroStreak           = 0
+        longestStreak         = 0
+        lastStreakCheckDate   = ""
         goalsMetDatesRaw      = ""
         achievedMilestonesRaw = ""
-        lastCelebrationDate  = .distantPast
+        lastCelebrationDate   = .distantPast
 
         // Aura / leaderboard
         weeklyAuraPoints      = 0
@@ -480,6 +530,8 @@ struct AuraGain: Identifiable, Equatable {
             ? Date(timeIntervalSince1970: storedCelebDate) : .distantPast
         self.goalsMetDatesRaw      = UserDefaults.standard.string(forKey: "goalsMetDates") ?? ""
         self.macroStreak           = UserDefaults.standard.integer(forKey: "macroStreak")
+        self.longestStreak         = UserDefaults.standard.integer(forKey: "longestStreak")
+        self.lastStreakCheckDate    = UserDefaults.standard.string(forKey: "lastStreakCheckDate") ?? ""
         self.brainstormUsageCount  = UserDefaults.standard.integer(forKey: "brainstormUsageCount")
         let storedBSDate = UserDefaults.standard.double(forKey: "brainstormUsageDate")
         self.brainstormUsageDate   = storedBSDate > 0
@@ -488,6 +540,9 @@ struct AuraGain: Identifiable, Equatable {
         let storedBSResultDate = UserDefaults.standard.double(forKey: "lastBrainstormDate")
         self.lastBrainstormDate    = storedBSResultDate > 0
             ? Date(timeIntervalSince1970: storedBSResultDate) : .distantPast
+        let storedWPDate = UserDefaults.standard.double(forKey: "lastWorkoutPostDate")
+        self.lastWorkoutPostDate   = storedWPDate > 0
+            ? Date(timeIntervalSince1970: storedWPDate) : .distantPast
         // Profile image is loaded asynchronously via loadCachedImage() to avoid
         // blocking the main thread at launch (file can be 1–3 MB).
     }

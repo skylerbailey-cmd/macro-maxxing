@@ -6,13 +6,13 @@
 import Foundation
 
 enum PostLabel: String, CaseIterable, Codable {
-    case transformation = "Transformation"
     case fuelLog        = "Fuel Log"
-    case mealInspo      = "Meal Inspo"
-    case mogBoard       = "Mog Board"
-    case advice         = "Advice"
-    case workout        = "Workout"
     case goalPost       = "Goal"
+    case workout        = "Workout"
+    case mogBoard       = "Mog Board"
+    case transformation = "Transformation"
+    case mealInspo      = "Meal Inspo"
+    case advice         = "Advice"
 
     var icon: String {
         switch self {

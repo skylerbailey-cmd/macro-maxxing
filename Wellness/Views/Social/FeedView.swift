@@ -224,7 +224,7 @@ struct FeedPostCard: View {
     var onCommentTap:  (() -> Void)? = nil
     var showStreak:    Bool          = true
 
-    @State private var showDeleteConfirm = false
+
 
     private let cardBg   = Color(red: 0.13, green: 0.10, blue: 0.22)
     private let purpleHi = Color(red: 0.65, green: 0.45, blue: 1.00)
@@ -249,6 +249,13 @@ struct FeedPostCard: View {
                     workoutTable
                 } else if !post.mogBoardSnapshot.isEmpty {
                     mogBoardSnapshotCard
+                } else if post.postLabel == "Goal", post.goalCalories > 0 {
+                    MacroDisciplineCard(
+                        totalCalories: Double(post.calories),  goalCalories: Double(post.goalCalories),
+                        totalProtein:  post.protein,           goalProtein:  post.goalProtein,
+                        totalCarbs:    post.carbs,             goalCarbs:    post.goalCarbs,
+                        totalFat:      post.fat,               goalFat:      post.goalFat
+                    )
                 }
                 actionRow
             }
@@ -258,14 +265,22 @@ struct FeedPostCard: View {
         }
         .background(cardBg)
         .cornerRadius(16)
+        .overlay(alignment: .topTrailing) {
+            if onDelete != nil {
+                Menu {
+                    Button("Delete", role: .destructive) { onDelete?() }
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.35))
+                        .padding(7)
+                        .background(Color.white.opacity(0.07), in: Circle())
+                }
+                .padding(8)
+            }
+        }
         .contentShape(Rectangle())
         .onTapGesture { onTap?() }
-        .confirmationDialog("Delete this post?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
-            Button("Delete Post", role: .destructive) { onDelete?() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This permanently deletes the post and all its photos. This cannot be undone.")
-        }
     }
 
     // MARK: Author header
@@ -342,16 +357,6 @@ struct FeedPostCard: View {
             }
 
             Spacer()
-
-            // Delete button (own posts only)
-            if onDelete != nil {
-                Button { showDeleteConfirm = true } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 16))
-                        .foregroundStyle(.white.opacity(0.30))
-                        .padding(6)
-                }
-            }
         }
     }
 
@@ -561,8 +566,12 @@ struct FeedPostCard: View {
     // MARK: Fuel log table
 
     private var fuelLogTable: some View {
-        let sorted = post.fuelLogItems.sorted { $0.sortOrder < $1.sortOrder }
-        let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+        let sorted    = post.fuelLogItems.sorted { $0.sortOrder < $1.sortOrder }
+        let purpl     = Color(red: 0.65, green: 0.45, blue: 1.00)
+        let totalCal  = sorted.reduce(0.0) { $0 + $1.calories }
+        let totalPro  = sorted.reduce(0.0) { $0 + $1.protein  }
+        let totalCarb = sorted.reduce(0.0) { $0 + $1.carbs    }
+        let totalFat  = sorted.reduce(0.0) { $0 + $1.fat      }
         return VStack(alignment: .leading, spacing: 0) {
             ForEach(sorted) { item in
                 VStack(spacing: 0) {
@@ -618,7 +627,7 @@ struct FeedPostCard: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.white)
                 Spacer()
-                Text("\(post.calories) kcal · \(Int(post.protein))g P · \(Int(post.carbs))g C · \(Int(post.fat))g F")
+                Text("\(Int(totalCal)) kcal · \(Int(totalPro))g P · \(Int(totalCarb))g C · \(Int(totalFat))g F")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(purpl)
             }

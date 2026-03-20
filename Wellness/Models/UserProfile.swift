@@ -25,6 +25,10 @@ struct UserProfile: Codable, Identifiable {
 
     var auraPoints:     Int
     var streakDays:     Int
+    /// All-time best streak.
+    var longestStreak:  Int
+    /// "yyyy-MM-dd" date on which the daily streak check last ran. Prevents double-running.
+    var lastStreakCheckDate: String
     var friendCount:    Int
     /// Number of users this account is following. Kept in sync by FollowService.
     var followingCount: Int
@@ -41,8 +45,17 @@ struct UserProfile: Codable, Identifiable {
     var goalWeight:       Double
     var heightInches:     Int
     var proteinPerLb:     Double
-    var fastingEnabled:   Bool
-    var auraPopupsEnabled: Bool
+    var fastingEnabled:       Bool
+    var windowStartHour:      Int
+    var windowStartMinute:    Int
+    var windowDurationHours:  Int
+    var auraPopupsEnabled:    Bool
+    /// Canonical list of "yyyy-MM-dd" date strings on which all macro goals were met.
+    /// Used as the primary source of truth for streak calculation across devices.
+    var goalsMetDates:        [String]
+    /// Most recent "yyyy-MM-dd" on which all macro goals were confirmed met.
+    /// Updated in real-time; used as the anchor for streak counting.
+    var lastGoalsMetDate:     String
 
     // MARK: - Weekly aura (synced so it survives sign-out / device switches)
 
@@ -69,9 +82,11 @@ struct UserProfile: Codable, Identifiable {
         name:             String,
         location:         String,
         profilePhotoURL:  String,
-        auraPoints:       Int,
-        streakDays:       Int,
-        friendCount:      Int,
+        auraPoints:          Int,
+        streakDays:          Int,
+        longestStreak:       Int    = 0,
+        lastStreakCheckDate: String = "",
+        friendCount:         Int,
         followingCount:   Int    = 0,
         followerCount:    Int    = 0,
         bio:              String = "",
@@ -82,8 +97,13 @@ struct UserProfile: Codable, Identifiable {
         goalWeight:       Double = 160,
         heightInches:     Int    = 0,
         proteinPerLb:     Double = 0.9,
-        fastingEnabled:   Bool   = false,
-        auraPopupsEnabled: Bool  = true,
+        fastingEnabled:       Bool     = false,
+        windowStartHour:      Int      = 9,
+        windowStartMinute:    Int      = 0,
+        windowDurationHours:  Int      = 8,
+        auraPopupsEnabled:    Bool     = true,
+        goalsMetDates:        [String] = [],
+        lastGoalsMetDate:     String   = "",
         weeklyAuraPoints: Int    = 0,
         weeklyAuraWeekStartTimestamp: Double = 0,
         joinDate:         Int,
@@ -94,9 +114,11 @@ struct UserProfile: Codable, Identifiable {
         self.name             = name
         self.location         = location
         self.profilePhotoURL  = profilePhotoURL
-        self.auraPoints       = auraPoints
-        self.streakDays       = streakDays
-        self.friendCount      = friendCount
+        self.auraPoints          = auraPoints
+        self.streakDays          = streakDays
+        self.longestStreak       = longestStreak
+        self.lastStreakCheckDate = lastStreakCheckDate
+        self.friendCount         = friendCount
         self.followingCount   = followingCount
         self.followerCount    = followerCount
         self.bio              = bio
@@ -107,8 +129,13 @@ struct UserProfile: Codable, Identifiable {
         self.goalWeight       = goalWeight
         self.heightInches     = heightInches
         self.proteinPerLb     = proteinPerLb
-        self.fastingEnabled   = fastingEnabled
-        self.auraPopupsEnabled = auraPopupsEnabled
+        self.fastingEnabled      = fastingEnabled
+        self.windowStartHour     = windowStartHour
+        self.windowStartMinute   = windowStartMinute
+        self.windowDurationHours = windowDurationHours
+        self.auraPopupsEnabled   = auraPopupsEnabled
+        self.goalsMetDates       = goalsMetDates
+        self.lastGoalsMetDate    = lastGoalsMetDate
         self.weeklyAuraPoints = weeklyAuraPoints
         self.weeklyAuraWeekStartTimestamp = weeklyAuraWeekStartTimestamp
         self.joinDate         = joinDate
@@ -132,14 +159,18 @@ extension UserProfile {
         // Default values for fields added after initial schema — prevents decode failure
         // on documents written before these fields existed.
         let intDefaults: [String: Any] = [
-            "friendCount":    0,
-            "followerCount":  0,
-            "followingCount": 0,
-            "streakDays":     0,
-            "auraPoints":     0,
-            "joinDate":       0,
-            "weeklyAuraPoints": 0,
-            "heightInches":   0,
+            "friendCount":         0,
+            "followerCount":       0,
+            "followingCount":      0,
+            "streakDays":          0,
+            "longestStreak":       0,
+            "auraPoints":          0,
+            "joinDate":            0,
+            "weeklyAuraPoints":    0,
+            "heightInches":        0,
+            "windowStartHour":     9,
+            "windowStartMinute":   0,
+            "windowDurationHours": 8,
         ]
         for (key, value) in intDefaults where data[key] == nil {
             data[key] = value
@@ -161,6 +192,9 @@ extension UserProfile {
         for (key, value) in boolDefaults where data[key] == nil {
             data[key] = value
         }
+        if data["goalsMetDates"]       == nil { data["goalsMetDates"]       = [String]() }
+        if data["lastGoalsMetDate"]    == nil { data["lastGoalsMetDate"]    = "" }
+        if data["lastStreakCheckDate"] == nil { data["lastStreakCheckDate"] = "" }
         let stringDefaults: [String: Any] = [
             "profilePhotoURL": "",
             "location":        "",
