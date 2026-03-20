@@ -886,6 +886,16 @@ private struct MacroGaugeCard: View {
         return pct > 1.15 ? Color(red: 1.0, green: 0.35, blue: 0.35) : .yellow
     }
 
+    /// How much room is left before exceeding 115% of the goal. Shown when over 100% but still in range.
+    private var bufferLabel: String? {
+        guard goal > 0 else { return nil }
+        let pct = value / goal
+        guard pct > 1.0 && pct <= 1.15 else { return nil }
+        let remaining = (goal * 1.15) - value
+        guard remaining >= 1 else { return nil }
+        return "\(String(format: format, remaining)) until over"
+    }
+
     var body: some View {
         VStack(spacing: 10) {
             ZStack {
@@ -926,6 +936,11 @@ private struct MacroGaugeCard: View {
                             .font(.system(size: 9, weight: .semibold, design: .rounded))
                             .foregroundStyle(deltaColor)
                             .padding(.top, 2)
+                    }
+                    if let buf = bufferLabel {
+                        Text(buf)
+                            .font(.system(size: 8, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.yellow)
                     }
                 }
             }
