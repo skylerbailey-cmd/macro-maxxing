@@ -144,8 +144,8 @@ struct WellnessLogoView: View {
                 )
                 .frame(width: ringR * 2, height: ringR * 2)
                 .rotationEffect(.degrees(-90))          // start at top
-                .shadow(color: Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.65),
-                        radius: size * 0.04)
+                .shadow(color: Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.25),
+                        radius: size * 0.02)
 
             // Inner accent ring
             Circle()
@@ -158,7 +158,7 @@ struct WellnessLogoView: View {
                 Circle()
                     .fill(d.color)
                     .frame(width: dotR * 2, height: dotR * 2)
-                    .shadow(color: d.color.opacity(0.9), radius: size * 0.025)
+                    .shadow(color: d.color.opacity(0.35), radius: size * 0.015)
                     .offset(
                         x:  ringR * CGFloat(cos(d.angle)),
                         y: -ringR * CGFloat(sin(d.angle))
@@ -169,8 +169,8 @@ struct WellnessLogoView: View {
             ForkShape()
                 .fill(Color.white.opacity(0.90))
                 .frame(width: size * 0.22, height: size * 0.28)
-                .shadow(color: Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.5),
-                        radius: size * 0.02)
+                .shadow(color: Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.20),
+                        radius: size * 0.01)
         }
         .frame(width: size, height: size)
     }

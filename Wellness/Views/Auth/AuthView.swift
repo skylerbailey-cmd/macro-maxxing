@@ -111,23 +111,23 @@ struct AuthView: View {
 
             // top-left glow orb
             Circle()
-                .fill(Color.purpleMid.opacity(0.35))
-                .frame(width: 300, height: 300)
+                .fill(Color.purpleMid.opacity(0.15))
+                .frame(width: 250, height: 250)
                 .blur(radius: 80)
                 .offset(x: -80, y: -160)
 
             // bottom-right glow orb
             Circle()
-                .fill(Color.purpleHi.opacity(0.20))
-                .frame(width: 260, height: 260)
-                .blur(radius: 90)
+                .fill(Color.purpleHi.opacity(0.10))
+                .frame(width: 220, height: 220)
+                .blur(radius: 80)
                 .offset(x: 120, y: 420)
 
             // gold accent orb near top
             Circle()
-                .fill(Color.gold.opacity(0.08))
-                .frame(width: 180, height: 180)
-                .blur(radius: 60)
+                .fill(Color.gold.opacity(0.04))
+                .frame(width: 150, height: 150)
+                .blur(radius: 50)
                 .offset(x: 100, y: -80)
         }
         .ignoresSafeArea()
@@ -139,9 +139,9 @@ struct AuthView: View {
         VStack(spacing: 10) {
             ZStack {
                 Circle()
-                    .fill(Color.purpleHi.opacity(0.18))
-                    .frame(width: 80, height: 80)
-                    .blur(radius: 12)
+                    .fill(Color.purpleHi.opacity(0.10))
+                    .frame(width: 70, height: 70)
+                    .blur(radius: 10)
 
                 Image(systemName: "bolt.fill")
                     .font(.system(size: 40, weight: .bold))
@@ -328,7 +328,7 @@ struct AuthView: View {
                     )
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .shadow(color: Color.purpleHi.opacity(0.4), radius: 10, y: 4)
+                .shadow(color: Color.purpleHi.opacity(0.15), radius: 6, y: 3)
         }
         .padding(.horizontal, 24)
         .disabled(auth.isLoading || !formIsValid)
