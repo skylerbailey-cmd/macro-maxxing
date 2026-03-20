@@ -76,7 +76,7 @@ enum TutorialSteps {
     static let hub: [TutorialStep] = [
         .init(
             title: "Stats at a Glance",
-            body: "Your streak count, aura level, and current weight are pinned at the top so you always know where you stand before you start your day.",
+            body: "Your streak count and aura level are pinned at the top so you always know where you stand before you start your day.",
             anchorID: "hub.header"
         ),
         .init(
