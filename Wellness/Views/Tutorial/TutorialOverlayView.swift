@@ -15,15 +15,23 @@ struct TutorialStep {
     /// ID passed to `.tutorialAnchor(_:)` on the element to spotlight.
     /// Nil = full-screen dim with no cutout.
     let anchorID: String?
+    /// Optional inline icon view shown between the body and navigation buttons.
+    let icon: TutorialIcon?
 
     init(title: String, body: String,
          tabIndex: Int? = nil,
-         anchorID: String? = nil) {
+         anchorID: String? = nil,
+         icon: TutorialIcon? = nil) {
         self.title    = title
         self.body     = body
         self.tabIndex = tabIndex
         self.anchorID = anchorID
+        self.icon     = icon
     }
+}
+
+enum TutorialIcon {
+    case goldPlus
 }
 
 // MARK: - Step Collections
@@ -111,7 +119,8 @@ enum TutorialSteps {
         .init(
             title: "Log a Meal or Workout",
             body: "Tap the gold + button to log a meal or workout. It's always visible no matter which tab you're on, so you can log from anywhere in the app.",
-            anchorID: nil
+            anchorID: nil,
+            icon: .goldPlus
         ),
         .init(
             title: "Meal Score Circle",
@@ -290,6 +299,12 @@ struct TutorialOverlayView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            // Inline icon (e.g. pulsing gold + button)
+            if step.icon != nil {
+                TutorialIconView(icon: step.icon!)
+                    .frame(maxWidth: .infinity)
+            }
+
             // Navigation
             HStack(spacing: 10) {
                 if currentStep > 0 {
@@ -343,6 +358,44 @@ struct TutorialOverlayView: View {
         }
         withAnimation(.spring(duration: 0.30)) {
             currentStep = next
+        }
+    }
+}
+
+// MARK: - Tutorial Icon View
+
+private struct TutorialIconView: View {
+    let icon: TutorialIcon
+    @State private var pulsing = false
+
+    private let gold = Color(red: 1.00, green: 0.80, blue: 0.20)
+
+    var body: some View {
+        switch icon {
+        case .goldPlus:
+            ZStack {
+                Circle()
+                    .fill(gold.opacity(0.15))
+                    .frame(width: 64, height: 64)
+                    .scaleEffect(pulsing ? 1.25 : 1.0)
+                    .opacity(pulsing ? 0.0 : 1.0)
+
+                Circle()
+                    .fill(gold)
+                    .frame(width: 48, height: 48)
+                    .overlay {
+                        Image(systemName: "plus")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundStyle(.black)
+                    }
+                    .scaleEffect(pulsing ? 1.08 : 1.0)
+            }
+            .padding(.vertical, 4)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+                    pulsing = true
+                }
+            }
         }
     }
 }
