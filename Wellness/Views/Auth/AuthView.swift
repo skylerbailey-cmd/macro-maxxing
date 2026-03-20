@@ -207,7 +207,11 @@ struct AuthView: View {
                     .tint(Color.purpleHi)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
-                    .onChange(of: username) { _, v in scheduleUsernameCheck(v) }
+                    .onChange(of: username) { _, v in
+                        let stripped = v.replacingOccurrences(of: " ", with: "")
+                        if stripped != v { username = stripped }
+                        scheduleUsernameCheck(stripped)
+                    }
                 switch usernameState {
                 case .checking: ProgressView().tint(.gray).scaleEffect(0.7)
                 case .available: Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)

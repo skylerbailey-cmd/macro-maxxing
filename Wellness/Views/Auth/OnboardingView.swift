@@ -288,7 +288,9 @@ struct OnboardingView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .onChange(of: username) { _, newVal in
-                            scheduleUsernameCheck(newVal)
+                            let stripped = newVal.replacingOccurrences(of: " ", with: "")
+                            if stripped != newVal { username = stripped }
+                            scheduleUsernameCheck(stripped)
                         }
                     if checkingUsername {
                         ProgressView().tint(purpl).scaleEffect(0.8)

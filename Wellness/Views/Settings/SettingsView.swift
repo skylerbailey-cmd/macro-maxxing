@@ -166,7 +166,9 @@ struct SettingsView: View {
                                 .submitLabel(.done)
                                 .onSubmit { Task { await saveProfile() }; nameFocused = false }
                                 .onChange(of: usernameText) { _, newValue in
-                                    scheduleUsernameCheck(newValue)
+                                    let stripped = newValue.replacingOccurrences(of: " ", with: "")
+                                    if stripped != newValue { usernameText = stripped }
+                                    scheduleUsernameCheck(stripped)
                                 }
                         }
                         // Availability indicator
