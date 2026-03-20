@@ -832,7 +832,7 @@ struct LeaderboardView: View {
         let mins    = (total % 3600) / 60
         let secs    = total % 60
         if days > 0 {
-            return String(format: "%dd : %02dh : %02dm : %02d.%ds", days, hours, mins, secs, millis)
+            return String(format: "%dd:%02dh:%02dm:%02d.%ds", days, hours, mins, secs, millis)
         } else {
             return String(format: "%02d:%02d:%02d.%d", hours, mins, secs, millis)
         }
