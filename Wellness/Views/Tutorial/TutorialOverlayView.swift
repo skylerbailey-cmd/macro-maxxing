@@ -154,7 +154,8 @@ enum TutorialSteps {
         .init(
             title: "Create a Post",
             body: "Tap the + floating button in the bottom right to create a new post. Pick a label to pre-fill the title and body, then make it yours.",
-            anchorID: nil
+            anchorID: nil,
+            icon: .goldPlus
         ),
     ]
 
