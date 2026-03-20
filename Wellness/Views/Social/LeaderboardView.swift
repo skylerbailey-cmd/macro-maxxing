@@ -822,7 +822,7 @@ struct LeaderboardView: View {
         let mins  = (total % 3600) / 60
         let secs  = total % 60
         if days > 0 {
-            return "\(days)d \(hours)h \(mins)m"
+            return String(format: "%dd %dh %dm %02ds", days, hours, mins, secs)
         } else {
             return String(format: "%d:%02d:%02d", hours, mins, secs)
         }
@@ -836,7 +836,7 @@ struct LeaderboardView: View {
                 .foregroundStyle(.white.opacity(0.40))
             Text(countdownText)
                 .font(.system(size: 28, weight: .black, design: .monospaced))
-                .foregroundStyle(purpl)
+                .foregroundStyle(gold)
             Text("Sunday 8 PM ET")
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.white.opacity(0.30))
