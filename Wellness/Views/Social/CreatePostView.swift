@@ -471,7 +471,7 @@ struct CreatePostView: View {
             isPublic:            !userSettings.isPrivateAccount
         )
 
-        let cityName  = locationManager.city
+        let cityName  = userSettings.postLocation(gpsCity: locationManager.city)
         let latitude  = locationManager.coordinate?.latitude  ?? 0
         let longitude = locationManager.coordinate?.longitude ?? 0
         let trimmed   = caption.trimmingCharacters(in: .whitespacesAndNewlines)

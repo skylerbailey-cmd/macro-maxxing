@@ -263,7 +263,7 @@ struct PostWorkoutSheet: View {
 
         let fbPostID  = UUID().uuidString
         let caption   = captionText.trimmingCharacters(in: .whitespaces)
-        let locName   = locationManager.city.isEmpty ? userSettings.location : locationManager.city
+        let locName   = userSettings.postLocation(gpsCity: locationManager.city)
         let lat       = locationManager.coordinate?.latitude  ?? 0
         let lon       = locationManager.coordinate?.longitude ?? 0
         let workoutItem = FeedWorkoutItem(

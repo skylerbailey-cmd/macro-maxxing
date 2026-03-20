@@ -56,6 +56,19 @@ struct AuraGain: Identifiable, Equatable {
     var heightInches:  Int    = 0
     var proteinPerLb:  Double = 0.9
 
+    // MARK: - Location
+
+    /// When true, posts use the device's GPS-derived city instead of the profile location.
+    var useGPSLocation: Bool = true {
+        didSet { UserDefaults.standard.set(useGPSLocation, forKey: "useGPSLocation") }
+    }
+
+    /// Returns the location string to use on posts, respecting the GPS toggle.
+    func postLocation(gpsCity: String) -> String {
+        if useGPSLocation && !gpsCity.isEmpty { return gpsCity }
+        return location
+    }
+
     // MARK: - Fasting
 
     var fastingEnabled: Bool = false {
@@ -652,6 +665,8 @@ struct AuraGain: Identifiable, Equatable {
         let storedWeekStart = UserDefaults.standard.double(forKey: "weeklyAuraWeekStart")
         self.weeklyAuraWeekStart = storedWeekStart > 0
             ? Date(timeIntervalSince1970: storedWeekStart) : .distantPast
+        self.useGPSLocation = UserDefaults.standard.object(forKey: "useGPSLocation") == nil
+            ? true : UserDefaults.standard.bool(forKey: "useGPSLocation")
         self.achievedMilestonesRaw = UserDefaults.standard.string(forKey: "achievedMilestones") ?? ""
         let storedCelebDate = UserDefaults.standard.double(forKey: "lastCelebrationDate")
         self.lastCelebrationDate = storedCelebDate > 0

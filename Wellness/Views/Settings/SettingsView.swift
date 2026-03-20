@@ -209,9 +209,22 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
 
+                Toggle(isOn: $userSettings.isPrivateAccount) {
+                    Label("Private Account", systemImage: "lock.fill")
+                }
+                DatePicker(
+                    "Date of Birth",
+                    selection: $dobDate,
+                    in: ...Calendar.current.date(byAdding: .year, value: -13, to: Date())!,
+                    displayedComponents: .date
+                )
+            }
+
+            // MARK: Location
+            Section {
                 Button { showCitySearch = true } label: {
                     HStack {
-                        Label("Location", systemImage: "mappin.circle.fill")
+                        Label("Profile Location", systemImage: "mappin.circle.fill")
                             .foregroundStyle(.primary)
                         Spacer()
                         Text(userSettings.location.isEmpty ? "Set city" : userSettings.location)
@@ -222,15 +235,13 @@ struct SettingsView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                Toggle(isOn: $userSettings.isPrivateAccount) {
-                    Label("Private Account", systemImage: "lock.fill")
+                Toggle(isOn: $userSettings.useGPSLocation) {
+                    Label("Use GPS Location", systemImage: "location.fill")
                 }
-                DatePicker(
-                    "Date of Birth",
-                    selection: $dobDate,
-                    in: ...Calendar.current.date(byAdding: .year, value: -13, to: Date())!,
-                    displayedComponents: .date
-                )
+            } header: {
+                Text("Location")
+            } footer: {
+                Text("Profile Location is shown on your profile and used as a fallback. GPS Location uses your real-time position for posts and the local leaderboard.")
             }
 
             // MARK: Socials

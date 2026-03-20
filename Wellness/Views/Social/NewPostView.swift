@@ -665,7 +665,7 @@ struct NewPostView: View {
         post.authorAuraLevel        = userSettings.auraLevel
         post.authorAuraPoints       = userSettings.auraPoints
         post.authorAuraTitle        = userSettings.auraTitle
-        post.authorLocation         = locationManager.city.isEmpty ? userSettings.location : locationManager.city
+        post.authorLocation         = userSettings.postLocation(gpsCity: locationManager.city)
         post.authorLatitude         = locationManager.coordinate?.latitude  ?? 0
         post.authorLongitude        = locationManager.coordinate?.longitude ?? 0
         post.authorStreak           = userSettings.macroStreak
@@ -732,7 +732,7 @@ struct NewPostView: View {
         // 2. Mirror to Firebase in the background (non-blocking)
         let images       = photos.map { $0.image }
         let caption      = bodyText.trimmingCharacters(in: .whitespaces)
-        let locationName    = locationManager.city.isEmpty ? userSettings.location : locationManager.city
+        let locationName    = userSettings.postLocation(gpsCity: locationManager.city)
         let latitude        = locationManager.coordinate?.latitude  ?? 0
         let longitude       = locationManager.coordinate?.longitude ?? 0
         let snapshotJSON    = selectedLabel == .mogBoard ? post.mogBoardSnapshot : ""

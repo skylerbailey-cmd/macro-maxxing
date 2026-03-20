@@ -1802,7 +1802,7 @@ private struct FuelLogPostSheet: View {
         post.isCustomPost           = true
         post.authorAuraLevel        = userSettings.auraLevel
         post.authorAuraPoints       = userSettings.auraPoints
-        post.authorLocation         = locationManager.city.isEmpty ? userSettings.location : locationManager.city
+        post.authorLocation         = userSettings.postLocation(gpsCity: locationManager.city)
         post.authorLatitude         = locationManager.coordinate?.latitude  ?? 0
         post.authorLongitude        = locationManager.coordinate?.longitude ?? 0
         post.authorStreak           = userSettings.macroStreak
@@ -1829,7 +1829,7 @@ private struct FuelLogPostSheet: View {
         }
 
         // Mirror to Firebase in the background
-        let locationName = locationManager.city.isEmpty ? userSettings.location : locationManager.city
+        let locationName = userSettings.postLocation(gpsCity: locationManager.city)
         let latitude     = locationManager.coordinate?.latitude  ?? 0
         let longitude    = locationManager.coordinate?.longitude ?? 0
         let caption      = message

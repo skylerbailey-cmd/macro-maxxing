@@ -502,7 +502,7 @@ struct CelebrationPostEditorSheet: View {
         post.authorAuraLevel        = userSettings.auraLevel
         post.authorAuraPoints       = userSettings.auraPoints
         post.authorAuraTitle        = userSettings.auraTitle
-        post.authorLocation         = locationManager.city.isEmpty ? userSettings.location : locationManager.city
+        post.authorLocation         = userSettings.postLocation(gpsCity: locationManager.city)
         post.authorLatitude         = locationManager.coordinate?.latitude  ?? 0
         post.authorLongitude        = locationManager.coordinate?.longitude ?? 0
         post.authorStreak           = userSettings.macroStreak
@@ -521,7 +521,7 @@ struct CelebrationPostEditorSheet: View {
 
         // Mirror to Firebase in the background
         let images       = photos.map { $0.image }
-        let locationName = locationManager.city.isEmpty ? userSettings.location : locationManager.city
+        let locationName = userSettings.postLocation(gpsCity: locationManager.city)
         let latitude     = locationManager.coordinate?.latitude  ?? 0
         let longitude    = locationManager.coordinate?.longitude ?? 0
         let caption      = message
