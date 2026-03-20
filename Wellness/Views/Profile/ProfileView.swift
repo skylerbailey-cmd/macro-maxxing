@@ -740,6 +740,12 @@ struct ProfileView: View {
                         .background(cardBg2)
                         .cornerRadius(16)
                         .overlay(RoundedRectangle(cornerRadius: 16).stroke(purpl.opacity(0.15), lineWidth: 1))
+                        infoSection(
+                            icon: "arrow.up.arrow.down",
+                            iconColor: purpl,
+                            title: "Daily Change Indicator",
+                            body: "The percentage shown below your score compares today's Balance Score to yesterday's. A green arrow up means your score improved — you hit your targets more precisely today. A red arrow down means you were less consistent than yesterday. It resets daily so every day is a fresh opportunity to improve."
+                        )
                     }
                     .padding(20)
                 }
