@@ -39,6 +39,16 @@ struct AuraGain: Identifiable, Equatable {
     /// Date of birth as "yyyy-MM-dd". Empty string if not set.
     var dateOfBirth:      String = ""
 
+    /// Age in years derived from `dateOfBirth`. Returns 20 as a fallback.
+    var ageInYears: Int {
+        guard !dateOfBirth.isEmpty else { return 20 }
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        guard let dob = fmt.date(from: dateOfBirth) else { return 20 }
+        return Calendar.current.dateComponents([.year], from: dob, to: Date()).year ?? 20
+    }
+
     // MARK: - Body (in-memory only)
 
     var currentWeight: Double = 160

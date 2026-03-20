@@ -509,11 +509,16 @@ struct OnboardingView: View {
         dobFormatter.dateFormat = "yyyy-MM-dd"
         let dobString = dobFormatter.string(from: dateOfBirth)
 
-        // Calculate macros from goal weight
-        let cals    = goalWeight * 14.0
-        let protein = goalWeight * 0.9
-        let fat     = (cals * 0.25) / 9.0
-        let carbs   = (cals - protein * 4.0 - fat * 9.0) / 4.0
+        // Calculate macros using Mifflin-St Jeor (gender-neutral avg) + moderate activity
+        let totalInches = heightFeet * 12 + heightInches
+        let weightKg  = goalWeight * 0.453592
+        let heightCm  = Double(totalInches) * 2.54
+        let age       = Double(Calendar.current.dateComponents([.year], from: dateOfBirth, to: Date()).year ?? 20)
+        let bmr       = 10.0 * weightKg + 6.25 * heightCm - 5.0 * age - 78.0
+        let cals      = bmr * 1.55
+        let protein   = goalWeight * 0.9
+        let fat       = (cals * 0.25) / 9.0
+        let carbs     = (cals - protein * 4.0 - fat * 9.0) / 4.0
 
         do {
             // Upload profile photo first if one was selected
@@ -521,7 +526,6 @@ struct OnboardingView: View {
                 try await session.updateProfilePhoto(image: image)
             }
 
-            let totalInches = heightFeet * 12 + heightInches
             try await session.updateProfile(fields: [
                 "name":             name.trimmingCharacters(in: .whitespacesAndNewlines),
                 "username":         username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),

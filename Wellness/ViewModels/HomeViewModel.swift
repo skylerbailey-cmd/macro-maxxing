@@ -433,10 +433,15 @@ import FirebaseFirestore
     func recalculateMacrosFromGoalWeight() {
         let gw = userSettings.goalWeight
         guard gw > 0 else { return }
-        let cals    = gw * 14.0
-        let protein = gw * userSettings.proteinPerLb
-        let fat     = (cals * 0.25) / 9.0
-        let carbs   = (cals - protein * 4.0 - fat * 9.0) / 4.0
+        // Mifflin-St Jeor (gender-neutral avg) × moderate activity multiplier
+        let weightKg = gw * 0.453592
+        let heightCm = Double(max(userSettings.heightInches, 1)) * 2.54
+        let age      = Double(userSettings.ageInYears)
+        let bmr      = 10.0 * weightKg + 6.25 * heightCm - 5.0 * age - 78.0
+        let cals     = bmr * 1.55
+        let protein  = gw * userSettings.proteinPerLb
+        let fat      = (cals * 0.25) / 9.0
+        let carbs    = (cals - protein * 4.0 - fat * 9.0) / 4.0
 
         let newCal = max(cals,    1200)
         let newPrt = max(protein,   50)
