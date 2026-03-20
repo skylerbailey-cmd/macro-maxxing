@@ -57,17 +57,79 @@ struct AuraGain: Identifiable, Equatable {
 
     // MARK: - Streak (device-local — persisted to UserDefaults)
 
-    /// Current macro streak — updated once per day by StreakService on app launch.
+    /// Display streak shown in the UI (baseStreak + 1 if today is also met).
     var macroStreak: Int = 0 {
         didSet { UserDefaults.standard.set(macroStreak, forKey: "macroStreak") }
+    }
+    /// Consecutive historical days met, ending yesterday. Computed once per day
+    /// and persisted so it survives app restarts within the same calendar day.
+    var baseStreak: Int = 0 {
+        didSet { UserDefaults.standard.set(baseStreak, forKey: "baseStreak") }
     }
     /// All-time best streak.
     var longestStreak: Int = 0 {
         didSet { UserDefaults.standard.set(longestStreak, forKey: "longestStreak") }
     }
-    /// "yyyy-MM-dd" of the last day the streak check ran. Prevents double-running.
+    /// "yyyy-MM-dd" of the last day the historical streak walk ran. Prevents
+    /// re-fetching all of Firestore on every meal load.
     var lastStreakCheckDate: String = "" {
         didSet { UserDefaults.standard.set(lastStreakCheckDate, forKey: "lastStreakCheckDate") }
+    }
+    /// Set when the user first hits all macro goals for the day.
+    /// Observed by ContentView to show a streak congrats popup.
+    var pendingStreakCongrats: Int? = nil
+    /// Set when a streak break is detected. Observed by ContentView to show the shield popup.
+    var pendingStreakBreak: Int? = nil
+
+    // MARK: - Streak Shield
+
+    /// The streak count just before it reset to 0. Non-zero means a restorable break exists.
+    var lastStreakBeforeBreak: Int = 0 {
+        didSet { UserDefaults.standard.set(lastStreakBeforeBreak, forKey: "lastStreakBeforeBreak") }
+    }
+    /// "yyyy-MM-dd" of the day the streak broke. Used to show the popup once per break.
+    var streakBreakDate: String = "" {
+        didSet { UserDefaults.standard.set(streakBreakDate, forKey: "streakBreakDate") }
+    }
+    /// Dates where a streak shield was applied. StreakService treats these as "goals met"
+    /// even if no food was logged, preserving the restored streak going forward.
+    var shieldedDates: [String] {
+        get { UserDefaults.standard.stringArray(forKey: "shieldedDates") ?? [] }
+        set { UserDefaults.standard.set(newValue, forKey: "shieldedDates") }
+    }
+
+    /// Restores the streak after a successful shield purchase.
+    /// Adds the break date to shieldedDates so StreakService counts it as met going forward.
+    func applyStreakShield(userID: String) {
+        guard lastStreakBeforeBreak > 0, !streakBreakDate.isEmpty else { return }
+
+        var dates = shieldedDates
+        if !dates.contains(streakBreakDate) { dates.append(streakBreakDate) }
+        shieldedDates = dates
+
+        macroStreak  = lastStreakBeforeBreak
+        baseStreak   = lastStreakBeforeBreak
+
+        let restored = lastStreakBeforeBreak
+        let shielded = dates
+        let breakDate = streakBreakDate
+
+        lastStreakBeforeBreak = 0
+        streakBreakDate       = ""
+
+        guard !userID.isEmpty else { return }
+        Task {
+            try? await UserProfileService.shared.updateProfile(
+                userID: userID,
+                fields: [
+                    "streakDays":            restored,
+                    "lastStreakBeforeBreak":  0,
+                    "streakBreakDate":        "",
+                    "shieldedDates":          shielded,
+                ]
+            )
+            print("[UserSettings] Streak shield applied — restored to \(restored), shielded \(breakDate)")
+        }
     }
 
     // MARK: - Brainstorm result persistence (device-local)
@@ -426,6 +488,10 @@ struct AuraGain: Identifiable, Equatable {
         // Restore streak fields from Firestore. Take the higher streak value so a
         // local cache never overwrites a streak that was already correctly computed.
         macroStreak         = max(macroStreak, profile.streakDays)
+        // baseStreak must also be seeded from Firestore so the hub calculation
+        // (display = baseStreak + todayAllMet) doesn't start from 0 on a fresh
+        // install or after UserDefaults is cleared.
+        baseStreak          = max(baseStreak, profile.streakDays)
         longestStreak       = max(longestStreak, profile.longestStreak)
         // Take whichever check date is more recent (non-empty string comparison works
         // because "yyyy-MM-dd" sorts lexicographically).
@@ -477,8 +543,12 @@ struct AuraGain: Identifiable, Equatable {
 
         // Streak & goals-met history
         macroStreak           = 0
+        baseStreak            = 0
         longestStreak         = 0
         lastStreakCheckDate   = ""
+        lastStreakBeforeBreak = 0
+        streakBreakDate       = ""
+        shieldedDates         = []
         goalsMetDatesRaw      = ""
         achievedMilestonesRaw = ""
         lastCelebrationDate   = .distantPast
@@ -530,8 +600,11 @@ struct AuraGain: Identifiable, Equatable {
             ? Date(timeIntervalSince1970: storedCelebDate) : .distantPast
         self.goalsMetDatesRaw      = UserDefaults.standard.string(forKey: "goalsMetDates") ?? ""
         self.macroStreak           = UserDefaults.standard.integer(forKey: "macroStreak")
+        self.baseStreak            = UserDefaults.standard.integer(forKey: "baseStreak")
         self.longestStreak         = UserDefaults.standard.integer(forKey: "longestStreak")
         self.lastStreakCheckDate    = UserDefaults.standard.string(forKey: "lastStreakCheckDate") ?? ""
+        self.lastStreakBeforeBreak  = UserDefaults.standard.integer(forKey: "lastStreakBeforeBreak")
+        self.streakBreakDate        = UserDefaults.standard.string(forKey: "streakBreakDate") ?? ""
         self.brainstormUsageCount  = UserDefaults.standard.integer(forKey: "brainstormUsageCount")
         let storedBSDate = UserDefaults.standard.double(forKey: "brainstormUsageDate")
         self.brainstormUsageDate   = storedBSDate > 0

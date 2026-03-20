@@ -29,6 +29,10 @@ struct ContentView: View {
     @State private var pendingCelebration: CelebrationPostData? = nil
     // Firestore error alert
     @State private var firestoreErrorMessage: String? = nil
+    // Streak congrats alert
+    @State private var streakCongratsCount: Int? = nil
+    // Streak shield sheet
+    @State private var streakBreakCount: Int? = nil
 
     // FAB state
     @State private var fabExpanded           = false
@@ -105,6 +109,18 @@ struct ContentView: View {
                     userSettings.firestoreError = nil
                 }
             }
+            .onChange(of: userSettings.pendingStreakCongrats) { _, count in
+                if let count {
+                    streakCongratsCount = count
+                    userSettings.pendingStreakCongrats = nil
+                }
+            }
+            .onChange(of: userSettings.pendingStreakBreak) { _, count in
+                if let count {
+                    streakBreakCount = count
+                    userSettings.pendingStreakBreak = nil
+                }
+            }
             .alert("Firestore Write Error", isPresented: Binding(
                 get: { firestoreErrorMessage != nil },
                 set: { if !$0 { firestoreErrorMessage = nil } }
@@ -112,6 +128,16 @@ struct ContentView: View {
                 Button("OK") { firestoreErrorMessage = nil }
             } message: {
                 Text(firestoreErrorMessage ?? "")
+            }
+            .alert("🔥 Streak Extended!", isPresented: Binding(
+                get: { streakCongratsCount != nil },
+                set: { if !$0 { streakCongratsCount = nil } }
+            )) {
+                Button("Let's Go!") { streakCongratsCount = nil }
+            } message: {
+                if let n = streakCongratsCount {
+                    Text("You hit all your macro goals today. That's \(n) day\(n == 1 ? "" : "s") in a row. Keep it up.")
+                }
             }
 
             // Celebration popup — shown on top of all tabs
@@ -221,6 +247,26 @@ struct ContentView: View {
         }
         .sheet(isPresented: $fabShowingLibrary) {
             ImagePickerView(sourceType: .photoLibrary, selectedImage: $fabSelectedImage)
+        }
+        .sheet(isPresented: Binding(
+            get: { streakBreakCount != nil },
+            set: { if !$0 { streakBreakCount = nil } }
+        )) {
+            if let broken = streakBreakCount {
+                StreakShieldView(
+                    brokenStreak: broken,
+                    onRestore: {
+                        userSettings.applyStreakShield(userID: userSettings.userID)
+                        streakBreakCount = nil
+                    },
+                    onDismiss: {
+                        // Clear so the popup never re-shows for this break
+                        userSettings.lastStreakBeforeBreak = 0
+                        userSettings.streakBreakDate       = ""
+                        streakBreakCount = nil
+                    }
+                )
+            }
         }
         .onChange(of: fabSelectedImage) { _, image in
             if image != nil { selectedTab = 1 }

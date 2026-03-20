@@ -10,6 +10,7 @@
 		881BD8032F64841E003E41BE /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 881BD8022F64841E003E41BE /* FirebaseAuth */; };
 		881BD8052F64841E003E41BE /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 881BD8042F64841E003E41BE /* FirebaseFirestore */; };
 		881BD8072F64841E003E41BE /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 881BD8062F64841E003E41BE /* FirebaseStorage */; };
+		881BD9012F64841E003E41BE /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = 881BD9002F64841E003E41BE /* FirebaseFunctions */; };
 		881BDADC2F67A1A2003E41BE /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 881BDADB2F67A1A2003E41BE /* GoogleSignIn */; };
 		881BDADE2F67A1A2003E41BE /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 881BDADD2F67A1A2003E41BE /* GoogleSignInSwift */; };
 /* End PBXBuildFile section */
@@ -36,6 +37,7 @@
 				881BDADC2F67A1A2003E41BE /* GoogleSignIn in Frameworks */,
 				881BD8052F64841E003E41BE /* FirebaseFirestore in Frameworks */,
 				881BD8072F64841E003E41BE /* FirebaseStorage in Frameworks */,
+				881BD9012F64841E003E41BE /* FirebaseFunctions in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -81,6 +83,7 @@
 				881BD8022F64841E003E41BE /* FirebaseAuth */,
 				881BD8042F64841E003E41BE /* FirebaseFirestore */,
 				881BD8062F64841E003E41BE /* FirebaseStorage */,
+				881BD9002F64841E003E41BE /* FirebaseFunctions */,
 				881BDADB2F67A1A2003E41BE /* GoogleSignIn */,
 				881BDADD2F67A1A2003E41BE /* GoogleSignInSwift */,
 			);
@@ -403,6 +406,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 881BD8012F64841E003E41BE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;
+		};
+		881BD9002F64841E003E41BE /* FirebaseFunctions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 881BD8012F64841E003E41BE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFunctions;
 		};
 		881BDADB2F67A1A2003E41BE /* GoogleSignIn */ = {
 			isa = XCSwiftPackageProductDependency;

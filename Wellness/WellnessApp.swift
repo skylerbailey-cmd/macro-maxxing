@@ -88,7 +88,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     private func handleStreakReset(_ task: BGAppRefreshTask) {
-        // Streak is now checked on app launch via StreakService.checkAndUpdateStreak.
+        // Streak is now computed on app launch via StreakService.computeHistoricalStreak.
         // This background slot is kept registered so the OS doesn't penalise the app,
         // but no streak logic runs here.
         Self.scheduleStreakReset()

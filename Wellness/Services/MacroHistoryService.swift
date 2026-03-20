@@ -104,7 +104,15 @@ final class MacroHistoryService {
         mealCount:     Int,
         streakDay:     Int
     ) {
-        guard !userID.isEmpty, totalCalories > 0 else { return }
+        print("[MacroHistoryService] updateTodaysMacros called — userID=\(userID.prefix(8)) totalCalories=\(totalCalories) goalCalories=\(goalCalories)")
+        guard !userID.isEmpty else {
+            print("[MacroHistoryService] updateTodaysMacros skipped — userID is empty")
+            return
+        }
+        guard totalCalories > 0 else {
+            print("[MacroHistoryService] updateTodaysMacros skipped — totalCalories is 0")
+            return
+        }
 
         Task {
             do {
@@ -122,8 +130,9 @@ final class MacroHistoryService {
                     mealCount:     mealCount,
                     streakDay:     streakDay
                 )
+                print("[MacroHistoryService] updateTodaysMacros succeeded — wrote \(Int(totalCalories)) cal to macroHistory")
             } catch {
-                print("[MacroHistoryService] updateTodaysMacros failed: \(error.localizedDescription)")
+                print("[MacroHistoryService] updateTodaysMacros FAILED: \(error)")
             }
         }
     }
