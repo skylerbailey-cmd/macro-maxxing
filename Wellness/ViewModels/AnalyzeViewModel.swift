@@ -19,19 +19,24 @@ import Foundation
 
     /// True if Log Meals has already been run today (real calendar today).
     var hasRunToday: Bool {
-        guard let t = UserDefaults.standard.object(forKey: "lastLogMealsDate") as? Double else { return false }
+        guard let t = UserDefaults.standard.object(forKey: lastRunKey) as? Double else { return false }
         return Calendar.current.isDateInToday(Date(timeIntervalSince1970: t))
     }
 
     private let service = ClaudeAnalysisService()
 
-    private static let savedResultKey     = "aiCoachResult"
-    private static let savedResultDateKey = "aiCoachResultDate"
+    // Per-user keys so cached results don't leak across accounts.
+    private let lastRunKey:    String
+    private let resultKey:     String
+    private let resultDateKey: String
 
     init(userID: String,
          selectedDate: Date = Calendar.current.startOfDay(for: Date())) {
         self.userID       = userID
         self.selectedDate = selectedDate
+        self.lastRunKey    = "lastLogMealsDate_\(userID)"
+        self.resultKey     = "aiCoachResult_\(userID)"
+        self.resultDateKey = "aiCoachResultDate_\(userID)"
         restoreIfToday()
     }
 
@@ -86,9 +91,9 @@ import Foundation
 
         do {
             let result = try await service.analyze(input)
-            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastLogMealsDate")
-            UserDefaults.standard.set(result, forKey: Self.savedResultKey)
-            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.savedResultDateKey)
+            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastRunKey)
+            UserDefaults.standard.set(result, forKey: resultKey)
+            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: resultDateKey)
             state = .result(result)
         } catch {
             state = .error(error.localizedDescription)
@@ -109,9 +114,9 @@ import Foundation
     private func restoreIfToday() {
         let ud = UserDefaults.standard
         guard
-            let ts     = ud.object(forKey: Self.savedResultDateKey) as? Double,
+            let ts     = ud.object(forKey: resultDateKey) as? Double,
             Calendar.current.isDateInToday(Date(timeIntervalSince1970: ts)),
-            let saved  = ud.string(forKey: Self.savedResultKey),
+            let saved  = ud.string(forKey: resultKey),
             !saved.isEmpty
         else { return }
         state = .result(saved)
