@@ -156,7 +156,17 @@ final class LocalFoodClassifier {
             let match = self.findTier1Match(from: observations)
 
             if let match {
-                let needsClaude = match.confidence < 0.85 || itemCount > 1
+                // Trust the classifier for high-confidence whitelisted foods even
+                // when saliency detects multiple regions (plate, table, shadow, etc.).
+                // Only require single-object confirmation at lower confidence levels.
+                let needsClaude: Bool
+                if match.confidence >= 0.90 {
+                    needsClaude = false  // High confidence whitelist match — trust it
+                } else if match.confidence >= 0.85 {
+                    needsClaude = itemCount > 2  // Medium confidence — tolerate plate/table regions
+                } else {
+                    needsClaude = true   // Low confidence — escalate
+                }
                 print("[LocalFoodClassifier] Tier 1 match: \"\(match.foodName)\" conf=\(String(format: "%.2f", match.confidence)) items=\(itemCount) → \(needsClaude ? "Claude" : "USDA")")
                 continuation.resume(returning: FoodClassification(
                     foodName: match.foodName,
@@ -216,7 +226,8 @@ final class LocalFoodClassifier {
     private func countSalientObjects(from results: [VNObservation]?) -> Int {
         guard let saliency = results?.first as? VNSaliencyImageObservation,
               let objects = saliency.salientObjects else { return 1 }
-        let significant = objects.filter { $0.boundingBox.width * $0.boundingBox.height > 0.05 }
+        // Use 10% area threshold to avoid counting plates, table edges, shadows, etc.
+        let significant = objects.filter { $0.boundingBox.width * $0.boundingBox.height > 0.10 }
         return max(1, significant.count)
     }
 
