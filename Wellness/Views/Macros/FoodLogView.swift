@@ -1164,7 +1164,7 @@ private struct AnalysisSheet: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    ForEach(viewModel.savedMeals) { meal in
+                    ForEach(viewModel.sortedSavedMeals) { meal in
                         savedMealChip(meal)
                     }
                 }
