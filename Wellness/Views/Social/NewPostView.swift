@@ -636,13 +636,6 @@ struct NewPostView: View {
     }
 
     private func prefillForLabel(_ label: PostLabel) {
-        switch label {
-        case .goalPost:
-            if titleText.isEmpty { titleText = "goals locked in 🎯" }
-            if bodyText.isEmpty  { bodyText  = "tell the feed how you locked in today fr." }
-        default:
-            break
-        }
     }
 
     @MainActor
