@@ -420,7 +420,7 @@ struct FoodLogView: View {
                             .foregroundStyle(.white.opacity(0.50))
                     }
                 } else {
-                    Text("Analyzes everything you logged today — meals, macros, and workouts — then gives you one actionable recommendation to make tomorrow better. Once per day.")
+                    Text("Reviews your full day — every meal, macro distribution, workout timing — and gives you a personalized nutritionist-level debrief with actionable advice. Once per day.")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.50))
                         .lineSpacing(2)
@@ -458,7 +458,7 @@ struct FoodLogView: View {
                 Button("Let's Go", role: .none) { Task { await analyzeVM.analyze() } }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Reviews today's meals, macros, and workouts to give you one actionable tip for tomorrow. Once per day.")
+                Text("Reviews your full day of meals, macros, and workouts to give you a personalized nutrition debrief. Once per day.")
             }
         }
         .padding(16)
@@ -480,7 +480,7 @@ struct FoodLogView: View {
         if let attr = try? AttributedString(
             markdown: text,
             options: AttributedString.MarkdownParsingOptions(
-                interpretedSyntax: .inlineOnlyPreservingWhitespace
+                interpretedSyntax: .full
             )
         ) {
             Text(attr)

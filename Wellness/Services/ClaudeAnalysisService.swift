@@ -36,7 +36,7 @@ final class ClaudeAnalysisService {
 
         let body = RequestBody(
             model: model,
-            maxTokens: 1024,
+            maxTokens: 2048,
             messages: [RequestBody.Message(role: "user", content: prompt)]
         )
 
@@ -142,21 +142,32 @@ final class ClaudeAnalysisService {
 
         p += """
         \n
-        Based on everything logged today, identify the SINGLE most impactful adjustment \
-        this person should make TOMORROW. Use today's full picture — what they ate, \
-        when they ate it, how their macros landed vs. goals, and any workouts — to give \
-        a forward-looking recommendation they can act on the next day. \
-        Consider all options and choose whichever will move the needle most:
-        - Swap a habitual meal for something with a better macro profile
-        - Improve nutrient timing relative to their typical workout schedule
-        - Redistribute macros across the day (e.g. more protein at breakfast, carbs around training)
-        - Replace a low-quality macro source with a higher-quality one
-        - Add or reduce a specific food to better hit a consistently missed goal
+        You are reviewing this person's full day of eating and training. \
+        Act like a real sports nutritionist doing a daily check-in. \
+        Analyze everything — every meal, the macro split across the day, \
+        meal timing relative to workouts, and overall goal adherence — \
+        then give a concise daily debrief covering these areas:
 
-        Choose the option that produces the biggest improvement based on today's patterns. \
-        Do NOT default to a food swap if a timing or distribution fix is clearly better. \
-        State the recommendation in ONE direct sentence — no intro, no list, no extra commentary. \
-        Name the specific meal or food involved. Keep it direct and motivating.
+        1. **Macro overview** — How did they land vs. goals? Call out any macro that was \
+        significantly over or under. Be specific with numbers.
+
+        2. **Meal timing & distribution** — Was protein spread evenly or back-loaded? \
+        Did they fuel properly around their workout (pre/post)? \
+        Were there long gaps without eating that hurt performance or recovery?
+
+        3. **Food quality** — Any meals that were mostly empty carbs or low-quality fats? \
+        Any standout meals that were well-balanced?
+
+        4. **Top recommendation** — Based on the full picture, give ONE specific, \
+        actionable change for tomorrow. Name the meal or food. \
+        Explain WHY it matters (muscle recovery, energy, satiety, etc.).
+
+        **Format rules:**
+        - Use short paragraphs, not bullet lists.
+        - Keep the whole response to 4–6 sentences max.
+        - Be direct and specific — reference actual foods and times from the log.
+        - No generic advice like "eat more protein" — say exactly what to swap, add, or shift and when.
+        - Keep the tone motivating but real — like a coach who actually reviews their athletes' logs.
         """
         return p
     }

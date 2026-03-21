@@ -129,7 +129,7 @@ enum TutorialSteps {
         ),
         .init(
             title: "AI Nutrition Coach",
-            body: "Scroll to the bottom of your food log to find the AI Nutrition Coach. It analyzes everything you logged today — meals, macros, and workouts — then gives you one actionable recommendation to make tomorrow better. Available once per day.",
+            body: "Scroll to the bottom of your food log to find the AI Nutrition Coach. It reviews your full day — every meal, macro distribution, and workout timing — then gives you a personalized nutritionist-level debrief with actionable advice. Available once per day.",
             anchorID: "log.nutritionCoach"
         ),
     ]
