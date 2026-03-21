@@ -36,7 +36,7 @@ final class USDAFoodService {
 
     /// Free USDA FoodData Central API key.
     /// Get your own at https://fdc.nal.usda.gov/api-key-signup.html
-    private let apiKey = "DEMO_KEY"
+    private let apiKey = "REDACTED"
     private let baseURL = "https://api.nal.usda.gov/fdc/v1"
 
     // MARK: - In-memory session cache
