@@ -321,7 +321,7 @@ struct ProfileView: View {
                         if !profileLocation.isEmpty {
                             Text("·")
                                 .foregroundStyle(.white.opacity(0.25))
-                            Image(systemName: "mappin.fill")
+                            Image(systemName: "mappin.and.ellipse")
                                 .font(.system(size: 9))
                                 .foregroundStyle(purpl.opacity(0.70))
                             Text(profileLocation)
