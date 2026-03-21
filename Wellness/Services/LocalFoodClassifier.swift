@@ -3,8 +3,9 @@
 //  Wellness
 //
 //  On-device food recognition using Apple's Vision framework.
-//  Runs classification entirely offline with no network calls.
-//  Falls back to Claude API when confidence is low or the food is complex.
+//  Conservative approach: only trusts Tier 1 for obvious, single-ingredient
+//  foods where Vision's taxonomy label exactly matches a known food.
+//  Everything else falls back to Claude (Tier 2).
 //
 
 import UIKit
@@ -13,12 +14,11 @@ import Vision
 // MARK: - Classification Result
 
 struct FoodClassification {
-    /// Recognized food name (e.g. "pizza", "salad", "grilled chicken").
+    /// Recognized food name (e.g. "banana", "egg", "broccoli").
     let foodName: String
     /// Confidence score from 0.0 to 1.0.
     let confidence: Double
-    /// True if Claude API should be used for more accurate macro estimation.
-    /// Triggered when confidence < 0.80 or the food is a complex/mixed meal.
+    /// True if Claude API should be used instead of local USDA lookup.
     let needsClaudeAnalysis: Bool
     /// Estimated number of individual food items detected in the image (1+).
     let itemCount: Int
@@ -31,126 +31,152 @@ final class LocalFoodClassifier {
     static let shared = LocalFoodClassifier()
     private init() {}
 
-    /// Foods that are inherently complex or mixed — even high-confidence
-    /// classifications can't reliably estimate macros for these without AI.
-    private let complexMealCategories: Set<String> = [
-        "burrito", "sushi", "pizza", "sandwich", "salad", "bowl",
-        "wrap", "taco", "pasta", "noodle", "soup", "stew", "curry",
-        "casserole", "stir fry", "plate", "meal", "dinner", "lunch",
-        "breakfast", "brunch", "buffet", "combo", "platter", "bento",
-        "poke", "ramen", "pho", "pad thai", "lasagna", "paella",
-        "risotto", "omelette", "omelet", "quiche", "potpie",
-        "bibimbap", "nachos", "quesadilla", "enchilada",
-        "mixed", "assorted", "variety",
+    /// Tier 1 whitelist: obvious single-ingredient foods where Vision's general
+    /// taxonomy is reliable enough for a USDA macro lookup. These are visually
+    /// distinct items that Vision rarely confuses with non-food objects.
+    ///
+    /// Key = Vision taxonomy label substring to match.
+    /// Value = clean food name to send to USDA.
+    private let tier1Foods: [String: String] = [
+        // Fruits
+        "banana":     "banana",
+        "apple":      "apple",       // only matched when it's the #1 label
+        "orange":     "orange",
+        "lemon":      "lemon",
+        "lime":       "lime",
+        "pear":       "pear",
+        "peach":      "peach",
+        "watermelon": "watermelon",
+        "pineapple":  "pineapple",
+        "mango":      "mango",
+        "kiwi":       "kiwi",
+        "strawberry": "strawberry",
+        "blueberry":  "blueberry",
+        "grape":      "grape",
+        "avocado":    "avocado",
+        // Vegetables
+        "broccoli":   "broccoli",
+        "carrot":     "carrot",
+        "corn":       "corn on the cob",
+        "tomato":     "tomato",
+        "cucumber":   "cucumber",
+        "bell pepper": "bell pepper",
+        // Proteins
+        "egg":        "egg",
+        // Grains
+        "bagel":      "bagel",
+        "pretzel":    "pretzel",
+        "waffle":     "waffle",
+        "pancake":    "pancake",
+        // Snacks
+        "doughnut":   "doughnut",
+        "donut":      "doughnut",
+        "popcorn":    "popcorn",
+    ]
+
+    /// Labels that are common Vision false positives for food photos.
+    /// If the top-1 label is one of these, skip Tier 1 entirely.
+    private let ambiguousLabels: Set<String> = [
+        "indoor", "outdoor", "table", "plate", "bowl", "cup",
+        "kitchen", "restaurant", "counter", "wood", "ceramic",
+        "glass", "plastic", "paper", "textile", "pattern",
     ]
 
     /// Classifies a food image on-device using Vision.
     /// Returns results in under 500ms on modern hardware.
-    /// - Parameter image: The food photo to classify.
-    /// - Returns: A `FoodClassification` with the top result and estimated item count.
     func classify(_ image: UIImage) async -> FoodClassification {
         await withCheckedContinuation { continuation in
             guard let cgImage = image.cgImage else {
-                continuation.resume(returning: FoodClassification(
-                    foodName: "unknown food", confidence: 0,
-                    needsClaudeAnalysis: true, itemCount: 1
-                ))
+                continuation.resume(returning: .unknown)
                 return
             }
 
-            // Run classification + saliency detection together
             let classifyRequest = VNClassifyImageRequest()
             let saliencyRequest = VNGenerateObjectnessBasedSaliencyImageRequest()
-
             let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+
             do {
                 try handler.perform([classifyRequest, saliencyRequest])
             } catch {
                 print("[LocalFoodClassifier] Vision error: \(error.localizedDescription)")
-                continuation.resume(returning: FoodClassification(
-                    foodName: "unknown food", confidence: 0,
-                    needsClaudeAnalysis: true, itemCount: 1
-                ))
+                continuation.resume(returning: .unknown)
                 return
             }
 
-            guard let observations = classifyRequest.results as? [VNClassificationObservation],
-                  let top = self.bestFoodMatch(from: observations)
-            else {
-                continuation.resume(returning: FoodClassification(
-                    foodName: "unknown food", confidence: 0,
-                    needsClaudeAnalysis: true, itemCount: 1
-                ))
+            guard let observations = classifyRequest.results as? [VNClassificationObservation] else {
+                continuation.resume(returning: .unknown)
                 return
             }
 
-            // Count salient objects (distinct food items in the image)
             let itemCount = self.countSalientObjects(from: saliencyRequest.results)
+            let match = self.findTier1Match(from: observations)
 
-            let name = self.cleanLabel(top.identifier)
-            let confidence = Double(top.confidence)
-            let isComplex = self.isComplexMeal(name)
-            // Multiple items also trigger Claude for better portion analysis
-            let needsClaude = confidence < 0.80 || isComplex || itemCount > 1
-
-            continuation.resume(returning: FoodClassification(
-                foodName: name, confidence: confidence,
-                needsClaudeAnalysis: needsClaude, itemCount: itemCount
-            ))
+            if let match {
+                let needsClaude = match.confidence < 0.85 || itemCount > 1
+                print("[LocalFoodClassifier] Tier 1 match: \"\(match.foodName)\" conf=\(String(format: "%.2f", match.confidence)) items=\(itemCount) → \(needsClaude ? "Claude" : "USDA")")
+                continuation.resume(returning: FoodClassification(
+                    foodName: match.foodName,
+                    confidence: match.confidence,
+                    needsClaudeAnalysis: needsClaude,
+                    itemCount: itemCount
+                ))
+            } else {
+                // Log the top 3 Vision labels for debugging
+                let topLabels = observations.prefix(3).map { "\($0.identifier)(\(String(format: "%.2f", $0.confidence)))" }.joined(separator: ", ")
+                print("[LocalFoodClassifier] No Tier 1 match. Top labels: \(topLabels) → Claude")
+                continuation.resume(returning: FoodClassification(
+                    foodName: observations.first.map { self.cleanLabel($0.identifier) } ?? "unknown",
+                    confidence: Double(observations.first?.confidence ?? 0),
+                    needsClaudeAnalysis: true,
+                    itemCount: itemCount
+                ))
+            }
         }
+    }
+
+    // MARK: - Private Helpers
+
+    /// Searches Vision results for an exact match against the Tier 1 whitelist.
+    /// Only looks at the top 5 results and requires the match to be both:
+    /// 1. In the whitelist
+    /// 2. The highest-confidence food label (not preceded by a different food)
+    private func findTier1Match(from observations: [VNClassificationObservation]) -> (foodName: String, confidence: Double)? {
+
+        // Check top 5 labels only
+        for obs in observations.prefix(5) {
+            let label = obs.identifier.lowercased()
+                .replacingOccurrences(of: "_", with: " ")
+                .replacingOccurrences(of: "-", with: " ")
+
+            // Skip ambiguous/non-food labels
+            if ambiguousLabels.contains(where: { label.contains($0) }) { continue }
+
+            // Check for exact tier1 food match
+            for (key, foodName) in tier1Foods {
+                if label.contains(key) {
+                    return (foodName: foodName, confidence: Double(obs.confidence))
+                }
+            }
+
+            // If we hit a non-ambiguous label that isn't a known food, stop.
+            // This prevents matching a low-ranked food label that was preceded
+            // by a high-confidence non-food label (like "apple" at rank 3 when
+            // "curry" is clearly what the image shows).
+            break
+        }
+
+        return nil
     }
 
     /// Counts distinct salient regions from objectness saliency results.
     private func countSalientObjects(from results: [VNObservation]?) -> Int {
         guard let saliency = results?.first as? VNSaliencyImageObservation,
               let objects = saliency.salientObjects else { return 1 }
-        // Filter to reasonably sized regions (> 5% of image area)
         let significant = objects.filter { $0.boundingBox.width * $0.boundingBox.height > 0.05 }
         return max(1, significant.count)
     }
 
-    // MARK: - Private Helpers
-
-    /// Picks the best food-related classification from the full taxonomy.
-    /// Vision's built-in classifier returns many non-food categories;
-    /// this filters to results that are likely food items.
-    private func bestFoodMatch(from observations: [VNClassificationObservation]) -> VNClassificationObservation? {
-        // Food-related keywords to match against Vision taxonomy labels
-        let foodKeywords: Set<String> = [
-            "food", "fruit", "vegetable", "meat", "bread", "cake", "dessert",
-            "snack", "meal", "dish", "drink", "beverage", "egg", "cheese",
-            "rice", "pasta", "noodle", "soup", "salad", "sandwich", "pizza",
-            "sushi", "seafood", "fish", "chicken", "beef", "pork", "steak",
-            "burger", "fries", "taco", "burrito", "ice cream", "chocolate",
-            "cookie", "pie", "waffle", "pancake", "cereal", "yogurt",
-            "smoothie", "juice", "coffee", "tea", "wine", "beer",
-            "apple", "banana", "orange", "grape", "berry", "strawberry",
-            "avocado", "tomato", "potato", "corn", "broccoli", "carrot",
-            "nut", "almond", "peanut", "oat", "granola", "toast",
-            "bacon", "sausage", "ham", "turkey", "shrimp", "lobster",
-            "crab", "salmon", "tuna", "doughnut", "donut", "muffin",
-            "croissant", "bagel", "pretzel", "popcorn", "chip",
-            "guacamole", "hummus", "curry", "ramen", "pho",
-        ]
-
-        // First pass: find high-confidence food matches
-        for obs in observations.prefix(20) {
-            let label = obs.identifier.lowercased()
-            if foodKeywords.contains(where: { label.contains($0) }) {
-                return obs
-            }
-        }
-
-        // Fallback: return the top result if it has reasonable confidence
-        // (the user pointed their camera at something, so assume it's food)
-        if let top = observations.first, top.confidence > 0.3 {
-            return top
-        }
-
-        return nil
-    }
-
-    /// Cleans up a Vision taxonomy label into a human-readable food name.
+    /// Cleans a Vision taxonomy label into a human-readable string.
     private func cleanLabel(_ identifier: String) -> String {
         identifier
             .replacingOccurrences(of: "_", with: " ")
@@ -159,11 +185,13 @@ final class LocalFoodClassifier {
             .trimmingCharacters(in: .whitespaces)
             .lowercased() ?? identifier.lowercased()
     }
+}
 
-    /// Returns true if the food name matches any complex meal category
-    /// where macro estimation requires detailed AI analysis.
-    private func isComplexMeal(_ name: String) -> Bool {
-        let lower = name.lowercased()
-        return complexMealCategories.contains(where: { lower.contains($0) })
-    }
+// MARK: - Convenience
+
+extension FoodClassification {
+    static let unknown = FoodClassification(
+        foodName: "unknown", confidence: 0,
+        needsClaudeAnalysis: true, itemCount: 1
+    )
 }
