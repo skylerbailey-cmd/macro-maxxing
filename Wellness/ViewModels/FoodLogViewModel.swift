@@ -9,7 +9,21 @@ enum AnalysisState: Equatable {
     case idle
     case analyzing
     case result
+    case confirmed(FoodRecognitionResult)
     case error(String)
+
+    static func == (lhs: AnalysisState, rhs: AnalysisState) -> Bool {
+        switch (lhs, rhs) {
+        case (.idle, .idle), (.analyzing, .analyzing), (.result, .result):
+            return true
+        case (.error(let a), .error(let b)):
+            return a == b
+        case (.confirmed, .confirmed):
+            return true
+        default:
+            return false
+        }
+    }
 }
 
 @Observable final class FoodLogViewModel {
@@ -38,18 +52,19 @@ enum AnalysisState: Equatable {
     /// True when the current entry fields were pre-filled from a saved meal.
     var isFromSavedMeal: Bool = false
 
+    /// The latest recognition result from the three-tier system.
+    var recognitionResult: FoodRecognitionResult?
+
     var todayEntries: [FoodEntry] = []
     var savedMeals:   [FoodEntry] = []
 
-    private let service: ClaudeVisionService
+    private let recognitionManager = FoodRecognitionManager.shared
     private(set) var userID: String
 
     init(selectedDate: Date = Calendar.current.startOfDay(for: Date()),
-         userID: String = "",
-         service: ClaudeVisionService = ClaudeVisionService()) {
+         userID: String = "") {
         self.selectedDate = selectedDate
         self.userID       = userID
-        self.service      = service
     }
 
     func loadTodayEntries() async {
@@ -71,36 +86,97 @@ enum AnalysisState: Equatable {
         analysisState    = .result
     }
 
+    // MARK: - Three-Tier Food Recognition
+
+    /// Analyzes a food image through the three-tier recognition pipeline.
+    @MainActor
     func analyzeImage() async {
         guard let image = selectedImage else { return }
         analysisState = .analyzing
-        do {
-            let result = try await service.analyzeFoodImage(image)
-            foodName     = result.food
-            caloriesText = String(format: "%.0f", result.calories)
-            proteinText  = String(format: "%.1f", result.protein)
-            carbsText    = String(format: "%.1f", result.carbs)
-            fatText      = String(format: "%.1f", result.fat)
-            analysisState = .result
-        } catch {
-            analysisState = .error(error.localizedDescription)
+
+        let result = await recognitionManager.recognizeFood(
+            image: image,
+            voiceNote: voiceNote.isEmpty ? nil : voiceNote,
+            userID: userID
+        )
+
+        recognitionResult = result
+        populateFromRecognitionResult(result)
+
+        if result.tier == 0 && result.calories == 0 {
+            // All tiers failed — show error with manual entry option
+            analysisState = .error(FoodRecognitionError.allTiersFailed.localizedDescription)
+        } else {
+            analysisState = .confirmed(result)
         }
     }
 
+    /// Analyzes with voice note context.
+    @MainActor
     func analyzeImageWithVoice() async {
         guard let image = selectedImage else { return }
         analysisState = .analyzing
-        do {
-            let result = try await service.analyzeFoodImageWithVoice(image, voiceNote: voiceNote)
-            foodName     = result.food
-            caloriesText = String(format: "%.0f", result.calories)
-            proteinText  = String(format: "%.1f", result.protein)
-            carbsText    = String(format: "%.1f", result.carbs)
-            fatText      = String(format: "%.1f", result.fat)
-            analysisState = .result
-        } catch {
-            analysisState = .error(error.localizedDescription)
+
+        let result = await recognitionManager.recognizeFood(
+            image: image,
+            voiceNote: voiceNote,
+            userID: userID
+        )
+
+        recognitionResult = result
+        populateFromRecognitionResult(result)
+
+        if result.tier == 0 && result.calories == 0 {
+            analysisState = .error(FoodRecognitionError.allTiersFailed.localizedDescription)
+        } else {
+            analysisState = .confirmed(result)
         }
+    }
+
+    /// Escalates to the next tier when user taps "Try better scan".
+    @MainActor
+    func escalateAnalysis() async {
+        guard let image = selectedImage,
+              let current = recognitionResult,
+              current.tier < 3 else { return }
+
+        analysisState = .analyzing
+
+        let result = await recognitionManager.escalate(
+            image: image,
+            fromTier: current.tier,
+            voiceNote: voiceNote.isEmpty ? nil : voiceNote,
+            userID: userID
+        )
+
+        recognitionResult = result
+        populateFromRecognitionResult(result)
+
+        if result.tier == 0 && result.calories == 0 {
+            analysisState = .error(FoodRecognitionError.allTiersFailed.localizedDescription)
+        } else {
+            analysisState = .confirmed(result)
+        }
+    }
+
+    /// Populates the text fields from a recognition result.
+    private func populateFromRecognitionResult(_ result: FoodRecognitionResult) {
+        foodName     = result.foodName
+        caloriesText = String(format: "%.0f", Double(result.calories))
+        proteinText  = String(format: "%.1f", result.protein)
+        carbsText    = String(format: "%.1f", result.carbs)
+        fatText      = String(format: "%.1f", result.fat)
+    }
+
+    /// Updates fields from a confirmed (possibly adjusted) result.
+    func confirmResult(_ result: FoodRecognitionResult) {
+        recognitionResult = result
+        foodName     = result.foodName
+        caloriesText = String(format: "%.0f", Double(result.calories))
+        proteinText  = String(format: "%.1f", result.protein)
+        carbsText    = String(format: "%.1f", result.carbs)
+        fatText      = String(format: "%.1f", result.fat)
+        analysisState = .result
     }
 
     @discardableResult
@@ -192,15 +268,16 @@ enum AnalysisState: Equatable {
     }
 
     func resetFields() {
-        selectedImage = nil
-        foodName      = ""
-        caloriesText  = ""
-        proteinText   = ""
-        carbsText     = ""
-        fatText       = ""
-        voiceNote     = ""
-        saveMeal        = false
-        isFromSavedMeal = false
-        analysisState   = .idle
+        selectedImage     = nil
+        foodName          = ""
+        caloriesText      = ""
+        proteinText       = ""
+        carbsText         = ""
+        fatText           = ""
+        voiceNote         = ""
+        saveMeal          = false
+        isFromSavedMeal   = false
+        recognitionResult = nil
+        analysisState     = .idle
     }
 }
