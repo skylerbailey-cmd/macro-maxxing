@@ -28,7 +28,7 @@ final class ClaudeSonnetService {
             contextLines.append("Previous analysis attempt identified this as: \"\(guess)\". Use this as context but make your own determination.")
         }
         if let voice = voiceNote, !voice.isEmpty {
-            contextLines.append("The user described this food as: \"\(voice)\"")
+            contextLines.append("PRIORITY: The user verbally described this food as: \"\(voice)\". This description overrides what you see in the photo. Use the photo only for visual confirmation — base your food identification, portion size, and macro calculation primarily on the user's description.")
         }
         let contextBlock = contextLines.isEmpty ? "" : contextLines.joined(separator: "\n") + "\n\n"
 

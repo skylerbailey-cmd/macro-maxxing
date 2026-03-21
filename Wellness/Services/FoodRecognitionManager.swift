@@ -35,6 +35,17 @@ final class FoodRecognitionManager {
     /// Recognizes food from an image using the three-tier system.
     /// Always returns a result — never throws to the caller.
     func recognizeFood(image: UIImage, voiceNote: String? = nil, userID: String = "") async -> FoodRecognitionResult {
+        // When the user provides a voice description, it takes priority over the image.
+        // Skip all on-device tiers and go straight to Sonnet, which can understand
+        // natural language like "1 tablespoon of olive oil" regardless of what the photo shows.
+        if let voice = voiceNote, !voice.isEmpty {
+            print("[FoodRecognition] Voice note present — skipping Tier 1/2, going to Sonnet: \"\(voice)\"")
+            if let result = await attemptTier3(image: image, previousGuess: nil, voiceNote: voice, userID: userID) {
+                return result
+            }
+            return fallbackResult()
+        }
+
         // Step 0: Try LocalFoodClassifier (Vision-based, no bundled model needed).
         // For whitelisted single-ingredient foods (fruits, veggies, eggs, etc.)
         // this resolves via USDA lookup — no AI cost, <500ms.
