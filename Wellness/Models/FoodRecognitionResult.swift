@@ -40,8 +40,8 @@ struct FoodRecognitionResult {
     var tierBadge: String {
         switch tier {
         case 1:  return "⚡ Instant"
-        case 2:  return "🔍 Enhanced"
-        case 3:  return "🧠 AI Analysis"
+        case 2:  return "🔍 Haiku"
+        case 3:  return "🧠 Sonnet"
         default: return "Unknown"
         }
     }
