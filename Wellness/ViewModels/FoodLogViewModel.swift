@@ -102,11 +102,24 @@ enum AnalysisTier: Equatable {
 
         // ── Tier 1: On-device classification ──────────────────────────────
         let local = await LocalFoodClassifier.shared.classify(image)
-        print("[Tier1] \"\(local.foodName)\" confidence=\(String(format: "%.2f", local.confidence)) needsClaude=\(local.needsClaudeAnalysis)")
+        print("[Tier1] \"\(local.foodName)\" confidence=\(String(format: "%.2f", local.confidence)) needsClaude=\(local.needsClaudeAnalysis) items=\(local.itemCount)")
 
         if local.confidence >= 0.80 && !local.needsClaudeAnalysis {
             // Simple, high-confidence food → look up macros from USDA
-            if let usda = await USDAFoodService.shared.lookup(foodName: local.foodName) {
+            // Pass itemCount so portion is multiplied (e.g. 2 bananas = 2× serving)
+            let servingGrams: Double? = local.itemCount > 1 ? nil : nil  // use default estimate
+            if var usda = await USDAFoodService.shared.lookup(foodName: local.foodName, portionGrams: servingGrams) {
+                // Scale by item count if multiple detected
+                if local.itemCount > 1 {
+                    let n = Double(local.itemCount)
+                    usda = MacroResult(
+                        food:     "\(local.itemCount)× \(usda.food)",
+                        calories: (usda.calories * n).rounded(),
+                        protein:  (usda.protein * n * 10).rounded() / 10,
+                        carbs:    (usda.carbs * n * 10).rounded() / 10,
+                        fat:      (usda.fat * n * 10).rounded() / 10
+                    )
+                }
                 foodName     = usda.food
                 caloriesText = String(format: "%.0f", usda.calories)
                 proteinText  = String(format: "%.1f", usda.protein)
@@ -115,7 +128,7 @@ enum AnalysisTier: Equatable {
                 analysisTier  = .local
                 analysisState = .result
                 Self.tier1Count += 1
-                print("[Tier1] ✓ Resolved locally: \(usda.food) — \(Int(usda.calories)) kcal")
+                print("[Tier1] ✓ Resolved locally: \(usda.food) — \(Int(usda.calories)) kcal (\(local.itemCount) item(s))")
                 return
             }
             print("[Tier1] USDA lookup failed for \"\(local.foodName)\", falling back to Claude")

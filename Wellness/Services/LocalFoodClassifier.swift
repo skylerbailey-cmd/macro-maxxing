@@ -20,6 +20,8 @@ struct FoodClassification {
     /// True if Claude API should be used for more accurate macro estimation.
     /// Triggered when confidence < 0.80 or the food is a complex/mixed meal.
     let needsClaudeAnalysis: Bool
+    /// Estimated number of individual food items detected in the image (1+).
+    let itemCount: Int
 }
 
 // MARK: - Classifier
@@ -45,55 +47,66 @@ final class LocalFoodClassifier {
     /// Classifies a food image on-device using Vision.
     /// Returns results in under 500ms on modern hardware.
     /// - Parameter image: The food photo to classify.
-    /// - Returns: A `FoodClassification` with the top result.
+    /// - Returns: A `FoodClassification` with the top result and estimated item count.
     func classify(_ image: UIImage) async -> FoodClassification {
         await withCheckedContinuation { continuation in
             guard let cgImage = image.cgImage else {
                 continuation.resume(returning: FoodClassification(
-                    foodName: "unknown food",
-                    confidence: 0,
-                    needsClaudeAnalysis: true
+                    foodName: "unknown food", confidence: 0,
+                    needsClaudeAnalysis: true, itemCount: 1
                 ))
                 return
             }
 
-            let request = VNClassifyImageRequest { request, error in
-                guard error == nil,
-                      let observations = request.results as? [VNClassificationObservation],
-                      let top = self.bestFoodMatch(from: observations)
-                else {
-                    continuation.resume(returning: FoodClassification(
-                        foodName: "unknown food",
-                        confidence: 0,
-                        needsClaudeAnalysis: true
-                    ))
-                    return
-                }
-
-                let name = self.cleanLabel(top.identifier)
-                let confidence = Double(top.confidence)
-                let isComplex = self.isComplexMeal(name)
-                let needsClaude = confidence < 0.80 || isComplex
-
-                continuation.resume(returning: FoodClassification(
-                    foodName: name,
-                    confidence: confidence,
-                    needsClaudeAnalysis: needsClaude
-                ))
-            }
+            // Run classification + saliency detection together
+            let classifyRequest = VNClassifyImageRequest()
+            let saliencyRequest = VNGenerateObjectnessBasedSaliencyImageRequest()
 
             let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
             do {
-                try handler.perform([request])
+                try handler.perform([classifyRequest, saliencyRequest])
             } catch {
                 print("[LocalFoodClassifier] Vision error: \(error.localizedDescription)")
                 continuation.resume(returning: FoodClassification(
-                    foodName: "unknown food",
-                    confidence: 0,
-                    needsClaudeAnalysis: true
+                    foodName: "unknown food", confidence: 0,
+                    needsClaudeAnalysis: true, itemCount: 1
                 ))
+                return
             }
+
+            guard let observations = classifyRequest.results as? [VNClassificationObservation],
+                  let top = self.bestFoodMatch(from: observations)
+            else {
+                continuation.resume(returning: FoodClassification(
+                    foodName: "unknown food", confidence: 0,
+                    needsClaudeAnalysis: true, itemCount: 1
+                ))
+                return
+            }
+
+            // Count salient objects (distinct food items in the image)
+            let itemCount = self.countSalientObjects(from: saliencyRequest.results)
+
+            let name = self.cleanLabel(top.identifier)
+            let confidence = Double(top.confidence)
+            let isComplex = self.isComplexMeal(name)
+            // Multiple items also trigger Claude for better portion analysis
+            let needsClaude = confidence < 0.80 || isComplex || itemCount > 1
+
+            continuation.resume(returning: FoodClassification(
+                foodName: name, confidence: confidence,
+                needsClaudeAnalysis: needsClaude, itemCount: itemCount
+            ))
         }
+    }
+
+    /// Counts distinct salient regions from objectness saliency results.
+    private func countSalientObjects(from results: [VNObservation]?) -> Int {
+        guard let saliency = results?.first as? VNSaliencyImageObservation,
+              let objects = saliency.salientObjects else { return 1 }
+        // Filter to reasonably sized regions (> 5% of image area)
+        let significant = objects.filter { $0.boundingBox.width * $0.boundingBox.height > 0.05 }
+        return max(1, significant.count)
     }
 
     // MARK: - Private Helpers
