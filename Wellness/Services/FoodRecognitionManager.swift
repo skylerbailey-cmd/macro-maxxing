@@ -55,7 +55,8 @@ final class FoodRecognitionManager {
 
         // Check cache first
         if let name = bestHint, (coreMLConfidence >= 0.60 || localResult.confidence >= 0.60) {
-            if let cached = cache.scaledMacros(for: name, portionGrams: 150) {
+            let portion = estimatePortionGrams(for: name)
+            if let cached = cache.scaledMacros(for: name, portionGrams: portion) {
                 ScanAnalyticsService.shared.recordScan(userID: userID, tier: 1, cacheHit: true)
                 let conf = max(coreMLConfidence, localResult.confidence)
                 return FoodRecognitionResult(
@@ -64,7 +65,7 @@ final class FoodRecognitionManager {
                     protein: cached.protein,
                     carbs: cached.carbs,
                     fat: cached.fat,
-                    portionGrams: 150,
+                    portionGrams: portion,
                     tier: 1,
                     source: "Cache",
                     confidence: conf,
@@ -108,8 +109,9 @@ final class FoodRecognitionManager {
     /// Fast path for obvious single-ingredient foods identified by Vision's
     /// built-in classifier. No bundled Core ML model required.
     private func attemptTier1Local(localResult: FoodClassification, userID: String) async -> FoodRecognitionResult? {
+        let portion = estimatePortionGrams(for: localResult.foodName)
         // Check cache first
-        if let cached = cache.scaledMacros(for: localResult.foodName, portionGrams: 150) {
+        if let cached = cache.scaledMacros(for: localResult.foodName, portionGrams: portion) {
             ScanAnalyticsService.shared.recordScan(userID: userID, tier: 1, cacheHit: true)
             return FoodRecognitionResult(
                 foodName: localResult.foodName,
@@ -117,7 +119,7 @@ final class FoodRecognitionManager {
                 protein: cached.protein,
                 carbs: cached.carbs,
                 fat: cached.fat,
-                portionGrams: 150,
+                portionGrams: portion,
                 tier: 1,
                 source: "USDA (cached)",
                 confidence: localResult.confidence,
@@ -132,7 +134,7 @@ final class FoodRecognitionManager {
 
             cache.store(foodName: localResult.foodName, macrosPer100g: baseMacros)
 
-            let portionGrams = 150.0
+            let portionGrams = estimatePortionGrams(for: localResult.foodName)
             let scaled = baseMacros.scaled(to: portionGrams)
 
             ScanAnalyticsService.shared.recordScan(userID: userID, tier: 1, cacheHit: false)
@@ -157,9 +159,10 @@ final class FoodRecognitionManager {
     // MARK: - Tier 1: On-Device Core ML + USDA
 
     private func attemptTier1(classification: ClassificationResult, image: UIImage, voiceNote: String?, userID: String) async -> FoodRecognitionResult? {
+        let portion = estimatePortionGrams(for: classification.foodName)
         do {
             // Check cache first
-            if let cached = cache.scaledMacros(for: classification.foodName, portionGrams: 150) {
+            if let cached = cache.scaledMacros(for: classification.foodName, portionGrams: portion) {
                 ScanAnalyticsService.shared.recordScan(userID: userID, tier: 1, cacheHit: true)
                 return FoodRecognitionResult(
                     foodName: classification.foodName,
@@ -167,7 +170,7 @@ final class FoodRecognitionManager {
                     protein: cached.protein,
                     carbs: cached.carbs,
                     fat: cached.fat,
-                    portionGrams: 150,
+                    portionGrams: portion,
                     tier: 1,
                     source: "USDA (cached)",
                     confidence: classification.confidence,
@@ -183,8 +186,8 @@ final class FoodRecognitionManager {
             // Cache the base macros
             cache.store(foodName: classification.foodName, macrosPer100g: baseMacros)
 
-            // Scale to estimated portion (default 150g for whole foods)
-            let portionGrams = 150.0
+            // Scale to estimated portion based on food type
+            let portionGrams = estimatePortionGrams(for: classification.foodName)
             let scaled = baseMacros.scaled(to: portionGrams)
 
             ScanAnalyticsService.shared.recordScan(userID: userID, tier: 1, cacheHit: false)
@@ -339,6 +342,60 @@ final class FoodRecognitionManager {
         } catch {
             return nil
         }
+    }
+
+    // MARK: - Portion Estimation
+
+    /// Returns an estimated single-serving portion in grams based on the food name.
+    /// Used by Tier 1 instead of a hardcoded 150g default.
+    private func estimatePortionGrams(for foodName: String) -> Double {
+        let name = foodName.lowercased()
+
+        // Fruits — use realistic single-unit weights
+        if name.contains("banana")      { return 118 }  // 1 medium banana
+        if name.contains("apple")       { return 182 }  // 1 medium apple
+        if name.contains("orange")      { return 131 }  // 1 medium orange
+        if name.contains("pear")        { return 178 }  // 1 medium pear
+        if name.contains("peach")       { return 150 }  // 1 medium peach
+        if name.contains("mango")       { return 200 }  // 1 cup sliced
+        if name.contains("kiwi")        { return 76  }  // 1 medium kiwi
+        if name.contains("avocado")     { return 150 }  // 1 medium avocado
+        if name.contains("strawberr")   { return 150 }  // ~1 cup
+        if name.contains("blueberr")    { return 150 }  // ~1 cup
+        if name.contains("raspberr")    { return 123 }  // ~1 cup
+        if name.contains("grape")       { return 150 }  // ~1 cup
+        if name.contains("watermelon")  { return 280 }  // 1 wedge
+        if name.contains("pineapple")   { return 165 }  // ~1 cup
+
+        // Vegetables
+        if name.contains("broccoli")    { return 150 }
+        if name.contains("carrot")      { return 120 }
+        if name.contains("sweet potato") || name.contains("sweetpotato") { return 130 }
+        if name.contains("potato")      { return 150 }  // 1 medium potato
+        if name.contains("spinach")     { return 85  }
+        if name.contains("tomato")      { return 125 }  // 1 medium tomato
+        if name.contains("cucumber")    { return 120 }
+        if name.contains("pepper")      { return 120 }
+
+        // Proteins
+        if ["chicken", "beef", "steak", "pork", "turkey", "salmon", "tuna", "shrimp", "fish"]
+            .contains(where: { name.contains($0) }) { return 170 }  // ~6 oz
+        if name.contains("egg")         { return 100 }  // ~2 eggs
+
+        // Dairy
+        if name.contains("milk")        { return 240 }
+        if name.contains("yogurt")      { return 150 }
+        if name.contains("cheese")      { return 30  }
+
+        // Grains
+        if name.contains("bread") || name.contains("toast") { return 60 }
+        if ["rice", "oat", "cereal", "granola"].contains(where: { name.contains($0) }) { return 150 }
+
+        // Nuts
+        if ["almond", "peanut", "walnut", "cashew", "nut", "pistachio"]
+            .contains(where: { name.contains($0) }) { return 30 }
+
+        return 150  // generic default
     }
 
     // MARK: - Offline / Fallback
