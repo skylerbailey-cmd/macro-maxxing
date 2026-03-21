@@ -42,9 +42,19 @@ final class USDAFoodService {
     // MARK: - In-memory session cache
 
     /// Caches search results so the same query never hits the API twice per session.
+    /// Key: lowercased food name → value: search results with per-100g data.
+    /// This is safe because USDA per-100g data never changes — portion scaling
+    /// happens after the cache in lookup() and the caller.
     private var searchCache: [String: [USDAFoodItem]] = [:]
-    /// Caches detailed nutrient lookups by fdcId.
+    /// Caches detailed nutrient lookups by fdcId (per-100g, unscaled).
     private var nutrientCache: [Int: MacroResult] = [:]
+
+    /// Clears all in-memory caches. Call if you suspect stale data.
+    func clearCache() {
+        searchCache.removeAll()
+        nutrientCache.removeAll()
+        print("[USDA] Cache cleared")
+    }
 
     // MARK: - 1. Search Food
 
@@ -192,23 +202,17 @@ final class USDAFoodService {
 
         let grams = portionGrams ?? estimateServingGrams(for: foodName)
 
-        // If the search result already has per-100g macros, use them directly
-        // (saves a second API call to the detail endpoint)
-        if best.calories100g > 0 {
-            let scale = grams / 100.0
-            let result = MacroResult(
-                food:     best.description.capitalized,
-                calories: (best.calories100g * scale).rounded(),
-                protein:  (best.protein100g * scale * 10).rounded() / 10,
-                carbs:    (best.carbs100g * scale * 10).rounded() / 10,
-                fat:      (best.fat100g * scale * 10).rounded() / 10
-            )
-            print("[USDA] Quick lookup \"\(foodName)\" → \(result.food): \(Int(result.calories)) kcal (\(Int(grams))g)")
-            return result
-        }
-
-        // Fallback: fetch full detail from the detail endpoint
-        return await getMacros(fdcId: best.fdcId, portionGrams: grams)
+        // Use per-100g data from search result, scale to portion
+        let scale = grams / 100.0
+        let result = MacroResult(
+            food:     best.description.capitalized,
+            calories: (best.calories100g * scale).rounded(),
+            protein:  (best.protein100g * scale * 10).rounded() / 10,
+            carbs:    (best.carbs100g * scale * 10).rounded() / 10,
+            fat:      (best.fat100g * scale * 10).rounded() / 10
+        )
+        print("[USDA] lookup \"\(foodName)\" → \(best.description) | per100g: \(Int(best.calories100g)) kcal | serving: \(Int(grams))g | scaled: \(Int(result.calories)) kcal, \(result.protein)p, \(result.carbs)c, \(result.fat)f")
+        return result
     }
 
     // MARK: - Private Helpers
