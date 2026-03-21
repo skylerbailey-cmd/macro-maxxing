@@ -341,6 +341,15 @@ struct NewPostView: View {
                             .font(.caption)
                             .foregroundStyle(.white.opacity(0.35))
                     }
+
+                    HStack(spacing: 5) {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 10))
+                        Text("Meal photos won't preview here but will appear in your post.")
+                            .font(.system(size: 11))
+                    }
+                    .foregroundStyle(.white.opacity(0.30))
+                    .padding(.top, 2)
                 }
             }
         }
