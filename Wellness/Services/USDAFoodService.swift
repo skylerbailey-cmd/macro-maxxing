@@ -198,7 +198,7 @@ final class USDAFoodService {
     /// This is the primary entry point used by the Tier 1 recognition flow.
     func lookup(foodName: String, portionGrams: Double? = nil) async -> MacroResult? {
         let items = await searchFood(query: foodName)
-        guard let best = items.first, best.calories100g > 0 else { return nil }
+        guard let best = bestRawMatch(for: foodName, in: items) else { return nil }
 
         let grams = portionGrams ?? estimateServingGrams(for: foodName)
 
@@ -216,6 +216,51 @@ final class USDAFoodService {
     }
 
     // MARK: - Private Helpers
+
+    /// Keywords that indicate a processed/dried/prepared form — not the raw whole food.
+    private let processedKeywords: Set<String> = [
+        "dehydrated", "dried", "powder", "flour", "chips", "fried",
+        "candied", "canned", "syrup", "juice", "concentrate", "extract",
+        "oil", "butter", "cream", "frozen", "breaded", "battered",
+        "pickled", "smoked", "jerky", "sweetened", "coated",
+        "infant", "baby", "formula", "supplement",
+    ]
+
+    /// Picks the best raw/whole-food match from search results.
+    /// Prefers items whose description contains "raw" and doesn't contain processed keywords.
+    private func bestRawMatch(for query: String, in items: [USDAFoodItem]) -> USDAFoodItem? {
+        guard !items.isEmpty else { return nil }
+
+        let scored: [(item: USDAFoodItem, score: Int)] = items.compactMap { item in
+            guard item.calories100g > 0 else { return nil }
+            let desc = item.description.lowercased()
+            var score = 0
+
+            // Penalize processed forms heavily
+            if processedKeywords.contains(where: { desc.contains($0) }) {
+                score -= 50
+            }
+
+            // Reward "raw" in the description
+            if desc.contains("raw") { score += 20 }
+
+            // Reward if the description starts with or closely matches the query
+            let q = query.lowercased()
+            if desc.hasPrefix(q) { score += 10 }
+            if desc.contains(q)  { score += 5 }
+
+            // Reward Foundation/SR Legacy (whole foods)
+            if item.dataType == "Foundation" { score += 3 }
+
+            return (item, score)
+        }
+
+        let best = scored.sorted { $0.score > $1.score }.first?.item
+        if let b = best {
+            print("[USDA] Best match for \"\(query)\": \"\(b.description)\" (filtered from \(items.count) results)")
+        }
+        return best
+    }
 
     /// Scales a per-100g MacroResult to the given portion size.
     private func scaled(_ per100: MacroResult, portionGrams: Double) -> MacroResult {
