@@ -294,7 +294,9 @@ extension FeedPost {
         if data["isPublic"]            == nil { data["isPublic"]            = true }
 
         do {
-            self = try Firestore.Decoder().decode(FeedPost.self, from: data)
+            let decoder = Firestore.Decoder()
+            self = try decoder.decode(FeedPost.self, from: data, in: document.reference)
+            self.postID = document.documentID
         } catch {
             print("[FeedPost] Decode error – \(document.documentID): \(error)")
             return nil
