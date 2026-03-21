@@ -27,20 +27,39 @@ final class CoreMLClassifierService {
     // MARK: - Model Loading
 
     /// Attempts to load the Food101 Core ML model bundled in the app.
-    /// If no model is found, Tier 1 will always fall through to Tier 2.
+    /// Xcode compiles .mlmodel → .mlmodelc and auto-generates a Swift class.
+    /// We try the generated class first, then fall back to bundle lookup.
+    /// If no model is found, Tier 1 gracefully falls through to Tier 2.
     private func loadModel() {
-        // The compiled .mlmodelc should be in the app bundle as "Food101"
-        guard let modelURL = Bundle.main.url(forResource: "Food101", withExtension: "mlmodelc") else {
-            print("[CoreMLClassifier] Food101.mlmodelc not found in bundle — Tier 1 classification unavailable.")
+        // Approach 1: Use the Xcode-generated Food101 class directly.
+        // When you drag Food101.mlmodel into Xcode, it auto-generates
+        // a `Food101` Swift class. This is the most reliable path.
+        do {
+            let config = MLModelConfiguration()
+            let mlModel = try Food101(configuration: config).model
+            vnModel = try VNCoreMLModel(for: mlModel)
+            print("[CoreMLClassifier] Food101 model loaded via generated class.")
             return
+        } catch {
+            print("[CoreMLClassifier] Generated Food101 class unavailable (\(error.localizedDescription)), trying bundle lookup…")
         }
 
-        do {
-            let mlModel = try MLModel(contentsOf: modelURL)
-            vnModel = try VNCoreMLModel(for: mlModel)
-        } catch {
-            print("[CoreMLClassifier] Failed to load Food101 model: \(error.localizedDescription)")
+        // Approach 2: Fall back to manual bundle lookup by resource name.
+        let candidateNames = ["Food101", "food101", "Food-101"]
+        for name in candidateNames {
+            if let url = Bundle.main.url(forResource: name, withExtension: "mlmodelc") {
+                do {
+                    let mlModel = try MLModel(contentsOf: url)
+                    vnModel = try VNCoreMLModel(for: mlModel)
+                    print("[CoreMLClassifier] Loaded model from bundle as \(name).mlmodelc")
+                    return
+                } catch {
+                    print("[CoreMLClassifier] Found \(name).mlmodelc but failed to load: \(error.localizedDescription)")
+                }
+            }
         }
+
+        print("[CoreMLClassifier] No Food101 model found in bundle — Tier 1 classification unavailable.")
     }
 
     // MARK: - Classification
