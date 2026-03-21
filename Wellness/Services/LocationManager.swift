@@ -5,7 +5,6 @@
 
 import CoreLocation
 import Foundation
-import MapKit
 
 @Observable final class LocationManager: NSObject, CLLocationManagerDelegate {
 
@@ -56,15 +55,11 @@ import MapKit
         Task { [weak self] in
             guard let self else { return }
             defer { self.isGeocoding = false }
-            
-            guard let request = MKReverseGeocodingRequest(location: location) else {
-                return
-            }
-            
+
             do {
-                let mapItems = try await request.mapItems
-                self.city = mapItems.first?.placemark.locality ?? ""            } catch {
-                // Silently handle geocoding errors
+                let placemarks = try await CLGeocoder().reverseGeocodeLocation(location)
+                self.city = placemarks.first?.locality ?? ""
+            } catch {
                 self.city = ""
             }
         }

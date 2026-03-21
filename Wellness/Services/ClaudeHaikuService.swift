@@ -88,7 +88,7 @@ final class ClaudeHaikuService {
             let response: URLResponse
             do {
                 (data, response) = try await URLSession.shared.data(for: request)
-            } catch let urlError as URLError {
+            } catch is URLError {
                 if attempt < maxRetries {
                     try await Task.sleep(nanoseconds: UInt64(2_000_000_000 * attempt))
                     continue

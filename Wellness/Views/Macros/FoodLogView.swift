@@ -7,15 +7,6 @@ import SwiftUI
 import SwiftData
 import CoreLocation
 
-// MARK: - Color palette (matches HomeView)
-
-private extension Color {
-    static let pageBg    = Color(red: 0.07, green: 0.05, blue: 0.12)
-    static let cardBg    = Color(red: 0.13, green: 0.10, blue: 0.22)
-    static let purpleHi  = Color(red: 0.65, green: 0.45, blue: 1.00)
-    static let macroBlue = Color(red: 0.35, green: 0.75, blue: 1.00)
-}
-
 // MARK: - FoodLogView
 
 struct FoodLogView: View {

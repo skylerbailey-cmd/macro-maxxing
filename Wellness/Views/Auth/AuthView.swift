@@ -12,7 +12,6 @@ import GoogleSignInSwift
 private extension Color {
     static let authBg      = Color(red: 0.06, green: 0.04, blue: 0.12)
     static let authCard    = Color(red: 0.13, green: 0.09, blue: 0.24)
-    static let purpleHi    = Color(red: 0.65, green: 0.45, blue: 1.00)
     static let purpleMid   = Color(red: 0.45, green: 0.25, blue: 0.85)
     static let gold        = Color(red: 1.00, green: 0.84, blue: 0.00)
 }
