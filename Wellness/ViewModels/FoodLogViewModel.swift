@@ -12,6 +12,13 @@ enum AnalysisState: Equatable {
     case error(String)
 }
 
+/// Which tier produced the current result.
+enum AnalysisTier: Equatable {
+    case none
+    case local   // Tier 1 — on-device + USDA
+    case claude  // Tier 2 — Claude API
+}
+
 @Observable final class FoodLogViewModel {
     // MARK: - Selected date (drives all fetches and new entry timestamps)
     var selectedDate: Date {
@@ -26,6 +33,9 @@ enum AnalysisState: Equatable {
     var showingCamera = false
     var showingPhotoLibrary = false
     var analysisState: AnalysisState = .idle
+
+    /// Which recognition tier produced the current result.
+    var analysisTier: AnalysisTier = .none
 
     var foodName = ""
     var caloriesText = ""
@@ -43,6 +53,17 @@ enum AnalysisState: Equatable {
 
     private let service: ClaudeVisionService
     private(set) var userID: String
+
+    // MARK: - Tier tracking (UserDefaults)
+
+    static var tier1Count: Int {
+        get { UserDefaults.standard.integer(forKey: "analysisTier1Count") }
+        set { UserDefaults.standard.set(newValue, forKey: "analysisTier1Count") }
+    }
+    static var tier2Count: Int {
+        get { UserDefaults.standard.integer(forKey: "analysisTier2Count") }
+        set { UserDefaults.standard.set(newValue, forKey: "analysisTier2Count") }
+    }
 
     init(selectedDate: Date = Calendar.current.startOfDay(for: Date()),
          userID: String = "",
@@ -71,34 +92,69 @@ enum AnalysisState: Equatable {
         analysisState    = .result
     }
 
+    /// Two-tier food recognition:
+    /// Tier 1: On-device classifier + USDA lookup (free, offline-capable, < 1s)
+    /// Tier 2: Claude Vision API (paid, handles complex/mixed meals)
     func analyzeImage() async {
         guard let image = selectedImage else { return }
         analysisState = .analyzing
+        analysisTier  = .none
 
-        // 1. Run on-device classification first (offline, < 500ms)
+        // ── Tier 1: On-device classification ──────────────────────────────
         let local = await LocalFoodClassifier.shared.classify(image)
-        print("[FoodLogViewModel] Local: \"\(local.foodName)\" confidence=\(String(format: "%.2f", local.confidence)) needsClaude=\(local.needsClaudeAnalysis)")
+        print("[Tier1] \"\(local.foodName)\" confidence=\(String(format: "%.2f", local.confidence)) needsClaude=\(local.needsClaudeAnalysis)")
 
-        // 2. If confidence is high and it's a simple food, use Claude with the
-        //    food name hint for faster, more targeted macro estimation.
-        //    If low confidence or complex, let Claude analyze from scratch.
+        if local.confidence >= 0.80 && !local.needsClaudeAnalysis {
+            // Simple, high-confidence food → look up macros from USDA
+            if let usda = await USDAFoodService.shared.lookup(foodName: local.foodName) {
+                foodName     = usda.foodName
+                caloriesText = String(format: "%.0f", usda.calories)
+                proteinText  = String(format: "%.1f", usda.protein)
+                carbsText    = String(format: "%.1f", usda.carbs)
+                fatText      = String(format: "%.1f", usda.fat)
+                analysisTier  = .local
+                analysisState = .result
+                Self.tier1Count += 1
+                print("[Tier1] ✓ Resolved locally: \(usda.foodName) — \(Int(usda.calories)) kcal")
+                return
+            }
+            print("[Tier1] USDA lookup failed for \"\(local.foodName)\", falling back to Claude")
+        }
+
+        // ── Tier 2: Claude Vision API ─────────────────────────────────────
+        await analyzeWithClaude(image: image, localHint: local.foodName)
+    }
+
+    /// Forces a Claude API analysis, bypassing Tier 1.
+    /// Called when the user taps "Not right? Try AI scan".
+    func reanalyzeWithClaude() async {
+        guard let image = selectedImage else { return }
+        analysisState = .analyzing
+        analysisTier  = .none
+        await analyzeWithClaude(image: image, localHint: nil)
+    }
+
+    /// Runs Claude Vision analysis, optionally passing a local classifier hint.
+    private func analyzeWithClaude(image: UIImage, localHint: String?) async {
         do {
-            let result = try await service.analyzeFoodImage(image)
+            let result: MacroResult
+            if let hint = localHint, !hint.isEmpty {
+                // Pass the local model's best guess as context to improve accuracy
+                result = try await service.analyzeFoodImageWithVoice(image, voiceNote: "The food appears to be: \(hint)")
+            } else {
+                result = try await service.analyzeFoodImage(image)
+            }
             foodName     = result.food
             caloriesText = String(format: "%.0f", result.calories)
             proteinText  = String(format: "%.1f", result.protein)
             carbsText    = String(format: "%.1f", result.carbs)
             fatText      = String(format: "%.1f", result.fat)
+            analysisTier  = .claude
             analysisState = .result
+            Self.tier2Count += 1
+            print("[Tier2] ✓ Claude result: \(result.food) — \(Int(result.calories)) kcal")
         } catch {
-            // If Claude fails but local classification had good confidence,
-            // use the local food name so the user can manually enter macros
-            if local.confidence >= 0.80 && !local.needsClaudeAnalysis {
-                foodName = local.foodName
-                analysisState = .result
-            } else {
-                analysisState = .error(error.localizedDescription)
-            }
+            analysisState = .error(error.localizedDescription)
         }
     }
 
@@ -217,5 +273,6 @@ enum AnalysisState: Equatable {
         saveMeal        = false
         isFromSavedMeal = false
         analysisState   = .idle
+        analysisTier    = .none
     }
 }
