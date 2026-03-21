@@ -2,21 +2,27 @@
 //  USDAFoodService.swift
 //  Wellness
 //
-//  Looks up macro data from the USDA FoodData Central API (free, no API key required
-//  for the demo endpoint). Used as Tier 1 macro estimation for simple, single-ingredient
-//  foods identified by the on-device classifier.
+//  Looks up macro data from the USDA FoodData Central API (free).
+//  Used as Tier 1 macro estimation for simple, single-ingredient foods
+//  identified by the on-device classifier.
+//
+//  API docs: https://fdc.nal.usda.gov/api-guide
+//  Free API key: https://fdc.nal.usda.gov/api-key-signup.html
 //
 
 import Foundation
 
-// MARK: - Result
+// MARK: - USDA Food Item
 
-struct USDAMacroResult {
-    let foodName: String
-    let calories: Double
-    let protein:  Double
-    let carbs:    Double
-    let fat:      Double
+struct USDAFoodItem {
+    let fdcId:       Int
+    let description: String
+    let dataType:    String
+    /// Per-100g macros embedded in the search result (may be partial).
+    let calories100g: Double
+    let protein100g:  Double
+    let carbs100g:    Double
+    let fat100g:      Double
 }
 
 // MARK: - Service
@@ -26,91 +32,200 @@ final class USDAFoodService {
     static let shared = USDAFoodService()
     private init() {}
 
-    /// USDA FoodData Central API key. The demo key has generous limits.
-    /// Replace with your own key from https://fdc.nal.usda.gov/api-key-signup.html
+    // MARK: - Configuration
+
+    /// Free USDA FoodData Central API key.
+    /// Get your own at https://fdc.nal.usda.gov/api-key-signup.html
     private let apiKey = "DEMO_KEY"
+    private let baseURL = "https://api.nal.usda.gov/fdc/v1"
 
-    /// Searches USDA FoodData Central for the given food name and returns
-    /// macro data for the best match. Returns nil if no suitable match is found.
-    /// Uses the "Foundation" data type for standardized per-100g nutrient data,
-    /// then scales to a typical single serving.
-    func lookup(foodName: String) async -> USDAMacroResult? {
-        let query = foodName
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? foodName
+    // MARK: - In-memory session cache
 
-        guard let url = URL(string:
-            "https://api.nal.usda.gov/fdc/v1/foods/search?query=\(query)&dataType=Foundation,SR%20Legacy&pageSize=3&api_key=\(apiKey)"
-        ) else { return nil }
+    /// Caches search results so the same query never hits the API twice per session.
+    private var searchCache: [String: [USDAFoodItem]] = [:]
+    /// Caches detailed nutrient lookups by fdcId.
+    private var nutrientCache: [Int: MacroResult] = [:]
+
+    // MARK: - 1. Search Food
+
+    /// Searches USDA FoodData Central for whole, single-ingredient foods.
+    /// Returns the top 5 results filtered to SR Legacy and Foundation data types.
+    /// Results are cached in memory for the session.
+    func searchFood(query: String) async -> [USDAFoodItem] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !trimmed.isEmpty else { return [] }
+
+        // Return cached results if available
+        if let cached = searchCache[trimmed] { return cached }
+
+        guard let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "\(baseURL)/foods/search?query=\(encoded)&dataType=SR%20Legacy,Foundation&pageSize=5&api_key=\(apiKey)")
+        else { return [] }
 
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                print("[USDAFoodService] HTTP error for \"\(foodName)\"")
+                print("[USDA] HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0) for \"\(trimmed)\"")
+                return []
+            }
+
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let foods = json["foods"] as? [[String: Any]]
+            else {
+                print("[USDA] No results for \"\(trimmed)\"")
+                return []
+            }
+
+            let items: [USDAFoodItem] = foods.compactMap { food in
+                guard let fdcId = food["fdcId"] as? Int,
+                      let desc  = food["description"] as? String,
+                      let type  = food["dataType"] as? String
+                else { return nil }
+
+                // Extract per-100g macros from the search result's nutrient array
+                var cal: Double = 0, pro: Double = 0, carb: Double = 0, fat: Double = 0
+                if let nutrients = food["foodNutrients"] as? [[String: Any]] {
+                    for n in nutrients {
+                        guard let nid = n["nutrientId"] as? Int,
+                              let val = n["value"] as? Double else { continue }
+                        switch nid {
+                        case 1008: cal  = val  // Energy (kcal)
+                        case 1003: pro  = val  // Protein (g)
+                        case 1005: carb = val  // Carbohydrate (g)
+                        case 1004: fat  = val  // Total fat (g)
+                        default: break
+                        }
+                    }
+                }
+
+                return USDAFoodItem(
+                    fdcId: fdcId, description: desc, dataType: type,
+                    calories100g: cal, protein100g: pro, carbs100g: carb, fat100g: fat
+                )
+            }
+
+            searchCache[trimmed] = items
+            print("[USDA] Search \"\(trimmed)\" → \(items.count) results")
+            return items
+        } catch {
+            print("[USDA] Network error for \"\(trimmed)\": \(error.localizedDescription)")
+            return []
+        }
+    }
+
+    // MARK: - 2. Get Macros
+
+    /// Fetches detailed nutrition for a specific food by FDC ID,
+    /// scales macros to the given portion size in grams, and returns
+    /// a `MacroResult` that matches the Claude Vision output format.
+    /// Results are cached in memory for the session.
+    func getMacros(fdcId: Int, portionGrams: Double) async -> MacroResult? {
+        // Check nutrient cache (stored as per-100g, scaled on return)
+        if let cached = nutrientCache[fdcId] {
+            return scaled(cached, portionGrams: portionGrams)
+        }
+
+        guard let url = URL(string: "\(baseURL)/food/\(fdcId)?api_key=\(apiKey)") else { return nil }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                print("[USDA] Detail HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0) for fdcId=\(fdcId)")
                 return nil
             }
 
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let foods = json["foods"] as? [[String: Any]],
-                  let best = foods.first,
-                  let nutrients = best["foodNutrients"] as? [[String: Any]]
+                  let nutrients = json["foodNutrients"] as? [[String: Any]]
             else {
-                print("[USDAFoodService] No results for \"\(foodName)\"")
+                print("[USDA] No nutrient data for fdcId=\(fdcId)")
                 return nil
             }
 
-            let description = (best["description"] as? String ?? foodName).capitalized
+            let desc = (json["description"] as? String ?? "Unknown").capitalized
 
-            // Extract per-100g values from nutrient array
-            var cal100: Double = 0
-            var pro100: Double = 0
-            var carb100: Double = 0
-            var fat100: Double = 0
-
-            for nutrient in nutrients {
-                guard let id = nutrient["nutrientId"] as? Int,
-                      let value = nutrient["value"] as? Double else { continue }
-                switch id {
-                case 1008: cal100  = value  // Energy (kcal)
-                case 1003: pro100  = value  // Protein
-                case 1005: carb100 = value  // Carbohydrate
-                case 1004: fat100  = value  // Total fat
+            var cal: Double = 0, pro: Double = 0, carb: Double = 0, fat: Double = 0
+            for n in nutrients {
+                // Detail endpoint nests the nutrient info differently
+                let nid: Int
+                if let nutrient = n["nutrient"] as? [String: Any], let id = nutrient["id"] as? Int {
+                    nid = id
+                } else if let id = n["nutrientId"] as? Int {
+                    nid = id
+                } else {
+                    continue
+                }
+                let val = n["amount"] as? Double ?? n["value"] as? Double ?? 0
+                switch nid {
+                case 1008: cal  = val
+                case 1003: pro  = val
+                case 1005: carb = val
+                case 1004: fat  = val
                 default: break
                 }
             }
 
-            // No calorie data → not a useful result
-            guard cal100 > 0 else {
-                print("[USDAFoodService] No calorie data for \"\(foodName)\"")
+            guard cal > 0 else {
+                print("[USDA] No calorie data for fdcId=\(fdcId)")
                 return nil
             }
 
-            // Scale from per-100g to a reasonable single serving estimate.
-            // Use common portion sizes for different food types.
-            let servingGrams = estimateServingGrams(for: foodName)
-            let scale = servingGrams / 100.0
+            // Cache as per-100g MacroResult
+            let per100 = MacroResult(food: desc, calories: cal, protein: pro, carbs: carb, fat: fat)
+            nutrientCache[fdcId] = per100
 
-            let result = USDAMacroResult(
-                foodName: description,
-                calories: (cal100 * scale).rounded(),
-                protein:  (pro100 * scale * 10).rounded() / 10,
-                carbs:    (carb100 * scale * 10).rounded() / 10,
-                fat:      (fat100 * scale * 10).rounded() / 10
-            )
-
-            print("[USDAFoodService] \"\(foodName)\" → \(description): \(Int(result.calories)) kcal, \(result.protein)p, \(result.carbs)c, \(result.fat)f (serving: \(Int(servingGrams))g)")
+            let result = scaled(per100, portionGrams: portionGrams)
+            print("[USDA] fdcId=\(fdcId) → \(desc): \(Int(result.calories)) kcal for \(Int(portionGrams))g")
             return result
         } catch {
-            print("[USDAFoodService] Network error for \"\(foodName)\": \(error.localizedDescription)")
+            print("[USDA] Detail error for fdcId=\(fdcId): \(error.localizedDescription)")
             return nil
         }
     }
 
-    // MARK: - Serving Size Estimation
+    // MARK: - Convenience: Search + Get Best Match
+
+    /// Searches for a food name and returns scaled macros for the best match.
+    /// This is the primary entry point used by the Tier 1 recognition flow.
+    func lookup(foodName: String, portionGrams: Double? = nil) async -> MacroResult? {
+        let items = await searchFood(query: foodName)
+        guard let best = items.first, best.calories100g > 0 else { return nil }
+
+        let grams = portionGrams ?? estimateServingGrams(for: foodName)
+
+        // If the search result already has per-100g macros, use them directly
+        // (saves a second API call to the detail endpoint)
+        if best.calories100g > 0 {
+            let scale = grams / 100.0
+            let result = MacroResult(
+                food:     best.description.capitalized,
+                calories: (best.calories100g * scale).rounded(),
+                protein:  (best.protein100g * scale * 10).rounded() / 10,
+                carbs:    (best.carbs100g * scale * 10).rounded() / 10,
+                fat:      (best.fat100g * scale * 10).rounded() / 10
+            )
+            print("[USDA] Quick lookup \"\(foodName)\" → \(result.food): \(Int(result.calories)) kcal (\(Int(grams))g)")
+            return result
+        }
+
+        // Fallback: fetch full detail from the detail endpoint
+        return await getMacros(fdcId: best.fdcId, portionGrams: grams)
+    }
+
+    // MARK: - Private Helpers
+
+    /// Scales a per-100g MacroResult to the given portion size.
+    private func scaled(_ per100: MacroResult, portionGrams: Double) -> MacroResult {
+        let s = portionGrams / 100.0
+        return MacroResult(
+            food:     per100.food,
+            calories: (per100.calories * s).rounded(),
+            protein:  (per100.protein * s * 10).rounded() / 10,
+            carbs:    (per100.carbs * s * 10).rounded() / 10,
+            fat:      (per100.fat * s * 10).rounded() / 10
+        )
+    }
 
     /// Returns an estimated serving size in grams for common food categories.
-    /// This is a rough heuristic — Claude provides better portion estimates
-    /// for complex meals, which is why Tier 2 exists.
     private func estimateServingGrams(for foodName: String) -> Double {
         let name = foodName.lowercased()
 
@@ -118,7 +233,6 @@ final class USDAFoodService {
         if ["apple", "banana", "orange", "pear", "peach", "mango", "kiwi"].contains(where: { name.contains($0) }) {
             return 150
         }
-        // Berries
         if ["berry", "strawberry", "blueberry", "raspberry"].contains(where: { name.contains($0) }) {
             return 140
         }
@@ -127,22 +241,21 @@ final class USDAFoodService {
             return 120
         }
         // Proteins
-        if ["chicken", "beef", "steak", "pork", "turkey", "salmon", "tuna", "shrimp", "fish", "egg"].contains(where: { name.contains($0) }) {
-            return name.contains("egg") ? 100 : 170  // ~6 oz for meats, 2 eggs
+        if ["chicken", "beef", "steak", "pork", "turkey", "salmon", "tuna", "shrimp", "fish"].contains(where: { name.contains($0) }) {
+            return 170  // ~6 oz
         }
+        if name.contains("egg") { return 100 }  // ~2 eggs
         // Dairy
-        if ["cheese", "yogurt", "milk"].contains(where: { name.contains($0) }) {
-            return name.contains("milk") ? 240 : 150
-        }
+        if name.contains("milk") { return 240 }
+        if ["cheese", "yogurt"].contains(where: { name.contains($0) }) { return 150 }
         // Grains
-        if ["rice", "oat", "bread", "toast", "cereal", "granola"].contains(where: { name.contains($0) }) {
-            return name.contains("bread") || name.contains("toast") ? 60 : 150
-        }
+        if ["bread", "toast"].contains(where: { name.contains($0) }) { return 60 }
+        if ["rice", "oat", "cereal", "granola"].contains(where: { name.contains($0) }) { return 150 }
         // Nuts
         if ["almond", "peanut", "walnut", "cashew", "nut", "pistachio"].contains(where: { name.contains($0) }) {
             return 30  // ~1 oz
         }
-        // Default single serving
+        // Default
         return 150
     }
 }

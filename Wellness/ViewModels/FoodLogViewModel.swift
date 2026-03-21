@@ -107,7 +107,7 @@ enum AnalysisTier: Equatable {
         if local.confidence >= 0.80 && !local.needsClaudeAnalysis {
             // Simple, high-confidence food → look up macros from USDA
             if let usda = await USDAFoodService.shared.lookup(foodName: local.foodName) {
-                foodName     = usda.foodName
+                foodName     = usda.food
                 caloriesText = String(format: "%.0f", usda.calories)
                 proteinText  = String(format: "%.1f", usda.protein)
                 carbsText    = String(format: "%.1f", usda.carbs)
@@ -115,7 +115,7 @@ enum AnalysisTier: Equatable {
                 analysisTier  = .local
                 analysisState = .result
                 Self.tier1Count += 1
-                print("[Tier1] ✓ Resolved locally: \(usda.foodName) — \(Int(usda.calories)) kcal")
+                print("[Tier1] ✓ Resolved locally: \(usda.food) — \(Int(usda.calories)) kcal")
                 return
             }
             print("[Tier1] USDA lookup failed for \"\(local.foodName)\", falling back to Claude")
