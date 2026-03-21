@@ -100,9 +100,13 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 struct WellnessApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
+    @Environment(\.scenePhase) private var scenePhase
+
     @State private var showSplash   = true
     @State private var session:     SessionManager
     @State private var userSettings: UserSettings
+    /// Falls back to unauthenticated if Firebase doesn't resolve within this window.
+    @State private var authTimedOut = false
 
     init() {
         // Configure Firebase before any Firebase service (Auth, Firestore) is touched.
@@ -135,8 +139,26 @@ struct WellnessApp: App {
                 } else {
                     switch session.authState {
                     case .unknown:
-                        // Briefly shown while Firebase resolves the auth token
-                        Color.black.ignoresSafeArea()
+                        if authTimedOut {
+                            // Firebase never resolved — fall through to sign-in
+                            AuthView()
+                                .environment(session)
+                                .preferredColorScheme(.dark)
+                        } else {
+                            // Show a brief loading state while Firebase resolves
+                            ZStack {
+                                Color.black.ignoresSafeArea()
+                                ProgressView()
+                                    .tint(.white)
+                            }
+                            .task {
+                                // Give Firebase 5 seconds to resolve auth, then time out
+                                try? await Task.sleep(for: .seconds(5))
+                                if case .unknown = session.authState {
+                                    authTimedOut = true
+                                }
+                            }
+                        }
 
                     case .unauthenticated:
                         AuthView()
@@ -160,6 +182,15 @@ struct WellnessApp: App {
                 }
             }
             .task { await userSettings.loadCachedImage() }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                // Reset auth timeout flag so a fresh resolve attempt can happen
+                authTimedOut = false
+                // Re-fetch user profile to ensure fresh state after returning to foreground
+                Task {
+                    await session.refreshProfile()
+                }
+            }
         }
     }
 }
