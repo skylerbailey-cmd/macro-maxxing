@@ -601,9 +601,25 @@ struct HomeView: View {
             case .result(let text):
                 brainstormResult(text)
             case .error(let msg):
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                    Text(msg).font(.caption).foregroundStyle(.white.opacity(0.65))
+                VStack(spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                        Text(msg).font(.caption).foregroundStyle(.white.opacity(0.65))
+                    }
+                    Button {
+                        Task { await viewModel.brainstorm() }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.clockwise")
+                            Text("Try Again")
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.5))
+                        .cornerRadius(10)
+                    }
                 }
             }
 

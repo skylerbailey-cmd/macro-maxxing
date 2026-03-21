@@ -47,10 +47,7 @@ final class ClaudeAnalysisService {
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONEncoder().encode(body)
 
-        let (data, response) = try await URLSession.shared.data(for: req)
-        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-            throw ClaudeServiceError.badResponse(statusCode: http.statusCode)
-        }
+        let (data, _) = try await performRequest(req)
 
         let decoded = try JSONDecoder().decode(ResponseBody.self, from: data)
         guard let text = decoded.content.first(where: { $0.type == "text" })?.text else {
@@ -282,10 +279,7 @@ final class ClaudeAnalysisService {
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONEncoder().encode(body)
 
-        let (data, response) = try await URLSession.shared.data(for: req)
-        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-            throw ClaudeServiceError.badResponse(statusCode: http.statusCode)
-        }
+        let (data, _) = try await performRequest(req)
         let decoded = try JSONDecoder().decode(ResponseBody.self, from: data)
         guard let text = decoded.content.first(where: { $0.type == "text" })?.text else {
             throw ClaudeServiceError.noContent
@@ -332,10 +326,7 @@ final class ClaudeAnalysisService {
         req.setValue("application/json",     forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONEncoder().encode(body)
 
-        let (data, response) = try await URLSession.shared.data(for: req)
-        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-            throw ClaudeServiceError.badResponse(statusCode: http.statusCode)
-        }
+        let (data, _) = try await performRequest(req)
         let decoded = try JSONDecoder().decode(ResponseBody.self, from: data)
         guard let text = decoded.content.first(where: { $0.type == "text" })?.text,
               let jsonData = text.data(using: .utf8),
@@ -349,6 +340,51 @@ final class ClaudeAnalysisService {
         let workoutType = WorkoutType(rawValue: typeRaw) ?? .other
         return WorkoutParseResult(name: name, workoutType: workoutType,
                                   durationMinutes: duration, caloriesBurned: calories)
+    }
+
+    // MARK: - Request helper with retry
+
+    /// Performs an API request, retrying up to `maxRetries` times on 529 (overloaded)
+    /// with a 2-second delay between attempts. Maps common HTTP errors to user-friendly cases.
+    private func performRequest(_ request: URLRequest, maxRetries: Int = 3) async throws -> (Data, URLResponse) {
+        for attempt in 1...maxRetries {
+            let data: Data
+            let response: URLResponse
+            do {
+                (data, response) = try await URLSession.shared.data(for: request)
+            } catch let urlError as URLError {
+                switch urlError.code {
+                case .notConnectedToInternet, .networkConnectionLost,
+                     .cannotFindHost, .cannotConnectToHost, .timedOut, .dataNotAllowed:
+                    throw ClaudeServiceError.noConnection
+                default:
+                    throw urlError
+                }
+            }
+
+            guard let http = response as? HTTPURLResponse else {
+                return (data, response)
+            }
+
+            if http.statusCode == 200 {
+                return (data, response)
+            }
+
+            // Retry on 529 (overloaded) with 2-second delay
+            if http.statusCode == 529 && attempt < maxRetries {
+                try await Task.sleep(nanoseconds: 2_000_000_000)
+                continue
+            }
+
+            // Map status codes to user-friendly errors
+            switch http.statusCode {
+            case 529: throw ClaudeServiceError.overloaded
+            case 429: throw ClaudeServiceError.rateLimited
+            case 500: throw ClaudeServiceError.serverError
+            default:  throw ClaudeServiceError.badResponse(statusCode: http.statusCode)
+            }
+        }
+        throw ClaudeServiceError.serverError
     }
 
     // MARK: - Codable types
