@@ -311,6 +311,7 @@ struct FoodLogView: View {
                     )},
                     set: { viewModel.recognitionResult = $0 }
                 ),
+                saveMeal: $viewModel.saveMeal,
                 onConfirm: { result in
                     viewModel.confirmResult(result)
                     viewModel.saveEntry()

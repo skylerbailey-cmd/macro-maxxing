@@ -11,6 +11,7 @@ import SwiftUI
 struct FoodConfirmationView: View {
     let image: UIImage
     @Binding var recognitionResult: FoodRecognitionResult
+    @Binding var saveMeal: Bool
     let onConfirm: (FoodRecognitionResult) -> Void
     let onEscalate: () -> Void
     let onCancel: () -> Void
@@ -113,6 +114,9 @@ struct FoodConfirmationView: View {
                         if let components = recognitionResult.components, components.count > 1 {
                             componentsSection(components)
                         }
+
+                        // Save meal toggle
+                        saveMealToggle
 
                         // Action buttons
                         actionButtons
@@ -246,6 +250,24 @@ struct FoodConfirmationView: View {
         .padding(16)
         .background(cardBg)
         .cornerRadius(14)
+    }
+
+    // MARK: - Save Meal Toggle
+
+    private var saveMealToggle: some View {
+        Toggle(isOn: $saveMeal) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Save as Saved Meal")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text("Quick-select this meal next time")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.40))
+            }
+        }
+        .tint(accent)
+        .padding(14)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Action Buttons
