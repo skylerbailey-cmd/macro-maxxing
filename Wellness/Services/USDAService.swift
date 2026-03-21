@@ -45,7 +45,9 @@ final class USDAService {
 
         let searchResponse = try JSONDecoder().decode(USDASearchResponse.self, from: data)
 
-        guard let food = searchResponse.foods.first else { return nil }
+        guard !searchResponse.foods.isEmpty else { return nil }
+        let food = bestMatch(for: query, in: searchResponse.foods)
+            ?? searchResponse.foods.first!
 
         // Extract macros per 100g from nutrient list
         let caloriesPer100g = food.nutrientValue(id: 1008) ?? 0  // Energy (kcal)
@@ -67,6 +69,7 @@ final class USDAService {
     }
 
     /// Returns base macros per 100g for caching.
+    /// Uses bestMatch filtering to avoid returning juice/concentrate/dried forms.
     func fetchBaseMacros(query: String) async throws -> MacrosPer100g? {
         let apiKey = Config.usdaApiKey
         guard apiKey != "YOUR_USDA_KEY" else { return nil }
@@ -78,7 +81,7 @@ final class USDAService {
         urlComponents.queryItems = [
             URLQueryItem(name: "query", value: query),
             URLQueryItem(name: "api_key", value: apiKey),
-            URLQueryItem(name: "pageSize", value: "5"),
+            URLQueryItem(name: "pageSize", value: "10"),
             URLQueryItem(name: "dataType", value: "SR Legacy,Foundation")
         ]
 
@@ -88,7 +91,12 @@ final class USDAService {
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
 
         let searchResponse = try JSONDecoder().decode(USDASearchResponse.self, from: data)
-        guard let food = searchResponse.foods.first else { return nil }
+        guard !searchResponse.foods.isEmpty else { return nil }
+
+        let food = bestMatch(for: query, in: searchResponse.foods)
+            ?? searchResponse.foods.first!
+
+        print("[USDA] Best match for \"\(query)\": \"\(food.description)\" (\(Int(food.nutrientValue(id: 1008) ?? 0)) kcal/100g)")
 
         return MacrosPer100g(
             calories: food.nutrientValue(id: 1008) ?? 0,
@@ -96,6 +104,49 @@ final class USDAService {
             carbs: food.nutrientValue(id: 1005) ?? 0,
             fat: food.nutrientValue(id: 1004) ?? 0
         )
+    }
+
+    // MARK: - Result Filtering
+
+    /// Keywords indicating processed forms that shouldn't match when looking for whole foods.
+    private let processedKeywords: Set<String> = [
+        "dehydrated", "dried", "powder", "flour", "chips", "fried",
+        "candied", "canned", "syrup", "juice", "concentrate", "extract",
+        "oil", "butter", "cream", "frozen", "breaded", "battered",
+        "sweetened", "glazed", "coated", "stuffed", "marinated",
+    ]
+
+    /// Picks the best raw/whole-food match from USDA results.
+    /// Penalizes processed forms and rewards "raw" descriptions.
+    private func bestMatch(for query: String, in foods: [USDAFood]) -> USDAFood? {
+        let q = query.lowercased()
+        let penalized = processedKeywords.filter { !q.contains($0) }
+
+        let scored: [(food: USDAFood, score: Int)] = foods.compactMap { food in
+            let cals = food.nutrientValue(id: 1008) ?? 0
+            guard cals > 0 else { return nil }
+
+            let desc = food.description.lowercased()
+            var score = 0
+
+            // Penalize processed forms the query didn't ask for
+            if penalized.contains(where: { desc.contains($0) }) {
+                score -= 50
+            }
+
+            // Reward "raw" when searching for plain whole foods
+            if desc.contains("raw") && penalized.count == processedKeywords.count {
+                score += 20
+            }
+
+            // Reward close description match
+            if desc.hasPrefix(q) { score += 10 }
+            if desc.contains(q)  { score += 5 }
+
+            return (food, score)
+        }
+
+        return scored.sorted { $0.score > $1.score }.first?.food
     }
 }
 

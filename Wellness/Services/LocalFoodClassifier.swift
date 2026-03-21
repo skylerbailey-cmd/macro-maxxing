@@ -38,61 +38,61 @@ final class LocalFoodClassifier {
     /// Key = Vision taxonomy label substring to match.
     /// Value = clean food name to send to USDA.
     private let tier1Foods: [String: String] = [
-        // Fruits
-        "banana":        "banana",
-        "apple":         "apple",
-        "orange":        "orange",
-        "lemon":         "lemon",
-        "lime":          "lime",
-        "pear":          "pear",
-        "peach":         "peach",
-        "watermelon":    "watermelon",
-        "pineapple":     "pineapple",
-        "mango":         "mango",
-        "kiwi":          "kiwi",
-        "strawberry":    "strawberry",
-        "blueberry":     "blueberry",
-        "raspberry":     "raspberry",
-        "blackberry":    "blackberry",
-        "grape":         "grape",
-        "cherry":        "cherry",
-        "coconut":       "coconut",
-        "pomegranate":   "pomegranate",
-        "fig":           "fig",
-        "papaya":        "papaya",
-        "dragonfruit":   "dragonfruit",
-        "grapefruit":    "grapefruit",
-        "plum":          "plum",
-        "cantaloupe":    "cantaloupe",
-        "honeydew":      "honeydew melon",
-        "avocado":       "avocado",
+        // Fruits — use "raw" suffix to avoid USDA returning juice/concentrate/dried forms
+        "banana":        "banana, raw",
+        "apple":         "apple, raw",
+        "orange":        "orange, raw",
+        "lemon":         "lemon, raw",
+        "lime":          "lime, raw",
+        "pear":          "pear, raw",
+        "peach":         "peach, raw",
+        "watermelon":    "watermelon, raw",
+        "pineapple":     "pineapple, raw",
+        "mango":         "mango, raw",
+        "kiwi":          "kiwi, raw",
+        "strawberry":    "strawberry, raw",
+        "blueberry":     "blueberry, raw",
+        "raspberry":     "raspberry, raw",
+        "blackberry":    "blackberry, raw",
+        "grape":         "grape, raw",
+        "cherry":        "cherry, raw",
+        "coconut":       "coconut, raw",
+        "pomegranate":   "pomegranate, raw",
+        "fig":           "fig, raw",
+        "papaya":        "papaya, raw",
+        "dragonfruit":   "dragonfruit, raw",
+        "grapefruit":    "grapefruit, raw",
+        "plum":          "plum, raw",
+        "cantaloupe":    "cantaloupe, raw",
+        "honeydew":      "honeydew melon, raw",
+        "avocado":       "avocado, raw",
         // Vegetables
-        "broccoli":      "broccoli",
-        "cauliflower":   "cauliflower",
-        "carrot":        "carrot",
+        "broccoli":      "broccoli, raw",
+        "cauliflower":   "cauliflower, raw",
+        "carrot":        "carrot, raw",
         "corn":          "corn on the cob",
-        "tomato":        "tomato",
-        "cucumber":      "cucumber",
-        "bell pepper":   "bell pepper",
-        "asparagus":     "asparagus",
-        "artichoke":     "artichoke",
-        "mushroom":      "mushroom",
-        "onion":         "onion",
-        "garlic":        "garlic",
-        "sweet potato":  "sweet potato",
-        "zucchini":      "zucchini",
-        "eggplant":      "eggplant",
-        "radish":        "radish",
-        "celery":        "celery",
-        "lettuce":       "lettuce",
-        "spinach":       "spinach",
-        "kale":          "kale",
-        "green bean":    "green beans",
+        "tomato":        "tomato, raw",
+        "cucumber":      "cucumber, raw",
+        "bell pepper":   "bell pepper, raw",
+        "asparagus":     "asparagus, raw",
+        "artichoke":     "artichoke, raw",
+        "mushroom":      "mushroom, raw",
+        "onion":         "onion, raw",
+        "garlic":        "garlic, raw",
+        "sweet potato":  "sweet potato, raw",
+        "zucchini":      "zucchini, raw",
+        "eggplant":      "eggplant, raw",
+        "radish":        "radish, raw",
+        "celery":        "celery, raw",
+        "lettuce":       "lettuce, raw",
+        "spinach":       "spinach, raw",
+        "kale":          "kale, raw",
+        "green bean":    "green beans, raw",
         // Proteins
-        "egg":           "egg",
-        "shrimp":        "shrimp",
-        "salmon":        "salmon",
-        "steak":         "beef steak",
+        "egg":           "egg, whole, raw",
+        "shrimp":        "shrimp, raw",
+        "salmon":        "salmon, raw",
+        "steak":         "beef steak, raw",
         "bacon":         "bacon",
         "sausage":       "sausage",
         // Dairy
@@ -106,7 +106,7 @@ final class LocalFoodClassifier {
         "croissant":     "croissant",
         "muffin":        "muffin",
         "toast":         "toast",
-        "rice":          "white rice",
+        "rice":          "white rice, cooked",
         // Snacks
         "doughnut":      "doughnut",
         "donut":         "doughnut",
@@ -190,11 +190,27 @@ final class LocalFoodClassifier {
 
     // MARK: - Private Helpers
 
+    /// Labels that indicate the food is in liquid/prepared form — if any of these
+    /// appear with confidence > 0.3, a raw fruit/vegetable whitelist match is suspect
+    /// (e.g. "orange" label on a glass of orange juice).
+    private let liquidContextLabels: Set<String> = [
+        "beverage", "drink", "juice", "smoothie", "liquid", "cocktail",
+    ]
+
     /// Searches Vision results for an exact match against the Tier 1 whitelist.
     /// Only looks at the top 5 results and requires the match to be both:
     /// 1. In the whitelist
     /// 2. The highest-confidence food label (not preceded by a different food)
+    /// 3. Not contradicted by liquid/beverage context labels
     private func findTier1Match(from observations: [VNClassificationObservation]) -> (foodName: String, confidence: Double)? {
+
+        // Check if the image has a strong liquid/beverage signal anywhere in top labels.
+        // If so, don't trust a raw fruit/vegetable match — it's likely juice, not the whole food.
+        let hasLiquidContext = observations.prefix(10).contains { obs in
+            let label = obs.identifier.lowercased()
+                .replacingOccurrences(of: "_", with: " ")
+            return obs.confidence > 0.3 && liquidContextLabels.contains(where: { label.contains($0) })
+        }
 
         // Check top 5 labels only
         for obs in observations.prefix(5) {
@@ -208,6 +224,12 @@ final class LocalFoodClassifier {
             // Check for exact tier1 food match
             for (key, foodName) in tier1Foods {
                 if label.contains(key) {
+                    // If liquid context detected and food is mapped to "raw", skip —
+                    // let Claude identify the actual beverage
+                    if hasLiquidContext && foodName.contains("raw") {
+                        print("[LocalFoodClassifier] Skipping \"\(foodName)\" — liquid context detected, likely juice/smoothie")
+                        return nil
+                    }
                     return (foodName: foodName, confidence: Double(obs.confidence))
                 }
             }
