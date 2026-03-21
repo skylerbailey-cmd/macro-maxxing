@@ -328,6 +328,36 @@ enum AnalysisTier: Equatable {
         return true
     }
 
+    /// Logs a new entry from a saved meal template, using the current selected date/time.
+    func logFromSavedMeal(_ meal: FoodEntry) {
+        let calendar  = Calendar.current
+        var comps     = calendar.dateComponents([.year, .month, .day], from: selectedDate)
+        let now       = Date()
+        comps.hour    = calendar.component(.hour,   from: now)
+        comps.minute  = calendar.component(.minute, from: now)
+        comps.second  = calendar.component(.second, from: now)
+        let loggedAt  = calendar.date(from: comps) ?? selectedDate
+
+        let entry = FoodEntry(
+            loggedAt: loggedAt,
+            userID:   userID,
+            foodName: meal.foodName,
+            calories: meal.calories,
+            protein:  meal.protein,
+            carbs:    meal.carbs,
+            fat:      meal.fat
+        )
+
+        todayEntries.insert(entry, at: 0)
+
+        Task {
+            if let result = try? await FoodEntryService.shared.save(entry: entry, image: nil) {
+                entry.firebaseEntryID = result.docID
+                entry.photoURL        = result.photoURL
+            }
+        }
+    }
+
     func deleteEntry(_ entry: FoodEntry) {
         todayEntries.removeAll { $0.id == entry.id }
         let entryID = entry.firebaseEntryID

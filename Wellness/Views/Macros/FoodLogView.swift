@@ -81,6 +81,9 @@ struct FoodLogView: View {
                 profileSheet
             }
             .onAppear(perform: handleOnAppear)
+            .onReceive(NotificationCenter.default.publisher(for: .init("FoodEntryAdded"))) { _ in
+                Task { await viewModel.loadTodayEntries() }
+            }
             .onChange(of: selectedDate, handleDateChange)
             .onChange(of: viewModel.selectedImage) { _, newValue in
                 if newValue != nil { showingAnalysisSheet = true }
