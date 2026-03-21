@@ -67,31 +67,40 @@ struct SocialView: View {
     }
 
     /// Label-filtered view of the Firestore Team feed.
+    /// Team sees all scopes (arena + local + team).
     private var teamDisplayed: [FeedPost] {
-        guard let filter = labelFilter else { return teamFirestorePosts }
-        return teamFirestorePosts.filter { $0.postLabel == filter.rawValue }
+        let posts = teamFirestorePosts
+        guard let filter = labelFilter else { return posts }
+        return posts.filter { $0.postLabel == filter.rawValue }
     }
 
     /// Label-filtered view of the Firestore Following feed.
+    /// Following sees all scopes (you explicitly follow these people).
     private var followingDisplayed: [FeedPost] {
-        guard let filter = labelFilter else { return followingFirestorePosts }
-        return followingFirestorePosts.filter { $0.postLabel == filter.rawValue }
+        let posts = followingFirestorePosts
+        guard let filter = labelFilter else { return posts }
+        return posts.filter { $0.postLabel == filter.rawValue }
     }
 
     /// Label-filtered view of the Firestore Arena feed.
+    /// Arena only shows posts scoped to "arena" (the broadest audience).
     private var arenaDisplayed: [FeedPost] {
-        guard let filter = labelFilter else { return arenaViewModel.posts }
-        return arenaViewModel.posts.filter { $0.postLabel == filter.rawValue }
+        let posts = arenaViewModel.posts.filter { $0.postScope.isEmpty || $0.postScope == "arena" }
+        guard let filter = labelFilter else { return posts }
+        return posts.filter { $0.postLabel == filter.rawValue }
     }
 
     private static let localRadiusMeters: Double = 160_934 // 100 miles
 
     /// Distance-filtered + label-filtered view of the Firestore Local feed.
+    /// Local sees posts scoped to "arena" or "local".
     private var localDisplayed: [FeedPost] {
         guard let coord = locationManager.coordinate else { return [] }
         let userLoc = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
 
         let nearby = localFirestorePosts.filter { post in
+            // Exclude team-only posts from local feed
+            if post.postScope == "team" { return false }
             if post.userID == userSettings.userID { return true }
             guard post.isPublic else { return false }
             guard post.latitude != 0 || post.longitude != 0 else { return false }

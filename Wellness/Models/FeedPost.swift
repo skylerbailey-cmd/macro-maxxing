@@ -91,6 +91,9 @@ struct FeedPost: Codable, Identifiable {
 
     // MARK: - Visibility
 
+    /// "arena" (default) | "local" | "team" — controls which feed scopes show this post.
+    var postScope: String = "arena"
+
     /// False if the author had a private account when posting.
     var isPublic: Bool = true
 
@@ -243,10 +246,57 @@ struct FeedWorkoutItem: Codable, Identifiable {
 extension FeedPost {
 
     /// Decodes a FeedPost from a Firestore DocumentSnapshot.
+    /// Pre-fills any fields that may be absent from older documents so decoding
+    /// never silently drops a post.
     init?(document: DocumentSnapshot) {
         guard document.exists else { return nil }
+        var data = document.data() ?? [:]
+
+        // Default values for fields added after the initial schema
+        let stringDefaults: [String: Any] = [
+            "userProfilePhotoURL": "",
+            "title":               "",
+            "caption":             "",
+            "foodPhotoURL":        "",
+            "memeType":            "",
+            "auraTitle":           "",
+            "locationName":        "",
+            "fastingWindowDisplay": "",
+            "postLabel":           "",
+            "mogBoardScope":       "",
+            "mogBoardType":        "",
+            "mogBoardSnapshot":    "",
+            "postScope":           "arena",
+        ]
+        for (key, value) in stringDefaults where data[key] == nil {
+            data[key] = value
+        }
+        let intDefaults: [String: Any] = [
+            "calories": 0, "goalCalories": 0,
+            "reps": 0, "commentsCount": 0,
+            "auraLevel": 0, "auraPoints": 0, "streak": 0,
+        ]
+        for (key, value) in intDefaults where data[key] == nil {
+            data[key] = value
+        }
+        let doubleDefaults: [String: Any] = [
+            "protein": 0.0, "carbs": 0.0, "fat": 0.0,
+            "goalProtein": 0.0, "goalCarbs": 0.0, "goalFat": 0.0,
+            "latitude": 0.0, "longitude": 0.0,
+        ]
+        for (key, value) in doubleDefaults where data[key] == nil {
+            data[key] = value
+        }
+        if data["reppedBy"]            == nil { data["reppedBy"]            = [String]() }
+        if data["additionalPhotoURLs"] == nil { data["additionalPhotoURLs"] = [String]() }
+        if data["fuelLogItems"]        == nil { data["fuelLogItems"]        = [[String: Any]]() }
+        if data["workoutItems"]        == nil { data["workoutItems"]        = [[String: Any]]() }
+        if data["isPublic"]            == nil { data["isPublic"]            = true }
+
         do {
-            self = try document.data(as: FeedPost.self)
+            let decoder = Firestore.Decoder()
+            self = try decoder.decode(FeedPost.self, from: data, in: document.reference)
+            self.postID = document.documentID
         } catch {
             print("[FeedPost] Decode error – \(document.documentID): \(error)")
             return nil

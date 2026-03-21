@@ -187,7 +187,7 @@ struct UserSearchView: View {
                     }
                     HStack(spacing: 10) {
                         if !profile.location.isEmpty {
-                            Label(profile.location, systemImage: "mappin.fill")
+                            Label(profile.location, systemImage: "mappin.and.ellipse")
                                 .font(.system(size: 10))
                                 .foregroundStyle(purpl.opacity(0.60))
                         }

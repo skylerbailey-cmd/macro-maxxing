@@ -773,6 +773,37 @@ private struct AnalysisSheet: View {
 
                         // Entry fields
                         if showFields && viewModel.analysisState != .analyzing {
+                            // Tier indicator + re-scan option
+                            if viewModel.analysisTier == .local {
+                                HStack(spacing: 8) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "checkmark.seal.fill")
+                                            .font(.system(size: 11))
+                                        Text("Identified locally")
+                                            .font(.system(size: 11, weight: .semibold))
+                                    }
+                                    .foregroundStyle(Color(red: 0.35, green: 1.0, blue: 0.60))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color(red: 0.35, green: 1.0, blue: 0.60).opacity(0.12), in: Capsule())
+
+                                    Spacer()
+
+                                    Button {
+                                        Task { await viewModel.reanalyzeWithClaude() }
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "sparkles")
+                                                .font(.system(size: 10))
+                                            Text("Not right? Try AI scan")
+                                                .font(.system(size: 11, weight: .semibold))
+                                        }
+                                        .foregroundStyle(accent)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+
                             entryFields
                             saveToggle
                             saveButton

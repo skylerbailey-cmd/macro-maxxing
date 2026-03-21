@@ -301,10 +301,16 @@ struct SettingsView: View {
                 Toggle(isOn: $userSettings.autoAdjustMacrosForWorkout) {
                     Label("Auto-adjust macros for workouts", systemImage: "figure.strengthtraining.traditional")
                 }
+                Toggle(isOn: $userSettings.excludeDairy) {
+                    Label("Exclude dairy", systemImage: "cup.and.saucer.fill")
+                }
+                Toggle(isOn: $userSettings.excludeGluten) {
+                    Label("Exclude gluten", systemImage: "leaf.fill")
+                }
             } header: {
                 Text("Nutrition")
             } footer: {
-                Text("Grams of protein per pound of goal body weight. General fitness: 0.7–0.8 g/lb. Strength training: 0.8–1.0 g/lb.\n\nWhen auto-adjust is on, the \"Apply macro adjustments\" toggle in the workout log sheet will default to ON, automatically updating your daily macro targets based on the type of workout logged.")
+                Text("Grams of protein per pound of goal body weight. General fitness: 0.7–0.8 g/lb. Strength training: 0.8–1.0 g/lb.\n\nWhen auto-adjust is on, the \"Apply macro adjustments\" toggle in the workout log sheet will default to ON, automatically updating your daily macro targets based on the type of workout logged.\n\nDietary exclusions are used by the AI meal planner to avoid suggesting meals with dairy or gluten.")
             }
 
             // MARK: FAQ

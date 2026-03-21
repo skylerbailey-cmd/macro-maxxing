@@ -9,6 +9,21 @@ final class ClaudeAnalysisService {
     private let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
     private let model    = "claude-sonnet-4-6"
 
+    /// Reads dietary exclusion toggles from UserDefaults and returns a prompt
+    /// fragment to inject into both the nutrition coach and meal planner prompts.
+    private var dietaryRestrictionsPrompt: String {
+        let ud = UserDefaults.standard
+        var exclusions: [String] = []
+        if ud.bool(forKey: "excludeDairy")  { exclusions.append("dairy (milk, cheese, yogurt, butter, cream, whey)") }
+        if ud.bool(forKey: "excludeGluten") { exclusions.append("gluten (wheat, bread, pasta, flour, barley, rye, soy sauce)") }
+        guard !exclusions.isEmpty else { return "" }
+        return "\n**Dietary Restrictions — MUST FOLLOW:**\n" +
+            "The user has excluded: \(exclusions.joined(separator: "; ")). " +
+            "Do NOT suggest any food, ingredient, or recipe that contains these. " +
+            "Always choose alternatives (e.g. oat milk instead of milk, rice instead of pasta). " +
+            "If a logged meal already contains an excluded ingredient, flag it.\n"
+    }
+
     struct WorkoutSummary {
         let name:            String
         let type:            String
@@ -110,7 +125,7 @@ final class ClaudeAnalysisService {
         - Calories: \(Int(input.goalCalories)) kcal
         - Protein: \(Int(input.goalProtein))g
         - Carbs: \(Int(input.goalCarbs))g
-        - Fat: \(Int(input.goalFat))g\(fastingLine)\n
+        - Fat: \(Int(input.goalFat))g\(fastingLine)\(dietaryRestrictionsPrompt)\n
         """
 
         // Workouts
@@ -260,7 +275,7 @@ final class ClaudeAnalysisService {
         \(macroLines.joined(separator: "\n"))
 
         **Summary:** \(deficitSummary)\(avoidSummary)
-
+        \(dietaryRestrictionsPrompt)
         Suggest exactly 2 specific meals or snacks that primarily address the remaining deficits:
         1. A full meal option
         2. A quick snack option
