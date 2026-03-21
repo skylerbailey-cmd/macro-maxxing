@@ -174,15 +174,70 @@ final class ClaudeAnalysisService {
     }
 
     func brainstorm(_ input: BrainstormInput) async throws -> String {
-        // Percentage of each goal completed so far
-        func pct(_ logged: Double, _ goal: Double) -> Int {
-            guard goal > 0 else { return 0 }
-            return Int((logged / goal) * 100)
+        // Calculate remaining grams for each macro
+        let remainingCalories = max(0, input.goalCalories - input.totalCalories)
+        let remainingProtein  = max(0, input.goalProtein  - input.totalProtein)
+        let remainingCarbs    = max(0, input.goalCarbs    - input.totalCarbs)
+        let remainingFat      = max(0, input.goalFat      - input.totalFat)
+
+        // Determine which macros are met or over goal
+        let caloriesMet = input.totalCalories >= input.goalCalories
+        let proteinMet  = input.totalProtein  >= input.goalProtein
+        let carbsMet    = input.totalCarbs    >= input.goalCarbs
+        let fatMet      = input.totalFat      >= input.goalFat
+
+        // Build per-macro status lines with exact gram amounts
+        var macroLines: [String] = []
+
+        if caloriesMet {
+            let over = Int(input.totalCalories - input.goalCalories)
+            macroLines.append("- Calories: ALREADY MET (\(Int(input.totalCalories)) / \(Int(input.goalCalories)) kcal, over by \(over) kcal) — OFF LIMITS, do NOT suggest calorie-dense foods")
+        } else {
+            macroLines.append("- Calories: \(Int(remainingCalories)) kcal remaining (\(Int(input.totalCalories)) eaten of \(Int(input.goalCalories)) kcal goal)")
         }
-        let calPct  = pct(input.totalCalories, input.goalCalories)
-        let proPct  = pct(input.totalProtein,  input.goalProtein)
-        let carbPct = pct(input.totalCarbs,    input.goalCarbs)
-        let fatPct  = pct(input.totalFat,      input.goalFat)
+
+        if proteinMet {
+            let over = Int(input.totalProtein - input.goalProtein)
+            macroLines.append("- Protein: ALREADY MET (\(Int(input.totalProtein))g / \(Int(input.goalProtein))g, over by \(over)g) — OFF LIMITS, do NOT suggest high-protein foods")
+        } else {
+            macroLines.append("- Protein: \(Int(remainingProtein))g remaining (\(Int(input.totalProtein))g eaten of \(Int(input.goalProtein))g goal)")
+        }
+
+        if carbsMet {
+            let over = Int(input.totalCarbs - input.goalCarbs)
+            macroLines.append("- Carbs: ALREADY MET (\(Int(input.totalCarbs))g / \(Int(input.goalCarbs))g, over by \(over)g) — OFF LIMITS, do NOT suggest carb-heavy foods")
+        } else {
+            macroLines.append("- Carbs: \(Int(remainingCarbs))g remaining (\(Int(input.totalCarbs))g eaten of \(Int(input.goalCarbs))g goal)")
+        }
+
+        if fatMet {
+            let over = Int(input.totalFat - input.goalFat)
+            macroLines.append("- Fat: ALREADY MET (\(Int(input.totalFat))g / \(Int(input.goalFat))g, over by \(over)g) — OFF LIMITS, avoid added fats entirely")
+        } else {
+            macroLines.append("- Fat: \(Int(remainingFat))g remaining (\(Int(input.totalFat))g eaten of \(Int(input.goalFat))g goal)")
+        }
+
+        // Build the list of deficits to target
+        var deficits: [String] = []
+        if !caloriesMet { deficits.append("\(Int(remainingCalories)) kcal") }
+        if !proteinMet  { deficits.append("\(Int(remainingProtein))g protein") }
+        if !carbsMet    { deficits.append("\(Int(remainingCarbs))g carbs") }
+        if !fatMet      { deficits.append("\(Int(remainingFat))g fat") }
+
+        // Build the list of macros to avoid
+        var offLimits: [String] = []
+        if caloriesMet { offLimits.append("calories") }
+        if proteinMet  { offLimits.append("protein") }
+        if carbsMet    { offLimits.append("carbs") }
+        if fatMet      { offLimits.append("fat") }
+
+        let deficitSummary = deficits.isEmpty
+            ? "All macros are met — suggest only a very light option if anything."
+            : "The user still needs: \(deficits.joined(separator: ", "))."
+
+        let avoidSummary = offLimits.isEmpty
+            ? ""
+            : " Macros that are OFF LIMITS (already met or over): \(offLimits.joined(separator: ", ")). Do NOT suggest foods high in these."
 
         let prompt = """
         You are a no-nonsense nutrition coach who's been in the gym long enough to know what actually works. \
@@ -190,26 +245,28 @@ final class ClaudeAnalysisService {
         to help others get there too. A word of gym culture here and there is fine when it flows naturally, \
         but the quality of the advice always comes first.
 
-        A user is mid-day and wants to know what to eat NEXT based on how their macros \
-        are distributed RIGHT NOW — not simply what's left. Look at which macros are \
-        lagging behind relative to the others and prioritise those.
+        A user is mid-day and wants to know what to eat NEXT. Your job is to suggest foods that fill \
+        their remaining macro gaps WITHOUT increasing any macro that is already at or over its goal.
 
-        **Current macro progress (% of daily goal hit so far):**
-        - Calories: \(calPct)%  (\(Int(input.totalCalories)) / \(Int(input.goalCalories)) kcal)
-        - Protein:  \(proPct)%  (\(Int(input.totalProtein))g / \(Int(input.goalProtein))g)
-        - Carbs:    \(carbPct)% (\(Int(input.totalCarbs))g / \(Int(input.goalCarbs))g)
-        - Fat:      \(fatPct)%  (\(Int(input.totalFat))g / \(Int(input.goalFat))g)
+        **Macro status (exact gram amounts):**
+        \(macroLines.joined(separator: "\n"))
 
-        Give exactly 2 suggestions that both address the same macro gap but use completely different foods:
+        **Summary:** \(deficitSummary)\(avoidSummary)
+
+        Suggest exactly 2 specific meals or snacks that primarily address the remaining deficits:
         1. A full meal option
         2. A quick snack option
 
         Rules:
+        - CRITICAL: Any macro marked OFF LIMITS must not be meaningfully increased by your suggestions. \
+          Choose foods that are naturally low in those macros.
         - Each option must use a DIFFERENT primary ingredient / protein source — no repeating proteins across options
         - Draw from the full range of real foods: chicken, beef, fish, eggs, Greek yogurt, \
           cottage cheese, tofu, turkey, tuna, lentils, oats, rice, fruit, nuts, seeds, etc.
-        - Be very specific with amounts (e.g. "200g ground beef + sweet potato" not just "beef and potato")
-        - Format: bold the food name, then one short sentence on why it fits the macro gap
+        - Be very specific with amounts in grams (e.g. "200g ground beef + 150g sweet potato") \
+          and include estimated macros for each suggestion (calories, protein, carbs, fat)
+        - Format: bold the food name, then one short sentence on why it fits the macro gap, \
+          then the estimated macros in parentheses
         - No intro line, no outro — just the 2 numbered options
         """
 
