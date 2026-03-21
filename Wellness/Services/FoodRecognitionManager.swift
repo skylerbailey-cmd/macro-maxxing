@@ -33,7 +33,6 @@ final class FoodRecognitionManager {
 
     /// Recognizes food from an image using the three-tier system.
     /// Always returns a result — never throws to the caller.
-    @MainActor
     func recognizeFood(image: UIImage, voiceNote: String? = nil, userID: String = "") async -> FoodRecognitionResult {
         // Step 1: Always run Core ML classifier first
         let classification = await classifier.classify(image: image)
@@ -306,7 +305,6 @@ final class FoodRecognitionManager {
     // MARK: - Escalation
 
     /// Manually escalates to the next tier. Used by the "Try better scan" button.
-    @MainActor
     func escalate(image: UIImage, fromTier: Int, voiceNote: String? = nil, userID: String = "") async -> FoodRecognitionResult {
         switch fromTier {
         case 1:

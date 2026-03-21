@@ -10,7 +10,7 @@ struct Config {
     static let anthropicAPIKey = claudeApiKey
 
     // MARK: - USDA FoodData Central
-    static let usdaApiKey = "YOUR_USDA_KEY"
+    static let usdaApiKey = "REDACTED"
 
     // MARK: - FatSecret Platform
     static let fatSecretClientId = "REDACTED"
