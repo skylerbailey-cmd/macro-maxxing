@@ -259,9 +259,10 @@ final class FoodRecognitionManager {
             )
 
             // Sanity check: reject results with unreasonable calorie density
-            // Most whole foods are under 400 kcal/100g (nuts/oils can be higher but are rarely misidentified)
+            // Pure oils top out ~900 kcal/100g; nuts/seeds/nut butters ~550-650;
+            // anything above 920 is likely a bad product match.
             let calPer100g = merged.result.calories / (haikuResult.portionGrams / 100.0)
-            if calPer100g > 400 && !haikuResult.isMixedMeal {
+            if calPer100g > 920 && !haikuResult.isMixedMeal {
                 print("[Tier2] ⚠️ Rejected: \(haikuResult.foodName) has \(Int(calPer100g)) kcal/100g — likely wrong product match")
                 return nil  // escalate to Tier 3
             }
