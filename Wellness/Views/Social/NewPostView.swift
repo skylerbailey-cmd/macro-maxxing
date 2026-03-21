@@ -98,6 +98,7 @@ struct NewPostView: View {
     @State private var selectedLabel:      PostLabel? = nil
     @State private var mogBoardScope:      String     = "Arena"
     @State private var mogBoardType:       String     = "Weekly Aura"
+    @State private var postScope:          String     = "arena"
     @FocusState private var focus: Field?
 
     // Fuel log pre-fill (loaded from Firestore)
@@ -130,6 +131,9 @@ struct NewPostView: View {
                     VStack(spacing: 14) {
                         // Label picker
                         labelPickerSection
+
+                        // Audience scope
+                        postScopePicker
 
                         // Fuel log preview (only when Fuel Log label is selected)
                         if selectedLabel == .fuelLog {
@@ -224,6 +228,29 @@ struct NewPostView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Post scope picker
+
+    private var postScopePicker: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "eye")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.45))
+            Text("Visible to")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.45))
+            Picker("", selection: $postScope) {
+                Text("Arena").tag("arena")
+                Text("Local").tag("local")
+                Text("Team").tag("team")
+            }
+            .pickerStyle(.menu)
+            .tint(purpl)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Label picker
@@ -664,6 +691,7 @@ struct NewPostView: View {
             goalFat:       isGoalPost ? ud("goalFat",      fallback: 65)   : 0
         )
         post.isCustomPost           = true
+        post.postScope              = postScope
         post.authorAuraLevel        = userSettings.auraLevel
         post.authorAuraPoints       = userSettings.auraPoints
         post.authorAuraTitle        = userSettings.auraTitle
@@ -792,6 +820,7 @@ struct NewPostView: View {
                     goalFat:       isGoalPost ? ud("goalFat",     fallback: 65)         : 0,
                     fuelLogItems:  feedFuelLogItems,
                     workoutItems:  feedWorkoutItems,
+                    postScope:     postScope,
                     postID:        fbPostID
                 )
                 // Notify the feed to refresh now that Firestore has the complete post data

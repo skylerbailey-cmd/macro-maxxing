@@ -91,6 +91,9 @@ struct FeedPost: Codable, Identifiable {
 
     // MARK: - Visibility
 
+    /// "arena" (default) | "local" | "team" — controls which feed scopes show this post.
+    var postScope: String = "arena"
+
     /// False if the author had a private account when posting.
     var isPublic: Bool = true
 

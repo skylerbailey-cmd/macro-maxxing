@@ -369,6 +369,7 @@ final class PostService {
         goalFat:              Double = 0,
         fuelLogItems:         [FeedFuelLogItem] = [],
         workoutItems:         [FeedWorkoutItem] = [],
+        postScope:            String = "arena",
         postID:               String = UUID().uuidString
     ) async throws -> String {
         let postID = postID
@@ -435,6 +436,7 @@ final class PostService {
             fuelLogItems:         fuelLogItems,
             workoutItems:         workoutItems
         )
+        post.postScope = postScope
 
         let data = try post.firestoreData()
         try await docRef.setData(data)

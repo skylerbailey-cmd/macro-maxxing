@@ -42,6 +42,7 @@ struct MogBoardSnapshotEntry: Codable, Identifiable {
 
     /// Fasting window at time of posting, e.g. "9:00 AM – 5:00 PM · 8h window". Empty if not applicable.
     var fastingWindowDisplay: String = ""
+    var postScope:            String = "arena"  // "arena" | "local" | "team"
     var postLabel:            String = ""  // PostLabel.rawValue, empty = no label
     var mogBoardScope:        String = ""  // "Team" | "Local" | "Arena"
     var mogBoardType:         String = ""  // "Weekly Aura" | "Engagement" | "Streak"
