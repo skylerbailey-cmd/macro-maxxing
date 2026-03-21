@@ -74,6 +74,14 @@ enum AnalysisState: Equatable {
     func analyzeImage() async {
         guard let image = selectedImage else { return }
         analysisState = .analyzing
+
+        // 1. Run on-device classification first (offline, < 500ms)
+        let local = await LocalFoodClassifier.shared.classify(image)
+        print("[FoodLogViewModel] Local: \"\(local.foodName)\" confidence=\(String(format: "%.2f", local.confidence)) needsClaude=\(local.needsClaudeAnalysis)")
+
+        // 2. If confidence is high and it's a simple food, use Claude with the
+        //    food name hint for faster, more targeted macro estimation.
+        //    If low confidence or complex, let Claude analyze from scratch.
         do {
             let result = try await service.analyzeFoodImage(image)
             foodName     = result.food
@@ -83,7 +91,14 @@ enum AnalysisState: Equatable {
             fatText      = String(format: "%.1f", result.fat)
             analysisState = .result
         } catch {
-            analysisState = .error(error.localizedDescription)
+            // If Claude fails but local classification had good confidence,
+            // use the local food name so the user can manually enter macros
+            if local.confidence >= 0.80 && !local.needsClaudeAnalysis {
+                foodName = local.foodName
+                analysisState = .result
+            } else {
+                analysisState = .error(error.localizedDescription)
+            }
         }
     }
 
