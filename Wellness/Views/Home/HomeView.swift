@@ -122,6 +122,12 @@ struct HomeView: View {
                 viewModel.reloadGoalsFromDefaults()
             }
             .onChange(of: selectedDate) { _, newDate in handleDateChange(newDate) }
+            .onChange(of: viewModel.userSettings.macroStreak) { _, newStreak in
+                // Update immediately when populate(from:) loads the streak from Firestore
+                if newStreak > viewModel.macroStreak {
+                    viewModel.macroStreak = newStreak
+                }
+            }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
                 let today = Calendar.current.startOfDay(for: Date())
@@ -401,6 +407,9 @@ struct HomeView: View {
     private func handleAppear() {
         viewModel.selectedDate = selectedDate
         lastLoadedDay = Calendar.current.startOfDay(for: Date())
+        // Show the streak immediately from whatever UserSettings has right now
+        // (populated from Firestore or UserDefaults), before the async compute runs.
+        viewModel.macroStreak = viewModel.userSettings.macroStreak
         // Defer the DB fetch to after the first frame so the UI renders immediately
         Task { viewModel.loadTodayTotals() }
         // Lock any past fasting windows that haven't been locked yet
