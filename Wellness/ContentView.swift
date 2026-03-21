@@ -42,6 +42,7 @@ struct ContentView: View {
     @State private var fabShowingNewPost     = false
     @State private var fabShowingSearch      = false
     @State private var fabShowingLogWorkout  = false
+    @State private var fabShowingSavedMeals = false
     @State private var fabSelectedImage: UIImage? = nil
 
     var body: some View {
@@ -208,6 +209,11 @@ struct ContentView: View {
                     selectedTab = 1
                     fabShowingLibrary = true
                 },
+                onLogMealSaved: {
+                    fabExpanded = false
+                    selectedTab = 1
+                    fabShowingSavedMeals = true
+                },
                 onLogWorkout: {
                     fabExpanded = false
                     selectedTab = 1
@@ -250,6 +256,9 @@ struct ContentView: View {
         .sheet(isPresented: $fabShowingLibrary) {
             ImagePickerView(sourceType: .photoLibrary, selectedImage: $fabSelectedImage)
         }
+        .sheet(isPresented: $fabShowingSavedMeals) {
+            SavedMealsSheet(userID: userSettings.userID, selectedDate: selectedDate)
+        }
         .sheet(isPresented: Binding(
             get: { streakBreakCount != nil },
             set: { if !$0 { streakBreakCount = nil } }
@@ -283,6 +292,7 @@ private struct QuickActionFAB: View {
     @Binding var expanded: Bool
     let onLogMealCamera:  () -> Void
     let onLogMealLibrary: () -> Void
+    let onLogMealSaved:   () -> Void
     let onLogWorkout:     () -> Void
     let onMakePost:       () -> Void
     let onFindPeople:     () -> Void
@@ -299,6 +309,9 @@ private struct QuickActionFAB: View {
             if expanded {
                 // Sub-actions under Log a Meal
                 if logMealExpanded {
+                    actionPill(icon: "bookmark.fill", label: "Saved Meals", color: purpl,
+                               action: onLogMealSaved)
+
                     actionPill(icon: "photo.on.rectangle", label: "Photo Library", color: purpl,
                                action: onLogMealLibrary)
 
@@ -396,6 +409,61 @@ private struct QuickActionFAB: View {
                 removal:   .scale(scale: 0.85, anchor: .bottomTrailing).combined(with: .opacity)
             )
         )
+    }
+}
+
+// MARK: - Saved Meals Sheet (loads meals and handles logging)
+
+private struct SavedMealsSheet: View {
+    let userID: String
+    let selectedDate: Date
+    @State private var savedMeals: [FoodEntry] = []
+    @State private var isLoading = true
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        Group {
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.black)
+                    .preferredColorScheme(.dark)
+            } else {
+                SavedMealsView(savedMeals: savedMeals) { meal in
+                    logMeal(meal)
+                }
+            }
+        }
+        .task {
+            savedMeals = (try? await FoodEntryService.shared.fetchSavedMeals(userID: userID)) ?? []
+            isLoading = false
+        }
+    }
+
+    private func logMeal(_ meal: FoodEntry) {
+        let calendar = Calendar.current
+        var comps    = calendar.dateComponents([.year, .month, .day], from: selectedDate)
+        let now      = Date()
+        comps.hour   = calendar.component(.hour,   from: now)
+        comps.minute = calendar.component(.minute, from: now)
+        comps.second = calendar.component(.second, from: now)
+        let loggedAt = calendar.date(from: comps) ?? selectedDate
+
+        let entry = FoodEntry(
+            loggedAt: loggedAt,
+            userID:   userID,
+            foodName: meal.foodName,
+            calories: meal.calories,
+            protein:  meal.protein,
+            carbs:    meal.carbs,
+            fat:      meal.fat
+        )
+
+        Task {
+            _ = try? await FoodEntryService.shared.save(entry: entry, image: nil)
+            // Post notification so FoodLogView refreshes
+            NotificationCenter.default.post(name: .init("FoodEntryAdded"), object: nil)
+        }
     }
 }
 
