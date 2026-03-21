@@ -21,7 +21,7 @@ final class FatSecretService {
     // MARK: - OAuth 2.0 Token
 
     private func ensureToken() async throws {
-        if let token = accessToken, let expiry = tokenExpiry, Date() < expiry {
+        if accessToken != nil, let expiry = tokenExpiry, Date() < expiry {
             return
         }
 

@@ -147,7 +147,7 @@ final class LocalFoodClassifier {
                 return
             }
 
-            guard let observations = classifyRequest.results as? [VNClassificationObservation] else {
+            guard let observations = classifyRequest.results else {
                 continuation.resume(returning: .unknown)
                 return
             }
