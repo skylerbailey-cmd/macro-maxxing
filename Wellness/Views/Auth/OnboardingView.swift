@@ -349,8 +349,36 @@ struct OnboardingView: View {
             VStack(spacing: 20) {
                 heightPicker
                 weightSlider(label: "Current Weight", value: $currentWeight)
-                weightSlider(label: "Goal Weight", value: $goalWeight)
+                goalWeightSlider
+                Text("Goal weight is limited to 5 lbs from your current weight. Sustainable progress means small, steady steps — aim for 1–2 lbs per week, then update your goal as you hit it.")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.40))
+                    .padding(.horizontal, 4)
             }
+        }
+    }
+
+    private var goalWeightSlider: some View {
+        let low  = max(80, currentWeight - 5)
+        let high = min(400, currentWeight + 5)
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Goal Weight")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.65))
+                Spacer()
+                Text("\(Int(goalWeight)) lbs")
+                    .font(.system(size: 22, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+            Slider(value: $goalWeight, in: low...high, step: 1)
+                .tint(purpl)
+        }
+        .padding(16)
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+        .onChange(of: currentWeight) { _, newWeight in
+            let clamped = min(max(goalWeight, newWeight - 5), newWeight + 5)
+            if clamped != goalWeight { goalWeight = clamped }
         }
     }
 

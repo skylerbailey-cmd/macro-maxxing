@@ -277,7 +277,7 @@ struct SettingsView: View {
             }
 
             // MARK: Body
-            Section("Body") {
+            Section {
                 pickerRow(label: "Current Weight", display: "\(Int(currentWeightVal)) lbs") {
                     activePicker = .currentWeight
                 }
@@ -287,6 +287,10 @@ struct SettingsView: View {
                 pickerRow(label: "Height", display: heightInchesVal > 0 ? Self.formatHeight(heightInchesVal) : "Not set") {
                     activePicker = .height
                 }
+            } header: {
+                Text("Body")
+            } footer: {
+                Text("Goal weight is limited to 5 lbs from your current weight. Healthy, sustainable changes happen in small steps — aim to lose or gain 1–2 lbs per week, then update your goal as you progress.")
             }
 
             // MARK: Nutrition
@@ -374,6 +378,11 @@ struct SettingsView: View {
                          goalWeight:    userSettings.goalWeight,
                          heightInches:  userSettings.heightInches,
                          proteinPerLb:  userSettings.proteinPerLb)
+        }
+        .onChange(of: currentWeightVal) { _, newWeight in
+            // Clamp goal weight to stay within ±5 lbs of current weight
+            let clamped = min(max(goalWeightVal, newWeight - 5), newWeight + 5)
+            if clamped != goalWeightVal { goalWeightVal = clamped }
         }
         .onDisappear { Task { await saveProfile() } }
         .navigationTitle("Account")
@@ -537,6 +546,13 @@ private struct NumberPickerSheet: View {
     private let heightValues  = Array(54...84)
     private let proteinValues = stride(from: 0.70, through: 1.00, by: 0.05).map { Double(String(format: "%.2f", $0))! }
 
+    /// Goal weight is capped to ±5 lbs from current weight.
+    private var goalWeightValues: [Double] {
+        let low  = max(100, Int(currentWeight) - 5)
+        let high = min(300, Int(currentWeight) + 5)
+        return Array(low...high).map { Double($0) }
+    }
+
     var body: some View {
         NavigationStack {
             switch picker {
@@ -550,7 +566,7 @@ private struct NumberPickerSheet: View {
             case .goalWeight:
                 wheelPicker(
                     title: "Goal Weight",
-                    values: weightValues,
+                    values: goalWeightValues,
                     selection: $goalWeight,
                     label: { "\(Int($0)) lbs" }
                 )
