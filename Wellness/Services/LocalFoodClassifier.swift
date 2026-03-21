@@ -190,11 +190,27 @@ final class LocalFoodClassifier {
 
     // MARK: - Private Helpers
 
+    /// Labels that indicate the food is in liquid/prepared form — if any of these
+    /// appear with confidence > 0.3, a raw fruit/vegetable whitelist match is suspect
+    /// (e.g. "orange" label on a glass of orange juice).
+    private let liquidContextLabels: Set<String> = [
+        "beverage", "drink", "juice", "smoothie", "liquid", "cocktail",
+    ]
+
     /// Searches Vision results for an exact match against the Tier 1 whitelist.
     /// Only looks at the top 5 results and requires the match to be both:
     /// 1. In the whitelist
     /// 2. The highest-confidence food label (not preceded by a different food)
+    /// 3. Not contradicted by liquid/beverage context labels
     private func findTier1Match(from observations: [VNClassificationObservation]) -> (foodName: String, confidence: Double)? {
+
+        // Check if the image has a strong liquid/beverage signal anywhere in top labels.
+        // If so, don't trust a raw fruit/vegetable match — it's likely juice, not the whole food.
+        let hasLiquidContext = observations.prefix(10).contains { obs in
+            let label = obs.identifier.lowercased()
+                .replacingOccurrences(of: "_", with: " ")
+            return obs.confidence > 0.3 && liquidContextLabels.contains(where: { label.contains($0) })
+        }
 
         // Check top 5 labels only
         for obs in observations.prefix(5) {
@@ -208,6 +224,12 @@ final class LocalFoodClassifier {
             // Check for exact tier1 food match
             for (key, foodName) in tier1Foods {
                 if label.contains(key) {
+                    // If liquid context detected and food is mapped to "raw", skip —
+                    // let Claude identify the actual beverage
+                    if hasLiquidContext && foodName.contains("raw") {
+                        print("[LocalFoodClassifier] Skipping \"\(foodName)\" — liquid context detected, likely juice/smoothie")
+                        return nil
+                    }
                     return (foodName: foodName, confidence: Double(obs.confidence))
                 }
             }
