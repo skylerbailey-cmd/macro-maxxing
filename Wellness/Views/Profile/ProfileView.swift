@@ -76,6 +76,7 @@ struct ProfileView: View {
     @AppStorage("hasSeenProfileTutorial") private var hasSeenProfileTutorial = false
     @State private var showingTutorial  = false
     @State private var tutorialAnchors: [String: Anchor<CGRect>] = [:]
+    @State private var tutorialScrollProxy: ScrollViewProxy? = nil
 
     private var isOwnProfile: Bool { ownUserSettings != nil }
 
@@ -137,12 +138,7 @@ struct ProfileView: View {
                     }
                     .padding(.bottom, 40)
                 }
-                .onChange(of: showingTutorial) { _, showing in
-                    if showing {
-                        // Scroll balance score into view so the spotlight can highlight it
-                        withAnimation { scrollProxy.scrollTo("balanceScoreAnchor", anchor: .top) }
-                    }
-                }
+                .onAppear { tutorialScrollProxy = scrollProxy }
             }
 
             if showingTutorial {
@@ -152,6 +148,16 @@ struct ProfileView: View {
                     onDismiss: {
                         withAnimation(.easeOut(duration: 0.25)) { showingTutorial = false }
                         hasSeenProfileTutorial = true
+                    },
+                    onStepChange: { anchorID in
+                        guard let proxy = tutorialScrollProxy else { return }
+                        if anchorID == "profile.balanceScore" {
+                            withAnimation { proxy.scrollTo("balanceScoreAnchor", anchor: .center) }
+                        } else if anchorID == "profile.header" {
+                            withAnimation { proxy.scrollTo("balanceScoreAnchor", anchor: .bottom) }
+                        } else if anchorID == "profile.stats" {
+                            withAnimation { proxy.scrollTo("balanceScoreAnchor", anchor: .top) }
+                        }
                     }
                 )
                 .transition(.opacity.animation(.easeInOut(duration: 0.25)))
