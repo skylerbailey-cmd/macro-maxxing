@@ -181,6 +181,11 @@ struct ProfileView: View {
             if isOwnProfile {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 14) {
+                        Button { showingTutorial = true } label: {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(size: 20))
+                                .foregroundStyle(.white.opacity(0.65))
+                        }
                         Button { showingProfileShare = true } label: {
                             Image(systemName: "square.and.arrow.up")
                                 .font(.system(size: 15, weight: .semibold))
