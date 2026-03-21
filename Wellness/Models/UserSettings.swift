@@ -530,6 +530,8 @@ struct AuraGain: Identifiable, Equatable {
             goalsMetDatesRaw = local.joined(separator: ",")
         }
         auraPopupsEnabled = profile.auraPopupsEnabled
+        excludeDairy      = profile.excludeDairy
+        excludeGluten     = profile.excludeGluten
         // Merge achieved milestones from Firestore with any local values
         if !profile.achievedMilestones.isEmpty {
             var local = achievedMilestones   // existing local Set<Int>

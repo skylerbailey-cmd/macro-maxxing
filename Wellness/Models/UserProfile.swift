@@ -50,6 +50,8 @@ struct UserProfile: Codable, Identifiable {
     var windowStartMinute:    Int
     var windowDurationHours:  Int
     var auraPopupsEnabled:    Bool
+    var excludeDairy:         Bool
+    var excludeGluten:        Bool
     /// Comma-separated streak milestone days already awarded, e.g. "3,7,14".
     /// Synced to Firestore so milestones survive reinstalls and device switches.
     var achievedMilestones:   String
@@ -119,6 +121,8 @@ struct UserProfile: Codable, Identifiable {
         windowStartMinute:    Int      = 0,
         windowDurationHours:  Int      = 8,
         auraPopupsEnabled:    Bool     = true,
+        excludeDairy:         Bool     = false,
+        excludeGluten:        Bool     = false,
         achievedMilestones:   String   = "",
         goalsMetDates:        [String] = [],
         lastGoalsMetDate:     String   = "",
@@ -158,6 +162,8 @@ struct UserProfile: Codable, Identifiable {
         self.windowStartMinute   = windowStartMinute
         self.windowDurationHours = windowDurationHours
         self.auraPopupsEnabled   = auraPopupsEnabled
+        self.excludeDairy        = excludeDairy
+        self.excludeGluten       = excludeGluten
         self.achievedMilestones  = achievedMilestones
         self.goalsMetDates       = goalsMetDates
         self.lastGoalsMetDate    = lastGoalsMetDate
@@ -223,6 +229,8 @@ extension UserProfile {
             "isPrivateAccount":  false,
             "fastingEnabled":    false,
             "auraPopupsEnabled": true,
+            "excludeDairy":      false,
+            "excludeGluten":     false,
         ]
         for (key, value) in boolDefaults where data[key] == nil {
             data[key] = value
