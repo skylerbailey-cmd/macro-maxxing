@@ -26,6 +26,13 @@ enum AnalysisState: Equatable {
     }
 }
 
+/// Which tier produced the current result.
+enum AnalysisTier: Equatable {
+    case none
+    case local   // Tier 1 — on-device + USDA
+    case claude  // Tier 2/3 — Claude API (Haiku or Sonnet)
+}
+
 @Observable final class FoodLogViewModel {
     // MARK: - Selected date (drives all fetches and new entry timestamps)
     var selectedDate: Date {
@@ -40,6 +47,9 @@ enum AnalysisState: Equatable {
     var showingCamera = false
     var showingPhotoLibrary = false
     var analysisState: AnalysisState = .idle
+
+    /// Which recognition tier produced the current result.
+    var analysisTier: AnalysisTier = .none
 
     var foodName = ""
     var caloriesText = ""
@@ -60,6 +70,17 @@ enum AnalysisState: Equatable {
 
     private let recognitionManager = FoodRecognitionManager.shared
     private(set) var userID: String
+
+    // MARK: - Tier tracking (UserDefaults)
+
+    static var tier1Count: Int {
+        get { UserDefaults.standard.integer(forKey: "analysisTier1Count") }
+        set { UserDefaults.standard.set(newValue, forKey: "analysisTier1Count") }
+    }
+    static var tier2Count: Int {
+        get { UserDefaults.standard.integer(forKey: "analysisTier2Count") }
+        set { UserDefaults.standard.set(newValue, forKey: "analysisTier2Count") }
+    }
 
     init(selectedDate: Date = Calendar.current.startOfDay(for: Date()),
          userID: String = "") {
@@ -93,6 +114,7 @@ enum AnalysisState: Equatable {
     func analyzeImage() async {
         guard let image = selectedImage else { return }
         analysisState = .analyzing
+        analysisTier  = .none
 
         let result = await recognitionManager.recognizeFood(
             image: image,
@@ -102,6 +124,16 @@ enum AnalysisState: Equatable {
 
         recognitionResult = result
         populateFromRecognitionResult(result)
+        analysisTier = result.tier == 1 ? .local : .claude
+
+        // Update tier counters
+        if result.tier == 1 {
+            Self.tier1Count += 1
+            print("[Tier1] ✓ Resolved locally: \(result.foodName) — \(result.calories) kcal")
+        } else if result.tier >= 2 {
+            Self.tier2Count += 1
+            print("[Tier\(result.tier)] ✓ Claude result: \(result.foodName) — \(result.calories) kcal")
+        }
 
         if result.tier == 0 && result.calories == 0 {
             // All tiers failed — show error with manual entry option
@@ -116,6 +148,7 @@ enum AnalysisState: Equatable {
     func analyzeImageWithVoice() async {
         guard let image = selectedImage else { return }
         analysisState = .analyzing
+        analysisTier  = .none
 
         let result = await recognitionManager.recognizeFood(
             image: image,
@@ -125,6 +158,38 @@ enum AnalysisState: Equatable {
 
         recognitionResult = result
         populateFromRecognitionResult(result)
+        analysisTier = result.tier == 1 ? .local : .claude
+
+        if result.tier == 1 { Self.tier1Count += 1 }
+        else if result.tier >= 2 { Self.tier2Count += 1 }
+
+        if result.tier == 0 && result.calories == 0 {
+            analysisState = .error(FoodRecognitionError.allTiersFailed.localizedDescription)
+        } else {
+            analysisState = .confirmed(result)
+        }
+    }
+
+    /// Forces a Claude API analysis, bypassing Tier 1.
+    /// Called when the user taps "Not right? Try AI scan".
+    @MainActor
+    func reanalyzeWithClaude() async {
+        guard let image = selectedImage else { return }
+        analysisState = .analyzing
+        analysisTier  = .none
+
+        // Escalate directly to Tier 2+, skipping on-device
+        let result = await recognitionManager.escalate(
+            image: image,
+            fromTier: 1,
+            voiceNote: voiceNote.isEmpty ? nil : voiceNote,
+            userID: userID
+        )
+
+        recognitionResult = result
+        populateFromRecognitionResult(result)
+        analysisTier = .claude
+        Self.tier2Count += 1
 
         if result.tier == 0 && result.calories == 0 {
             analysisState = .error(FoodRecognitionError.allTiersFailed.localizedDescription)
@@ -151,6 +216,9 @@ enum AnalysisState: Equatable {
 
         recognitionResult = result
         populateFromRecognitionResult(result)
+        analysisTier = result.tier == 1 ? .local : .claude
+
+        if result.tier >= 2 { Self.tier2Count += 1 }
 
         if result.tier == 0 && result.calories == 0 {
             analysisState = .error(FoodRecognitionError.allTiersFailed.localizedDescription)
@@ -279,5 +347,6 @@ enum AnalysisState: Equatable {
         isFromSavedMeal   = false
         recognitionResult = nil
         analysisState     = .idle
+        analysisTier      = .none
     }
 }
