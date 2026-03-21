@@ -227,25 +227,32 @@ final class USDAFoodService {
     ]
 
     /// Picks the best raw/whole-food match from search results.
-    /// Prefers items whose description contains "raw" and doesn't contain processed keywords.
+    /// Prefers items whose description contains "raw" and doesn't contain processed keywords,
+    /// BUT only penalizes processed terms that aren't part of the original query.
+    /// e.g. searching "banana chips" won't penalize results containing "chips".
     private func bestRawMatch(for query: String, in items: [USDAFoodItem]) -> USDAFoodItem? {
         guard !items.isEmpty else { return nil }
+        let q = query.lowercased()
+
+        // Build set of processed keywords NOT mentioned in the query
+        let penalizedKeywords = processedKeywords.filter { !q.contains($0) }
 
         let scored: [(item: USDAFoodItem, score: Int)] = items.compactMap { item in
             guard item.calories100g > 0 else { return nil }
             let desc = item.description.lowercased()
             var score = 0
 
-            // Penalize processed forms heavily
-            if processedKeywords.contains(where: { desc.contains($0) }) {
+            // Penalize processed forms only if the user didn't ask for them
+            if penalizedKeywords.contains(where: { desc.contains($0) }) {
                 score -= 50
             }
 
-            // Reward "raw" in the description
-            if desc.contains("raw") { score += 20 }
+            // Reward "raw" only when the query itself is a plain whole food
+            if desc.contains("raw") && penalizedKeywords.count == processedKeywords.count {
+                score += 20
+            }
 
             // Reward if the description starts with or closely matches the query
-            let q = query.lowercased()
             if desc.hasPrefix(q) { score += 10 }
             if desc.contains(q)  { score += 5 }
 
