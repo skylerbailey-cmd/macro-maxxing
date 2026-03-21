@@ -465,4 +465,38 @@ final class FoodRecognitionManager {
             return fallbackResult()
         }
     }
+
+    // MARK: - Text-Only Recognition
+
+    /// Estimates macros from a food name string (no image required).
+    /// Used by the edit entry "Reanalyze with AI" button.
+    /// Tries USDA first (free), falls back to Sonnet if no result.
+    func recognizeFoodByName(_ name: String) async -> FoodRecognitionResult {
+        // Try USDA first (free, fast)
+        if let usda = try? await usda.fetchBaseMacros(query: name) {
+            let portion = estimatePortionGrams(for: name)
+            let scaled = usda.scaled(to: portion)
+            return FoodRecognitionResult(
+                foodName: name.capitalized,
+                calories: Int(scaled.calories),
+                protein: scaled.protein,
+                carbs: scaled.carbs,
+                fat: scaled.fat,
+                portionGrams: portion,
+                tier: 1,
+                source: "USDA FoodData Central",
+                confidence: 0.85,
+                needsUserConfirmation: false
+            )
+        }
+
+        // USDA didn't have it — use Sonnet with a blank image placeholder
+        // by sending the food name as the voice note (which takes priority)
+        let placeholder = UIImage(systemName: "fork.knife")!
+        if let result = await attemptTier3(image: placeholder, previousGuess: nil, voiceNote: name, userID: "") {
+            return result
+        }
+
+        return fallbackResult()
+    }
 }

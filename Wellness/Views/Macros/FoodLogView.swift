@@ -1550,6 +1550,7 @@ private struct EditEntrySheet: View {
     @State private var loggedAt:     Date
     @State private var showEditError    = false
     @State private var showDeleteConfirm = false
+    @State private var isReanalyzing    = false
 
     private enum Field: Hashable { case name, calories, protein, carbs, fat }
 
@@ -1578,6 +1579,21 @@ private struct EditEntrySheet: View {
                             .submitLabel(.next)
                             .onSubmit { focus = .calories }
                     }
+                    Button {
+                        Task { await reanalyze() }
+                    } label: {
+                        HStack(spacing: 6) {
+                            if isReanalyzing {
+                                ProgressView().scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "sparkles")
+                            }
+                            Text("Reanalyze with AI")
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
+                    }
+                    .disabled(foodName.trimmingCharacters(in: .whitespaces).isEmpty || isReanalyzing)
                 }
                 Section("Macros") {
                     macroRow("Calories", unit: "kcal", text: $caloriesText, field: .calories, next: .protein)
@@ -1652,6 +1668,23 @@ private struct EditEntrySheet: View {
               let fat = Double(fatText) else { return }
         onSave(foodName, cal, pro, carb, fat, loggedAt)
         dismiss()
+    }
+
+    private func reanalyze() async {
+        let name = foodName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        isReanalyzing = true
+        defer { isReanalyzing = false }
+
+        // Use Sonnet to estimate macros based on the edited food name
+        let result = await FoodRecognitionManager.shared.recognizeFoodByName(name)
+        if result.calories > 0 {
+            caloriesText = String(format: "%.0f", Double(result.calories))
+            proteinText  = String(format: "%.1f", result.protein)
+            carbsText    = String(format: "%.1f", result.carbs)
+            fatText      = String(format: "%.1f", result.fat)
+            if !result.foodName.isEmpty { foodName = result.foodName }
+        }
     }
 
     @ViewBuilder
