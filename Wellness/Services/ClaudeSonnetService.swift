@@ -33,30 +33,35 @@ final class ClaudeSonnetService {
         let contextBlock = contextLines.isEmpty ? "" : contextLines.joined(separator: "\n") + "\n\n"
 
         let prompt = """
-        \(contextBlock)Analyze this food photo carefully. Think step by step:
-        1. Identify every food item visible in the photo
-        2. Estimate portion sizes by comparing to plate size and other visual cues
-        3. If this is a mixed meal, break down each component separately
-        4. Calculate total macros by summing all components
+\(contextBlock)Analyze this food photo carefully. Think step by step:
+1. Identify every food item visible in the photo
+2. Estimate portion sizes by comparing to plate size and other visual cues
+3. If this is a mixed meal, break down each component separately
+4. Calculate total macros by summing all components
 
-        Return your analysis as a single JSON object with these exact fields:
-        {
-          "foodName": "<descriptive name of the full meal>",
-          "components": [
-            {"name": "<component>", "portionGrams": <number>, "calories": <int>, "protein": <g>, "carbs": <g>, "fat": <g>}
-          ],
-          "portionGrams": <total grams>,
-          "calories": <total kcal as integer>,
-          "protein": <total g>,
-          "carbs": <total g>,
-          "fat": <total g>,
-          "confidenceScore": <0.0-1.0>,
-          "reasoning": "<brief explanation of your analysis>"
-        }
+IMPORTANT: Use accurate, real-world nutritional values consistent with USDA FoodData Central.
+Common reference points — a medium orange (~150g) is ~70 kcal, a medium banana (~120g) is ~105 kcal,
+a chicken breast (~170g) is ~280 kcal, a large egg (~50g) is ~72 kcal.
+Do NOT guess or inflate calorie counts. Base every estimate on established nutritional data.
 
-        For single items, the components array should have one entry matching the totals.
-        Reply with ONLY the JSON, no markdown fences, no extra text.
-        """
+Return your analysis as a single JSON object with these exact fields:
+{
+  "foodName": "<descriptive name of the full meal>",
+  "components": [
+    {"name": "<component>", "portionGrams": <number>, "calories": <int>, "protein": <g>, "carbs": <g>, "fat": <g>}
+  ],
+  "portionGrams": <total grams>,
+  "calories": <total kcal as integer>,
+  "protein": <total g>,
+  "carbs": <total g>,
+  "fat": <total g>,
+  "confidenceScore": <0.0-1.0>,
+  "reasoning": "<brief explanation of your analysis>"
+}
+
+For single items, the components array should have one entry matching the totals.
+Reply with ONLY the JSON, no markdown fences, no extra text.
+"""
 
         let requestBody: [String: Any] = [
             "model": model,
