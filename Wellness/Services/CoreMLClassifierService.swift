@@ -28,23 +28,10 @@ final class CoreMLClassifierService {
 
     /// Attempts to load the Food101 Core ML model bundled in the app.
     /// Xcode compiles .mlmodel → .mlmodelc and auto-generates a Swift class.
-    /// We try the generated class first, then fall back to bundle lookup.
+    /// If the model is added to the project, it will be loaded via bundle lookup.
     /// If no model is found, Tier 1 gracefully falls through to Tier 2.
     private func loadModel() {
-        // Approach 1: Use the Xcode-generated Food101 class directly.
-        // When you drag Food101.mlmodel into Xcode, it auto-generates
-        // a `Food101` Swift class. This is the most reliable path.
-        do {
-            let config = MLModelConfiguration()
-            let mlModel = try Food101(configuration: config).model
-            vnModel = try VNCoreMLModel(for: mlModel)
-            print("[CoreMLClassifier] Food101 model loaded via generated class.")
-            return
-        } catch {
-            print("[CoreMLClassifier] Generated Food101 class unavailable (\(error.localizedDescription)), trying bundle lookup…")
-        }
-
-        // Approach 2: Fall back to manual bundle lookup by resource name.
+        // Look up the compiled model in the bundle by resource name.
         let candidateNames = ["Food101", "food101", "Food-101"]
         for name in candidateNames {
             if let url = Bundle.main.url(forResource: name, withExtension: "mlmodelc") {
