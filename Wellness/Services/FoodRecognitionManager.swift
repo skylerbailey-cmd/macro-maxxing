@@ -80,13 +80,14 @@ final class FoodRecognitionManager {
             }
         }
 
-        if coreMLConfidence >= 0.60 || (coreMLConfidence >= 0.90 && classification?.isSingleIngredient == false) {
-            if let result = await attemptTier2(image: image, coreMLHint: bestHint, voiceNote: voiceNote, userID: userID) {
-                return result
-            }
+        // Always attempt Tier 2 (Haiku) before Tier 3 — Haiku can read
+        // branded/packaged labels that CoreML doesn't recognize, and is
+        // much cheaper than Sonnet. Pass the CoreML hint when available.
+        if let result = await attemptTier2(image: image, coreMLHint: bestHint, voiceNote: voiceNote, userID: userID) {
+            return result
         }
 
-        // Low confidence or previous tiers failed — go to Tier 3
+        // Tier 2 failed or returned nil — go to Tier 3
         if isOnline {
             if let result = await attemptTier3(image: image, previousGuess: bestHint, voiceNote: voiceNote, userID: userID) {
                 return result
@@ -259,9 +260,10 @@ final class FoodRecognitionManager {
             )
 
             // Sanity check: reject results with unreasonable calorie density
-            // Most whole foods are under 400 kcal/100g (nuts/oils can be higher but are rarely misidentified)
+            // Pure oils top out ~900 kcal/100g; nuts/seeds/nut butters ~550-650;
+            // anything above 920 is likely a bad product match.
             let calPer100g = merged.result.calories / (haikuResult.portionGrams / 100.0)
-            if calPer100g > 400 && !haikuResult.isMixedMeal {
+            if calPer100g > 920 && !haikuResult.isMixedMeal {
                 print("[Tier2] ⚠️ Rejected: \(haikuResult.foodName) has \(Int(calPer100g)) kcal/100g — likely wrong product match")
                 return nil  // escalate to Tier 3
             }

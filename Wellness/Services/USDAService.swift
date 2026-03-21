@@ -24,18 +24,9 @@ final class USDAService {
             return nil
         }
 
-        guard var urlComponents = URLComponents(string: "\(baseURL)/foods/search") else {
+        guard let url = buildSearchURL(query: query, apiKey: apiKey, pageSize: 10) else {
             return nil
         }
-
-        urlComponents.queryItems = [
-            URLQueryItem(name: "query", value: query),
-            URLQueryItem(name: "api_key", value: apiKey),
-            URLQueryItem(name: "pageSize", value: "10"),
-            URLQueryItem(name: "dataType", value: "SR Legacy,Foundation")
-        ]
-
-        guard let url = urlComponents.url else { return nil }
 
         let (data, response) = try await URLSession.shared.data(from: url)
 
@@ -74,18 +65,9 @@ final class USDAService {
         let apiKey = Config.usdaApiKey
         guard apiKey != "YOUR_USDA_KEY" else { return nil }
 
-        guard var urlComponents = URLComponents(string: "\(baseURL)/foods/search") else {
+        guard let url = buildSearchURL(query: query, apiKey: apiKey, pageSize: 10) else {
             return nil
         }
-
-        urlComponents.queryItems = [
-            URLQueryItem(name: "query", value: query),
-            URLQueryItem(name: "api_key", value: apiKey),
-            URLQueryItem(name: "pageSize", value: "10"),
-            URLQueryItem(name: "dataType", value: "SR Legacy,Foundation")
-        ]
-
-        guard let url = urlComponents.url else { return nil }
 
         let (data, response) = try await URLSession.shared.data(from: url)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
@@ -96,14 +78,40 @@ final class USDAService {
         let food = bestMatch(for: query, in: searchResponse.foods)
             ?? searchResponse.foods.first!
 
-        print("[USDA] Best match for \"\(query)\": \"\(food.description)\" (\(Int(food.nutrientValue(id: 1008) ?? 0)) kcal/100g)")
+        let calsPer100g = food.nutrientValue(id: 1008) ?? 0
+        print("[USDA] Best match for \"\(query)\": \"\(food.description)\" (\(Int(calsPer100g)) kcal/100g)")
+
+        // Sanity check: most raw whole foods are under 250 kcal/100g.
+        // Nuts/seeds/oils can be higher, but those are rarely misidentified.
+        // If we got an unreasonably high value, the dataType filter may have
+        // failed and returned a branded/processed product — reject it.
+        if calsPer100g > 400 {
+            print("[USDA] ⚠️ Rejected \"\(food.description)\" — \(Int(calsPer100g)) kcal/100g is too high for a whole food, likely a wrong product match")
+            return nil
+        }
 
         return MacrosPer100g(
-            calories: food.nutrientValue(id: 1008) ?? 0,
+            calories: calsPer100g,
             protein: food.nutrientValue(id: 1003) ?? 0,
             carbs: food.nutrientValue(id: 1005) ?? 0,
             fat: food.nutrientValue(id: 1004) ?? 0
         )
+    }
+
+    // MARK: - URL Construction
+
+    /// Builds a USDA FoodData Central search URL.
+    ///
+    /// URLComponents percent-encodes the comma in "SR Legacy,Foundation" to %2C,
+    /// which the USDA API does NOT understand — the comma must remain literal as
+    /// a list separator. This caused the dataType filter to silently fail,
+    /// returning Branded products (e.g. "Orange Cookies" at 444 kcal/100g)
+    /// instead of only SR Legacy/Foundation whole foods.
+    private func buildSearchURL(query: String, apiKey: String, pageSize: Int) -> URL? {
+        guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            return nil
+        }
+        return URL(string: "\(baseURL)/foods/search?query=\(encodedQuery)&api_key=\(apiKey)&pageSize=\(pageSize)&dataType=SR%20Legacy,Foundation")
     }
 
     // MARK: - Result Filtering

@@ -311,6 +311,7 @@ struct FoodLogView: View {
                     )},
                     set: { viewModel.recognitionResult = $0 }
                 ),
+                saveMeal: $viewModel.saveMeal,
                 onConfirm: { result in
                     viewModel.confirmResult(result)
                     viewModel.saveEntry()
@@ -1180,7 +1181,7 @@ private struct AnalysisSheet: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    ForEach(viewModel.savedMeals) { meal in
+                    ForEach(viewModel.sortedSavedMeals) { meal in
                         savedMealChip(meal)
                     }
                 }

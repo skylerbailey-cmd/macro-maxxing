@@ -96,6 +96,40 @@ enum AnalysisTier: Equatable {
         savedMeals = (try? await FoodEntryService.shared.fetchSavedMeals(userID: userID)) ?? []
     }
 
+    /// Returns saved meals sorted by relevance to the current recognition result.
+    /// Meals whose name matches or overlaps with the recognized food appear first.
+    var sortedSavedMeals: [FoodEntry] {
+        guard let hint = recognitionResult?.foodName.lowercased(),
+              !hint.isEmpty else {
+            return savedMeals
+        }
+
+        let hintWords = Set(hint.split(separator: " ").map(String.init))
+
+        return savedMeals.sorted { a, b in
+            let aName = a.foodName.lowercased()
+            let bName = b.foodName.lowercased()
+
+            let aScore = Self.relevanceScore(name: aName, hint: hint, hintWords: hintWords)
+            let bScore = Self.relevanceScore(name: bName, hint: hint, hintWords: hintWords)
+
+            if aScore != bScore { return aScore > bScore }
+            return a.loggedAt > b.loggedAt // tie-break: most recent first
+        }
+    }
+
+    private static func relevanceScore(name: String, hint: String, hintWords: Set<String>) -> Int {
+        // Exact match
+        if name == hint { return 100 }
+        // One contains the other
+        if name.contains(hint) || hint.contains(name) { return 80 }
+        // Word overlap
+        let nameWords = Set(name.split(separator: " ").map(String.init))
+        let overlap = nameWords.intersection(hintWords).count
+        if overlap > 0 { return overlap * 20 }
+        return 0
+    }
+
     /// Pre-fills entry fields from a saved meal and switches to the result state.
     func populateFromSavedMeal(_ entry: FoodEntry) {
         foodName         = entry.foodName
