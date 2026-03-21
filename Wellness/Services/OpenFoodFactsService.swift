@@ -17,6 +17,7 @@ final class OpenFoodFactsService {
     // MARK: - Search by Name
 
     /// Searches Open Food Facts for a food by name and returns macro data scaled to the target portion.
+    /// Returns nil gracefully on timeout or network failure — never surfaces errors to the user.
     func searchFood(query: String, targetPortionGrams: Double) async throws -> MacroResult? {
         guard var components = URLComponents(string: "\(baseURL)/cgi/search.pl") else { return nil }
         components.queryItems = [
@@ -29,26 +30,30 @@ final class OpenFoodFactsService {
         guard let url = components.url else { return nil }
 
         var request = URLRequest(url: url)
+        request.timeoutInterval = 15
         request.setValue("WellnessApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let (data, response) = await performWithRetry(request) else { return nil }
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
 
-        let searchResult = try JSONDecoder().decode(OFFSearchResponse.self, from: data)
-        guard let product = searchResult.products?.first,
-              let nutriments = product.nutriments else { return nil }
+        do {
+            let searchResult = try JSONDecoder().decode(OFFSearchResponse.self, from: data)
+            guard let product = searchResult.products?.first,
+                  let nutriments = product.nutriments else { return nil }
 
-        // OFF provides values per 100g; scale to target portion
-        let factor = targetPortionGrams / 100.0
-
-        return MacroResult(
-            food: product.productName ?? query,
-            calories: (nutriments.energyKcal100g ?? 0) * factor,
-            protein: (nutriments.proteins100g ?? 0) * factor,
-            carbs: (nutriments.carbohydrates100g ?? 0) * factor,
-            fat: (nutriments.fat100g ?? 0) * factor,
-            source: "Open Food Facts"
-        )
+            let factor = targetPortionGrams / 100.0
+            return MacroResult(
+                food: product.productName ?? query,
+                calories: (nutriments.energyKcal100g ?? 0) * factor,
+                protein: (nutriments.proteins100g ?? 0) * factor,
+                carbs: (nutriments.carbohydrates100g ?? 0) * factor,
+                fat: (nutriments.fat100g ?? 0) * factor,
+                source: "Open Food Facts"
+            )
+        } catch {
+            print("[OpenFoodFacts] Decode error for \"\(query)\": \(error.localizedDescription)")
+            return nil
+        }
     }
 
     /// Returns base macros per 100g for caching.
@@ -64,21 +69,26 @@ final class OpenFoodFactsService {
         guard let url = components.url else { return nil }
 
         var request = URLRequest(url: url)
+        request.timeoutInterval = 15
         request.setValue("WellnessApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let (data, response) = await performWithRetry(request) else { return nil }
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
 
-        let searchResult = try JSONDecoder().decode(OFFSearchResponse.self, from: data)
-        guard let product = searchResult.products?.first,
-              let n = product.nutriments else { return nil }
-
-        return MacrosPer100g(
-            calories: n.energyKcal100g ?? 0,
-            protein: n.proteins100g ?? 0,
-            carbs: n.carbohydrates100g ?? 0,
-            fat: n.fat100g ?? 0
-        )
+        do {
+            let searchResult = try JSONDecoder().decode(OFFSearchResponse.self, from: data)
+            guard let product = searchResult.products?.first,
+                  let n = product.nutriments else { return nil }
+            return MacrosPer100g(
+                calories: n.energyKcal100g ?? 0,
+                protein: n.proteins100g ?? 0,
+                carbs: n.carbohydrates100g ?? 0,
+                fat: n.fat100g ?? 0
+            )
+        } catch {
+            print("[OpenFoodFacts] Decode error for \"\(query)\": \(error.localizedDescription)")
+            return nil
+        }
     }
 
     // MARK: - Barcode Lookup (for future barcode scanning)
@@ -87,25 +97,48 @@ final class OpenFoodFactsService {
         guard let url = URL(string: "\(baseURL)/api/v0/product/\(barcode).json") else { return nil }
 
         var request = URLRequest(url: url)
+        request.timeoutInterval = 15
         request.setValue("WellnessApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let (data, response) = await performWithRetry(request) else { return nil }
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
 
-        let barcodeResult = try JSONDecoder().decode(OFFBarcodeResponse.self, from: data)
-        guard let product = barcodeResult.product,
-              let nutriments = product.nutriments else { return nil }
+        do {
+            let barcodeResult = try JSONDecoder().decode(OFFBarcodeResponse.self, from: data)
+            guard let product = barcodeResult.product,
+                  let nutriments = product.nutriments else { return nil }
 
-        let factor = targetPortionGrams / 100.0
+            let factor = targetPortionGrams / 100.0
+            return MacroResult(
+                food: product.productName ?? "Unknown",
+                calories: (nutriments.energyKcal100g ?? 0) * factor,
+                protein: (nutriments.proteins100g ?? 0) * factor,
+                carbs: (nutriments.carbohydrates100g ?? 0) * factor,
+                fat: (nutriments.fat100g ?? 0) * factor,
+                source: "Open Food Facts (barcode)"
+            )
+        } catch {
+            return nil
+        }
+    }
 
-        return MacroResult(
-            food: product.productName ?? "Unknown",
-            calories: (nutriments.energyKcal100g ?? 0) * factor,
-            protein: (nutriments.proteins100g ?? 0) * factor,
-            carbs: (nutriments.carbohydrates100g ?? 0) * factor,
-            fat: (nutriments.fat100g ?? 0) * factor,
-            source: "Open Food Facts (barcode)"
-        )
+    // MARK: - Network Helper
+
+    /// Performs a request with one retry on timeout. Returns nil on failure
+    /// instead of throwing, so callers fall through to the next tier gracefully.
+    private func performWithRetry(_ request: URLRequest) async -> (Data, URLResponse)? {
+        for attempt in 1...2 {
+            do {
+                return try await URLSession.shared.data(for: request)
+            } catch let error as URLError where error.code == .timedOut {
+                print("[OpenFoodFacts] Timeout (attempt \(attempt)/2)")
+                if attempt < 2 { continue }
+            } catch {
+                print("[OpenFoodFacts] Network error: \(error.localizedDescription)")
+            }
+            break
+        }
+        return nil
     }
 }
 

@@ -32,7 +32,8 @@ final class CoreMLClassifierService {
     /// If no model is found, Tier 1 gracefully falls through to Tier 2.
     private func loadModel() {
         // Look up the compiled model in the bundle by resource name.
-        let candidateNames = ["Food101", "food101", "Food-101"]
+let candidateNames = ["Food101", "food101", "Food-101", "MobileNetV2"]
+
         for name in candidateNames {
             if let url = Bundle.main.url(forResource: name, withExtension: "mlmodelc") {
                 do {
