@@ -28,6 +28,7 @@ struct FoodLogView: View {
     @State private var showingTutorial        = false
     @State private var tutorialAnchors:       [String: Anchor<CGRect>] = [:]
     @State private var showingAnalysisSheet  = false
+    @State private var showingConfirmation   = false
     @State private var editingEntry: FoodEntry? = nil
     @State private var showingFuelLogPost    = false
     @State private var showingProfile        = false
@@ -84,6 +85,14 @@ struct FoodLogView: View {
             .onChange(of: viewModel.selectedImage) { _, newValue in
                 if newValue != nil { showingAnalysisSheet = true }
             }
+            .onChange(of: viewModel.analysisState) { _, newState in
+                if case .confirmed = newState {
+                    showingAnalysisSheet = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        showingConfirmation = true
+                    }
+                }
+            }
             .onChange(of: externalImage, handleExternalImage)
             .sheet(isPresented: $viewModel.showingCamera) {
                 ImagePickerView(sourceType: .camera, selectedImage: $viewModel.selectedImage)
@@ -95,9 +104,14 @@ struct FoodLogView: View {
                 editSheet(for: entry)
             }
             .sheet(isPresented: $showingAnalysisSheet, onDismiss: {
-                viewModel.discardEntry()
+                if !showingConfirmation { viewModel.discardEntry() }
             }) {
                 analysisSheet
+            }
+            .sheet(isPresented: $showingConfirmation, onDismiss: {
+                viewModel.discardEntry()
+            }) {
+                confirmationSheet
             }
             .sheet(isPresented: $showingFuelLogPost) {
                 fuelLogPostSheet
@@ -281,6 +295,38 @@ struct FoodLogView: View {
             showingAnalysisSheet = false
         })
         .presentationDetents([.large])
+    }
+
+    @ViewBuilder
+    private var confirmationSheet: some View {
+        if let image = viewModel.selectedImage,
+           viewModel.recognitionResult != nil {
+            FoodConfirmationView(
+                image: image,
+                recognitionResult: Binding(
+                    get: { viewModel.recognitionResult ?? FoodRecognitionResult(
+                        foodName: "", calories: 0, protein: 0, carbs: 0, fat: 0,
+                        portionGrams: 0, tier: 0, source: "", confidence: 0,
+                        needsUserConfirmation: true
+                    )},
+                    set: { viewModel.recognitionResult = $0 }
+                ),
+                onConfirm: { result in
+                    viewModel.confirmResult(result)
+                    viewModel.saveEntry()
+                    showingConfirmation = false
+                    Task { await viewModel.loadTodayEntries() }
+                },
+                onEscalate: {
+                    Task { await viewModel.escalateAnalysis() }
+                },
+                onCancel: {
+                    showingConfirmation = false
+                    viewModel.discardEntry()
+                }
+            )
+            .presentationDetents([.large])
+        }
     }
     
     private var fuelLogPostSheet: some View {
@@ -672,6 +718,9 @@ private struct AnalysisSheet: View {
     private var hasPhoto: Bool { viewModel.selectedImage != nil }
     private var showFields: Bool {
         if mode == .manual || viewModel.analysisState == .result {
+            return true
+        }
+        if case .confirmed = viewModel.analysisState {
             return true
         }
         if case .error = viewModel.analysisState {

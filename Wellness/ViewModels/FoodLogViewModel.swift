@@ -9,14 +9,28 @@ enum AnalysisState: Equatable {
     case idle
     case analyzing
     case result
+    case confirmed(FoodRecognitionResult)
     case error(String)
+
+    static func == (lhs: AnalysisState, rhs: AnalysisState) -> Bool {
+        switch (lhs, rhs) {
+        case (.idle, .idle), (.analyzing, .analyzing), (.result, .result):
+            return true
+        case (.error(let a), .error(let b)):
+            return a == b
+        case (.confirmed, .confirmed):
+            return true
+        default:
+            return false
+        }
+    }
 }
 
 /// Which tier produced the current result.
 enum AnalysisTier: Equatable {
     case none
     case local   // Tier 1 — on-device + USDA
-    case claude  // Tier 2 — Claude API
+    case claude  // Tier 2/3 — Claude API (Haiku or Sonnet)
 }
 
 @Observable final class FoodLogViewModel {
@@ -48,10 +62,13 @@ enum AnalysisTier: Equatable {
     /// True when the current entry fields were pre-filled from a saved meal.
     var isFromSavedMeal: Bool = false
 
+    /// The latest recognition result from the three-tier system.
+    var recognitionResult: FoodRecognitionResult?
+
     var todayEntries: [FoodEntry] = []
     var savedMeals:   [FoodEntry] = []
 
-    private let service: ClaudeVisionService
+    private let recognitionManager = FoodRecognitionManager.shared
     private(set) var userID: String
 
     // MARK: - Tier tracking (UserDefaults)
@@ -66,11 +83,9 @@ enum AnalysisTier: Equatable {
     }
 
     init(selectedDate: Date = Calendar.current.startOfDay(for: Date()),
-         userID: String = "",
-         service: ClaudeVisionService = ClaudeVisionService()) {
+         userID: String = "") {
         self.selectedDate = selectedDate
         self.userID       = userID
-        self.service      = service
     }
 
     func loadTodayEntries() async {
@@ -92,99 +107,144 @@ enum AnalysisTier: Equatable {
         analysisState    = .result
     }
 
-    /// Two-tier food recognition:
-    /// Tier 1: On-device classifier + USDA lookup (free, offline-capable, < 1s)
-    /// Tier 2: Claude Vision API (paid, handles complex/mixed meals)
+    // MARK: - Three-Tier Food Recognition
+
+    /// Analyzes a food image through the three-tier recognition pipeline.
+    @MainActor
     func analyzeImage() async {
         guard let image = selectedImage else { return }
         analysisState = .analyzing
         analysisTier  = .none
 
-        // ── Tier 1: On-device classification ──────────────────────────────
-        let local = await LocalFoodClassifier.shared.classify(image)
-        print("[Tier1] \"\(local.foodName)\" confidence=\(String(format: "%.2f", local.confidence)) needsClaude=\(local.needsClaudeAnalysis) items=\(local.itemCount)")
+        let result = await recognitionManager.recognizeFood(
+            image: image,
+            voiceNote: voiceNote.isEmpty ? nil : voiceNote,
+            userID: userID
+        )
 
-        if local.confidence >= 0.80 && !local.needsClaudeAnalysis {
-            // Simple, high-confidence food → look up macros from USDA
-            // Pass itemCount so portion is multiplied (e.g. 2 bananas = 2× serving)
-            let servingGrams: Double? = local.itemCount > 1 ? nil : nil  // use default estimate
-            if var usda = await USDAFoodService.shared.lookup(foodName: local.foodName, portionGrams: servingGrams) {
-                // Scale by item count if multiple detected
-                if local.itemCount > 1 {
-                    let n = Double(local.itemCount)
-                    usda = MacroResult(
-                        food:     "\(local.itemCount)× \(usda.food)",
-                        calories: (usda.calories * n).rounded(),
-                        protein:  (usda.protein * n * 10).rounded() / 10,
-                        carbs:    (usda.carbs * n * 10).rounded() / 10,
-                        fat:      (usda.fat * n * 10).rounded() / 10
-                    )
-                }
-                foodName     = usda.food
-                caloriesText = String(format: "%.0f", usda.calories)
-                proteinText  = String(format: "%.1f", usda.protein)
-                carbsText    = String(format: "%.1f", usda.carbs)
-                fatText      = String(format: "%.1f", usda.fat)
-                analysisTier  = .local
-                analysisState = .result
-                Self.tier1Count += 1
-                print("[Tier1] ✓ Resolved locally: \(usda.food) — \(Int(usda.calories)) kcal (\(local.itemCount) item(s))")
-                return
-            }
-            print("[Tier1] USDA lookup failed for \"\(local.foodName)\", falling back to Claude")
+        recognitionResult = result
+        populateFromRecognitionResult(result)
+        analysisTier = result.tier == 1 ? .local : .claude
+
+        // Update tier counters
+        if result.tier == 1 {
+            Self.tier1Count += 1
+            print("[Tier1] ✓ Resolved locally: \(result.foodName) — \(result.calories) kcal")
+        } else if result.tier >= 2 {
+            Self.tier2Count += 1
+            print("[Tier\(result.tier)] ✓ Claude result: \(result.foodName) — \(result.calories) kcal")
         }
 
-        // ── Tier 2: Claude Vision API ─────────────────────────────────────
-        await analyzeWithClaude(image: image, localHint: local.foodName)
+        if result.tier == 0 && result.calories == 0 {
+            // All tiers failed — show error with manual entry option
+            analysisState = .error(FoodRecognitionError.allTiersFailed.localizedDescription)
+        } else {
+            analysisState = .confirmed(result)
+        }
+    }
+
+    /// Analyzes with voice note context.
+    @MainActor
+    func analyzeImageWithVoice() async {
+        guard let image = selectedImage else { return }
+        analysisState = .analyzing
+        analysisTier  = .none
+
+        let result = await recognitionManager.recognizeFood(
+            image: image,
+            voiceNote: voiceNote,
+            userID: userID
+        )
+
+        recognitionResult = result
+        populateFromRecognitionResult(result)
+        analysisTier = result.tier == 1 ? .local : .claude
+
+        if result.tier == 1 { Self.tier1Count += 1 }
+        else if result.tier >= 2 { Self.tier2Count += 1 }
+
+        if result.tier == 0 && result.calories == 0 {
+            analysisState = .error(FoodRecognitionError.allTiersFailed.localizedDescription)
+        } else {
+            analysisState = .confirmed(result)
+        }
     }
 
     /// Forces a Claude API analysis, bypassing Tier 1.
     /// Called when the user taps "Not right? Try AI scan".
+    @MainActor
     func reanalyzeWithClaude() async {
         guard let image = selectedImage else { return }
         analysisState = .analyzing
         analysisTier  = .none
-        await analyzeWithClaude(image: image, localHint: nil)
-    }
 
-    /// Runs Claude Vision analysis, optionally passing a local classifier hint.
-    private func analyzeWithClaude(image: UIImage, localHint: String?) async {
-        do {
-            let result: MacroResult
-            if let hint = localHint, !hint.isEmpty {
-                // Pass the local model's best guess as context to improve accuracy
-                result = try await service.analyzeFoodImageWithVoice(image, voiceNote: "The food appears to be: \(hint)")
-            } else {
-                result = try await service.analyzeFoodImage(image)
-            }
-            foodName     = result.food
-            caloriesText = String(format: "%.0f", result.calories)
-            proteinText  = String(format: "%.1f", result.protein)
-            carbsText    = String(format: "%.1f", result.carbs)
-            fatText      = String(format: "%.1f", result.fat)
-            analysisTier  = .claude
-            analysisState = .result
-            Self.tier2Count += 1
-            print("[Tier2] ✓ Claude result: \(result.food) — \(Int(result.calories)) kcal")
-        } catch {
-            analysisState = .error(error.localizedDescription)
+        // Escalate directly to Tier 2+, skipping on-device
+        let result = await recognitionManager.escalate(
+            image: image,
+            fromTier: 1,
+            voiceNote: voiceNote.isEmpty ? nil : voiceNote,
+            userID: userID
+        )
+
+        recognitionResult = result
+        populateFromRecognitionResult(result)
+        analysisTier = .claude
+        Self.tier2Count += 1
+
+        if result.tier == 0 && result.calories == 0 {
+            analysisState = .error(FoodRecognitionError.allTiersFailed.localizedDescription)
+        } else {
+            analysisState = .confirmed(result)
         }
     }
 
-    func analyzeImageWithVoice() async {
-        guard let image = selectedImage else { return }
+    /// Escalates to the next tier when user taps "Try better scan".
+    @MainActor
+    func escalateAnalysis() async {
+        guard let image = selectedImage,
+              let current = recognitionResult,
+              current.tier < 3 else { return }
+
         analysisState = .analyzing
-        do {
-            let result = try await service.analyzeFoodImageWithVoice(image, voiceNote: voiceNote)
-            foodName     = result.food
-            caloriesText = String(format: "%.0f", result.calories)
-            proteinText  = String(format: "%.1f", result.protein)
-            carbsText    = String(format: "%.1f", result.carbs)
-            fatText      = String(format: "%.1f", result.fat)
-            analysisState = .result
-        } catch {
-            analysisState = .error(error.localizedDescription)
+
+        let result = await recognitionManager.escalate(
+            image: image,
+            fromTier: current.tier,
+            voiceNote: voiceNote.isEmpty ? nil : voiceNote,
+            userID: userID
+        )
+
+        recognitionResult = result
+        populateFromRecognitionResult(result)
+        analysisTier = result.tier == 1 ? .local : .claude
+
+        if result.tier >= 2 { Self.tier2Count += 1 }
+
+        if result.tier == 0 && result.calories == 0 {
+            analysisState = .error(FoodRecognitionError.allTiersFailed.localizedDescription)
+        } else {
+            analysisState = .confirmed(result)
         }
+    }
+
+    /// Populates the text fields from a recognition result.
+    private func populateFromRecognitionResult(_ result: FoodRecognitionResult) {
+        foodName     = result.foodName
+        caloriesText = String(format: "%.0f", Double(result.calories))
+        proteinText  = String(format: "%.1f", result.protein)
+        carbsText    = String(format: "%.1f", result.carbs)
+        fatText      = String(format: "%.1f", result.fat)
+    }
+
+    /// Updates fields from a confirmed (possibly adjusted) result.
+    func confirmResult(_ result: FoodRecognitionResult) {
+        recognitionResult = result
+        foodName     = result.foodName
+        caloriesText = String(format: "%.0f", Double(result.calories))
+        proteinText  = String(format: "%.1f", result.protein)
+        carbsText    = String(format: "%.1f", result.carbs)
+        fatText      = String(format: "%.1f", result.fat)
+        analysisState = .result
     }
 
     @discardableResult
@@ -276,16 +336,17 @@ enum AnalysisTier: Equatable {
     }
 
     func resetFields() {
-        selectedImage = nil
-        foodName      = ""
-        caloriesText  = ""
-        proteinText   = ""
-        carbsText     = ""
-        fatText       = ""
-        voiceNote     = ""
-        saveMeal        = false
-        isFromSavedMeal = false
-        analysisState   = .idle
-        analysisTier    = .none
+        selectedImage     = nil
+        foodName          = ""
+        caloriesText      = ""
+        proteinText       = ""
+        carbsText         = ""
+        fatText           = ""
+        voiceNote         = ""
+        saveMeal          = false
+        isFromSavedMeal   = false
+        recognitionResult = nil
+        analysisState     = .idle
+        analysisTier      = .none
     }
 }
