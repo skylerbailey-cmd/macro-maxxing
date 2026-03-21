@@ -80,13 +80,14 @@ final class FoodRecognitionManager {
             }
         }
 
-        if coreMLConfidence >= 0.60 || (coreMLConfidence >= 0.90 && classification?.isSingleIngredient == false) {
-            if let result = await attemptTier2(image: image, coreMLHint: bestHint, voiceNote: voiceNote, userID: userID) {
-                return result
-            }
+        // Always attempt Tier 2 (Haiku) before Tier 3 — Haiku can read
+        // branded/packaged labels that CoreML doesn't recognize, and is
+        // much cheaper than Sonnet. Pass the CoreML hint when available.
+        if let result = await attemptTier2(image: image, coreMLHint: bestHint, voiceNote: voiceNote, userID: userID) {
+            return result
         }
 
-        // Low confidence or previous tiers failed — go to Tier 3
+        // Tier 2 failed or returned nil — go to Tier 3
         if isOnline {
             if let result = await attemptTier3(image: image, previousGuess: bestHint, voiceNote: voiceNote, userID: userID) {
                 return result
