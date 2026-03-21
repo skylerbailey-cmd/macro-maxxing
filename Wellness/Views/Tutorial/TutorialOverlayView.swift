@@ -188,6 +188,8 @@ struct TutorialOverlayView: View {
     /// Resolved anchor frames from `TutorialAnchorKey` via `onPreferenceChange`.
     var anchors: [String: Anchor<CGRect>] = [:]
     let onDismiss: () -> Void
+    /// Called when the active step changes, passing the new step's `anchorID`.
+    var onStepChange: ((_ anchorID: String?) -> Void)? = nil
 
     @State private var currentStep = 0
 
@@ -357,6 +359,8 @@ struct TutorialOverlayView: View {
                 selectedTab.wrappedValue = tab
             }
         }
+        // Notify the parent before animating so it can scroll the target into view
+        onStepChange?(steps[next].anchorID)
         withAnimation(.spring(duration: 0.30)) {
             currentStep = next
         }

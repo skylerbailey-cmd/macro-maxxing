@@ -16,14 +16,22 @@ struct MacroResult: Decodable {
 }
 
 enum ClaudeServiceError: Error, LocalizedError {
+    case overloaded
+    case rateLimited
+    case serverError
+    case noConnection
     case badResponse(statusCode: Int)
     case noContent
     case malformedJSON(String)
 
     var errorDescription: String? {
         switch self {
-        case .badResponse(let code): return "API returned status \(code)"
-        case .noContent: return "No content in API response"
+        case .overloaded:              return "Our AI coach is a little busy right now. Tap to try again in a moment."
+        case .rateLimited:             return "There's a lot of requests right now. Try again in a few minutes."
+        case .serverError:             return "Something went wrong on our end. Please try again."
+        case .noConnection:            return "No internet connection. Please check your network and try again."
+        case .badResponse(let code):   return "Something went wrong (error \(code)). Please try again."
+        case .noContent:               return "No content in API response"
         case .malformedJSON(let text): return "Could not parse response: \(text)"
         }
     }
@@ -121,11 +129,7 @@ final class ClaudeVisionService {
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.httpBody = try JSONEncoder().encode(request)
 
-        let (data, response) = try await URLSession.shared.data(for: urlRequest)
-
-        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-            throw ClaudeServiceError.badResponse(statusCode: httpResponse.statusCode)
-        }
+        let (data, _) = try await performRequest(urlRequest)
 
         let claudeResponse = try JSONDecoder().decode(ClaudeResponse.self, from: data)
         guard let text = claudeResponse.content.first(where: { $0.type == "text" })?.text else {
@@ -179,11 +183,7 @@ final class ClaudeVisionService {
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.httpBody = try JSONEncoder().encode(request)
 
-        let (data, response) = try await URLSession.shared.data(for: urlRequest)
-
-        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-            throw ClaudeServiceError.badResponse(statusCode: httpResponse.statusCode)
-        }
+        let (data, _) = try await performRequest(urlRequest)
 
         let claudeResponse = try JSONDecoder().decode(ClaudeResponse.self, from: data)
         guard let text = claudeResponse.content.first(where: { $0.type == "text" })?.text else {
@@ -200,6 +200,48 @@ final class ClaudeVisionService {
         } catch {
             throw ClaudeServiceError.malformedJSON(jsonString)
         }
+    }
+
+    /// Performs an API request, retrying up to `maxRetries` times on 529 (overloaded)
+    /// with a 2-second delay between attempts. Maps common HTTP errors to user-friendly cases.
+    private func performRequest(_ request: URLRequest, maxRetries: Int = 3) async throws -> (Data, URLResponse) {
+        for attempt in 1...maxRetries {
+            let data: Data
+            let response: URLResponse
+            do {
+                (data, response) = try await URLSession.shared.data(for: request)
+            } catch let urlError as URLError {
+                switch urlError.code {
+                case .notConnectedToInternet, .networkConnectionLost,
+                     .cannotFindHost, .cannotConnectToHost, .timedOut, .dataNotAllowed:
+                    throw ClaudeServiceError.noConnection
+                default:
+                    throw urlError
+                }
+            }
+
+            guard let http = response as? HTTPURLResponse else {
+                return (data, response)
+            }
+
+            if http.statusCode == 200 {
+                return (data, response)
+            }
+
+            // Retry on 529 (overloaded) with 2-second delay
+            if http.statusCode == 529 && attempt < maxRetries {
+                try await Task.sleep(nanoseconds: 2_000_000_000)
+                continue
+            }
+
+            switch http.statusCode {
+            case 529: throw ClaudeServiceError.overloaded
+            case 429: throw ClaudeServiceError.rateLimited
+            case 500: throw ClaudeServiceError.serverError
+            default:  throw ClaudeServiceError.badResponse(statusCode: http.statusCode)
+            }
+        }
+        throw ClaudeServiceError.serverError
     }
 
     private nonisolated func resized(_ image: UIImage, maxEdge: CGFloat) -> UIImage {

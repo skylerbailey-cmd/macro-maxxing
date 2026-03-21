@@ -16,6 +16,8 @@ struct TutorialAnchorKey: PreferenceKey {
 extension View {
     /// Tags this view so the tutorial overlay can locate and spotlight it.
     func tutorialAnchor(_ id: String) -> some View {
-        anchorPreference(key: TutorialAnchorKey.self, value: .bounds) { [id: $0] }
+        transformAnchorPreference(key: TutorialAnchorKey.self, value: .bounds) { current, anchor in
+            current[id] = anchor
+        }
     }
 }

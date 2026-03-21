@@ -98,6 +98,13 @@ final class SessionManager {
 
     // MARK: - Profile Fetch
 
+    /// Re-fetches the user profile from Firestore and re-populates UserSettings.
+    /// Call this when the app returns to the foreground to ensure fresh state.
+    func refreshProfile() async {
+        guard let uid = currentUID else { return }
+        await fetchAndApplyProfile(uid: uid)
+    }
+
     private func fetchAndApplyProfile(uid: String) async {
         guard let profile = try? await UserProfileService.shared.fetchProfile(userID: uid) else { return }
         userProfile = profile
