@@ -69,6 +69,15 @@ struct AuraGain: Identifiable, Equatable {
         return location
     }
 
+    // MARK: - Dietary exclusions
+
+    var excludeDairy: Bool = false {
+        didSet { UserDefaults.standard.set(excludeDairy, forKey: "excludeDairy") }
+    }
+    var excludeGluten: Bool = false {
+        didSet { UserDefaults.standard.set(excludeGluten, forKey: "excludeGluten") }
+    }
+
     // MARK: - Fasting
 
     var fastingEnabled: Bool = false {
@@ -667,6 +676,8 @@ struct AuraGain: Identifiable, Equatable {
             ? Date(timeIntervalSince1970: storedWeekStart) : .distantPast
         self.useGPSLocation = UserDefaults.standard.object(forKey: "useGPSLocation") == nil
             ? true : UserDefaults.standard.bool(forKey: "useGPSLocation")
+        self.excludeDairy  = UserDefaults.standard.bool(forKey: "excludeDairy")
+        self.excludeGluten = UserDefaults.standard.bool(forKey: "excludeGluten")
         self.achievedMilestonesRaw = UserDefaults.standard.string(forKey: "achievedMilestones") ?? ""
         let storedCelebDate = UserDefaults.standard.double(forKey: "lastCelebrationDate")
         self.lastCelebrationDate = storedCelebDate > 0
