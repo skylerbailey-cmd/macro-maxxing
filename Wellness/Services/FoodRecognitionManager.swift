@@ -12,6 +12,7 @@ final class FoodRecognitionManager {
     static let shared = FoodRecognitionManager()
 
     private let classifier = CoreMLClassifierService.shared
+    private let localClassifier = LocalFoodClassifier.shared
     private let usda = USDAService.shared
     private let haiku = ClaudeHaikuService.shared
     private let fatSecret = FatSecretService.shared
@@ -34,16 +35,29 @@ final class FoodRecognitionManager {
     /// Recognizes food from an image using the three-tier system.
     /// Always returns a result — never throws to the caller.
     func recognizeFood(image: UIImage, voiceNote: String? = nil, userID: String = "") async -> FoodRecognitionResult {
-        // Step 1: Always run Core ML classifier first
+        // Step 0: Try LocalFoodClassifier (Vision-based, no bundled model needed).
+        // For whitelisted single-ingredient foods (fruits, veggies, eggs, etc.)
+        // this resolves via USDA lookup — no AI cost, <500ms.
+        let localResult = await localClassifier.classify(image)
+        if !localResult.needsClaudeAnalysis && localResult.confidence >= 0.85 {
+            if let result = await attemptTier1Local(localResult: localResult, userID: userID) {
+                return result
+            }
+        }
+
+        // Step 1: Run Core ML classifier
         let classification = await classifier.classify(image: image)
         let coreMLConfidence = classification?.confidence ?? 0
         let coreMLName = classification?.foodName
 
+        // Use local classifier name as hint if Core ML has nothing
+        let bestHint = coreMLName ?? (localResult.confidence > 0.5 ? localResult.foodName : nil)
+
         // Check cache first
-        if let name = coreMLName, coreMLConfidence >= 0.60 {
+        if let name = bestHint, (coreMLConfidence >= 0.60 || localResult.confidence >= 0.60) {
             if let cached = cache.scaledMacros(for: name, portionGrams: 150) {
-                // Use cache, estimate 150g as default (user can adjust)
                 ScanAnalyticsService.shared.recordScan(userID: userID, tier: 1, cacheHit: true)
+                let conf = max(coreMLConfidence, localResult.confidence)
                 return FoodRecognitionResult(
                     foodName: name,
                     calories: Int(cached.calories),
@@ -53,37 +67,33 @@ final class FoodRecognitionManager {
                     portionGrams: 150,
                     tier: 1,
                     source: "Cache",
-                    confidence: coreMLConfidence,
-                    needsUserConfirmation: coreMLConfidence < 0.75
+                    confidence: conf,
+                    needsUserConfirmation: conf < 0.75
                 )
             }
         }
 
-        // Route based on confidence
+        // Route based on Core ML confidence
         if coreMLConfidence >= 0.90, let cl = classification, cl.isSingleIngredient {
-            // Try Tier 1
             if let result = await attemptTier1(classification: cl, image: image, voiceNote: voiceNote, userID: userID) {
                 return result
             }
-            // Fall through to Tier 2
         }
 
         if coreMLConfidence >= 0.60 || (coreMLConfidence >= 0.90 && classification?.isSingleIngredient == false) {
-            // Try Tier 2
-            if let result = await attemptTier2(image: image, coreMLHint: coreMLName, voiceNote: voiceNote, userID: userID) {
+            if let result = await attemptTier2(image: image, coreMLHint: bestHint, voiceNote: voiceNote, userID: userID) {
                 return result
             }
-            // Fall through to Tier 3
         }
 
         // Low confidence or previous tiers failed — go to Tier 3
         if isOnline {
-            if let result = await attemptTier3(image: image, previousGuess: coreMLName, voiceNote: voiceNote, userID: userID) {
+            if let result = await attemptTier3(image: image, previousGuess: bestHint, voiceNote: voiceNote, userID: userID) {
                 return result
             }
         }
 
-        // If no internet, try Tier 1 with whatever we have
+        // If no internet, try offline with whatever we have
         if !isOnline, let cl = classification {
             return offlineResult(classification: cl)
         }
@@ -92,7 +102,58 @@ final class FoodRecognitionManager {
         return fallbackResult()
     }
 
-    // MARK: - Tier 1: On-Device + USDA
+    // MARK: - Tier 1 (Local): Vision whitelist + USDA
+
+    /// Fast path for obvious single-ingredient foods identified by Vision's
+    /// built-in classifier. No bundled Core ML model required.
+    private func attemptTier1Local(localResult: FoodClassification, userID: String) async -> FoodRecognitionResult? {
+        // Check cache first
+        if let cached = cache.scaledMacros(for: localResult.foodName, portionGrams: 150) {
+            ScanAnalyticsService.shared.recordScan(userID: userID, tier: 1, cacheHit: true)
+            return FoodRecognitionResult(
+                foodName: localResult.foodName,
+                calories: Int(cached.calories),
+                protein: cached.protein,
+                carbs: cached.carbs,
+                fat: cached.fat,
+                portionGrams: 150,
+                tier: 1,
+                source: "USDA (cached)",
+                confidence: localResult.confidence,
+                needsUserConfirmation: false
+            )
+        }
+
+        do {
+            guard let baseMacros = try await usda.fetchBaseMacros(query: localResult.foodName) else {
+                return nil
+            }
+
+            cache.store(foodName: localResult.foodName, macrosPer100g: baseMacros)
+
+            let portionGrams = 150.0
+            let scaled = baseMacros.scaled(to: portionGrams)
+
+            ScanAnalyticsService.shared.recordScan(userID: userID, tier: 1, cacheHit: false)
+
+            return FoodRecognitionResult(
+                foodName: localResult.foodName,
+                calories: Int(scaled.calories),
+                protein: scaled.protein,
+                carbs: scaled.carbs,
+                fat: scaled.fat,
+                portionGrams: portionGrams,
+                tier: 1,
+                source: "USDA FoodData Central",
+                confidence: localResult.confidence,
+                needsUserConfirmation: false
+            )
+        } catch {
+            return nil
+        }
+    }
+
+    // MARK: - Tier 1: On-Device Core ML + USDA
 
     private func attemptTier1(classification: ClassificationResult, image: UIImage, voiceNote: String?, userID: String) async -> FoodRecognitionResult? {
         do {
