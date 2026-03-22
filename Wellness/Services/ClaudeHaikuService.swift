@@ -25,7 +25,7 @@ final class ClaudeHaikuService {
 
         var promptParts = [
             "Identify the food in this photo as specifically as possible.",
-            "Estimate the portion size in grams.",
+            "Estimate the portion size in grams using visual cues: hands, forks, spoons, plate size, bowl size, or any other objects in the photo as size references.",
             "Determine if it is a single ingredient or a mixed meal.",
             "Return your response as a single JSON object with these exact fields:",
             "{\"foodName\": \"<name>\", \"portionGrams\": <number>, \"isMixedMeal\": <bool>, \"confidence\": <0.0-1.0>}",

@@ -35,7 +35,12 @@ final class ClaudeSonnetService {
         let prompt = """
 \(contextBlock)Analyze this food photo carefully. Think step by step:
 1. Identify every food item visible in the photo
-2. Estimate portion sizes by comparing to plate size and other visual cues
+2. **Estimate portion sizes using ALL available visual cues in the photo:**
+   - Hands, fingers, or thumbs → use as size reference (average adult hand ~19cm long)
+   - Forks, spoons, knives → standard dinner fork is ~19cm, teaspoon bowl is ~4cm
+   - Plates and bowls → standard dinner plate is 25–27cm diameter, salad plate ~20cm
+   - Cups and glasses → standard mug ~240ml, water glass ~350ml
+   - Compare food items to these references to estimate grams accurately
 3. If this is a mixed meal, break down each component separately
 4. Calculate total macros by summing all components
 
