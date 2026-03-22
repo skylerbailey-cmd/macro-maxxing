@@ -35,7 +35,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             forTaskWithIdentifier: Self.feedRefreshTaskID,
             using: nil
         ) { task in
-            self.handleFeedRefresh(task as! BGAppRefreshTask)
+            guard let refreshTask = task as? BGAppRefreshTask else { task.setTaskCompleted(success: false); return }
+            self.handleFeedRefresh(refreshTask)
         }
 
         // Register nightly streak-reset task
@@ -43,7 +44,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             forTaskWithIdentifier: Self.streakResetTaskID,
             using: nil
         ) { task in
-            self.handleStreakReset(task as! BGAppRefreshTask)
+            guard let refreshTask = task as? BGAppRefreshTask else { task.setTaskCompleted(success: false); return }
+            self.handleStreakReset(refreshTask)
         }
 
         return true

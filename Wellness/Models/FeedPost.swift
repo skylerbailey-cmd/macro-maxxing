@@ -109,13 +109,13 @@ struct FeedPost: Codable, Identifiable, Hashable {
     var fuelLogItems:   [FeedFuelLogItem]   = []
     var workoutItems:   [FeedWorkoutItem]   = []
 
-    // MARK: - Dates
+    // MARK: - Dates (stored as plain Date to avoid Timestamp reference-type crashes)
 
     /// The calendar date the macros represent (may differ from createdAt if posted next-day).
-    var macroDate: Timestamp?
+    var macroDate: Date?
 
     /// Server-set creation timestamp. Populated from Firestore on read.
-    var createdAt: Timestamp?
+    var createdAt: Date?
 
     // MARK: - Identifiable
 
@@ -123,13 +123,13 @@ struct FeedPost: Codable, Identifiable, Hashable {
     /// so the ID never changes between accesses (no random UUIDs).
     var id: String {
         if let postID, !postID.isEmpty { return postID }
-        return "\(userID)-\(title)-\(createdAt?.seconds ?? 0)"
+        return "\(userID)-\(title)-\(Int(createdAt?.timeIntervalSince1970 ?? 0))"
     }
 
     // MARK: - Computed helpers
 
-    var createdAtDate: Date? { createdAt?.dateValue() }
-    var macroDateDate: Date? { macroDate?.dateValue() }
+    var createdAtDate: Date? { createdAt }
+    var macroDateDate: Date? { macroDate }
 
     /// All photo URLs in display order (primary first).
     var allPhotoURLs: [String] {
@@ -213,7 +213,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
         self.latitude             = latitude
         self.longitude            = longitude
         self.isPublic             = isPublic
-        self.macroDate            = macroDate.map { Timestamp(date: $0) }
+        self.macroDate            = macroDate
         self.fastingWindowDisplay = fastingWindowDisplay
         self.postLabel            = postLabel
         self.mogBoardScope        = mogBoardScope
@@ -304,6 +304,10 @@ extension FeedPost {
         if data["workoutItems"]        == nil { data["workoutItems"]        = [[String: Any]]() }
         if data["isPublic"]            == nil { data["isPublic"]            = true }
 
+        // Convert Firestore Timestamps to Date for pure value-type safety
+        if let ts = data["createdAt"] as? Timestamp { data["createdAt"] = ts.dateValue() }
+        if let ts = data["macroDate"] as? Timestamp { data["macroDate"] = ts.dateValue() }
+
         do {
             let decoder = Firestore.Decoder()
             self = try decoder.decode(FeedPost.self, from: data, in: document.reference)
@@ -318,9 +322,14 @@ extension FeedPost {
     /// Use the result with `collection.addDocument(data:)` or `document.setData(:)`.
     func firestoreData() throws -> [String: Any] {
         var data = try Firestore.Encoder().encode(self)
-        // Set createdAt to server timestamp if not already set (replaces @ServerTimestamp behavior)
-        if data["createdAt"] == nil {
+        // Convert Date back to Timestamp for Firestore storage
+        if let date = createdAt {
+            data["createdAt"] = Timestamp(date: date)
+        } else {
             data["createdAt"] = FieldValue.serverTimestamp()
+        }
+        if let date = macroDate {
+            data["macroDate"] = Timestamp(date: date)
         }
         return data
     }

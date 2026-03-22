@@ -33,7 +33,7 @@ enum AnalysisTier: Equatable {
     case claude  // Tier 2/3 — Claude API (Haiku or Sonnet)
 }
 
-@Observable final class FoodLogViewModel {
+@MainActor @Observable final class FoodLogViewModel {
     // MARK: - Selected date (drives all fetches and new entry timestamps)
     var selectedDate: Date {
         didSet {

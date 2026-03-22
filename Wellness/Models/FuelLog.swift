@@ -73,7 +73,7 @@ struct FuelLog: Codable, Identifiable {
     var totalCarbs:    Double
     var totalFat:      Double
 
-    var id: String { dateString ?? UUID().uuidString }
+    var id: String { dateString ?? "unknown-\(date.seconds)" }
     var dateValue: Date { date.dateValue() }
 
     // MARK: - Init

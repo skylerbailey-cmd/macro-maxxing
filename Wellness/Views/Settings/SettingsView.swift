@@ -215,7 +215,7 @@ struct SettingsView: View {
                 DatePicker(
                     "Date of Birth",
                     selection: $dobDate,
-                    in: ...Calendar.current.date(byAdding: .year, value: -13, to: Date())!,
+                    in: ...(Calendar.current.date(byAdding: .year, value: -13, to: Date()) ?? Date()),
                     displayedComponents: .date
                 )
             }

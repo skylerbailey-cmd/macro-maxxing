@@ -303,8 +303,8 @@ struct TutorialOverlayView: View {
             }
 
             // Inline icon (e.g. pulsing gold + button)
-            if step.icon != nil {
-                TutorialIconView(icon: step.icon!)
+            if let icon = step.icon {
+                TutorialIconView(icon: icon)
                     .frame(maxWidth: .infinity)
             }
 

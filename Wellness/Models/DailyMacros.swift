@@ -59,7 +59,7 @@ struct DailyMacros: Codable, Identifiable {
 
     // MARK: - Identifiable
 
-    var id: String { dateString ?? UUID().uuidString }
+    var id: String { dateString ?? "unknown-\(date.seconds)" }
 
     // MARK: - Computed helpers
 

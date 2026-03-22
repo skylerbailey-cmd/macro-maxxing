@@ -100,7 +100,7 @@ struct FollowListView: View {
                 userAvatar(url: entry.profilePhotoURL, name: entry.displayName ?? entry.username, size: 48)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.displayName?.isEmpty == false ? entry.displayName! : entry.username)
+                    Text((entry.displayName?.isEmpty == false ? entry.displayName : nil) ?? entry.username)
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.white)
                     Text("@\(entry.username)")
