@@ -534,9 +534,11 @@ struct SocialView: View {
         localError   = nil
         defer { localLoading = false }
         guard let (posts, _) = try? await PostService.shared.fetchFeedPosts(limit: 200) else {
+            guard !Task.isCancelled else { return }
             localError = "Couldn't load nearby posts. Pull down to retry."
             return
         }
+        guard !Task.isCancelled else { return }
         localFirestorePosts = posts
     }
 
@@ -547,14 +549,16 @@ struct SocialView: View {
         teamError   = nil
         defer { teamLoading = false }
         await loadFollowingIDs()
-        // Team = mutual follows (friends) + the current user's own posts
+        guard !Task.isCancelled else { return }
         var ids = Array(friendIDs)
         if !userSettings.userID.isEmpty { ids.append(userSettings.userID) }
         guard !ids.isEmpty else { return }
         guard let posts = try? await PostService.shared.fetchPostsByAuthors(authorIDs: ids, limit: 200) else {
+            guard !Task.isCancelled else { return }
             teamError = "Couldn't load team posts. Pull down to retry."
             return
         }
+        guard !Task.isCancelled else { return }
         teamFirestorePosts = posts
     }
 
@@ -565,13 +569,15 @@ struct SocialView: View {
         followingError   = nil
         defer { followingLoading = false }
         await loadFollowingIDs()
-        // Following = everyone the current user follows, excluding self
+        guard !Task.isCancelled else { return }
         let ids = Array(followingIDs).filter { $0 != userSettings.userID }
         guard !ids.isEmpty else { return }
         guard let posts = try? await PostService.shared.fetchPostsByAuthors(authorIDs: ids, limit: 200) else {
+            guard !Task.isCancelled else { return }
             followingError = "Couldn't load following posts. Pull down to retry."
             return
         }
+        guard !Task.isCancelled else { return }
         followingFirestorePosts = posts
     }
 

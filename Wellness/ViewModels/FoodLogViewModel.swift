@@ -144,7 +144,6 @@ enum AnalysisTier: Equatable {
     // MARK: - Three-Tier Food Recognition
 
     /// Analyzes a food image through the three-tier recognition pipeline.
-    @MainActor
     func analyzeImage() async {
         guard let image = selectedImage else { return }
         analysisState = .analyzing
@@ -155,6 +154,7 @@ enum AnalysisTier: Equatable {
             voiceNote: voiceNote.isEmpty ? nil : voiceNote,
             userID: userID
         )
+        guard !Task.isCancelled else { return }
 
         recognitionResult = result
         populateFromRecognitionResult(result)
@@ -178,7 +178,6 @@ enum AnalysisTier: Equatable {
     }
 
     /// Analyzes with voice note context.
-    @MainActor
     func analyzeImageWithVoice() async {
         guard let image = selectedImage else { return }
         analysisState = .analyzing
@@ -189,6 +188,7 @@ enum AnalysisTier: Equatable {
             voiceNote: voiceNote,
             userID: userID
         )
+        guard !Task.isCancelled else { return }
 
         recognitionResult = result
         populateFromRecognitionResult(result)
@@ -206,19 +206,18 @@ enum AnalysisTier: Equatable {
 
     /// Forces a Claude API analysis, bypassing Tier 1.
     /// Called when the user taps "Not right? Try AI scan".
-    @MainActor
     func reanalyzeWithClaude() async {
         guard let image = selectedImage else { return }
         analysisState = .analyzing
         analysisTier  = .none
 
-        // Escalate directly to Tier 2+, skipping on-device
         let result = await recognitionManager.escalate(
             image: image,
             fromTier: 1,
             voiceNote: voiceNote.isEmpty ? nil : voiceNote,
             userID: userID
         )
+        guard !Task.isCancelled else { return }
 
         recognitionResult = result
         populateFromRecognitionResult(result)
@@ -233,7 +232,6 @@ enum AnalysisTier: Equatable {
     }
 
     /// Escalates to the next tier when user taps "Try better scan".
-    @MainActor
     func escalateAnalysis() async {
         guard let image = selectedImage,
               let current = recognitionResult,
@@ -247,6 +245,7 @@ enum AnalysisTier: Equatable {
             voiceNote: voiceNote.isEmpty ? nil : voiceNote,
             userID: userID
         )
+        guard !Task.isCancelled else { return }
 
         recognitionResult = result
         populateFromRecognitionResult(result)

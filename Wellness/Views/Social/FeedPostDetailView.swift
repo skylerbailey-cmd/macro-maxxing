@@ -80,8 +80,10 @@ struct FeedPostDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await loadComments()
+            guard !Task.isCancelled else { return }
             if focusComment {
                 try? await Task.sleep(nanoseconds: 400_000_000)
+                guard !Task.isCancelled else { return }
                 commentFocused = true
             }
         }
@@ -407,12 +409,14 @@ struct FeedPostDetailView: View {
         guard let ref = commentsRef else { isLoadingComments = false; return }
         do {
             let snapshot = try await ref.order(by: "createdAt", descending: false).getDocuments()
+            guard !Task.isCancelled else { return }
             comments = snapshot.documents.compactMap { doc in
                 guard var comment = try? doc.data(as: FeedComment.self) else { return nil }
                 comment.commentID = doc.documentID
                 return comment
             }
         } catch {
+            guard !Task.isCancelled else { return }
             print("[FeedPostDetailView] Failed to load comments: \(error)")
         }
         isLoadingComments = false
@@ -433,10 +437,12 @@ struct FeedPostDetailView: View {
             var data = try Firestore.Encoder().encode(comment)
             data["createdAt"] = FieldValue.serverTimestamp()
             _ = try await ref.addDocument(data: data)
+            guard !Task.isCancelled else { return }
             commentText    = ""
             commentFocused = false
             await loadComments()
         } catch {
+            guard !Task.isCancelled else { return }
             print("[FeedPostDetailView] Failed to submit comment: \(error)")
         }
         isSubmitting = false

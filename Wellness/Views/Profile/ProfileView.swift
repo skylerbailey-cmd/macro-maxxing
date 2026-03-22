@@ -1132,6 +1132,7 @@ struct ProfileView: View {
         // 1. Discipline: average of daily discipline scores over the last 14 days
         let history = (try? await MacroHistoryService.shared.fetchMacroHistory(
             userID: settings.userID, from: fourteenDaysAgo, to: today)) ?? []
+        guard !Task.isCancelled else { return }
 
         let disciplineAvg: Double? = history.isEmpty ? nil : {
             let scores = history.map { day -> Double in
@@ -1187,10 +1188,11 @@ struct ProfileView: View {
         case (nil, let m?):    computed = Int(m.rounded())
         case (nil, nil):       computed = nil
         }
+        guard !Task.isCancelled else { return }
         balanceScore = computed
         if let target = computed {
-            // Small delay so the ring is visible before it starts filling
             try? await Task.sleep(nanoseconds: 200_000_000)
+            guard !Task.isCancelled else { return }
             await MainActor.run {
                 withAnimation(.easeOut(duration: 1.2)) {
                     ringProgress = Double(target) / 100
@@ -1198,16 +1200,20 @@ struct ProfileView: View {
             }
         }
 
-        // Persist today's score, then load yesterday's delta and global percentile concurrently
+        guard !Task.isCancelled else { return }
         let uid = settings.userID
         if let score = computed {
             try? await BalanceScoreService.shared.saveScore(score, userID: uid)
         }
+        guard !Task.isCancelled else { return }
         let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
         async let yest = BalanceScoreService.shared.fetchScore(for: yesterday, userID: uid)
         async let pct  = BalanceScoreService.shared.fetchTopPercent(score: computed ?? 0)
-        yesterdayBalanceScore = await yest
-        balancePercentile     = computed != nil ? await pct : nil
+        let y = await yest
+        let p = await pct
+        guard !Task.isCancelled else { return }
+        yesterdayBalanceScore = y
+        balancePercentile     = computed != nil ? p : nil
     }
 
     private func repPost(_ post: FeedPost) async {
@@ -1226,16 +1232,16 @@ struct ProfileView: View {
 
     private func loadPosts() async {
         guard !profileUserID.isEmpty else {
-            print("[ProfileView] loadPosts: profileUserID is empty, skipping")
             postsLoading = false
             return
         }
         postsLoading = true
         do {
-            firestorePosts = try await PostService.shared.fetchUserPosts(userID: profileUserID)
-            print("[ProfileView] loadPosts: fetched \(firestorePosts.count) posts for userID=\(profileUserID)")
+            let posts = try await PostService.shared.fetchUserPosts(userID: profileUserID)
+            guard !Task.isCancelled else { return }
+            firestorePosts = posts
         } catch {
-            print("[ProfileView] loadPosts error for userID=\(profileUserID): \(error)")
+            guard !Task.isCancelled else { return }
             firestorePosts = []
         }
         postsLoading = false
@@ -1276,11 +1282,14 @@ struct ProfileView: View {
         async let viewerProfile  = UserProfileService.shared.fetchProfile(userID: viewerID)
 
         if let viewerIsFollowing = try? await followingCheck { isFollowing = viewerIsFollowing }
+        guard !Task.isCancelled else { return }
         if let profile = try? await targetProfile {
             targetProfilePhotoURL = profile.profilePhotoURL
             fetchedBio            = profile.bio
         }
+        guard !Task.isCancelled else { return }
         if let vp = try? await viewerProfile { viewerProfilePhotoURL = vp.profilePhotoURL }
+        guard !Task.isCancelled else { return }
         if let subscribed = try? await SubscriptionService.shared.isSubscribed(
             subscriberID: viewerID, targetUserID: profileUserID) {
             isSubscribed = subscribed
