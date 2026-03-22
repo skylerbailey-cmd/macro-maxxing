@@ -499,6 +499,8 @@ struct SettingsView: View {
             "proteinPerLb": proteinPerLbVal,
             "fastingEnabled": userSettings.fastingEnabled,
             "auraPopupsEnabled": userSettings.auraPopupsEnabled,
+            "excludeDairy":      userSettings.excludeDairy,
+            "excludeGluten":     userSettings.excludeGluten,
             "dateOfBirth": dobString,
         ]
         try? await session.updateProfile(fields: fields)
