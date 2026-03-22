@@ -75,6 +75,19 @@ final class SessionManager {
     // MARK: - Lifecycle
 
     init() {
+        // Detect reinstall: UserDefaults is wiped on delete but Keychain/Auth persists.
+        // If the flag is missing but a user is signed in, the app was reinstalled →
+        // sign out so the user must log in fresh.
+        let hasLaunchedKey = "hasLaunchedBefore"
+        if !UserDefaults.standard.bool(forKey: hasLaunchedKey) {
+            if Auth.auth().currentUser != nil {
+                print("[SessionManager] Reinstall detected — signing out stale auth session")
+                try? Auth.auth().signOut()
+                KeychainService.delete(key: "cachedUserID")
+            }
+            UserDefaults.standard.set(true, forKey: hasLaunchedKey)
+        }
+
         authStateHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             guard let self else { return }
             Task { @MainActor in
