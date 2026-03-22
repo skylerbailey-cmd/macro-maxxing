@@ -6,35 +6,24 @@
 //
 
 import Foundation
+import FirebaseFunctions
 
 final class USDAService {
     static let shared = USDAService()
-    private let baseURL = "https://api.nal.usda.gov/fdc/v1"
 
     private init() {}
 
     // MARK: - Search
 
-    /// Searches USDA for a single-ingredient whole food by name.
-    /// Filters to SR Legacy and Foundation data types only.
+    /// Searches USDA for a single-ingredient whole food by name via server-side proxy.
     func searchFood(query: String, portionGrams: Double) async throws -> MacroResult? {
-        let apiKey = Config.usdaApiKey
-        guard apiKey != "YOUR_USDA_KEY" else {
-            print("[USDA] No API key configured — skipping USDA lookup.")
-            return nil
-        }
+        let payload: [String: Any] = ["endpoint": "search", "query": query, "pageSize": 10]
+        let result = try await Functions.functions().httpsCallable("proxyUSDA").call(payload)
 
-        guard let url = buildSearchURL(query: query, apiKey: apiKey, pageSize: 10) else {
-            return nil
-        }
+        guard let json = result.data as? [String: Any],
+              let jsonData = try? JSONSerialization.data(withJSONObject: json) else { return nil }
 
-        let (data, response) = try await URLSession.shared.data(from: url)
-
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            return nil
-        }
-
-        let searchResponse = try JSONDecoder().decode(USDASearchResponse.self, from: data)
+        let searchResponse = try JSONDecoder().decode(USDASearchResponse.self, from: jsonData)
 
         guard !searchResponse.foods.isEmpty else { return nil }
         let food = bestMatch(for: query, in: searchResponse.foods)
@@ -62,17 +51,13 @@ final class USDAService {
     /// Returns base macros per 100g for caching.
     /// Uses bestMatch filtering to avoid returning juice/concentrate/dried forms.
     func fetchBaseMacros(query: String) async throws -> MacrosPer100g? {
-        let apiKey = Config.usdaApiKey
-        guard apiKey != "YOUR_USDA_KEY" else { return nil }
+        let payload: [String: Any] = ["endpoint": "search", "query": query, "pageSize": 10]
+        let result = try await Functions.functions().httpsCallable("proxyUSDA").call(payload)
 
-        guard let url = buildSearchURL(query: query, apiKey: apiKey, pageSize: 10) else {
-            return nil
-        }
+        guard let json = result.data as? [String: Any],
+              let jsonData = try? JSONSerialization.data(withJSONObject: json) else { return nil }
 
-        let (data, response) = try await URLSession.shared.data(from: url)
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
-
-        let searchResponse = try JSONDecoder().decode(USDASearchResponse.self, from: data)
+        let searchResponse = try JSONDecoder().decode(USDASearchResponse.self, from: jsonData)
         guard !searchResponse.foods.isEmpty else { return nil }
 
         let food = bestMatch(for: query, in: searchResponse.foods)
@@ -96,22 +81,6 @@ final class USDAService {
             carbs: food.nutrientValue(id: 1005) ?? 0,
             fat: food.nutrientValue(id: 1004) ?? 0
         )
-    }
-
-    // MARK: - URL Construction
-
-    /// Builds a USDA FoodData Central search URL.
-    ///
-    /// URLComponents percent-encodes the comma in "SR Legacy,Foundation" to %2C,
-    /// which the USDA API does NOT understand — the comma must remain literal as
-    /// a list separator. This caused the dataType filter to silently fail,
-    /// returning Branded products (e.g. "Orange Cookies" at 444 kcal/100g)
-    /// instead of only SR Legacy/Foundation whole foods.
-    private func buildSearchURL(query: String, apiKey: String, pageSize: Int) -> URL? {
-        guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            return nil
-        }
-        return URL(string: "\(baseURL)/foods/search?query=\(encodedQuery)&api_key=\(apiKey)&pageSize=\(pageSize)&dataType=SR%20Legacy,Foundation")
     }
 
     // MARK: - Result Filtering

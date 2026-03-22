@@ -7,9 +7,10 @@
 
 import UIKit
 
+import FirebaseFunctions
+
 final class ClaudeHaikuService {
     static let shared = ClaudeHaikuService()
-    private let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
     private let model = "claude-haiku-4-5-20251001"
 
     private init() {}
@@ -38,9 +39,9 @@ final class ClaudeHaikuService {
 
         let prompt = promptParts.joined(separator: "\n")
 
-        let requestBody: [String: Any] = [
+        let payload: [String: Any] = [
             "model": model,
-            "max_tokens": 256,
+            "maxTokens": 256,
             "messages": [
                 [
                     "role": "user",
@@ -52,23 +53,16 @@ final class ClaudeHaikuService {
             ]
         ]
 
-        var urlRequest = URLRequest(url: endpoint)
-        urlRequest.httpMethod = "POST"
-        urlRequest.timeoutInterval = 15
-        urlRequest.setValue(Config.claudeApiKey, forHTTPHeaderField: "x-api-key")
-        urlRequest.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-        let (data, response) = try await performRequest(urlRequest)
-
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-            throw FoodRecognitionError.apiError(statusCode: code)
+        let result: HTTPSCallableResult
+        do {
+            result = try await Functions.functions().httpsCallable("proxyClaude").call(payload)
+        } catch {
+            throw FoodRecognitionError.noConnection
         }
 
-        let claudeResponse = try JSONDecoder().decode(ClaudeAPIResponse.self, from: data)
-        guard let text = claudeResponse.content.first(where: { $0.type == "text" })?.text else {
+        guard let responseDict = result.data as? [String: Any],
+              let content = responseDict["content"] as? [[String: Any]],
+              let text = content.first(where: { $0["type"] as? String == "text" })?["text"] as? String else {
             throw FoodRecognitionError.noContent
         }
 
@@ -78,43 +72,6 @@ final class ClaudeHaikuService {
         }
 
         return try JSONDecoder().decode(HaikuFoodIdentification.self, from: jsonData)
-    }
-
-    // MARK: - Network Helpers
-
-    private func performRequest(_ request: URLRequest, maxRetries: Int = 3) async throws -> (Data, URLResponse) {
-        for attempt in 1...maxRetries {
-            let data: Data
-            let response: URLResponse
-            do {
-                (data, response) = try await URLSession.shared.data(for: request)
-            } catch is URLError {
-                if attempt < maxRetries {
-                    try await Task.sleep(nanoseconds: UInt64(2_000_000_000 * attempt))
-                    continue
-                }
-                throw FoodRecognitionError.noConnection
-            }
-
-            guard let http = response as? HTTPURLResponse else {
-                return (data, response)
-            }
-
-            if http.statusCode == 200 { return (data, response) }
-
-            if http.statusCode == 529 && attempt < maxRetries {
-                try await Task.sleep(nanoseconds: 2_000_000_000)
-                continue
-            }
-
-            switch http.statusCode {
-            case 429: throw FoodRecognitionError.rateLimited
-            case 529: throw FoodRecognitionError.overloaded
-            case 500: throw FoodRecognitionError.serverError
-            default:  throw FoodRecognitionError.apiError(statusCode: http.statusCode)
-            }
-        }
-        throw FoodRecognitionError.serverError
     }
 
     private nonisolated func resized(_ image: UIImage, maxEdge: CGFloat) -> UIImage {
