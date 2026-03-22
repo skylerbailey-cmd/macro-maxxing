@@ -132,6 +132,24 @@ exports.computeStreak = onCall(async (request) => {
     return { streakDays: newStreak };
   }
 
+  // Read the goals that were in effect yesterday from macroHistory.
+  // This prevents a streak break caused by goal changes (e.g. weight update
+  // recalculating macros) — yesterday's food is evaluated against yesterday's goals.
+  const historySnap = await db.collection("users").doc(uid)
+    .collection("macroHistory").doc(yesterday).get();
+  const historyData = historySnap.exists ? historySnap.data() : null;
+
+  const effectiveGoalCal  = historyData?.goalCalories ?? goalCalories;
+  const effectiveGoalPro  = historyData?.goalProtein  ?? goalProtein;
+  const effectiveGoalCarb = historyData?.goalCarbs    ?? goalCarbs;
+  const effectiveGoalFat  = historyData?.goalFat      ?? goalFat;
+
+  if (historyData) {
+    console.log(`[computeStreak] Using stored goals from ${yesterday}: cal=${effectiveGoalCal} pro=${effectiveGoalPro} carb=${effectiveGoalCarb} fat=${effectiveGoalFat}`);
+  } else {
+    console.log(`[computeStreak] No macroHistory for ${yesterday}, using current goals: cal=${effectiveGoalCal} pro=${effectiveGoalPro} carb=${effectiveGoalCarb} fat=${effectiveGoalFat}`);
+  }
+
   // Query yesterday's food entries.
   const { start, end } = dayBounds(yesterday, timeZone);
   const snap = await db
@@ -157,18 +175,18 @@ exports.computeStreak = onCall(async (request) => {
   }
 
   const LOW = 0.85, HIGH = 1.15;
-  const calOk  = totalCal  >= goalCalories * LOW && totalCal  <= goalCalories * HIGH;
-  const protOk = totalProt >= goalProtein  * LOW && totalProt <= goalProtein  * HIGH;
-  const carbOk = totalCarb >= goalCarbs    * LOW && totalCarb <= goalCarbs    * HIGH;
-  const fatOk  = totalFat  >= goalFat      * LOW && totalFat  <= goalFat      * HIGH;
+  const calOk  = totalCal  >= effectiveGoalCal  * LOW && totalCal  <= effectiveGoalCal  * HIGH;
+  const protOk = totalProt >= effectiveGoalPro  * LOW && totalProt <= effectiveGoalPro  * HIGH;
+  const carbOk = totalCarb >= effectiveGoalCarb * LOW && totalCarb <= effectiveGoalCarb * HIGH;
+  const fatOk  = totalFat  >= effectiveGoalFat  * LOW && totalFat  <= effectiveGoalFat  * HIGH;
   const met    = calOk && protOk && carbOk && fatOk;
 
   console.log(
     `[computeStreak] ${yesterday} — ` +
-    `cal:${Math.round(totalCal)}/${goalCalories} ${calOk ? "✓" : "✗"}  ` +
-    `pro:${Math.round(totalProt)}/${goalProtein} ${protOk ? "✓" : "✗"}  ` +
-    `carb:${Math.round(totalCarb)}/${goalCarbs} ${carbOk ? "✓" : "✗"}  ` +
-    `fat:${Math.round(totalFat)}/${goalFat} ${fatOk ? "✓" : "✗"}`
+    `cal:${Math.round(totalCal)}/${effectiveGoalCal} ${calOk ? "✓" : "✗"}  ` +
+    `pro:${Math.round(totalProt)}/${effectiveGoalPro} ${protOk ? "✓" : "✗"}  ` +
+    `carb:${Math.round(totalCarb)}/${effectiveGoalCarb} ${carbOk ? "✓" : "✗"}  ` +
+    `fat:${Math.round(totalFat)}/${effectiveGoalFat} ${fatOk ? "✓" : "✗"}`
   );
 
   const newStreak = met ? currentStreak + 1 : 0;
