@@ -499,8 +499,8 @@ struct AuraGain: Identifiable, Equatable {
     /// Called by SessionManager after a successful Firestore profile fetch.
     /// Populates all identity fields in-memory. Does NOT touch UserDefaults.
     func populate(from profile: UserProfile) {
-        // Cache userID to UserDefaults so background tasks can access it without the auth stack
-        UserDefaults.standard.set(profile.userID, forKey: "cachedUserID")
+        // Cache userID to Keychain so background tasks can access it without the auth stack
+        KeychainService.set(profile.userID, forKey: "cachedUserID")
         userID            = profile.userID
         username          = profile.username
         name              = profile.name
@@ -657,11 +657,17 @@ struct AuraGain: Identifiable, Equatable {
             "workoutAdjustmentDate",
             "savedWorkoutTemplates",
             "wt_startTime", "wt_pausedAt", "wt_pausedSeconds",
-            "cachedUserID",
+            // cachedUserID is in Keychain, cleared separately below
             // Tutorial flags — reset so a new account gets all tutorials
             "hasSeenAppTour",
             "hasSeenProfileTutorial",
         ] { ud.removeObject(forKey: key) }
+
+        // Clear Keychain
+        KeychainService.delete(key: "cachedUserID")
+
+        // Clear URL and Firestore caches so the next user starts fresh
+        URLCache.shared.removeAllCachedResponses()
     }
 
     // MARK: - Init
