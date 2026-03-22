@@ -20,8 +20,8 @@ struct FeedPost: Codable, Identifiable, Hashable {
 
     // MARK: - Identity
 
-    /// Populated by Firestore on read; matches the document ID.
-    @DocumentID var postID: String?
+    /// Populated manually from the Firestore document ID.
+    var postID: String?
 
     var userID:              String
     var username:            String
@@ -112,11 +112,10 @@ struct FeedPost: Codable, Identifiable, Hashable {
     // MARK: - Dates
 
     /// The calendar date the macros represent (may differ from createdAt if posted next-day).
-    /// Stored as a Firestore Timestamp; nil until first read-back.
     var macroDate: Timestamp?
 
-    /// Server-set creation timestamp. Nil locally until Firestore writes the value back.
-    @ServerTimestamp var createdAt: Timestamp?
+    /// Server-set creation timestamp. Populated from Firestore on read.
+    var createdAt: Timestamp?
 
     // MARK: - Identifiable
 
@@ -318,6 +317,11 @@ extension FeedPost {
     /// Encodes this FeedPost to a Firestore-compatible dictionary.
     /// Use the result with `collection.addDocument(data:)` or `document.setData(:)`.
     func firestoreData() throws -> [String: Any] {
-        try Firestore.Encoder().encode(self)
+        var data = try Firestore.Encoder().encode(self)
+        // Set createdAt to server timestamp if not already set (replaces @ServerTimestamp behavior)
+        if data["createdAt"] == nil {
+            data["createdAt"] = FieldValue.serverTimestamp()
+        }
+        return data
     }
 }
