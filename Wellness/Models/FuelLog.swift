@@ -57,8 +57,8 @@ struct FuelLogMeal: Codable, Identifiable {
 /// plus pre-computed totals so the app never needs to re-sum client-side.
 struct FuelLog: Codable, Identifiable {
 
-    /// Document ID — the "yyyy-MM-dd" date string. Set by Firestore on read.
-    @DocumentID var dateString: String?
+    /// Document ID — the "yyyy-MM-dd" date string. Set manually from document ID on read.
+    var dateString: String?
 
     /// The calendar date this log represents.
     var date: Timestamp
@@ -79,7 +79,7 @@ struct FuelLog: Codable, Identifiable {
     // MARK: - Init
 
     init(dateString: String, date: Date, meals: [FuelLogMeal] = []) {
-        self._dateString   = DocumentID(wrappedValue: dateString)
+        self.dateString    = dateString
         self.date          = Timestamp(date: date)
         self.meals         = meals
         self.totalCalories = meals.reduce(0) { $0 + $1.calories }

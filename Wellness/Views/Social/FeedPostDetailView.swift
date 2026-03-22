@@ -10,16 +10,19 @@ import FirebaseFirestore
 
 // MARK: - FeedComment
 
-struct FeedComment: Identifiable, Codable {
-    @DocumentID var commentID: String?
+struct FeedComment: Identifiable, Codable, Hashable {
+    var commentID: String?
     var authorID:          String
     var authorUsername:    String
     var authorDisplayName: String
     var authorPhotoURL:    String = ""
     var text:              String
-    @ServerTimestamp var createdAt: Timestamp?
+    var createdAt: Timestamp?
 
-    var id: String { commentID ?? UUID().uuidString }
+    var id: String { commentID ?? "\(authorID)-\(text.prefix(20))-\(createdAt?.seconds ?? 0)" }
+
+    static func == (lhs: FeedComment, rhs: FeedComment) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
 // MARK: - FeedPostDetailView
@@ -404,7 +407,11 @@ struct FeedPostDetailView: View {
         guard let ref = commentsRef else { isLoadingComments = false; return }
         do {
             let snapshot = try await ref.order(by: "createdAt", descending: false).getDocuments()
-            comments = snapshot.documents.compactMap { try? $0.data(as: FeedComment.self) }
+            comments = snapshot.documents.compactMap { doc in
+                guard var comment = try? doc.data(as: FeedComment.self) else { return nil }
+                comment.commentID = doc.documentID
+                return comment
+            }
         } catch {
             print("[FeedPostDetailView] Failed to load comments: \(error)")
         }
@@ -423,7 +430,9 @@ struct FeedPostDetailView: View {
             text:              text
         )
         do {
-            _ = try ref.addDocument(from: comment)
+            var data = try Firestore.Encoder().encode(comment)
+            data["createdAt"] = FieldValue.serverTimestamp()
+            _ = try await ref.addDocument(data: data)
             commentText    = ""
             commentFocused = false
             await loadComments()

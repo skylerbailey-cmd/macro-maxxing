@@ -14,7 +14,7 @@ import FirebaseFirestore
 struct FollowEntry: Codable, Identifiable {
 
     /// Document ID — the userID of the person being represented in this collection.
-    @DocumentID var documentID: String?
+    var documentID: String?
 
     /// UserID of the person this entry represents.
     var userID:          String

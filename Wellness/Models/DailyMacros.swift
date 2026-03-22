@@ -14,8 +14,8 @@ struct DailyMacros: Codable, Identifiable {
 
     // MARK: - Identity
 
-    /// Document ID — the "yyyy-MM-dd" date string. Set by Firestore on read.
-    @DocumentID var dateString: String?
+    /// Document ID — the "yyyy-MM-dd" date string. Set manually from document ID on read.
+    var dateString: String?
 
     /// The calendar date this snapshot represents. Stored as a Firestore Timestamp
     /// so it can be used for ordering and range queries.
@@ -81,7 +81,7 @@ struct DailyMacros: Codable, Identifiable {
         mealCount:            Int,
         streakDay:            Int
     ) {
-        self._dateString       = DocumentID(wrappedValue: dateString)
+        self.dateString        = dateString
         self.date              = Timestamp(date: date)
         self.totalCalories     = totalCalories
         self.totalProtein      = totalProtein
