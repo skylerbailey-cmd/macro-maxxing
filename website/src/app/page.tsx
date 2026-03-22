@@ -470,6 +470,41 @@ export default function Home() {
                 title: "Body Recomp Tracker",
                 desc: "Lose fat and build muscle",
               },
+              {
+                href: "/myfitnesspal-alternative",
+                title: "MyFitnessPal Alternative",
+                desc: "Why athletes are switching",
+              },
+              {
+                href: "/noom-alternative",
+                title: "Noom Alternative",
+                desc: "Real macros, not color codes",
+              },
+              {
+                href: "/cronometer-alternative",
+                title: "Cronometer Alternative",
+                desc: "Accuracy without the complexity",
+              },
+              {
+                href: "/macrofactor-alternative",
+                title: "MacroFactor Alternative",
+                desc: "Save $144/year",
+              },
+              {
+                href: "/lose-it-alternative",
+                title: "Lose It! Alternative",
+                desc: "More than just calorie counting",
+              },
+              {
+                href: "/lifesum-alternative",
+                title: "Lifesum Alternative",
+                desc: "All features, no paywall",
+              },
+              {
+                href: "/carbon-diet-coach-alternative",
+                title: "Carbon Diet Coach Alternative",
+                desc: "AI tracking for serious athletes",
+              },
             ].map((link, i) => (
               <Link
                 key={i}

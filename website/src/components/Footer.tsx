@@ -94,6 +94,22 @@ export function Footer() {
                   Weight Loss App
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/myfitnesspal-alternative"
+                  className="hover:text-white transition"
+                >
+                  vs MyFitnessPal
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/noom-alternative"
+                  className="hover:text-white transition"
+                >
+                  vs Noom
+                </Link>
+              </li>
             </ul>
           </div>
 
