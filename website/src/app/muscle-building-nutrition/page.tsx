@@ -215,7 +215,7 @@ export default function MuscleBuildingNutritionPage() {
         <div id="download">
           <DownloadCTA
             headline="Fuel Your Gains"
-            subheadline="AI nutrition tracking built for lifters. Streaks, leaderboards, and a community of athletes. Free forever."
+            subheadline="AI nutrition tracking built for lifters. Streaks, leaderboards, and a community of dedicated trackers. Free forever."
           />
         </div>
       </article>

@@ -46,7 +46,7 @@ export default function ProteinTrackerPage() {
               Macro Maxxing puts protein front and center. Snap a photo, say it
               out loud, or enter it manually — your daily protein is always
               visible and always accurate. Build streaks, climb leaderboards,
-              and join a community of athletes who prioritize protein.
+              and join a community of people who prioritize protein.
             </p>
             <a
               href="#download"
@@ -157,8 +157,8 @@ export default function ProteinTrackerPage() {
             </h2>
             <p className="text-gray-300 text-lg text-center max-w-2xl mx-auto mb-12">
               Earn Aura XP every time you hit your protein target. Build daily
-              streaks. Compete on the leaderboard. Join a community of athletes
-              who take protein seriously.
+              streaks. Compete on the leaderboard. Join a community of macro
+              trackers who take protein seriously.
             </p>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-white/5 border border-white/10 rounded-2xl p-6">

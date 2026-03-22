@@ -21,7 +21,7 @@ export default function Home() {
           </h1>
           <p className="text-gray-400 text-lg sm:text-xl max-w-2xl mx-auto mb-10">
             Snap a photo of your meal. Describe it with your voice. Let AI do
-            the rest. The smartest macro tracker for athletes who are built
+            the rest. The smartest macro tracker for people who are built
             different.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -73,7 +73,7 @@ export default function Home() {
             </h2>
             <p className="text-gray-400 max-w-xl mx-auto">
               From AI-powered food logging to smart workout adjustments — every
-              tool a serious athlete needs in one app.
+              tool you need in one app.
             </p>
           </div>
 
@@ -106,7 +106,7 @@ export default function Home() {
             <FeatureCard
               icon="👥"
               title="Social Feed & Community"
-              description="Share your nutrition wins, rep other athletes, and stay motivated with a global community of macro trackers."
+              description="Share your nutrition wins, rep other trackers, and stay motivated with a global community of macro trackers."
             />
           </div>
         </div>
@@ -342,7 +342,7 @@ export default function Home() {
             See It in Action
           </h2>
           <p className="text-gray-400 max-w-xl mx-auto mb-12">
-            A dark-mode interface designed for athletes. Every screen built for
+            A dark-mode interface designed for real people. Every screen built for
             speed and clarity.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-4xl mx-auto">

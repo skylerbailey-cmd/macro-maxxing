@@ -177,7 +177,7 @@ export default function LifesumAlternativePage() {
                 },
                 {
                   q: "Is Macro Maxxing better than Lifesum?",
-                  a: "For athletes and fitness enthusiasts, yes. Macro Maxxing offers AI-powered food scanning and voice logging (which Lifesum doesn't have), gamified accountability with streaks and leaderboards, and a social community for motivation — all free. Lifesum has more diet plan variety but locks most features behind a paywall.",
+                  a: "For anyone serious about their macros, yes. Macro Maxxing offers AI-powered food scanning and voice logging (which Lifesum doesn't have), gamified accountability with streaks and leaderboards, and a social community for motivation — all free. Lifesum has more diet plan variety but locks most features behind a paywall.",
                 },
                 {
                   q: "Does Macro Maxxing have diet plans like Lifesum?",

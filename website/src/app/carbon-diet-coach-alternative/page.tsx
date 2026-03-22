@@ -40,7 +40,7 @@ export default function CarbonDietCoachAlternativePage() {
             </span>
             <h1 className="text-4xl md:text-6xl font-black mb-6">
               AI Macro Tracking for{" "}
-              <span className="text-gradient">Serious Athletes</span>
+              <span className="text-gradient">Serious Trackers</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
               Carbon Diet Coach is built for bodybuilders, but at $10/month
@@ -126,7 +126,7 @@ export default function CarbonDietCoachAlternativePage() {
 
         <section className="py-16 md:py-20 max-w-5xl mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            Why Athletes Switch to Macro Maxxing
+            Why People Switch to Macro Maxxing
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
             <FeatureCard
@@ -208,7 +208,7 @@ export default function CarbonDietCoachAlternativePage() {
 
         <div id="download">
           <DownloadCTA
-            headline="Built for Serious Athletes"
+            headline="Built for Serious Trackers"
             subheadline="AI scanning, voice logging, streaks, leaderboards, and community. All the tools you need — free."
           />
         </div>
