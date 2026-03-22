@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Macro Maxxing — AI-Powered Macro Tracker & Nutrition App</title>
+  <meta name="description" content="Track macros with AI photo analysis, voice logging, and smart workout adjustments. The most advanced macro tracking app for serious athletes." />
+  <meta name="keywords" content="macro tracker, macro tracking app, AI food scanner, calorie counter, intermittent fasting tracker, workout tracker, nutrition app" />
+  <meta property="og:title" content="Macro Maxxing — AI-Powered Macro Tracker & Nutrition App" />
+  <meta property="og:description" content="Track macros with AI photo analysis, voice logging, and smart workout adjustments. Built different." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              bg: '#120D1E',
+              card: '#1F1A38',
+              purple: '#A572FF',
+              gold: '#FFD833',
+              teal: '#33CDB3',
+              green: '#4DE58C',
+              orange: '#FF8C26',
+              cyan: '#5CBFFF',
+              mint: '#66E5B8',
+              rose: '#FF80B8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    body { font-family: 'Inter', system-ui, sans-serif; background: #120D1E; color: #fff; }
+    .text-gradient { background: linear-gradient(to right, #A572FF, #33CDB3); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .text-gradient-gold { background: linear-gradient(to right, #FFD833, #FF8C26); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  </style>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Macro Maxxing",
+    "operatingSystem": "iOS",
+    "applicationCategory": "HealthApplication",
+    "description": "AI-powered macro tracker with photo food scanning, voice logging, workout tracking, and intermittent fasting timer.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+</head>
+<body class="antialiased">
+
+  <!-- Header -->
+  <header class="fixed top-0 left-0 right-0 z-50 bg-brand-bg/80 backdrop-blur-lg border-b border-white/5">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <a href="index.html" class="flex items-center gap-2">
+        <span class="text-2xl">🔥</span>
+        <span class="text-xl font-bold text-gradient">Macro Maxxing</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-8 text-sm text-gray-300">
+        <a href="#features" class="hover:text-white transition">Features</a>
+        <a href="#ai-powered" class="hover:text-white transition">AI Tracking</a>
+        <a href="#screenshots" class="hover:text-white transition">Screenshots</a>
+        <a href="#download" class="bg-brand-purple hover:bg-brand-purple/80 text-white px-5 py-2 rounded-full font-semibold transition">Download</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="pt-32 pb-20 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto text-center">
+      <div class="inline-block bg-brand-purple/10 border border-brand-purple/20 rounded-full px-4 py-1.5 text-sm text-brand-purple font-medium mb-6">
+        AI-Powered Nutrition Tracking
+      </div>
+      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-black leading-tight mb-6">
+        Track Macros with<br />
+        <span class="text-gradient">AI Precision</span>
+      </h1>
+      <p class="text-gray-400 text-lg sm:text-xl max-w-2xl mx-auto mb-10">
+        Snap a photo of your meal. Describe it with your voice. Let AI do the rest. The smartest macro tracker for athletes who are built different.
+      </p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href="#download" class="bg-brand-purple hover:bg-brand-purple/80 text-white px-8 py-4 rounded-full font-bold text-lg transition">Download Free</a>
+        <a href="#ai-powered" class="border border-white/10 hover:border-white/20 text-white px-8 py-4 rounded-full font-semibold transition">See How It Works</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Social proof -->
+  <section class="border-y border-white/5 py-8 px-4 sm:px-6">
+    <div class="max-w-4xl mx-auto flex flex-wrap justify-center gap-8 sm:gap-16 text-center">
+      <div>
+        <p class="text-2xl font-bold text-brand-gold">3-Tier AI</p>
+        <p class="text-gray-500 text-sm">Food Recognition</p>
+      </div>
+      <div>
+        <p class="text-2xl font-bold text-brand-purple">Voice + Photo</p>
+        <p class="text-gray-500 text-sm">Input Methods</p>
+      </div>
+      <div>
+        <p class="text-2xl font-bold text-brand-teal">4 Databases</p>
+        <p class="text-gray-500 text-sm">USDA, FatSecret & more</p>
+      </div>
+      <div>
+        <p class="text-2xl font-bold text-brand-green">100% Free</p>
+        <p class="text-gray-500 text-sm">No Paywall</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Core Features -->
+  <section id="features" class="py-24 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl sm:text-4xl font-bold mb-4">Everything You Need to <span class="text-gradient">Maxx Your Macros</span></h2>
+        <p class="text-gray-400 max-w-xl mx-auto">From AI-powered food logging to smart workout adjustments — every tool a serious athlete needs in one app.</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="bg-brand-card rounded-2xl p-6 border border-white/5 hover:border-brand-purple/30 transition">
+          <div class="text-3xl mb-4">📸</div>
+          <h3 class="text-lg font-semibold text-white mb-2">AI Photo Food Scanner</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Take a photo of your meal and AI instantly identifies every item and estimates calories, protein, carbs, and fat — no manual entry needed.</p>
+        </div>
+        <div class="bg-brand-card rounded-2xl p-6 border border-white/5 hover:border-brand-purple/30 transition">
+          <div class="text-3xl mb-4">🎙️</div>
+          <h3 class="text-lg font-semibold text-white mb-2">Voice Meal Logging</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Say "ground turkey with rice and mixed vegetables" and AI generates accurate macros from your voice description. Hands-free tracking.</p>
+        </div>
+        <div class="bg-brand-card rounded-2xl p-6 border border-white/5 hover:border-brand-purple/30 transition">
+          <div class="text-3xl mb-4">🏋️</div>
+          <h3 class="text-lg font-semibold text-white mb-2">Smart Workout Tracking</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Log workouts by voice or manually. Choose from Strength, Cardio, HIIT, Flex/Yoga, and more. Auto-adjusts daily macros based on activity.</p>
+        </div>
+        <div class="bg-brand-card rounded-2xl p-6 border border-white/5 hover:border-brand-purple/30 transition">
+          <div class="text-3xl mb-4">⏱️</div>
+          <h3 class="text-lg font-semibold text-white mb-2">Intermittent Fasting Timer</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Built-in fasting timer that persists across app restarts. Track your 16:8, 20:4, or custom fasting window with real-time countdowns.</p>
+        </div>
+        <div class="bg-brand-card rounded-2xl p-6 border border-white/5 hover:border-brand-purple/30 transition">
+          <div class="text-3xl mb-4">🏆</div>
+          <h3 class="text-lg font-semibold text-white mb-2">Streaks & Leaderboards</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Build streaks by hitting your macro goals daily. Compete on Team, Local, and Arena leaderboards. Earn Aura XP and level up.</p>
+        </div>
+        <div class="bg-brand-card rounded-2xl p-6 border border-white/5 hover:border-brand-purple/30 transition">
+          <div class="text-3xl mb-4">👥</div>
+          <h3 class="text-lg font-semibold text-white mb-2">Social Feed & Community</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Share your nutrition wins, rep other athletes, and stay motivated with a global community of macro trackers.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI-Powered Section -->
+  <section id="ai-powered" class="py-24 px-4 sm:px-6 bg-brand-card/30">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-16">
+        <div class="inline-block bg-brand-gold/10 border border-brand-gold/20 rounded-full px-4 py-1.5 text-sm text-brand-gold font-medium mb-4">Powered by AI</div>
+        <h2 class="text-3xl sm:text-4xl font-bold mb-4">Three Ways to Log. <span class="text-gradient-gold">Zero Excuses.</span></h2>
+        <p class="text-gray-400 max-w-xl mx-auto">Whether you prefer snapping a photo, speaking to your phone, or typing it in — Macro Maxxing makes logging effortless.</p>
+      </div>
+
+      <!-- Photo Analysis -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-24">
+        <div>
+          <div class="bg-brand-purple/10 text-brand-purple text-xs font-semibold px-3 py-1 rounded-full inline-block mb-4">PHOTO MODE</div>
+          <h3 class="text-2xl sm:text-3xl font-bold mb-4">Snap a Photo. Get Instant Macros.</h3>
+          <p class="text-gray-400 mb-6 leading-relaxed">Take a picture of your plate and our 3-tier AI system identifies every food item. It cross-references USDA, FatSecret, and OpenFoodFacts databases for the most accurate nutrition data possible.</p>
+          <ul class="space-y-3">
+            <li class="flex items-start gap-3 text-gray-300 text-sm"><span class="text-brand-green mt-0.5">✓</span>Vision AI identifies food items on your plate</li>
+            <li class="flex items-start gap-3 text-gray-300 text-sm"><span class="text-brand-green mt-0.5">✓</span>Cross-references 4 nutrition databases for accuracy</li>
+            <li class="flex items-start gap-3 text-gray-300 text-sm"><span class="text-brand-green mt-0.5">✓</span>Edit and adjust portions before saving</li>
+            <li class="flex items-start gap-3 text-gray-300 text-sm"><span class="text-brand-green mt-0.5">✓</span>Save meals as templates for quick re-logging</li>
+          </ul>
+        </div>
+        <div>
+          <div class="bg-brand-card rounded-3xl border border-white/5 p-8 text-center">
+            <div class="bg-brand-bg rounded-2xl p-6 mb-4">
+              <div class="text-6xl mb-3">📸</div>
+              <p class="text-brand-purple font-semibold text-lg">AI Photo Analysis</p>
+              <p class="text-gray-500 text-sm mt-1">Snap your meal → get instant macros</p>
+            </div>
+            <div class="flex justify-center gap-3">
+              <div class="bg-brand-bg rounded-xl px-4 py-2 text-center">
+                <p class="text-brand-orange font-bold">2,704</p>
+                <p class="text-gray-500 text-xs">kcal</p>
+              </div>
+              <div class="bg-brand-bg rounded-xl px-4 py-2 text-center">
+                <p class="text-brand-cyan font-bold">165g</p>
+                <p class="text-gray-500 text-xs">protein</p>
+              </div>
+              <div class="bg-brand-bg rounded-xl px-4 py-2 text-center">
+                <p class="text-brand-mint font-bold">350g</p>
+                <p class="text-gray-500 text-xs">carbs</p>
+              </div>
+              <div class="bg-brand-bg rounded-xl px-4 py-2 text-center">
+                <p class="text-brand-rose font-bold">71g</p>
+                <p class="text-gray-500 text-xs">fat</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Voice Input -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-24">
+        <div class="order-2 lg:order-1">
+          <div class="bg-brand-card rounded-3xl border border-white/5 p-8 text-center">
+            <div class="bg-brand-bg rounded-2xl p-6 mb-4">
+              <div class="text-6xl mb-3">🎙️</div>
+              <p class="text-brand-gold font-semibold text-lg">Voice Recognition</p>
+              <p class="text-gray-500 text-sm mt-1">Tap to record → describe your meal</p>
+            </div>
+            <div class="bg-brand-bg rounded-xl p-4 text-left">
+              <p class="text-gray-300 text-sm italic">"This is the ground turkey with rice and mixed vegetables"</p>
+            </div>
+            <div class="mt-4 bg-gradient-to-r from-brand-purple to-brand-rose text-white px-6 py-3 rounded-full font-semibold text-sm w-full text-center">✨ Generate with AI</div>
+          </div>
+        </div>
+        <div class="order-1 lg:order-2">
+          <div class="bg-brand-gold/10 text-brand-gold text-xs font-semibold px-3 py-1 rounded-full inline-block mb-4">VOICE MODE</div>
+          <h3 class="text-2xl sm:text-3xl font-bold mb-4">Just Say What You Ate.</h3>
+          <p class="text-gray-400 mb-6 leading-relaxed">Hands full? Just tap the mic and describe your meal naturally. AI transcribes your voice and generates accurate macro breakdowns instantly. Perfect for post-workout logging.</p>
+          <ul class="space-y-3">
+            <li class="flex items-start gap-3 text-gray-300 text-sm"><span class="text-brand-green mt-0.5">✓</span>Natural language voice recognition</li>
+            <li class="flex items-start gap-3 text-gray-300 text-sm"><span class="text-brand-green mt-0.5">✓</span>AI parses quantities, ingredients, and cooking methods</li>
+            <li class="flex items-start gap-3 text-gray-300 text-sm"><span class="text-brand-green mt-0.5">✓</span>Works for both meals and workouts</li>
+            <li class="flex items-start gap-3 text-gray-300 text-sm"><span class="text-brand-green mt-0.5">✓</span>Tap to re-record if needed</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Workout Tracking -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <div>
+          <div class="bg-brand-teal/10 text-brand-teal text-xs font-semibold px-3 py-1 rounded-full inline-block mb-4">WORKOUT MODE</div>
+          <h3 class="text-2xl sm:text-3xl font-bold mb-4">Log Workouts. Auto-Adjust Macros.</h3>
+          <p class="text-gray-400 mb-6 leading-relaxed">Choose your workout type — Strength, Cardio, HIIT, Flex/Yoga, or Rest Day. Macro Maxxing automatically adjusts your daily macro targets based on ISSN & ACSM guidelines so you fuel your training properly.</p>
+          <ul class="space-y-3">
+            <li class="flex items-start gap-3 text-gray-300 text-sm"><span class="text-brand-green mt-0.5">✓</span>6 workout types with smart macro adjustments</li>
+            <li class="flex items-start gap-3 text-gray-300 text-sm"><span class="text-brand-green mt-0.5">✓</span>Voice logging — describe your workout and AI fills the details</li>
+            <li class="flex items-start gap-3 text-gray-300 text-sm"><span class="text-brand-green mt-0.5">✓</span>Save workout templates for one-tap logging</li>
+            <li class="flex items-start gap-3 text-gray-300 text-sm"><span class="text-brand-green mt-0.5">✓</span>Macro adjustments based on ISSN & ACSM guidelines</li>
+          </ul>
+        </div>
+        <div>
+          <div class="bg-brand-card rounded-3xl border border-white/5 p-8">
+            <div class="grid grid-cols-3 gap-3 mb-6">
+              <div class="rounded-xl p-3 text-center text-sm bg-brand-green/20 border border-brand-green/40 text-brand-green">
+                <div class="text-xl mb-1">🏋️</div>Strength
+              </div>
+              <div class="rounded-xl p-3 text-center text-sm bg-brand-bg border border-white/5 text-gray-400">
+                <div class="text-xl mb-1">🏃</div>Cardio
+              </div>
+              <div class="rounded-xl p-3 text-center text-sm bg-brand-bg border border-white/5 text-gray-400">
+                <div class="text-xl mb-1">⚡</div>HIIT
+              </div>
+              <div class="rounded-xl p-3 text-center text-sm bg-brand-bg border border-white/5 text-gray-400">
+                <div class="text-xl mb-1">🧘</div>Flex / Yoga
+              </div>
+              <div class="rounded-xl p-3 text-center text-sm bg-brand-bg border border-white/5 text-gray-400">
+                <div class="text-xl mb-1">😴</div>Rest Day
+              </div>
+              <div class="rounded-xl p-3 text-center text-sm bg-brand-bg border border-white/5 text-gray-400">
+                <div class="text-xl mb-1">🏃‍♂️</div>Other
+              </div>
+            </div>
+            <div class="bg-brand-bg rounded-xl p-4 border border-brand-gold/20">
+              <div class="flex justify-between items-center mb-3">
+                <p class="text-sm font-semibold text-white">📊 Macro Adjustment</p>
+                <span class="text-brand-green text-xs font-semibold">Strength</span>
+              </div>
+              <div class="grid grid-cols-4 gap-2 text-center">
+                <div><p class="text-brand-orange font-bold text-sm">2,704kcal</p><p class="text-brand-green text-xs">+140</p></div>
+                <div><p class="text-brand-mint font-bold text-sm">350g</p><p class="text-brand-green text-xs">+23</p></div>
+                <div><p class="text-brand-cyan font-bold text-sm">165g</p><p class="text-brand-green text-xs">+12</p></div>
+                <div><p class="text-brand-rose font-bold text-sm">71g</p><p class="text-gray-500 text-xs">—</p></div>
+              </div>
+              <p class="text-gray-500 text-xs mt-3">Based on ISSN & ACSM guidelines. Applied to today only.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Screenshots -->
+  <section id="screenshots" class="py-24 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto text-center">
+      <h2 class="text-3xl sm:text-4xl font-bold mb-4">See It in Action</h2>
+      <p class="text-gray-400 max-w-xl mx-auto mb-12">A dark-mode interface designed for athletes. Every screen built for speed and clarity.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
+        <div class="bg-brand-card rounded-2xl border border-white/5 p-6">
+          <div class="bg-brand-bg rounded-xl aspect-[9/16] flex items-center justify-center mb-4">
+            <p class="text-gray-500 text-sm px-4 text-center">[App Screenshot: Log Food with AI Photo]</p>
+          </div>
+          <h3 class="text-white font-semibold text-sm">Log Food with AI Photo</h3>
+          <p class="text-gray-500 text-xs mt-1">Snap your plate, get instant macro breakdown</p>
+        </div>
+        <div class="bg-brand-card rounded-2xl border border-white/5 p-6">
+          <div class="bg-brand-bg rounded-xl aspect-[9/16] flex items-center justify-center mb-4">
+            <p class="text-gray-500 text-sm px-4 text-center">[App Screenshot: Voice Meal Logging]</p>
+          </div>
+          <h3 class="text-white font-semibold text-sm">Voice Meal Logging</h3>
+          <p class="text-gray-500 text-xs mt-1">Describe your meal, AI generates the macros</p>
+        </div>
+        <div class="bg-brand-card rounded-2xl border border-white/5 p-6">
+          <div class="bg-brand-bg rounded-xl aspect-[9/16] flex items-center justify-center mb-4">
+            <p class="text-gray-500 text-sm px-4 text-center">[App Screenshot: Smart Workout Tracking]</p>
+          </div>
+          <h3 class="text-white font-semibold text-sm">Smart Workout Tracking</h3>
+          <p class="text-gray-500 text-xs mt-1">Log workouts with auto macro adjustments</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Lead gen links -->
+  <section class="py-16 px-4 sm:px-6 bg-brand-card/30">
+    <div class="max-w-4xl mx-auto">
+      <h2 class="text-2xl font-bold text-center mb-8">Learn More</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <a href="best-macro-tracking-app.html" class="bg-brand-card rounded-xl p-5 border border-white/5 hover:border-brand-purple/30 transition block">
+          <h3 class="text-white font-semibold text-sm">Best Macro Tracking App in 2026</h3>
+          <p class="text-gray-500 text-xs mt-1">See how Macro Maxxing compares</p>
+        </a>
+        <a href="ai-food-scanner.html" class="bg-brand-card rounded-xl p-5 border border-white/5 hover:border-brand-purple/30 transition block">
+          <h3 class="text-white font-semibold text-sm">AI Food Scanner</h3>
+          <p class="text-gray-500 text-xs mt-1">How our 3-tier AI recognition works</p>
+        </a>
+        <a href="calorie-counter-app.html" class="bg-brand-card rounded-xl p-5 border border-white/5 hover:border-brand-purple/30 transition block">
+          <h3 class="text-white font-semibold text-sm">Free Calorie Counter</h3>
+          <p class="text-gray-500 text-xs mt-1">Why barcode scanning is outdated</p>
+        </a>
+        <a href="intermittent-fasting-tracker.html" class="bg-brand-card rounded-xl p-5 border border-white/5 hover:border-brand-purple/30 transition block">
+          <h3 class="text-white font-semibold text-sm">Intermittent Fasting Tracker</h3>
+          <p class="text-gray-500 text-xs mt-1">Built-in timer with macro integration</p>
+        </a>
+        <a href="workout-tracker-app.html" class="bg-brand-card rounded-xl p-5 border border-white/5 hover:border-brand-purple/30 transition block">
+          <h3 class="text-white font-semibold text-sm">Workout Tracker with Macros</h3>
+          <p class="text-gray-500 text-xs mt-1">Auto-adjust nutrition for training</p>
+        </a>
+        <a href="voice-food-logging.html" class="bg-brand-card rounded-xl p-5 border border-white/5 hover:border-brand-purple/30 transition block">
+          <h3 class="text-white font-semibold text-sm">Voice Food Logging</h3>
+          <p class="text-gray-500 text-xs mt-1">Log meals hands-free with AI</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download CTA -->
+  <section id="download" class="py-24 px-4 sm:px-6">
+    <div class="max-w-3xl mx-auto text-center">
+      <h2 class="text-3xl sm:text-4xl font-bold mb-4 text-gradient">Ready to start maxxing your macros?</h2>
+      <p class="text-gray-400 text-lg mb-8">Download Macro Maxxing for free and start tracking with AI today.</p>
+      <a href="#" class="inline-flex items-center gap-3 bg-white text-brand-bg px-8 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition">
+        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 21.99 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 21.99C7.79 22.03 6.8 20.68 5.96 19.47C4.25 16.97 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.89C10.1 6.87 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/></svg>
+        Download on the App Store
+      </a>
+      <p class="text-gray-500 text-sm mt-4">Free to download. iOS 17+ required.</p>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-brand-bg border-t border-white/5 py-16">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-10">
+        <div>
+          <div class="flex items-center gap-2 mb-4">
+            <span class="text-2xl">🔥</span>
+            <span class="text-xl font-bold text-gradient">Macro Maxxing</span>
+          </div>
+          <p class="text-gray-400 text-sm">log the mog. The AI-powered macro tracker built for serious athletes.</p>
+        </div>
+        <div>
+          <h4 class="font-semibold text-white mb-4">Features</h4>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li><a href="ai-food-scanner.html" class="hover:text-white transition">AI Food Scanner</a></li>
+            <li><a href="voice-food-logging.html" class="hover:text-white transition">Voice Food Logging</a></li>
+            <li><a href="workout-tracker-app.html" class="hover:text-white transition">Workout Tracker</a></li>
+            <li><a href="intermittent-fasting-tracker.html" class="hover:text-white transition">Fasting Tracker</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="font-semibold text-white mb-4">Compare</h4>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li><a href="best-macro-tracking-app.html" class="hover:text-white transition">Best Macro Tracking App</a></li>
+            <li><a href="calorie-counter-app.html" class="hover:text-white transition">Calorie Counter App</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="font-semibold text-white mb-4">Get the App</h4>
+          <a href="#download" class="inline-block bg-brand-purple hover:bg-brand-purple/80 text-white px-6 py-3 rounded-full font-semibold transition text-sm">Download for iOS</a>
+          <p class="text-gray-500 text-xs mt-3">Requires iOS 17 or later.</p>
+        </div>
+      </div>
+      <div class="border-t border-white/5 mt-12 pt-8 flex flex-col sm:flex-row justify-between items-center text-xs text-gray-500">
+        <p>&copy; 2026 Macro Maxxing. All rights reserved.</p>
+        <div class="flex gap-6 mt-4 sm:mt-0">
+          <a href="#" class="hover:text-white transition">Privacy Policy</a>
+          <a href="#" class="hover:text-white transition">Terms of Service</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
