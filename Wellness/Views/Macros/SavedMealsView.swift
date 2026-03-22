@@ -8,7 +8,7 @@ import SwiftUI
 struct SavedMealsView: View {
     let savedMeals: [FoodEntry]
     let onSelect: (FoodEntry) -> Void
-    let onDelete: ((FoodEntry) -> Void)?
+    var onDelete: ((FoodEntry) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
 
     @State private var mealToDelete: FoodEntry? = nil
