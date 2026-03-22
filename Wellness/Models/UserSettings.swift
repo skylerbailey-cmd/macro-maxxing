@@ -59,6 +59,8 @@ struct AuraGain: Identifiable, Equatable {
     var goalWeight:    Double = 160
     var heightInches:  Int    = 0
     var proteinPerLb:  Double = 0.9
+    /// "male", "female", or "" (not set). Used for Mifflin-St Jeor BMR calculation.
+    var gender:        String = ""
 
     // MARK: - Location
 
@@ -519,6 +521,7 @@ struct AuraGain: Identifiable, Equatable {
         goalWeight        = profile.goalWeight
         heightInches      = profile.heightInches
         proteinPerLb      = profile.proteinPerLb
+        gender            = profile.gender
         fastingEnabled    = profile.fastingEnabled
         // Write window settings to UserDefaults so HomeViewModel and FoodLogView
         // (which read from UserDefaults) pick up the synced values on next appear.

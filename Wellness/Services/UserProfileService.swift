@@ -202,6 +202,7 @@ final class UserProfileService {
             "currentWeight":     userSettings.currentWeight,
             "goalWeight":        userSettings.goalWeight,
             "proteinPerLb":      userSettings.proteinPerLb,
+            "gender":            userSettings.gender,
             "fastingEnabled":    userSettings.fastingEnabled,
             "auraPopupsEnabled": userSettings.auraPopupsEnabled,
             "excludeDairy":          userSettings.excludeDairy,

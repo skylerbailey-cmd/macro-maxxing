@@ -287,10 +287,15 @@ struct SettingsView: View {
                 pickerRow(label: "Height", display: heightInchesVal > 0 ? Self.formatHeight(heightInchesVal) : "Not set") {
                     activePicker = .height
                 }
+                Picker("Gender", selection: $userSettings.gender) {
+                    Text("Not set").tag("")
+                    Text("Male").tag("male")
+                    Text("Female").tag("female")
+                }
             } header: {
                 Text("Body")
             } footer: {
-                Text("Goal weight is limited to 5 lbs from your current weight. Healthy, sustainable changes happen in small steps — aim to lose or gain 1–2 lbs per week, then update your goal as you progress.")
+                Text("Gender is used to calculate your daily calorie goal more accurately. Goal weight is limited to 5 lbs from your current weight — aim for 1–2 lbs per week.")
             }
 
             // MARK: Nutrition
@@ -497,6 +502,7 @@ struct SettingsView: View {
             "goalWeight": goalWeightVal,
             "heightInches": heightInchesVal,
             "proteinPerLb": proteinPerLbVal,
+            "gender":       userSettings.gender,
             "fastingEnabled": userSettings.fastingEnabled,
             "auraPopupsEnabled": userSettings.auraPopupsEnabled,
             "excludeDairy":      userSettings.excludeDairy,

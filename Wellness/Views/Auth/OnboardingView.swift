@@ -29,6 +29,7 @@ struct OnboardingView: View {
         byAdding: .year, value: -20, to: Date()) ?? Date()
     @State private var heightFeet:       Int      = 5
     @State private var heightInches:    Int      = 9
+    @State private var gender:          String   = ""
     @State private var currentWeight:   Double   = 160
     @State private var goalWeight:      Double   = 160
     @State private var isPrivate:       Bool     = true
@@ -347,6 +348,7 @@ struct OnboardingView: View {
             subtitle: "We'll use these to calculate your daily macro goals."
         ) {
             VStack(spacing: 20) {
+                genderPicker
                 heightPicker
                 weightSlider(label: "Current Weight", value: $currentWeight)
                 goalWeightSlider
@@ -380,6 +382,32 @@ struct OnboardingView: View {
             let clamped = min(max(goalWeight, newWeight - 5), newWeight + 5)
             if clamped != goalWeight { goalWeight = clamped }
         }
+    }
+
+    private var genderPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Gender")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.65))
+            HStack(spacing: 12) {
+                genderButton(label: "Male", value: "male")
+                genderButton(label: "Female", value: "female")
+            }
+        }
+        .padding(16)
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func genderButton(label: String, value: String) -> some View {
+        Button { gender = value } label: {
+            Text(label)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(gender == value ? .black : .white.opacity(0.55))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(gender == value ? purpl : Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
     }
 
     private var heightPicker: some View {
@@ -539,13 +567,15 @@ struct OnboardingView: View {
         dobFormatter.dateFormat = "yyyy-MM-dd"
         let dobString = dobFormatter.string(from: dateOfBirth)
 
-        // Calculate macros using Mifflin-St Jeor (gender-neutral avg) + moderate activity
+        // Calculate macros using Mifflin-St Jeor + sedentary baseline (1.2)
+        // Auto-adjust for workouts handles extra calories on active days.
         let totalInches = heightFeet * 12 + heightInches
         let weightKg  = goalWeight * 0.453592
         let heightCm  = Double(totalInches) * 2.54
         let age       = Double(Calendar.current.dateComponents([.year], from: dateOfBirth, to: Date()).year ?? 20)
-        let bmr       = 10.0 * weightKg + 6.25 * heightCm - 5.0 * age - 78.0
-        let cals      = bmr * 1.55
+        let genderOffset: Double = gender == "male" ? 5.0 : gender == "female" ? -161.0 : -78.0
+        let bmr       = 10.0 * weightKg + 6.25 * heightCm - 5.0 * age + genderOffset
+        let cals      = bmr * 1.2
         let protein   = goalWeight * 0.9
         let fat       = (cals * 0.25) / 9.0
         let carbs     = (cals - protein * 4.0 - fat * 9.0) / 4.0
@@ -561,6 +591,7 @@ struct OnboardingView: View {
                 "username":         username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
                 "dateOfBirth":      dobString,
                 "heightInches":     totalInches,
+                "gender":           gender,
                 "currentWeight":    currentWeight,
                 "goalWeight":       goalWeight,
                 "isPrivateAccount": isPrivate

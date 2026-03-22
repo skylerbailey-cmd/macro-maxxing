@@ -437,12 +437,14 @@ import FirebaseFirestore
     func recalculateMacrosFromGoalWeight() {
         let gw = userSettings.goalWeight
         guard gw > 0 else { return }
-        // Mifflin-St Jeor (gender-neutral avg) × moderate activity multiplier
+        // Mifflin-St Jeor + sedentary baseline (1.2). Auto-adjust handles workout days.
         let weightKg = gw * 0.453592
         let heightCm = Double(max(userSettings.heightInches, 1)) * 2.54
         let age      = Double(userSettings.ageInYears)
-        let bmr      = 10.0 * weightKg + 6.25 * heightCm - 5.0 * age - 78.0
-        let cals     = bmr * 1.55
+        let g        = userSettings.gender
+        let genderOffset: Double = g == "male" ? 5.0 : g == "female" ? -161.0 : -78.0
+        let bmr      = 10.0 * weightKg + 6.25 * heightCm - 5.0 * age + genderOffset
+        let cals     = bmr * 1.2
         let protein  = gw * userSettings.proteinPerLb
         let fat      = (cals * 0.25) / 9.0
         let carbs    = (cals - protein * 4.0 - fat * 9.0) / 4.0
