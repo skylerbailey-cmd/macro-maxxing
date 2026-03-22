@@ -134,9 +134,12 @@ struct FoodLogView: View {
                 
                 logTabBar
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 4)
                     .tutorialAnchor("log.tabBar")
-                
+
+                // Banner ad below Fuel/Duel tabs
+                ConditionalBannerAd(isEnabled: RemoteConfigService.shared.logTabBannerEnabled)
+
                 tabContent
             }
             
@@ -513,7 +516,14 @@ struct FoodLogView: View {
             .tint(analyzeVM.hasRunToday ? .gray : Color.purpleHi)
             .disabled(analyzeVM.state == .analyzing || analyzeVM.hasRunToday)
             .alert("Get My Recommendation?", isPresented: $showLogMealsConfirm) {
-                Button("Let's Go", role: .none) { Task { await analyzeVM.analyze() } }
+                Button("Let's Go", role: .none) {
+                    let doAnalyze = { Task { await analyzeVM.analyze() } }
+                    if RemoteConfigService.shared.nutritionCoachAdRequired {
+                        AdManager.shared.showRewarded(onReward: { _ = doAnalyze() })
+                    } else {
+                        _ = doAnalyze()
+                    }
+                }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("Reviews your full day of meals, macros, and workouts to give you a personalized nutrition debrief. Once per day.")

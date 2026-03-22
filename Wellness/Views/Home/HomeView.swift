@@ -654,8 +654,15 @@ struct HomeView: View {
                         title: Text("Brainstorm Next Meal"),
                         message: Text("AI will suggest a specific meal based on your current macro balance. You have \(viewModel.userSettings.brainstormUsesRemaining) use\(viewModel.userSettings.brainstormUsesRemaining == 1 ? "" : "s") left today."),
                         primaryButton: .default(Text("Let's Go")) {
-                            if viewModel.userSettings.consumeBrainstormUse() {
-                                Task { await viewModel.brainstorm() }
+                            let doBrainstorm = {
+                                if viewModel.userSettings.consumeBrainstormUse() {
+                                    Task { await viewModel.brainstorm() }
+                                }
+                            }
+                            if RemoteConfigService.shared.brainstormAdRequired {
+                                AdManager.shared.showRewarded(onReward: doBrainstorm)
+                            } else {
+                                doBrainstorm()
                             }
                         },
                         secondaryButton: .cancel()

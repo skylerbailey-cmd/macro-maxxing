@@ -740,8 +740,15 @@ struct NewPostView: View {
 
         // Award aura for workout post — once per day only
         if selectedLabel == .workout, !userSettings.hasEarnedWorkoutPostAuraToday {
-            userSettings.awardAura(points: 25)
-            userSettings.lastWorkoutPostDate = Date()
+            if RemoteConfigService.shared.auraRewardAdRequired {
+                AdManager.shared.showRewarded(onReward: { [weak userSettings] in
+                    userSettings?.awardAura(points: 25)
+                    userSettings?.lastWorkoutPostDate = Date()
+                })
+            } else {
+                userSettings.awardAura(points: 25)
+                userSettings.lastWorkoutPostDate = Date()
+            }
         }
 
         if selectedLabel == .workout {

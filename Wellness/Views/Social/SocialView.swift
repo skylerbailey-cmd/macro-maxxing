@@ -219,7 +219,11 @@ struct SocialView: View {
                     } else {
                         ScrollView {
                             LazyVStack(spacing: 12) {
-                                ForEach(arenaDisplayed) { post in
+                                ForEach(Array(arenaDisplayed.enumerated()), id: \.element.id) { index, post in
+                                    // Insert banner ad every N posts
+                                    if index > 0 && index % RemoteConfigService.shared.feedAdFrequency == 0 {
+                                        ConditionalBannerAd(isEnabled: RemoteConfigService.shared.feedBannerAdsEnabled)
+                                    }
                                     FeedPostCard(
                                         post:          post,
                                         currentUserID: userSettings.userID,

@@ -517,7 +517,13 @@ struct CelebrationPostEditorSheet: View {
         post.imageData4     = datas.count > 3 ? datas[3] : nil
         post.firebasePostID = fbPostID
         modelContext.insert(post)
-        userSettings.awardAura(points: 50)
+        if RemoteConfigService.shared.auraRewardAdRequired {
+            AdManager.shared.showRewarded(onReward: { [weak userSettings] in
+                userSettings?.awardAura(points: 50)
+            })
+        } else {
+            userSettings.awardAura(points: 50)
+        }
 
         // Mirror to Firebase in the background
         let images       = photos.map { $0.image }
