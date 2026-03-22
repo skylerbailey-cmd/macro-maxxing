@@ -66,6 +66,7 @@ struct LeaderboardView: View {
     @State private var timeUntilReset:     TimeInterval       = 0
     @State private var countdownBlink:     Bool               = false
     @State private var showingWinnerPopup: Bool               = false
+    @State private var boardUnlocked:      Bool               = false
 
     enum Scope: String, CaseIterable {
         case team  = "Team"
@@ -116,25 +117,55 @@ struct LeaderboardView: View {
                     .tutorialAnchor("board.scopePicker")
                 ScrollView {
                     VStack(spacing: 24) {
-                        if userSettings.isPrivateAccount && (selectedScope == .local || selectedScope == .arena) {
-                            privateAccountBanner
-                        }
-                        resetCountdownBanner
-                        boardSection(
-                            title: "Weekly Aura",
-                            icon: "bolt.fill",
-                            subtitle: "Resets \(nextSundayString)",
-                            entries: weeklyAuraDisplayed,
-                            board: .weeklyAura,
-                            isLoading: weeklyAuraLoading
-                        )
-                        .tutorialAnchor("board.rows")
-
-                        Text("More boards coming soon")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.35))
+                        if RemoteConfigService.shared.mogBoardAdRequired && !boardUnlocked {
+                            // Rewarded ad gate
+                            VStack(spacing: 16) {
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 36))
+                                    .foregroundStyle(purpl.opacity(0.50))
+                                Text("Watch a short ad to view this week's board")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.65))
+                                    .multilineTextAlignment(.center)
+                                Button {
+                                    AdManager.shared.showRewarded(onReward: {
+                                        Task { @MainActor in boardUnlocked = true }
+                                    })
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "play.fill")
+                                        Text("Watch Ad")
+                                    }
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundStyle(.black)
+                                    .padding(.horizontal, 24)
+                                    .padding(.vertical, 12)
+                                    .background(gold, in: Capsule())
+                                }
+                            }
                             .frame(maxWidth: .infinity)
-                            .padding(.top, 4)
+                            .padding(.vertical, 40)
+                        } else {
+                            if userSettings.isPrivateAccount && (selectedScope == .local || selectedScope == .arena) {
+                                privateAccountBanner
+                            }
+                            resetCountdownBanner
+                            boardSection(
+                                title: "Weekly Aura",
+                                icon: "bolt.fill",
+                                subtitle: "Resets \(nextSundayString)",
+                                entries: weeklyAuraDisplayed,
+                                board: .weeklyAura,
+                                isLoading: weeklyAuraLoading
+                            )
+                            .tutorialAnchor("board.rows")
+
+                            Text("More boards coming soon")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.35))
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, 4)
+                        }
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
