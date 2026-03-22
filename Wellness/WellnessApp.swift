@@ -184,6 +184,11 @@ struct WellnessApp: App {
                 }
             }
             .task { await userSettings.loadCachedImage() }
+            .task {
+                // Initialize ads + remote config (dormant until enabled in Firebase Console)
+                AdManager.shared.initialize()
+                await RemoteConfigService.shared.fetchAndActivate()
+            }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
                 // Reset auth timeout flag so a fresh resolve attempt can happen
