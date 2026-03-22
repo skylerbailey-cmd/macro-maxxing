@@ -35,6 +35,7 @@ struct LogWorkoutSheet: View {
 
     // Saved templates
     @State private var savedWorkouts: [SavedWorkout] = []
+    @State private var workoutToDelete: SavedWorkout? = nil
 
     // Feedback
     @State private var isSaving   = false
@@ -148,6 +149,23 @@ struct LogWorkoutSheet: View {
             }
             .preferredColorScheme(.dark)
             .onAppear { savedWorkouts = WorkoutService.shared.savedWorkouts }
+            .alert("Delete Saved Workout?", isPresented: Binding(
+                get: { workoutToDelete != nil },
+                set: { if !$0 { workoutToDelete = nil } }
+            )) {
+                Button("Cancel", role: .cancel) { workoutToDelete = nil }
+                Button("Delete", role: .destructive) {
+                    if let workout = workoutToDelete {
+                        WorkoutService.shared.deleteSavedWorkout(id: workout.id)
+                        savedWorkouts = WorkoutService.shared.savedWorkouts
+                        workoutToDelete = nil
+                    }
+                }
+            } message: {
+                if let workout = workoutToDelete {
+                    Text("Are you sure you want to delete \"\(workout.name)\"? This cannot be undone.")
+                }
+            }
             .alert("Share for Points?", isPresented: $showingPostPrompt) {
                 Button("Got it") { onSaved(); dismiss() }
             } message: {
@@ -198,8 +216,7 @@ struct LogWorkoutSheet: View {
         .buttonStyle(.plain)
         .contextMenu {
             Button(role: .destructive) {
-                WorkoutService.shared.deleteSavedWorkout(id: saved.id)
-                savedWorkouts = WorkoutService.shared.savedWorkouts
+                workoutToDelete = saved
             } label: { Label("Delete", systemImage: "trash") }
         }
     }

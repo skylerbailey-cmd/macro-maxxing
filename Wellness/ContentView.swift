@@ -447,7 +447,9 @@ private struct SavedMealsSheet: View {
                     .background(Color.black)
                     .preferredColorScheme(.dark)
             } else {
-                SavedMealsView(savedMeals: savedMeals) { meal in
+                SavedMealsView(savedMeals: savedMeals, onDelete: { meal in
+                    deleteMeal(meal)
+                }) { meal in
                     logMeal(meal)
                 }
             }
@@ -455,6 +457,13 @@ private struct SavedMealsSheet: View {
         .task {
             savedMeals = (try? await FoodEntryService.shared.fetchSavedMeals(userID: userID)) ?? []
             isLoading = false
+        }
+    }
+
+    private func deleteMeal(_ meal: FoodEntry) {
+        Task {
+            await FoodEntryService.shared.delete(entryID: meal.firebaseEntryID, userID: userID)
+            savedMeals.removeAll { $0.id == meal.id }
         }
     }
 

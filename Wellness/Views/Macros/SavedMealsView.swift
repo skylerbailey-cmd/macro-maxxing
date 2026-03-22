@@ -8,7 +8,16 @@ import SwiftUI
 struct SavedMealsView: View {
     let savedMeals: [FoodEntry]
     let onSelect: (FoodEntry) -> Void
+    let onDelete: ((FoodEntry) -> Void)?
     @Environment(\.dismiss) private var dismiss
+
+    @State private var mealToDelete: FoodEntry? = nil
+
+    init(savedMeals: [FoodEntry], onDelete: ((FoodEntry) -> Void)? = nil, onSelect: @escaping (FoodEntry) -> Void) {
+        self.savedMeals = savedMeals
+        self.onDelete = onDelete
+        self.onSelect = onSelect
+    }
 
     var body: some View {
         NavigationStack {
@@ -30,6 +39,15 @@ struct SavedMealsView: View {
                                     savedMealRow(meal)
                                 }
                                 .buttonStyle(.plain)
+                                .contextMenu {
+                                    if onDelete != nil {
+                                        Button(role: .destructive) {
+                                            mealToDelete = meal
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
+                                }
                             }
                         }
                         .padding(.horizontal, 16)
@@ -45,6 +63,22 @@ struct SavedMealsView: View {
                 }
             }
             .preferredColorScheme(.dark)
+            .alert("Delete Saved Meal?", isPresented: Binding(
+                get: { mealToDelete != nil },
+                set: { if !$0 { mealToDelete = nil } }
+            )) {
+                Button("Cancel", role: .cancel) { mealToDelete = nil }
+                Button("Delete", role: .destructive) {
+                    if let meal = mealToDelete {
+                        onDelete?(meal)
+                        mealToDelete = nil
+                    }
+                }
+            } message: {
+                if let meal = mealToDelete {
+                    Text("Are you sure you want to delete \"\(meal.foodName)\"? This cannot be undone.")
+                }
+            }
         }
     }
 
