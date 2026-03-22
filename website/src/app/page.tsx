@@ -505,6 +505,16 @@ export default function Home() {
                 title: "Carbon Diet Coach Alternative",
                 desc: "AI tracking for serious athletes",
               },
+              {
+                href: "/yazio-alternative",
+                title: "YAZIO Alternative",
+                desc: "Accurate tracking, zero upsells",
+              },
+              {
+                href: "/fatsecret-alternative",
+                title: "FatSecret Alternative",
+                desc: "Free tracking, modernized",
+              },
             ].map((link, i) => (
               <Link
                 key={i}
