@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import DownloadCTA from "@/components/DownloadCTA";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title: "TDEE Calculator & Macro Tracker — Know Your Numbers | Macro Maxxing",

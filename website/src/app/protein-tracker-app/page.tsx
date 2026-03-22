@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import FeatureCard from "@/components/FeatureCard";
-import ComparisonTable from "@/components/ComparisonTable";
-import DownloadCTA from "@/components/DownloadCTA";
+import { FeatureCard } from "@/components/FeatureCard";
+import { ComparisonTable } from "@/components/ComparisonTable";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title: "Best Protein Tracker App — AI-Powered Protein Tracking | Macro Maxxing",

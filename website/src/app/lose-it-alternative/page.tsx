@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import ComparisonTable from "@/components/ComparisonTable";
-import FeatureCard from "@/components/FeatureCard";
-import DownloadCTA from "@/components/DownloadCTA";
+import { ComparisonTable } from "@/components/ComparisonTable";
+import { FeatureCard } from "@/components/FeatureCard";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title: "Best Lose It! Alternative 2026 — Macro Maxxing vs Lose It",
