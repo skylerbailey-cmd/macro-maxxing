@@ -78,6 +78,15 @@ struct FeedPostDetailView: View {
         .preferredColorScheme(.dark)
         .navigationTitle("Post")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.70))
+                }
+            }
+        }
         .task {
             await loadComments()
             guard !Task.isCancelled else { return }
