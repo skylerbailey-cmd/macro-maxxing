@@ -13,10 +13,10 @@ struct SavedMealsView: View {
 
     @State private var mealToDelete: FoodEntry? = nil
 
-    init(savedMeals: [FoodEntry], onDelete: ((FoodEntry) -> Void)? = nil, onSelect: @escaping (FoodEntry) -> Void) {
+    init(savedMeals: [FoodEntry], onSelect: @escaping (FoodEntry) -> Void, onDelete: ((FoodEntry) -> Void)? = nil) {
         self.savedMeals = savedMeals
-        self.onDelete = onDelete
         self.onSelect = onSelect
+        self.onDelete = onDelete
     }
 
     var body: some View {
