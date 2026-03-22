@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import FeatureCard from "@/components/FeatureCard";
-import DownloadCTA from "@/components/DownloadCTA";
+import { FeatureCard } from "@/components/FeatureCard";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title: "Gym Diet Plan Tracker — Track Your Training Diet with AI | Macro Maxxing",
@@ -172,7 +172,7 @@ export default function GymDietPlanPage() {
             </h2>
             <p className="text-gray-300 text-lg text-center max-w-2xl mx-auto mb-12">
               Macro Maxxing isn&apos;t just a tracker — it&apos;s a community
-              of athletes. Build streaks, compete on leaderboards, and share
+              of people who train. Build streaks, compete on leaderboards, and share
               your gym meals with people who get it.
             </p>
             <div className="grid md:grid-cols-3 gap-6">
@@ -186,7 +186,7 @@ export default function GymDietPlanPage() {
               </div>
               <div className="text-center p-6 bg-white/5 border border-white/10 rounded-2xl">
                 <div className="text-4xl mb-3">🏆</div>
-                <h3 className="font-bold mb-2">Athlete Leaderboard</h3>
+                <h3 className="font-bold mb-2">Leaderboard</h3>
                 <p className="text-gray-400 text-sm">
                   Compete with other gym-goers for the top spot. Earn XP for
                   every action — the grind pays off.

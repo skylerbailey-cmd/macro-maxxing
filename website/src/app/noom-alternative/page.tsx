@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import ComparisonTable from "@/components/ComparisonTable";
-import FeatureCard from "@/components/FeatureCard";
-import DownloadCTA from "@/components/DownloadCTA";
+import { ComparisonTable } from "@/components/ComparisonTable";
+import { FeatureCard } from "@/components/FeatureCard";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title: "Best Noom Alternative 2026 — Macro Maxxing vs Noom",
@@ -74,7 +74,7 @@ export default function NoomAlternativePage() {
               },
               {
                 issue: "Simplified Color System, Not Real Macros",
-                desc: "Noom categorizes foods as green, yellow, or red instead of showing detailed macro breakdowns. For athletes or anyone tracking protein, carbs, and fat, this is insufficient.",
+                desc: "Noom categorizes foods as green, yellow, or red instead of showing detailed macro breakdowns. For anyone tracking protein, carbs, and fat, this is insufficient.",
               },
               {
                 issue: "Generic Coaching",

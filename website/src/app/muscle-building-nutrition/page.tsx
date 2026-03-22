@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import FeatureCard from "@/components/FeatureCard";
-import DownloadCTA from "@/components/DownloadCTA";
+import { FeatureCard } from "@/components/FeatureCard";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title: "Muscle Building Nutrition Tracker — Bulk & Build Lean Muscle | Macro Maxxing",
@@ -215,7 +215,7 @@ export default function MuscleBuildingNutritionPage() {
         <div id="download">
           <DownloadCTA
             headline="Fuel Your Gains"
-            subheadline="AI nutrition tracking built for lifters. Streaks, leaderboards, and a community of athletes. Free forever."
+            subheadline="AI nutrition tracking built for lifters. Streaks, leaderboards, and a community of dedicated trackers. Free forever."
           />
         </div>
       </article>

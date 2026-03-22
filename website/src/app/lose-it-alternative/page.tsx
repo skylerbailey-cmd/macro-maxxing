@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import ComparisonTable from "@/components/ComparisonTable";
-import FeatureCard from "@/components/FeatureCard";
-import DownloadCTA from "@/components/DownloadCTA";
+import { ComparisonTable } from "@/components/ComparisonTable";
+import { FeatureCard } from "@/components/FeatureCard";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title: "Best Lose It! Alternative 2026 — Macro Maxxing vs Lose It",
@@ -63,7 +63,7 @@ export default function LoseItAlternativePage() {
           </h2>
           <p className="text-gray-300 text-lg mb-6">
             Lose It! is popular for its clean design and simple calorie tracking.
-            But for athletes and serious fitness enthusiasts, it lacks key
+            But for anyone serious about their nutrition, it lacks key
             features:
           </p>
           <div className="space-y-4">
@@ -124,7 +124,7 @@ export default function LoseItAlternativePage() {
 
         <section className="py-16 md:py-20 max-w-5xl mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            Why Athletes Choose Macro Maxxing Over Lose It!
+            Why People Choose Macro Maxxing Over Lose It!
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
             <FeatureCard
@@ -175,7 +175,7 @@ export default function LoseItAlternativePage() {
               {[
                 {
                   q: "What is the best alternative to Lose It?",
-                  a: "Macro Maxxing is the best free alternative to Lose It! for athletes and fitness enthusiasts. It offers detailed macro tracking (not just calories), AI photo scanning, voice logging, daily streaks, leaderboards, and a social community — all completely free.",
+                  a: "Macro Maxxing is the best free alternative to Lose It! for anyone serious about their macros. It offers detailed macro tracking (not just calories), AI photo scanning, voice logging, daily streaks, leaderboards, and a social community — all completely free.",
                 },
                 {
                   q: "Is Macro Maxxing better than Lose It for weight loss?",

@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import FeatureCard from "@/components/FeatureCard";
-import DownloadCTA from "@/components/DownloadCTA";
+import { FeatureCard } from "@/components/FeatureCard";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title: "Best Free Weight Loss App — AI Calorie & Macro Tracker | Macro Maxxing",
