@@ -379,153 +379,71 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Lead gen links */}
+      {/* Learn More */}
       <section className="py-16 px-4 sm:px-6 bg-brand-card/30">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl font-bold text-center mb-8">Learn More</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {[
               {
-                href: "/best-macro-tracking-app",
-                title: "Best Macro Tracking App in 2026",
-                desc: "See how Macro Maxxing compares",
+                category: "Features",
+                links: [
+                  { href: "/best-macro-tracking-app", title: "Best Macro Tracking App in 2026" },
+                  { href: "/ai-food-scanner", title: "AI Food Scanner" },
+                  { href: "/calorie-counter-app", title: "Free Calorie Counter" },
+                  { href: "/intermittent-fasting-tracker", title: "Intermittent Fasting Tracker" },
+                  { href: "/workout-tracker-app", title: "Workout Tracker with Macros" },
+                  { href: "/voice-food-logging", title: "Voice Food Logging" },
+                  { href: "/streaks-and-gamification", title: "Streaks & Gamification" },
+                  { href: "/social-fitness-community", title: "Social Community" },
+                ],
               },
               {
-                href: "/ai-food-scanner",
-                title: "AI Food Scanner",
-                desc: "How our 3-tier AI recognition works",
+                category: "Goals",
+                links: [
+                  { href: "/looksmaxxing-macro-tracker", title: "Looksmaxxing Nutrition" },
+                  { href: "/protein-tracker-app", title: "Protein Tracker" },
+                  { href: "/weight-loss-app", title: "Weight Loss App" },
+                  { href: "/muscle-building-nutrition", title: "Muscle Building Nutrition" },
+                  { href: "/meal-prep-tracker", title: "Meal Prep Tracker" },
+                  { href: "/tdee-calculator", title: "TDEE Calculator" },
+                  { href: "/gym-diet-plan", title: "Gym Diet Plan" },
+                  { href: "/accountability-partner-app", title: "Accountability Partner" },
+                  { href: "/body-recomposition-tracker", title: "Body Recomp Tracker" },
+                ],
               },
               {
-                href: "/calorie-counter-app",
-                title: "Free Calorie Counter",
-                desc: "Why barcode scanning is outdated",
+                category: "Compare",
+                links: [
+                  { href: "/myfitnesspal-alternative", title: "MyFitnessPal Alternative" },
+                  { href: "/noom-alternative", title: "Noom Alternative" },
+                  { href: "/cronometer-alternative", title: "Cronometer Alternative" },
+                  { href: "/macrofactor-alternative", title: "MacroFactor Alternative" },
+                  { href: "/lose-it-alternative", title: "Lose It! Alternative" },
+                  { href: "/lifesum-alternative", title: "Lifesum Alternative" },
+                  { href: "/carbon-diet-coach-alternative", title: "Carbon Diet Coach Alternative" },
+                  { href: "/yazio-alternative", title: "YAZIO Alternative" },
+                  { href: "/fatsecret-alternative", title: "FatSecret Alternative" },
+                ],
               },
-              {
-                href: "/intermittent-fasting-tracker",
-                title: "Intermittent Fasting Tracker",
-                desc: "Built-in timer with macro integration",
-              },
-              {
-                href: "/workout-tracker-app",
-                title: "Workout Tracker with Macros",
-                desc: "Auto-adjust nutrition for training",
-              },
-              {
-                href: "/voice-food-logging",
-                title: "Voice Food Logging",
-                desc: "Log meals hands-free with AI",
-              },
-              {
-                href: "/streaks-and-gamification",
-                title: "Streaks & Gamification",
-                desc: "Turn tracking into a game",
-              },
-              {
-                href: "/social-fitness-community",
-                title: "Social Community",
-                desc: "Accountability through community",
-              },
-              {
-                href: "/looksmaxxing-macro-tracker",
-                title: "Looksmaxxing Nutrition",
-                desc: "Optimize your glow up diet",
-              },
-              {
-                href: "/protein-tracker-app",
-                title: "Protein Tracker",
-                desc: "Hit your protein goals daily",
-              },
-              {
-                href: "/weight-loss-app",
-                title: "Weight Loss App",
-                desc: "AI-powered calorie deficit tracking",
-              },
-              {
-                href: "/muscle-building-nutrition",
-                title: "Muscle Building Nutrition",
-                desc: "Track your bulking macros",
-              },
-              {
-                href: "/meal-prep-tracker",
-                title: "Meal Prep Tracker",
-                desc: "Scan once, log all week",
-              },
-              {
-                href: "/tdee-calculator",
-                title: "TDEE Calculator",
-                desc: "Know your maintenance calories",
-              },
-              {
-                href: "/gym-diet-plan",
-                title: "Gym Diet Plan",
-                desc: "Nutrition for every training style",
-              },
-              {
-                href: "/accountability-partner-app",
-                title: "Accountability Partner",
-                desc: "Never diet alone again",
-              },
-              {
-                href: "/body-recomposition-tracker",
-                title: "Body Recomp Tracker",
-                desc: "Lose fat and build muscle",
-              },
-              {
-                href: "/myfitnesspal-alternative",
-                title: "MyFitnessPal Alternative",
-                desc: "Why athletes are switching",
-              },
-              {
-                href: "/noom-alternative",
-                title: "Noom Alternative",
-                desc: "Real macros, not color codes",
-              },
-              {
-                href: "/cronometer-alternative",
-                title: "Cronometer Alternative",
-                desc: "Accuracy without the complexity",
-              },
-              {
-                href: "/macrofactor-alternative",
-                title: "MacroFactor Alternative",
-                desc: "Save $144/year",
-              },
-              {
-                href: "/lose-it-alternative",
-                title: "Lose It! Alternative",
-                desc: "More than just calorie counting",
-              },
-              {
-                href: "/lifesum-alternative",
-                title: "Lifesum Alternative",
-                desc: "All features, no paywall",
-              },
-              {
-                href: "/carbon-diet-coach-alternative",
-                title: "Carbon Diet Coach Alternative",
-                desc: "AI tracking for serious athletes",
-              },
-              {
-                href: "/yazio-alternative",
-                title: "YAZIO Alternative",
-                desc: "Accurate tracking, zero upsells",
-              },
-              {
-                href: "/fatsecret-alternative",
-                title: "FatSecret Alternative",
-                desc: "Free tracking, modernized",
-              },
-            ].map((link, i) => (
-              <Link
-                key={i}
-                href={link.href}
-                className="bg-brand-card rounded-xl p-5 border border-white/5 hover:border-brand-purple/30 transition group"
-              >
-                <h3 className="text-white font-semibold text-sm group-hover:text-brand-purple transition">
-                  {link.title}
+            ].map((group) => (
+              <div key={group.category}>
+                <h3 className="text-sm font-semibold text-brand-purple uppercase tracking-wider mb-3">
+                  {group.category}
                 </h3>
-                <p className="text-gray-500 text-xs mt-1">{link.desc}</p>
-              </Link>
+                <ul className="space-y-1">
+                  {group.links.map((link) => (
+                    <li key={link.href}>
+                      <Link
+                        href={link.href}
+                        className="text-gray-400 hover:text-white text-sm transition"
+                      >
+                        {link.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
           </div>
         </div>
