@@ -449,9 +449,9 @@ private struct SavedMealsSheet: View {
             } else {
                 SavedMealsView(savedMeals: savedMeals, onDelete: { meal in
                     deleteMeal(meal)
-                }) { meal in
+                }, onSelect: { meal in
                     logMeal(meal)
-                }
+                })
             }
         }
         .task {
