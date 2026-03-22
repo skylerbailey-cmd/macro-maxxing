@@ -445,9 +445,12 @@ private struct SavedMealsSheet: View {
                     .background(Color.black)
                     .preferredColorScheme(.dark)
             } else {
-                SavedMealsView(savedMeals: savedMeals) { meal in
+                SavedMealsView(savedMeals: savedMeals, onSelect: { meal in
                     logMeal(meal)
-                }
+                }, onDelete: { meal in
+                    savedMeals.removeAll { $0.id == meal.id }
+                    Task { await FoodEntryService.shared.delete(entryID: meal.firebaseEntryID, userID: userID) }
+                })
             }
         }
         .task {

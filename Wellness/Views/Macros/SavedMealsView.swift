@@ -8,6 +8,7 @@ import SwiftUI
 struct SavedMealsView: View {
     let savedMeals: [FoodEntry]
     let onSelect: (FoodEntry) -> Void
+    var onDelete: ((FoodEntry) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -30,6 +31,15 @@ struct SavedMealsView: View {
                                     savedMealRow(meal)
                                 }
                                 .buttonStyle(.plain)
+                                .contextMenu {
+                                    if onDelete != nil {
+                                        Button(role: .destructive) {
+                                            onDelete?(meal)
+                                        } label: {
+                                            Label("Delete Saved Meal", systemImage: "trash")
+                                        }
+                                    }
+                                }
                             }
                         }
                         .padding(.horizontal, 16)

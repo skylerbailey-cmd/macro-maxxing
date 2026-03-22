@@ -1240,6 +1240,13 @@ private struct AnalysisSheet: View {
             )
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button(role: .destructive) {
+                viewModel.deleteSavedMeal(meal)
+            } label: {
+                Label("Delete Saved Meal", systemImage: "trash")
+            }
+        }
     }
 }
 

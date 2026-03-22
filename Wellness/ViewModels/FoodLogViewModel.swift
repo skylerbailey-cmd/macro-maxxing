@@ -364,6 +364,13 @@ enum AnalysisTier: Equatable {
         Task { await FoodEntryService.shared.delete(entryID: entryID, userID: uid) }
     }
 
+    func deleteSavedMeal(_ meal: FoodEntry) {
+        savedMeals.removeAll { $0.id == meal.id }
+        let entryID = meal.firebaseEntryID
+        let uid     = meal.userID
+        Task { await FoodEntryService.shared.delete(entryID: entryID, userID: uid) }
+    }
+
     func updateEntry(_ entry: FoodEntry,
                      foodName: String,
                      calories: Double,
