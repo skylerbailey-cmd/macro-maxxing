@@ -46,6 +46,8 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
+            Color.pageBg.ignoresSafeArea()
+
             // Email verification nudge — full-width gold bar at the top until dismissed
             if auth.needsEmailVerification {
                 VStack(spacing: 0) {

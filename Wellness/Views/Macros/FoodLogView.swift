@@ -18,12 +18,29 @@ struct FoodLogView: View {
     @Environment(NotificationState.self) private var notificationState
     @State private var showingTutorial        = false
     @State private var tutorialAnchors:       [String: Anchor<CGRect>] = [:]
-    @State private var showingAnalysisSheet  = false
-    @State private var showingConfirmation   = false
     @State private var editingEntry: FoodEntry? = nil
     @State private var showingFuelLogPost    = false
     @State private var showingProfile        = false
     @State private var showingNotifications  = false
+
+    // Single active-sheet enum for the meal-logging flow
+    @State private var activeMealSheet: MealSheet? = nil
+
+    enum MealSheet: Identifiable {
+        case camera
+        case photoLibrary
+        case analysis
+        case confirmation
+
+        var id: Int {
+            switch self {
+            case .camera:       return 0
+            case .photoLibrary: return 1
+            case .analysis:     return 2
+            case .confirmation: return 3
+            }
+        }
+    }
 
     @State private var logTab = 0     // 0 = Fuel, 1 = Duel
 
@@ -77,35 +94,37 @@ struct FoodLogView: View {
             }
             .onChange(of: selectedDate, handleDateChange)
             .onChange(of: viewModel.selectedImage) { _, newValue in
-                if newValue != nil { showingAnalysisSheet = true }
+                if newValue != nil { activeMealSheet = .analysis }
             }
             .onChange(of: viewModel.analysisState) { _, newState in
                 if case .confirmed = newState {
-                    showingAnalysisSheet = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        showingConfirmation = true
+                    activeMealSheet = nil
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                        activeMealSheet = .confirmation
                     }
                 }
             }
             .onChange(of: externalImage, handleExternalImage)
-            .sheet(isPresented: $viewModel.showingCamera) {
-                ImagePickerView(sourceType: .camera, selectedImage: $viewModel.selectedImage)
+            .onChange(of: viewModel.showingCamera) { _, show in
+                if show { activeMealSheet = .camera }
             }
-            .sheet(isPresented: $viewModel.showingPhotoLibrary) {
-                ImagePickerView(sourceType: .photoLibrary, selectedImage: $viewModel.selectedImage)
+            .onChange(of: viewModel.showingPhotoLibrary) { _, show in
+                if show { activeMealSheet = .photoLibrary }
+            }
+            .sheet(item: $activeMealSheet, onDismiss: handleMealSheetDismiss) { sheet in
+                switch sheet {
+                case .camera:
+                    ImagePickerView(sourceType: .camera, selectedImage: $viewModel.selectedImage)
+                case .photoLibrary:
+                    ImagePickerView(sourceType: .photoLibrary, selectedImage: $viewModel.selectedImage)
+                case .analysis:
+                    analysisSheet
+                case .confirmation:
+                    confirmationSheet
+                }
             }
             .sheet(item: $editingEntry) { entry in
                 editSheet(for: entry)
-            }
-            .sheet(isPresented: $showingAnalysisSheet, onDismiss: {
-                if !showingConfirmation { viewModel.discardEntry() }
-            }) {
-                analysisSheet
-            }
-            .sheet(isPresented: $showingConfirmation, onDismiss: {
-                viewModel.discardEntry()
-            }) {
-                confirmationSheet
             }
             .sheet(isPresented: $showingFuelLogPost) {
                 fuelLogPostSheet
@@ -289,7 +308,7 @@ struct FoodLogView: View {
     
     private var analysisSheet: some View {
         AnalysisSheet(viewModel: viewModel, onSaved: {
-            showingAnalysisSheet = false
+            activeMealSheet = nil
         })
         .presentationDetents([.large])
     }
@@ -312,7 +331,7 @@ struct FoodLogView: View {
                 onConfirm: { result in
                     viewModel.confirmResult(result)
                     viewModel.saveEntry()
-                    showingConfirmation = false
+                    activeMealSheet = nil
                     // Don't reload from Firestore immediately — saveEntry() already
                     // inserted the entry optimistically. Reload after a short delay
                     // to pick up the Firestore write (photo URL, entry ID).
@@ -325,7 +344,7 @@ struct FoodLogView: View {
                     Task { await viewModel.escalateAnalysis() }
                 },
                 onCancel: {
-                    showingConfirmation = false
+                    activeMealSheet = nil
                     viewModel.discardEntry()
                 }
             )
@@ -379,6 +398,20 @@ struct FoodLogView: View {
         analyzeVM.reset()
     }
     
+    private func handleMealSheetDismiss() {
+        // Sync the ViewModel flags back when the sheet closes
+        viewModel.showingCamera = false
+        viewModel.showingPhotoLibrary = false
+        // If we dismissed from analysis without moving to confirmation, discard
+        // (confirmation sets activeMealSheet to nil then re-opens, so it won't be .analysis here)
+        if activeMealSheet == nil && viewModel.selectedImage != nil {
+            // Check if we're NOT about to open confirmation (handled by the delayed dispatch)
+            if case .confirmed = viewModel.analysisState { } else {
+                viewModel.discardEntry()
+            }
+        }
+    }
+
     private func handleExternalImage(_ oldImage: UIImage?, _ image: UIImage?) {
         guard let img = image else { return }
         viewModel.selectedImage = img

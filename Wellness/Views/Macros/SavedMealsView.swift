@@ -11,6 +11,14 @@ struct SavedMealsView: View {
     var onDelete: ((FoodEntry) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
 
+    @State private var mealToDelete: FoodEntry? = nil
+
+    init(savedMeals: [FoodEntry], onSelect: @escaping (FoodEntry) -> Void, onDelete: ((FoodEntry) -> Void)? = nil) {
+        self.savedMeals = savedMeals
+        self.onSelect = onSelect
+        self.onDelete = onDelete
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -34,7 +42,7 @@ struct SavedMealsView: View {
                                 .contextMenu {
                                     if onDelete != nil {
                                         Button(role: .destructive) {
-                                            onDelete?(meal)
+                                            mealToDelete = meal
                                         } label: {
                                             Label("Delete Saved Meal", systemImage: "trash")
                                         }
@@ -55,6 +63,22 @@ struct SavedMealsView: View {
                 }
             }
             .preferredColorScheme(.dark)
+            .alert("Delete Saved Meal?", isPresented: Binding(
+                get: { mealToDelete != nil },
+                set: { if !$0 { mealToDelete = nil } }
+            )) {
+                Button("Cancel", role: .cancel) { mealToDelete = nil }
+                Button("Delete", role: .destructive) {
+                    if let meal = mealToDelete {
+                        onDelete?(meal)
+                        mealToDelete = nil
+                    }
+                }
+            } message: {
+                if let meal = mealToDelete {
+                    Text("Are you sure you want to delete \"\(meal.foodName)\"? This cannot be undone.")
+                }
+            }
         }
     }
 
