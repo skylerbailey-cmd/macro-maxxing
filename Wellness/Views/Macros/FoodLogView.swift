@@ -416,6 +416,8 @@ struct FoodLogView: View {
         guard let img = image else { return }
         viewModel.selectedImage = img
         externalImage = nil
+        // Open the analysis sheet so the image gets processed by AI
+        showingAnalysisSheet = true
     }
 
     private var profileAvatarIcon: some View {
@@ -1273,6 +1275,13 @@ private struct AnalysisSheet: View {
             )
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button(role: .destructive) {
+                viewModel.deleteSavedMeal(meal)
+            } label: {
+                Label("Delete Saved Meal", systemImage: "trash")
+            }
+        }
     }
 }
 

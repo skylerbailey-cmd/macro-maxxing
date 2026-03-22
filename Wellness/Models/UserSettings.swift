@@ -27,6 +27,10 @@ struct AuraGain: Identifiable, Equatable {
 
     // MARK: - Identity (in-memory only — populated by SessionManager from Firestore)
 
+    /// True once populate(from:) has run and Firestore data (including achievedMilestones)
+    /// has been restored. Guards against streak milestones re-firing before data is ready.
+    var profileLoaded: Bool = false
+
     var userID:           String = ""
     var username:         String = ""
     var name:             String = ""
@@ -499,8 +503,8 @@ struct AuraGain: Identifiable, Equatable {
     /// Called by SessionManager after a successful Firestore profile fetch.
     /// Populates all identity fields in-memory. Does NOT touch UserDefaults.
     func populate(from profile: UserProfile) {
-        // Cache userID to UserDefaults so background tasks can access it without the auth stack
-        UserDefaults.standard.set(profile.userID, forKey: "cachedUserID")
+        // Cache userID to Keychain so background tasks can access it without the auth stack
+        KeychainService.set(profile.userID, forKey: "cachedUserID")
         userID            = profile.userID
         username          = profile.username
         name              = profile.name
@@ -592,12 +596,14 @@ struct AuraGain: Identifiable, Equatable {
             }
         }
 
+        profileLoaded = true
     }
 
     /// Called by SessionManager on sign-out.
     /// Clears all identity fields AND all device-local UserDefaults state so a
     /// new user on the same device starts completely fresh.
     func clearProfile() {
+        profileLoaded     = false
         // Identity
         userID            = ""
         username          = ""
@@ -657,11 +663,17 @@ struct AuraGain: Identifiable, Equatable {
             "workoutAdjustmentDate",
             "savedWorkoutTemplates",
             "wt_startTime", "wt_pausedAt", "wt_pausedSeconds",
-            "cachedUserID",
+            // cachedUserID is in Keychain, cleared separately below
             // Tutorial flags — reset so a new account gets all tutorials
             "hasSeenAppTour",
             "hasSeenProfileTutorial",
         ] { ud.removeObject(forKey: key) }
+
+        // Clear Keychain
+        KeychainService.delete(key: "cachedUserID")
+
+        // Clear URL and Firestore caches so the next user starts fresh
+        URLCache.shared.removeAllCachedResponses()
     }
 
     // MARK: - Init

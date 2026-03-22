@@ -365,7 +365,11 @@ import FirebaseFirestore
                 userSettings.pendingStreakCongrats = display
             }
 
-            checkStreakMilestones(display)
+            // Only check milestones if Firestore data (achievedMilestones) has been restored.
+            // Prevents re-awarding milestones after reinstall before populate(from:) runs.
+            if userSettings.profileLoaded {
+                checkStreakMilestones(display)
+            }
         }
 
         // Schedule or cancel the 10 PM streak-warning notification based on today's progress

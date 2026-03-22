@@ -415,6 +415,106 @@ export default function Home() {
                 title: "Voice Food Logging",
                 desc: "Log meals hands-free with AI",
               },
+              {
+                href: "/streaks-and-gamification",
+                title: "Streaks & Gamification",
+                desc: "Turn tracking into a game",
+              },
+              {
+                href: "/social-fitness-community",
+                title: "Social Community",
+                desc: "Accountability through community",
+              },
+              {
+                href: "/looksmaxxing-macro-tracker",
+                title: "Looksmaxxing Nutrition",
+                desc: "Optimize your glow up diet",
+              },
+              {
+                href: "/protein-tracker-app",
+                title: "Protein Tracker",
+                desc: "Hit your protein goals daily",
+              },
+              {
+                href: "/weight-loss-app",
+                title: "Weight Loss App",
+                desc: "AI-powered calorie deficit tracking",
+              },
+              {
+                href: "/muscle-building-nutrition",
+                title: "Muscle Building Nutrition",
+                desc: "Track your bulking macros",
+              },
+              {
+                href: "/meal-prep-tracker",
+                title: "Meal Prep Tracker",
+                desc: "Scan once, log all week",
+              },
+              {
+                href: "/tdee-calculator",
+                title: "TDEE Calculator",
+                desc: "Know your maintenance calories",
+              },
+              {
+                href: "/gym-diet-plan",
+                title: "Gym Diet Plan",
+                desc: "Nutrition for every training style",
+              },
+              {
+                href: "/accountability-partner-app",
+                title: "Accountability Partner",
+                desc: "Never diet alone again",
+              },
+              {
+                href: "/body-recomposition-tracker",
+                title: "Body Recomp Tracker",
+                desc: "Lose fat and build muscle",
+              },
+              {
+                href: "/myfitnesspal-alternative",
+                title: "MyFitnessPal Alternative",
+                desc: "Why athletes are switching",
+              },
+              {
+                href: "/noom-alternative",
+                title: "Noom Alternative",
+                desc: "Real macros, not color codes",
+              },
+              {
+                href: "/cronometer-alternative",
+                title: "Cronometer Alternative",
+                desc: "Accuracy without the complexity",
+              },
+              {
+                href: "/macrofactor-alternative",
+                title: "MacroFactor Alternative",
+                desc: "Save $144/year",
+              },
+              {
+                href: "/lose-it-alternative",
+                title: "Lose It! Alternative",
+                desc: "More than just calorie counting",
+              },
+              {
+                href: "/lifesum-alternative",
+                title: "Lifesum Alternative",
+                desc: "All features, no paywall",
+              },
+              {
+                href: "/carbon-diet-coach-alternative",
+                title: "Carbon Diet Coach Alternative",
+                desc: "AI tracking for serious athletes",
+              },
+              {
+                href: "/yazio-alternative",
+                title: "YAZIO Alternative",
+                desc: "Accurate tracking, zero upsells",
+              },
+              {
+                href: "/fatsecret-alternative",
+                title: "FatSecret Alternative",
+                desc: "Free tracking, modernized",
+              },
             ].map((link, i) => (
               <Link
                 key={i}

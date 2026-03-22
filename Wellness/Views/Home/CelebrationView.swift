@@ -518,8 +518,9 @@ struct CelebrationPostEditorSheet: View {
         post.firebasePostID = fbPostID
         modelContext.insert(post)
         if RemoteConfigService.shared.auraRewardAdRequired {
-            AdManager.shared.showRewarded(onReward: { [weak userSettings] in
-                userSettings?.awardAura(points: 50)
+            let settings = userSettings
+            AdManager.shared.showRewarded(onReward: {
+                Task { @MainActor in settings.awardAura(points: 50) }
             })
         } else {
             userSettings.awardAura(points: 50)

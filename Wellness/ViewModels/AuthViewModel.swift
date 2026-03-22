@@ -358,6 +358,7 @@ final class AuthViewModel {
 
     // MARK: - Developer Bypass
 
+    #if DEBUG
     func bypassAuth() {
         let id = UserDefaults.standard.string(forKey: "userID")?.isEmpty == false
             ? UserDefaults.standard.string(forKey: "userID")!
@@ -366,6 +367,7 @@ final class AuthViewModel {
         isBypassSession = true
         authState = .authenticated(uid: id)
     }
+    #endif
 
     // MARK: - Helpers
 

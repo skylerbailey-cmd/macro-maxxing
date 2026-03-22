@@ -204,8 +204,9 @@ final class UserProfileService {
             "proteinPerLb":      userSettings.proteinPerLb,
             "fastingEnabled":    userSettings.fastingEnabled,
             "auraPopupsEnabled": userSettings.auraPopupsEnabled,
-            "excludeDairy":      userSettings.excludeDairy,
-            "excludeGluten":     userSettings.excludeGluten,
+            "excludeDairy":          userSettings.excludeDairy,
+            "excludeGluten":         userSettings.excludeGluten,
+            "lastStreakCheckDate":   userSettings.lastStreakCheckDate,
         ]
         do {
             try await updateProfile(userID: userID, fields: fields)

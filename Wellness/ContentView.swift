@@ -38,12 +38,10 @@ struct ContentView: View {
 
     // FAB state
     @State private var fabExpanded           = false
-    @State private var fabShowingCamera      = false
-    @State private var fabShowingLibrary     = false
+    @State private var fabShowingLogMeal     = false
     @State private var fabShowingNewPost     = false
     @State private var fabShowingSearch      = false
     @State private var fabShowingLogWorkout  = false
-    @State private var fabShowingSavedMeals = false
     @State private var fabSelectedImage: UIImage? = nil
 
     var body: some View {
@@ -132,12 +130,10 @@ struct ContentView: View {
                     // so the app feels fresh after force-quit or background return
                     selectedTab = 0
                     fabExpanded = false
-                    fabShowingCamera = false
-                    fabShowingLibrary = false
+                    fabShowingLogMeal = false
                     fabShowingNewPost = false
                     fabShowingSearch = false
                     fabShowingLogWorkout = false
-                    fabShowingSavedMeals = false
                     selectedDate = Calendar.current.startOfDay(for: Date())
                 }
             }
@@ -217,20 +213,9 @@ struct ContentView: View {
 
             QuickActionFAB(
                 expanded: $fabExpanded,
-                onLogMealCamera: {
+                onLogMeal: {
                     fabExpanded = false
-                    selectedTab = 1
-                    fabShowingCamera = true
-                },
-                onLogMealLibrary: {
-                    fabExpanded = false
-                    selectedTab = 1
-                    fabShowingLibrary = true
-                },
-                onLogMealSaved: {
-                    fabExpanded = false
-                    selectedTab = 1
-                    fabShowingSavedMeals = true
+                    fabShowingLogMeal = true
                 },
                 onLogWorkout: {
                     fabExpanded = false
@@ -268,14 +253,13 @@ struct ContentView: View {
             UserSearchView(currentUserSettings: userSettings)
                 .environment(locationManager)
         }
-        .sheet(isPresented: $fabShowingCamera) {
-            ImagePickerView(sourceType: .camera, selectedImage: $fabSelectedImage)
-        }
-        .sheet(isPresented: $fabShowingLibrary) {
-            ImagePickerView(sourceType: .photoLibrary, selectedImage: $fabSelectedImage)
-        }
-        .sheet(isPresented: $fabShowingSavedMeals) {
-            SavedMealsSheet(userID: userSettings.userID, selectedDate: selectedDate)
+        .sheet(isPresented: $fabShowingLogMeal) {
+            LogMealSheet(
+                userSettings: userSettings,
+                selectedDate: selectedDate,
+                selectedImage: $fabSelectedImage,
+                onImageSelected: { selectedTab = 1 }
+            )
         }
         .sheet(isPresented: Binding(
             get: { streakBreakCount != nil },
@@ -308,14 +292,11 @@ struct ContentView: View {
 
 private struct QuickActionFAB: View {
     @Binding var expanded: Bool
-    let onLogMealCamera:  () -> Void
-    let onLogMealLibrary: () -> Void
-    let onLogMealSaved:   () -> Void
+    let onLogMeal:        () -> Void
     let onLogWorkout:     () -> Void
     let onMakePost:       () -> Void
     let onFindPeople:     () -> Void
 
-    @State private var logMealExpanded = false
 
     private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
     private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
@@ -325,29 +306,8 @@ private struct QuickActionFAB: View {
     var body: some View {
         VStack(alignment: .trailing, spacing: 10) {
             if expanded {
-                // Sub-actions under Log a Meal
-                if logMealExpanded {
-                    actionPill(icon: "bookmark.fill", label: "Saved Meals", color: purpl,
-                               action: onLogMealSaved)
-
-                    actionPill(icon: "photo.on.rectangle", label: "Photo Library", color: purpl,
-                               action: onLogMealLibrary)
-
-                    actionPill(icon: "camera.fill", label: "Camera",
-                               color: purpl,
-                               disabled: !UIImagePickerController.isSourceTypeAvailable(.camera),
-                               action: onLogMealCamera)
-                }
-
-                actionPill(
-                    icon: logMealExpanded ? "chevron.down" : "flame.fill",
-                    label: "Log a Meal",
-                    color: purpl
-                ) {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        logMealExpanded.toggle()
-                    }
-                }
+                actionPill(icon: "flame.fill", label: "Log a Meal",
+                           color: purpl, action: onLogMeal)
 
                 actionPill(icon: "figure.strengthtraining.traditional", label: "Log a Workout",
                            color: green, action: onLogWorkout)
@@ -362,7 +322,6 @@ private struct QuickActionFAB: View {
             // Main FAB button
             Button {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    if expanded { logMealExpanded = false }
                     expanded.toggle()
                 }
             } label: {
