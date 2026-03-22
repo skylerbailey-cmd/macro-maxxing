@@ -17,6 +17,7 @@ struct ContentView: View {
 
     @Query(sort: \SocialPost.postedAt, order: .reverse) private var allPosts: [SocialPost]
 
+    @Environment(\.scenePhase) private var scenePhase
     @State private var notificationState = NotificationState()
     @State private var selectedTab = 0
 
@@ -121,6 +122,21 @@ struct ContentView: View {
                 if let count {
                     streakBreakCount = count
                     userSettings.pendingStreakBreak = nil
+                }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    // Reset to Hub tab and dismiss any open sheets/FAB
+                    // so the app feels fresh after force-quit or background return
+                    selectedTab = 0
+                    fabExpanded = false
+                    fabShowingCamera = false
+                    fabShowingLibrary = false
+                    fabShowingNewPost = false
+                    fabShowingSearch = false
+                    fabShowingLogWorkout = false
+                    fabShowingSavedMeals = false
+                    selectedDate = Calendar.current.startOfDay(for: Date())
                 }
             }
             .alert("Firestore Write Error", isPresented: Binding(
