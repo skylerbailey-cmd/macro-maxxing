@@ -27,6 +27,10 @@ struct AuraGain: Identifiable, Equatable {
 
     // MARK: - Identity (in-memory only — populated by SessionManager from Firestore)
 
+    /// True once populate(from:) has run and Firestore data (including achievedMilestones)
+    /// has been restored. Guards against streak milestones re-firing before data is ready.
+    var profileLoaded: Bool = false
+
     var userID:           String = ""
     var username:         String = ""
     var name:             String = ""
@@ -592,12 +596,14 @@ struct AuraGain: Identifiable, Equatable {
             }
         }
 
+        profileLoaded = true
     }
 
     /// Called by SessionManager on sign-out.
     /// Clears all identity fields AND all device-local UserDefaults state so a
     /// new user on the same device starts completely fresh.
     func clearProfile() {
+        profileLoaded     = false
         // Identity
         userID            = ""
         username          = ""
