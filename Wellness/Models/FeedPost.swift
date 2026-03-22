@@ -9,7 +9,14 @@
 import Foundation
 import FirebaseFirestore
 
-struct FeedPost: Codable, Identifiable {
+struct FeedPost: Codable, Identifiable, Hashable {
+
+    static func == (lhs: FeedPost, rhs: FeedPost) -> Bool {
+        lhs.id == rhs.id
+    }
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
 
     // MARK: - Identity
 
@@ -114,10 +121,10 @@ struct FeedPost: Codable, Identifiable {
     // MARK: - Identifiable
 
     /// Stable identity for SwiftUI. Falls back to a deterministic string
-    /// derived from content so the ID never changes between accesses.
+    /// so the ID never changes between accesses (no random UUIDs).
     var id: String {
         if let postID, !postID.isEmpty { return postID }
-        return "\(userID)-\(title.hashValue)-\(createdAt?.seconds ?? 0)"
+        return "\(userID)-\(title)-\(createdAt?.seconds ?? 0)"
     }
 
     // MARK: - Computed helpers

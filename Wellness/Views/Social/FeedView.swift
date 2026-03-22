@@ -48,17 +48,15 @@ struct FeedView: View {
             if viewModel.posts.isEmpty { await viewModel.loadInitialFeed() }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.errorMessage)
-        .sheet(item: $selectedPost) { post in
+        .fullScreenCover(item: $selectedPost) { post in
             NavigationStack {
                 FeedPostDetailView(post: post, currentUserSettings: userSettings)
             }
-            .presentationDetents([.large])
         }
-        .sheet(item: $commentPost) { post in
+        .fullScreenCover(item: $commentPost) { post in
             NavigationStack {
                 FeedPostDetailView(post: post, currentUserSettings: userSettings, focusComment: true)
             }
-            .presentationDetents([.large])
         }
         .fullScreenCover(item: $profilePost) { post in
             NavigationStack {
@@ -89,9 +87,9 @@ struct FeedView: View {
             currentUserID: userSettings.userID,
             onRep:         { Task { await viewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
             onDelete:      deleteAction,
-            onTap:         { selectedPost  = post },
+            onTap:         { commentPost = nil; profilePost = nil; selectedPost = post },
             onAvatarTap:   { selectedPost = nil; commentPost = nil; profilePost = post },
-            onCommentTap:  { commentPost   = post }
+            onCommentTap:  { selectedPost = nil; profilePost = nil; commentPost = post }
         )
     }
 

@@ -215,9 +215,9 @@ struct SocialView: View {
                                         currentUserID: userSettings.userID,
                                         onRep:        { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
                                         onDelete:     post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
-                                        onTap:        { selectedFeedPost = post },
+                                        onTap:        { commentFeedPost = nil; profileFeedPost = nil; selectedFeedPost = post },
                                         onAvatarTap:  { selectedFeedPost = nil; commentFeedPost = nil; profileFeedPost = post },
-                                        onCommentTap: { commentFeedPost  = post }
+                                        onCommentTap: { selectedFeedPost = nil; profileFeedPost = nil; commentFeedPost = post }
                                     )
                                     .onAppear { Task { await arenaViewModel.loadMoreIfNeeded(currentPost: post) } }
                                 }
@@ -260,9 +260,9 @@ struct SocialView: View {
                                         currentUserID: userSettings.userID,
                                         onRep:        { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
                                         onDelete:     post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
-                                        onTap:        { selectedFeedPost = post },
+                                        onTap:        { commentFeedPost = nil; profileFeedPost = nil; selectedFeedPost = post },
                                         onAvatarTap:  { selectedFeedPost = nil; commentFeedPost = nil; profileFeedPost = post },
-                                        onCommentTap: { commentFeedPost  = post }
+                                        onCommentTap: { selectedFeedPost = nil; profileFeedPost = nil; commentFeedPost = post }
                                     )
                                 }
                             }
@@ -292,9 +292,9 @@ struct SocialView: View {
                                         currentUserID: userSettings.userID,
                                         onRep:        { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
                                         onDelete:     post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
-                                        onTap:        { selectedFeedPost = post },
+                                        onTap:        { commentFeedPost = nil; profileFeedPost = nil; selectedFeedPost = post },
                                         onAvatarTap:  { selectedFeedPost = nil; commentFeedPost = nil; profileFeedPost = post },
-                                        onCommentTap: { commentFeedPost  = post }
+                                        onCommentTap: { selectedFeedPost = nil; profileFeedPost = nil; commentFeedPost = post }
                                     )
                                 }
                             }
@@ -325,9 +325,9 @@ struct SocialView: View {
                                         currentUserID: userSettings.userID,
                                         onRep:        { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
                                         onDelete:     post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
-                                        onTap:        { selectedFeedPost = post },
+                                        onTap:        { commentFeedPost = nil; profileFeedPost = nil; selectedFeedPost = post },
                                         onAvatarTap:  { selectedFeedPost = nil; commentFeedPost = nil; profileFeedPost = post },
-                                        onCommentTap: { commentFeedPost  = post }
+                                        onCommentTap: { selectedFeedPost = nil; profileFeedPost = nil; commentFeedPost = post }
                                     )
                                 }
                             }
@@ -398,17 +398,15 @@ struct SocialView: View {
                 )
             }
         }
-        .sheet(item: $selectedFeedPost) { post in
+        .fullScreenCover(item: $selectedFeedPost) { post in
             NavigationStack {
                 FeedPostDetailView(post: post, currentUserSettings: userSettings)
             }
-            .presentationDetents([.large])
         }
-        .sheet(item: $commentFeedPost) { post in
+        .fullScreenCover(item: $commentFeedPost) { post in
             NavigationStack {
                 FeedPostDetailView(post: post, currentUserSettings: userSettings, focusComment: true)
             }
-            .presentationDetents([.large])
         }
         .fullScreenCover(item: $profileFeedPost, onDismiss: { Task { await loadFollowingIDs() } }) { post in
             NavigationStack {
