@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice Food Logging — Log Meals by Speaking | Macro Maxxing</title>
+  <meta name="description" content="Log meals and workouts with your voice. Say what you ate and AI generates accurate macro breakdowns. Hands-free food tracking for athletes on the go." />
+  <meta name="keywords" content="voice food logging, voice meal tracker, speak to log food, hands free calorie tracker, voice nutrition tracker, AI voice food logger" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { colors: { brand: { bg:'#120D1E', card:'#1F1A38', purple:'#A572FF', gold:'#FFD833', teal:'#33CDB3', green:'#4DE58C', orange:'#FF8C26', cyan:'#5CBFFF', mint:'#66E5B8', rose:'#FF80B8' }}}}}};
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    body { font-family: 'Inter', system-ui, sans-serif; background: #120D1E; color: #fff; }
+    .text-gradient { background: linear-gradient(to right, #A572FF, #33CDB3); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .text-gradient-gold { background: linear-gradient(to right, #FFD833, #FF8C26); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  </style>
+</head>
+<body class="antialiased">
+
+  <header class="fixed top-0 left-0 right-0 z-50 bg-brand-bg/80 backdrop-blur-lg border-b border-white/5">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <a href="index.html" class="flex items-center gap-2">
+        <span class="text-2xl">🔥</span>
+        <span class="text-xl font-bold text-gradient">Macro Maxxing</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-8 text-sm text-gray-300">
+        <a href="index.html#features" class="hover:text-white transition">Features</a>
+        <a href="#download" class="bg-brand-purple hover:bg-brand-purple/80 text-white px-5 py-2 rounded-full font-semibold transition">Download</a>
+      </nav>
+    </div>
+  </header>
+
+  <article class="pt-32 pb-12 px-4 sm:px-6">
+    <div class="max-w-3xl mx-auto">
+      <div class="bg-brand-gold/10 text-brand-gold text-xs font-semibold px-3 py-1 rounded-full inline-block mb-4">VOICE INPUT</div>
+      <h1 class="text-3xl sm:text-5xl font-black mb-6 leading-tight">
+        Just Say What You Ate.<br />
+        <span class="text-gradient-gold">AI Does the Rest.</span>
+      </h1>
+      <p class="text-gray-400 text-lg leading-relaxed mb-12">
+        Hands covered in protein powder? Just finished a set? Driving home from the gym? Tap the mic, describe your meal, and AI generates the full macro breakdown. No typing. No searching. No excuses.
+      </p>
+
+      <h2 class="text-2xl font-bold mb-6">How Voice Logging Works</h2>
+      <div class="space-y-6 mb-12">
+        <div class="bg-brand-card rounded-xl p-6 border border-white/5">
+          <div class="flex items-center gap-3 mb-3">
+            <span class="bg-brand-gold/20 text-brand-gold rounded-full w-8 h-8 flex items-center justify-center font-bold">1</span>
+            <h3 class="font-semibold text-white">Tap the Mic</h3>
+          </div>
+          <p class="text-gray-400 text-sm pl-11">On the Log Food or Log Workout screen, switch to Voice mode and tap the microphone button.</p>
+        </div>
+        <div class="bg-brand-card rounded-xl p-6 border border-white/5">
+          <div class="flex items-center gap-3 mb-3">
+            <span class="bg-brand-gold/20 text-brand-gold rounded-full w-8 h-8 flex items-center justify-center font-bold">2</span>
+            <h3 class="font-semibold text-white">Describe Your Meal Naturally</h3>
+          </div>
+          <p class="text-gray-400 text-sm pl-11">Speak naturally: "This is the ground turkey with rice and mixed vegetables" or "Two scoops of whey protein with almond milk." No special format needed.</p>
+        </div>
+        <div class="bg-brand-card rounded-xl p-6 border border-white/5">
+          <div class="flex items-center gap-3 mb-3">
+            <span class="bg-brand-gold/20 text-brand-gold rounded-full w-8 h-8 flex items-center justify-center font-bold">3</span>
+            <h3 class="font-semibold text-white">Review Transcription</h3>
+          </div>
+          <p class="text-gray-400 text-sm pl-11">Your speech is transcribed in real-time. Review the text and tap to re-record if needed. When it looks right, hit "Generate with AI."</p>
+        </div>
+        <div class="bg-brand-card rounded-xl p-6 border border-white/5">
+          <div class="flex items-center gap-3 mb-3">
+            <span class="bg-brand-gold/20 text-brand-gold rounded-full w-8 h-8 flex items-center justify-center font-bold">4</span>
+            <h3 class="font-semibold text-white">AI Generates Macros</h3>
+          </div>
+          <p class="text-gray-400 text-sm pl-11">AI parses your description, identifies foods and quantities, cross-references nutrition databases, and generates a full breakdown — calories, protein, carbs, and fat.</p>
+        </div>
+      </div>
+
+      <h2 class="text-2xl font-bold mb-4">Voice Works for Food <em>and</em> Workouts</h2>
+      <p class="text-gray-400 leading-relaxed mb-6">Voice logging isn't just for meals. On the Log Workout screen, tap the mic and say "30 minute run, about 200 calories" — and your workout is logged with smart macro adjustments.</p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
+        <div class="bg-brand-card rounded-xl p-5 border border-white/5">
+          <h3 class="font-semibold text-brand-purple mb-2 text-sm">🎙️ Voice + Photo Combo</h3>
+          <p class="text-gray-400 text-sm">Take a photo of your meal <em>and</em> describe it with voice for maximum accuracy. AI combines both signals.</p>
+        </div>
+        <div class="bg-brand-card rounded-xl p-5 border border-white/5">
+          <h3 class="font-semibold text-brand-gold mb-2 text-sm">🔄 Tap to Re-Record</h3>
+          <p class="text-gray-400 text-sm">Misspoke? Just tap the mic again to re-record. No need to delete and start over.</p>
+        </div>
+        <div class="bg-brand-card rounded-xl p-5 border border-white/5">
+          <h3 class="font-semibold text-brand-teal mb-2 text-sm">🧠 Natural Language</h3>
+          <p class="text-gray-400 text-sm">Say it however you want — "chicken and rice" or "about 6 ounces of grilled chicken breast with a cup of white rice and steamed broccoli."</p>
+        </div>
+        <div class="bg-brand-card rounded-xl p-5 border border-white/5">
+          <h3 class="font-semibold text-brand-green mb-2 text-sm">✨ Generate with AI</h3>
+          <p class="text-gray-400 text-sm">One tap after recording and AI does the heavy lifting — parsing ingredients, estimating portions, and pulling nutrition data.</p>
+        </div>
+      </div>
+
+      <h2 class="text-2xl font-bold mb-4">Perfect for Post-Workout Logging</h2>
+      <p class="text-gray-400 leading-relaxed mb-4">You just crushed a workout. Your hands are sweaty. You're downing a protein shake. The last thing you want to do is type "whey protein isolate 2 scoops 240ml almond milk" into a tiny search bar.</p>
+      <p class="text-gray-400 leading-relaxed">Just say it. Macro Maxxing handles the rest. That's what voice logging was built for.</p>
+    </div>
+  </article>
+
+  <section id="download" class="py-24 px-4 sm:px-6">
+    <div class="max-w-3xl mx-auto text-center">
+      <h2 class="text-3xl sm:text-4xl font-bold mb-4 text-gradient">Log meals without lifting a finger.</h2>
+      <p class="text-gray-400 text-lg mb-8">Download Macro Maxxing and start voice-logging your nutrition.</p>
+      <a href="#" class="inline-flex items-center gap-3 bg-white text-brand-bg px-8 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition">
+        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 21.99 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 21.99C7.79 22.03 6.8 20.68 5.96 19.47C4.25 16.97 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.89C10.1 6.87 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/></svg>
+        Download on the App Store
+      </a>
+    </div>
+  </section>
+
+  <footer class="bg-brand-bg border-t border-white/5 py-12">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center text-xs text-gray-500">
+      <p>&copy; 2026 Macro Maxxing. All rights reserved.</p>
+      <a href="index.html" class="hover:text-white transition mt-2 sm:mt-0">← Back to Home</a>
+    </div>
+  </footer>
+</body>
+</html>

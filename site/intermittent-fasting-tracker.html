@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Intermittent Fasting Tracker with Macro Integration | Macro Maxxing</title>
+  <meta name="description" content="Track intermittent fasting with a persistent timer that syncs with your macro goals. Support for 16:8, 20:4, and custom fasting windows. Free iOS app." />
+  <meta name="keywords" content="intermittent fasting tracker, intermittent fasting app, fasting timer app, 16:8 fasting app, IF tracker, best fasting app" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { colors: { brand: { bg:'#120D1E', card:'#1F1A38', purple:'#A572FF', gold:'#FFD833', teal:'#33CDB3', green:'#4DE58C', orange:'#FF8C26', cyan:'#5CBFFF', mint:'#66E5B8', rose:'#FF80B8' }}}}}};
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    body { font-family: 'Inter', system-ui, sans-serif; background: #120D1E; color: #fff; }
+    .text-gradient { background: linear-gradient(to right, #A572FF, #33CDB3); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  </style>
+</head>
+<body class="antialiased">
+
+  <header class="fixed top-0 left-0 right-0 z-50 bg-brand-bg/80 backdrop-blur-lg border-b border-white/5">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <a href="index.html" class="flex items-center gap-2">
+        <span class="text-2xl">🔥</span>
+        <span class="text-xl font-bold text-gradient">Macro Maxxing</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-8 text-sm text-gray-300">
+        <a href="index.html#features" class="hover:text-white transition">Features</a>
+        <a href="#download" class="bg-brand-purple hover:bg-brand-purple/80 text-white px-5 py-2 rounded-full font-semibold transition">Download</a>
+      </nav>
+    </div>
+  </header>
+
+  <article class="pt-32 pb-12 px-4 sm:px-6">
+    <div class="max-w-3xl mx-auto">
+      <div class="bg-brand-teal/10 text-brand-teal text-xs font-semibold px-3 py-1 rounded-full inline-block mb-4">FASTING</div>
+      <h1 class="text-3xl sm:text-5xl font-black mb-6 leading-tight">
+        Intermittent Fasting Tracker<br />
+        <span class="text-gradient">That Talks to Your Macros</span>
+      </h1>
+      <p class="text-gray-400 text-lg leading-relaxed mb-12">
+        Most fasting apps track your eating window. Macro Maxxing does that <em>and</em> integrates with your daily macro tracking — so you know exactly what to eat during your feeding window.
+      </p>
+
+      <h2 class="text-2xl font-bold mb-4">Why Fasting + Macros Together?</h2>
+      <p class="text-gray-400 leading-relaxed mb-4">Intermittent fasting restricts <em>when</em> you eat. Macro tracking controls <em>what</em> you eat. Together, they're the most effective combination for body composition — but most apps make you use two separate tools.</p>
+      <p class="text-gray-400 leading-relaxed mb-8">Macro Maxxing is the only app that combines a persistent fasting timer with AI-powered macro tracking in one interface.</p>
+
+      <h2 class="text-2xl font-bold mb-6">Fasting Timer Features</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
+        <div class="bg-brand-card rounded-xl p-5 border border-white/5">
+          <div class="text-2xl mb-2">⏱️</div>
+          <h3 class="font-semibold text-white mb-1 text-sm">Persistent Timer</h3>
+          <p class="text-gray-400 text-sm">Timer survives app restarts, phone reboots, and background kills. Your fast never gets lost.</p>
+        </div>
+        <div class="bg-brand-card rounded-xl p-5 border border-white/5">
+          <div class="text-2xl mb-2">🔄</div>
+          <h3 class="font-semibold text-white mb-1 text-sm">Custom Windows</h3>
+          <p class="text-gray-400 text-sm">16:8, 18:6, 20:4, OMAD, or any custom fasting window that fits your lifestyle.</p>
+        </div>
+        <div class="bg-brand-card rounded-xl p-5 border border-white/5">
+          <div class="text-2xl mb-2">📊</div>
+          <h3 class="font-semibold text-white mb-1 text-sm">Fasting History</h3>
+          <p class="text-gray-400 text-sm">Log completed fasts with start/end timestamps. Track your consistency over time.</p>
+        </div>
+        <div class="bg-brand-card rounded-xl p-5 border border-white/5">
+          <div class="text-2xl mb-2">🏠</div>
+          <h3 class="font-semibold text-white mb-1 text-sm">Hub Integration</h3>
+          <p class="text-gray-400 text-sm">Fasting timer displays right on your home hub alongside daily macro rings for a complete overview.</p>
+        </div>
+      </div>
+
+      <h2 class="text-2xl font-bold mb-4">Common Fasting Protocols We Support</h2>
+      <div class="space-y-3 mb-12">
+        <div class="bg-brand-card rounded-xl px-5 py-4 border border-white/5 flex items-center gap-4">
+          <span class="text-brand-teal font-bold text-lg min-w-[60px]">16:8</span>
+          <p class="text-gray-400 text-sm">Fast 16 hours, eat in an 8-hour window. The most popular IF protocol.</p>
+        </div>
+        <div class="bg-brand-card rounded-xl px-5 py-4 border border-white/5 flex items-center gap-4">
+          <span class="text-brand-teal font-bold text-lg min-w-[60px]">18:6</span>
+          <p class="text-gray-400 text-sm">Fast 18 hours, eat in a 6-hour window. A step up for experienced fasters.</p>
+        </div>
+        <div class="bg-brand-card rounded-xl px-5 py-4 border border-white/5 flex items-center gap-4">
+          <span class="text-brand-teal font-bold text-lg min-w-[60px]">20:4</span>
+          <p class="text-gray-400 text-sm">Fast 20 hours, eat in a 4-hour window. Also known as the Warrior Diet.</p>
+        </div>
+        <div class="bg-brand-card rounded-xl px-5 py-4 border border-white/5 flex items-center gap-4">
+          <span class="text-brand-teal font-bold text-lg min-w-[60px]">OMAD</span>
+          <p class="text-gray-400 text-sm">One Meal A Day. A 23:1 fast with all calories in a single meal.</p>
+        </div>
+        <div class="bg-brand-card rounded-xl px-5 py-4 border border-white/5 flex items-center gap-4">
+          <span class="text-brand-teal font-bold text-lg min-w-[60px]">Custom</span>
+          <p class="text-gray-400 text-sm">Set any fasting and eating window that fits your schedule.</p>
+        </div>
+      </div>
+
+      <h2 class="text-2xl font-bold mb-4">Log Your Meals With AI During Your Eating Window</h2>
+      <p class="text-gray-400 leading-relaxed mb-4">When your eating window opens, make every meal count. Use Macro Maxxing's AI photo scanner or voice logging to quickly track your meals and ensure you're hitting your macro targets within your feeding window.</p>
+      <p class="text-gray-400 leading-relaxed">With saved meal templates, your go-to meals are just a tap away — so you can focus on eating, not logging.</p>
+    </div>
+  </article>
+
+  <section id="download" class="py-24 px-4 sm:px-6">
+    <div class="max-w-3xl mx-auto text-center">
+      <h2 class="text-3xl sm:text-4xl font-bold mb-4 text-gradient">Fast smarter, not just longer.</h2>
+      <p class="text-gray-400 text-lg mb-8">Download Macro Maxxing and sync your fasting with your macros.</p>
+      <a href="#" class="inline-flex items-center gap-3 bg-white text-brand-bg px-8 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition">
+        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 21.99 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 21.99C7.79 22.03 6.8 20.68 5.96 19.47C4.25 16.97 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.89C10.1 6.87 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/></svg>
+        Download on the App Store
+      </a>
+    </div>
+  </section>
+
+  <footer class="bg-brand-bg border-t border-white/5 py-12">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center text-xs text-gray-500">
+      <p>&copy; 2026 Macro Maxxing. All rights reserved.</p>
+      <a href="index.html" class="hover:text-white transition mt-2 sm:mt-0">← Back to Home</a>
+    </div>
+  </footer>
+</body>
+</html>

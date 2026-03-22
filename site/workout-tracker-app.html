@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workout Tracker App with Auto Macro Adjustments | Macro Maxxing</title>
+  <meta name="description" content="Log workouts by voice or manually. Auto-adjust daily macro targets based on workout type using ISSN & ACSM guidelines. Free iOS workout tracker." />
+  <meta name="keywords" content="workout tracker app, workout logging app, exercise tracker with macros, voice workout logger, fitness tracker app, gym tracker app" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { colors: { brand: { bg:'#120D1E', card:'#1F1A38', purple:'#A572FF', gold:'#FFD833', teal:'#33CDB3', green:'#4DE58C', orange:'#FF8C26', cyan:'#5CBFFF', mint:'#66E5B8', rose:'#FF80B8' }}}}}};
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    body { font-family: 'Inter', system-ui, sans-serif; background: #120D1E; color: #fff; }
+    .text-gradient { background: linear-gradient(to right, #A572FF, #33CDB3); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  </style>
+</head>
+<body class="antialiased">
+
+  <header class="fixed top-0 left-0 right-0 z-50 bg-brand-bg/80 backdrop-blur-lg border-b border-white/5">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <a href="index.html" class="flex items-center gap-2">
+        <span class="text-2xl">🔥</span>
+        <span class="text-xl font-bold text-gradient">Macro Maxxing</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-8 text-sm text-gray-300">
+        <a href="index.html#features" class="hover:text-white transition">Features</a>
+        <a href="#download" class="bg-brand-purple hover:bg-brand-purple/80 text-white px-5 py-2 rounded-full font-semibold transition">Download</a>
+      </nav>
+    </div>
+  </header>
+
+  <article class="pt-32 pb-12 px-4 sm:px-6">
+    <div class="max-w-3xl mx-auto">
+      <div class="bg-brand-green/10 text-brand-green text-xs font-semibold px-3 py-1 rounded-full inline-block mb-4">WORKOUTS</div>
+      <h1 class="text-3xl sm:text-5xl font-black mb-6 leading-tight">
+        Log Workouts.<br />
+        <span class="text-gradient">Auto-Adjust Your Macros.</span>
+      </h1>
+      <p class="text-gray-400 text-lg leading-relaxed mb-12">
+        The first workout tracker that automatically adjusts your daily nutrition targets based on your training. Log by voice, pick a type, and your macros update in real-time.
+      </p>
+
+      <h2 class="text-2xl font-bold mb-6">6 Workout Types, Smart Adjustments</h2>
+      <p class="text-gray-400 leading-relaxed mb-6">Different workouts demand different nutrition. A heavy strength session needs more protein and carbs than a yoga class. Macro Maxxing knows this and adjusts accordingly.</p>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-12">
+        <div class="bg-brand-card rounded-xl p-4 border border-white/5 text-center">
+          <div class="text-3xl mb-2">🏋️</div>
+          <p class="font-semibold text-white text-sm mb-1">Strength</p>
+          <p class="text-gray-500 text-xs">+140 kcal, +12g protein, +23g carbs</p>
+        </div>
+        <div class="bg-brand-card rounded-xl p-4 border border-white/5 text-center">
+          <div class="text-3xl mb-2">🏃</div>
+          <p class="font-semibold text-white text-sm mb-1">Cardio</p>
+          <p class="text-gray-500 text-xs">+200 kcal, +30g carbs</p>
+        </div>
+        <div class="bg-brand-card rounded-xl p-4 border border-white/5 text-center">
+          <div class="text-3xl mb-2">⚡</div>
+          <p class="font-semibold text-white text-sm mb-1">HIIT</p>
+          <p class="text-gray-500 text-xs">+180 kcal, +8g protein, +25g carbs</p>
+        </div>
+        <div class="bg-brand-card rounded-xl p-4 border border-white/5 text-center">
+          <div class="text-3xl mb-2">🧘</div>
+          <p class="font-semibold text-white text-sm mb-1">Flex / Yoga</p>
+          <p class="text-gray-500 text-xs">+60 kcal</p>
+        </div>
+        <div class="bg-brand-card rounded-xl p-4 border border-white/5 text-center">
+          <div class="text-3xl mb-2">😴</div>
+          <p class="font-semibold text-white text-sm mb-1">Rest Day</p>
+          <p class="text-gray-500 text-xs">No adjustment</p>
+        </div>
+        <div class="bg-brand-card rounded-xl p-4 border border-white/5 text-center">
+          <div class="text-3xl mb-2">🏃‍♂️</div>
+          <p class="font-semibold text-white text-sm mb-1">Other</p>
+          <p class="text-gray-500 text-xs">Custom adjustment</p>
+        </div>
+      </div>
+
+      <h2 class="text-2xl font-bold mb-4">Voice Workout Logging</h2>
+      <p class="text-gray-400 leading-relaxed mb-4">Just finished a set? Tap the mic and say "30 minute run, about 200 calories." AI parses your description and fills in the workout details — type, duration, and estimated calorie burn.</p>
+      <p class="text-gray-400 leading-relaxed mb-8">No fiddling with dropdowns or number pickers when you're catching your breath between sets.</p>
+
+      <div class="bg-brand-card rounded-xl p-6 border border-white/5 mb-12">
+        <h3 class="text-lg font-semibold text-white mb-4">How Macro Adjustments Work</h3>
+        <div class="space-y-4">
+          <div class="flex items-start gap-3">
+            <span class="bg-brand-purple/20 text-brand-purple rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">1</span>
+            <p class="text-gray-400 text-sm">Log your workout — choose a type (or let voice AI detect it) and enter duration + estimated calories burned.</p>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="bg-brand-purple/20 text-brand-purple rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">2</span>
+            <p class="text-gray-400 text-sm">Macro Maxxing calculates additional macro needs based on ISSN & ACSM sports nutrition guidelines for your workout type.</p>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="bg-brand-purple/20 text-brand-purple rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">3</span>
+            <p class="text-gray-400 text-sm">Your daily macro targets update in real-time. The adjustment applies to today only and resets tomorrow.</p>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="bg-brand-purple/20 text-brand-purple rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">4</span>
+            <p class="text-gray-400 text-sm">Toggle macro adjustments on or off per workout — you're always in control.</p>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="text-2xl font-bold mb-4">Saved Workout Templates</h2>
+      <p class="text-gray-400 leading-relaxed mb-4">Do the same workout every Monday? Save it as a template. Next time, just tap your saved "run — 30m · 200 cal" chip and it's logged instantly.</p>
+      <p class="text-gray-400 leading-relaxed">Templates save the workout name, type, duration, and calorie estimate — everything you need for a one-tap log.</p>
+    </div>
+  </article>
+
+  <section id="download" class="py-24 px-4 sm:px-6">
+    <div class="max-w-3xl mx-auto text-center">
+      <h2 class="text-3xl sm:text-4xl font-bold mb-4 text-gradient">Train hard. Fuel smart.</h2>
+      <p class="text-gray-400 text-lg mb-8">Download Macro Maxxing and let your workouts drive your nutrition.</p>
+      <a href="#" class="inline-flex items-center gap-3 bg-white text-brand-bg px-8 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition">
+        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 21.99 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 21.99C7.79 22.03 6.8 20.68 5.96 19.47C4.25 16.97 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.89C10.1 6.87 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/></svg>
+        Download on the App Store
+      </a>
+    </div>
+  </section>
+
+  <footer class="bg-brand-bg border-t border-white/5 py-12">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center text-xs text-gray-500">
+      <p>&copy; 2026 Macro Maxxing. All rights reserved.</p>
+      <a href="index.html" class="hover:text-white transition mt-2 sm:mt-0">← Back to Home</a>
+    </div>
+  </footer>
+</body>
+</html>
