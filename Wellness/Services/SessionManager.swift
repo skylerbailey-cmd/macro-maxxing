@@ -417,6 +417,7 @@ final class SessionManager {
 
     // MARK: - Developer Bypass
 
+    #if DEBUG
     func bypassAuth() {
         let id = UserDefaults.standard.string(forKey: "devBypassUserID")?.isEmpty == false
             ? UserDefaults.standard.string(forKey: "devBypassUserID")!
@@ -425,6 +426,7 @@ final class SessionManager {
         isBypassSession = true
         authState = .authenticated(uid: id)
     }
+    #endif
 
     // MARK: - Helpers
 
