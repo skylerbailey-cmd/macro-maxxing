@@ -44,7 +44,7 @@ struct SavedMealsView: View {
                                         Button(role: .destructive) {
                                             mealToDelete = meal
                                         } label: {
-                                            Label("Delete", systemImage: "trash")
+                                            Label("Delete Saved Meal", systemImage: "trash")
                                         }
                                     }
                                 }
