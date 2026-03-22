@@ -304,14 +304,16 @@ extension FeedPost {
         if data["workoutItems"]        == nil { data["workoutItems"]        = [[String: Any]]() }
         if data["isPublic"]            == nil { data["isPublic"]            = true }
 
-        // Convert Firestore Timestamps to Date for pure value-type safety
-        if let ts = data["createdAt"] as? Timestamp { data["createdAt"] = ts.dateValue() }
-        if let ts = data["macroDate"] as? Timestamp { data["macroDate"] = ts.dateValue() }
+        // Pull Timestamps out before decoding (Firestore.Decoder can't map Timestamp→Date)
+        let createdAtTs = data.removeValue(forKey: "createdAt") as? Timestamp
+        let macroDateTs = data.removeValue(forKey: "macroDate") as? Timestamp
 
         do {
             let decoder = Firestore.Decoder()
             self = try decoder.decode(FeedPost.self, from: data, in: document.reference)
-            self.postID = document.documentID
+            self.postID    = document.documentID
+            self.createdAt = createdAtTs?.dateValue()
+            self.macroDate = macroDateTs?.dateValue()
         } catch {
             print("[FeedPost] Decode error – \(document.documentID): \(error)")
             return nil
