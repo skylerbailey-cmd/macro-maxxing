@@ -113,7 +113,12 @@ struct FeedPost: Codable, Identifiable {
 
     // MARK: - Identifiable
 
-    var id: String { postID ?? UUID().uuidString }
+    /// Stable identity for SwiftUI. Falls back to a deterministic string
+    /// derived from content so the ID never changes between accesses.
+    var id: String {
+        if let postID, !postID.isEmpty { return postID }
+        return "\(userID)-\(title.hashValue)-\(createdAt?.seconds ?? 0)"
+    }
 
     // MARK: - Computed helpers
 
