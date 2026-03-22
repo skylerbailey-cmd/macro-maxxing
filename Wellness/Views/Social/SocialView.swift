@@ -46,10 +46,20 @@ struct SocialView: View {
     @State private var localLoading:        Bool        = false
     @State private var localError:          String?     = nil
 
-    /// Selected Firestore post for detail sheet.
-    @State private var selectedFeedPost:  FeedPost? = nil
-    @State private var commentFeedPost:   FeedPost? = nil
-    @State private var profileFeedPost:   FeedPost? = nil
+    /// Single presentation state for FeedPost interactions — avoids SIGABRT from competing sheets.
+    private enum FeedPostPresentation: Identifiable {
+        case detail(FeedPost)
+        case comment(FeedPost)
+        case profile(FeedPost)
+        var id: String {
+            switch self {
+            case .detail(let p):  return "detail-\(p.id)"
+            case .comment(let p): return "comment-\(p.id)"
+            case .profile(let p): return "profile-\(p.id)"
+            }
+        }
+    }
+    @State private var activeFeedPresentation: FeedPostPresentation? = nil
 
     enum Feed: String, CaseIterable {
         case team      = "Team"
@@ -215,9 +225,9 @@ struct SocialView: View {
                                         currentUserID: userSettings.userID,
                                         onRep:        { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
                                         onDelete:     post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
-                                        onTap:        { commentFeedPost = nil; profileFeedPost = nil; selectedFeedPost = post },
-                                        onAvatarTap:  { selectedFeedPost = nil; commentFeedPost = nil; profileFeedPost = post },
-                                        onCommentTap: { selectedFeedPost = nil; profileFeedPost = nil; commentFeedPost = post }
+                                        onTap:        { activeFeedPresentation = .detail(post) },
+                                        onAvatarTap:  { activeFeedPresentation = .profile(post) },
+                                        onCommentTap: { activeFeedPresentation = .comment(post) }
                                     )
                                     .onAppear { Task { await arenaViewModel.loadMoreIfNeeded(currentPost: post) } }
                                 }
@@ -260,9 +270,9 @@ struct SocialView: View {
                                         currentUserID: userSettings.userID,
                                         onRep:        { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
                                         onDelete:     post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
-                                        onTap:        { commentFeedPost = nil; profileFeedPost = nil; selectedFeedPost = post },
-                                        onAvatarTap:  { selectedFeedPost = nil; commentFeedPost = nil; profileFeedPost = post },
-                                        onCommentTap: { selectedFeedPost = nil; profileFeedPost = nil; commentFeedPost = post }
+                                        onTap:        { activeFeedPresentation = .detail(post) },
+                                        onAvatarTap:  { activeFeedPresentation = .profile(post) },
+                                        onCommentTap: { activeFeedPresentation = .comment(post) }
                                     )
                                 }
                             }
@@ -292,9 +302,9 @@ struct SocialView: View {
                                         currentUserID: userSettings.userID,
                                         onRep:        { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
                                         onDelete:     post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
-                                        onTap:        { commentFeedPost = nil; profileFeedPost = nil; selectedFeedPost = post },
-                                        onAvatarTap:  { selectedFeedPost = nil; commentFeedPost = nil; profileFeedPost = post },
-                                        onCommentTap: { selectedFeedPost = nil; profileFeedPost = nil; commentFeedPost = post }
+                                        onTap:        { activeFeedPresentation = .detail(post) },
+                                        onAvatarTap:  { activeFeedPresentation = .profile(post) },
+                                        onCommentTap: { activeFeedPresentation = .comment(post) }
                                     )
                                 }
                             }
@@ -325,9 +335,9 @@ struct SocialView: View {
                                         currentUserID: userSettings.userID,
                                         onRep:        { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
                                         onDelete:     post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
-                                        onTap:        { commentFeedPost = nil; profileFeedPost = nil; selectedFeedPost = post },
-                                        onAvatarTap:  { selectedFeedPost = nil; commentFeedPost = nil; profileFeedPost = post },
-                                        onCommentTap: { selectedFeedPost = nil; profileFeedPost = nil; commentFeedPost = post }
+                                        onTap:        { activeFeedPresentation = .detail(post) },
+                                        onAvatarTap:  { activeFeedPresentation = .profile(post) },
+                                        onCommentTap: { activeFeedPresentation = .comment(post) }
                                     )
                                 }
                             }
@@ -398,30 +408,27 @@ struct SocialView: View {
                 )
             }
         }
-        .fullScreenCover(item: $selectedFeedPost) { post in
+        .fullScreenCover(item: $activeFeedPresentation, onDismiss: { Task { await loadFollowingIDs() } }) { presentation in
             NavigationStack {
-                FeedPostDetailView(post: post, currentUserSettings: userSettings)
-            }
-        }
-        .fullScreenCover(item: $commentFeedPost) { post in
-            NavigationStack {
-                FeedPostDetailView(post: post, currentUserSettings: userSettings, focusComment: true)
-            }
-        }
-        .fullScreenCover(item: $profileFeedPost, onDismiss: { Task { await loadFollowingIDs() } }) { post in
-            NavigationStack {
-                ProfileView(
-                    profileUserID:       post.userID,
-                    profileUsername:     post.username,
-                    profileDisplayName:  post.whoName,
-                    profileAuraLevel:    post.auraLevel,
-                    profileAuraPoints:   post.auraPoints,
-                    profileImageData:    nil,
-                    ownUserSettings:     post.userID == userSettings.userID ? userSettings : nil,
-                    currentUserSettings: post.userID == userSettings.userID ? nil : userSettings,
-                    isDismissable:       true,
-                    profileIsPrivate:    !post.isPublic
-                )
+                switch presentation {
+                case .detail(let post):
+                    FeedPostDetailView(post: post, currentUserSettings: userSettings)
+                case .comment(let post):
+                    FeedPostDetailView(post: post, currentUserSettings: userSettings, focusComment: true)
+                case .profile(let post):
+                    ProfileView(
+                        profileUserID:       post.userID,
+                        profileUsername:     post.username,
+                        profileDisplayName:  post.whoName,
+                        profileAuraLevel:    post.auraLevel,
+                        profileAuraPoints:   post.auraPoints,
+                        profileImageData:    nil,
+                        ownUserSettings:     post.userID == userSettings.userID ? userSettings : nil,
+                        currentUserSettings: post.userID == userSettings.userID ? nil : userSettings,
+                        isDismissable:       true,
+                        profileIsPrivate:    !post.isPublic
+                    )
+                }
             }
         }
         .sheet(isPresented: $showingSearch) {

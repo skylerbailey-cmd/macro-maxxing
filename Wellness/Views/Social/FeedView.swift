@@ -13,9 +13,22 @@ struct FeedView: View {
     let userSettings: UserSettings
 
     @State private var viewModel        = FeedViewModel()
-    @State private var selectedPost:    FeedPost? = nil
-    @State private var commentPost:     FeedPost? = nil
-    @State private var profilePost:     FeedPost? = nil
+
+    /// Single presentation state to avoid multiple .sheet/.fullScreenCover conflicts.
+    private enum PostPresentation: Identifiable {
+        case detail(FeedPost)
+        case comment(FeedPost)
+        case profile(FeedPost)
+
+        var id: String {
+            switch self {
+            case .detail(let p):  return "detail-\(p.id)"
+            case .comment(let p): return "comment-\(p.id)"
+            case .profile(let p): return "profile-\(p.id)"
+            }
+        }
+    }
+    @State private var activePresentation: PostPresentation? = nil
 
     var body: some View {
         ZStack {
@@ -48,29 +61,26 @@ struct FeedView: View {
             if viewModel.posts.isEmpty { await viewModel.loadInitialFeed() }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.errorMessage)
-        .fullScreenCover(item: $selectedPost) { post in
+        .fullScreenCover(item: $activePresentation) { presentation in
             NavigationStack {
-                FeedPostDetailView(post: post, currentUserSettings: userSettings)
-            }
-        }
-        .fullScreenCover(item: $commentPost) { post in
-            NavigationStack {
-                FeedPostDetailView(post: post, currentUserSettings: userSettings, focusComment: true)
-            }
-        }
-        .fullScreenCover(item: $profilePost) { post in
-            NavigationStack {
-                ProfileView(
-                    profileUserID:       post.userID,
-                    profileUsername:     post.username,
-                    profileDisplayName:  post.whoName,
-                    profileAuraLevel:    post.auraLevel,
-                    profileAuraPoints:   post.auraPoints,
-                    profileImageData:    nil,
-                    currentUserSettings: userSettings,
-                    isDismissable:       true,
-                    profileIsPrivate:    !post.isPublic
-                )
+                switch presentation {
+                case .detail(let post):
+                    FeedPostDetailView(post: post, currentUserSettings: userSettings)
+                case .comment(let post):
+                    FeedPostDetailView(post: post, currentUserSettings: userSettings, focusComment: true)
+                case .profile(let post):
+                    ProfileView(
+                        profileUserID:       post.userID,
+                        profileUsername:     post.username,
+                        profileDisplayName:  post.whoName,
+                        profileAuraLevel:    post.auraLevel,
+                        profileAuraPoints:   post.auraPoints,
+                        profileImageData:    nil,
+                        currentUserSettings: userSettings,
+                        isDismissable:       true,
+                        profileIsPrivate:    !post.isPublic
+                    )
+                }
             }
         }
     }
@@ -87,9 +97,9 @@ struct FeedView: View {
             currentUserID: userSettings.userID,
             onRep:         { Task { await viewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
             onDelete:      deleteAction,
-            onTap:         { commentPost = nil; profilePost = nil; selectedPost = post },
-            onAvatarTap:   { selectedPost = nil; commentPost = nil; profilePost = post },
-            onCommentTap:  { selectedPost = nil; profilePost = nil; commentPost = post }
+            onTap:         { activePresentation = .detail(post) },
+            onAvatarTap:   { activePresentation = .profile(post) },
+            onCommentTap:  { activePresentation = .comment(post) }
         )
     }
 
