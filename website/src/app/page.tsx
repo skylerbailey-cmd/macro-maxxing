@@ -415,6 +415,61 @@ export default function Home() {
                 title: "Voice Food Logging",
                 desc: "Log meals hands-free with AI",
               },
+              {
+                href: "/streaks-and-gamification",
+                title: "Streaks & Gamification",
+                desc: "Turn tracking into a game",
+              },
+              {
+                href: "/social-fitness-community",
+                title: "Social Community",
+                desc: "Accountability through community",
+              },
+              {
+                href: "/looksmaxxing-macro-tracker",
+                title: "Looksmaxxing Nutrition",
+                desc: "Optimize your glow up diet",
+              },
+              {
+                href: "/protein-tracker-app",
+                title: "Protein Tracker",
+                desc: "Hit your protein goals daily",
+              },
+              {
+                href: "/weight-loss-app",
+                title: "Weight Loss App",
+                desc: "AI-powered calorie deficit tracking",
+              },
+              {
+                href: "/muscle-building-nutrition",
+                title: "Muscle Building Nutrition",
+                desc: "Track your bulking macros",
+              },
+              {
+                href: "/meal-prep-tracker",
+                title: "Meal Prep Tracker",
+                desc: "Scan once, log all week",
+              },
+              {
+                href: "/tdee-calculator",
+                title: "TDEE Calculator",
+                desc: "Know your maintenance calories",
+              },
+              {
+                href: "/gym-diet-plan",
+                title: "Gym Diet Plan",
+                desc: "Nutrition for every training style",
+              },
+              {
+                href: "/accountability-partner-app",
+                title: "Accountability Partner",
+                desc: "Never diet alone again",
+              },
+              {
+                href: "/body-recomposition-tracker",
+                title: "Body Recomp Tracker",
+                desc: "Lose fat and build muscle",
+              },
             ].map((link, i) => (
               <Link
                 key={i}

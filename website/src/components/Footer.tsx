@@ -4,7 +4,7 @@ export function Footer() {
   return (
     <footer className="bg-brand-bg border-t border-white/5 py-16">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-10">
           {/* Brand */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
@@ -76,6 +76,61 @@ export function Footer() {
                   className="hover:text-white transition"
                 >
                   Calorie Counter App
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/protein-tracker-app"
+                  className="hover:text-white transition"
+                >
+                  Protein Tracker
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/weight-loss-app"
+                  className="hover:text-white transition"
+                >
+                  Weight Loss App
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Community */}
+          <div>
+            <h4 className="font-semibold text-white mb-4">Community</h4>
+            <ul className="space-y-2 text-sm text-gray-400">
+              <li>
+                <Link
+                  href="/streaks-and-gamification"
+                  className="hover:text-white transition"
+                >
+                  Streaks & Gamification
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/social-fitness-community"
+                  className="hover:text-white transition"
+                >
+                  Social Community
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/accountability-partner-app"
+                  className="hover:text-white transition"
+                >
+                  Accountability
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/looksmaxxing-macro-tracker"
+                  className="hover:text-white transition"
+                >
+                  Looksmaxxing
                 </Link>
               </li>
             </ul>
