@@ -60,7 +60,7 @@ struct FeedView: View {
             }
             .presentationDetents([.large])
         }
-        .sheet(item: $profilePost) { post in
+        .fullScreenCover(item: $profilePost) { post in
             NavigationStack {
                 ProfileView(
                     profileUserID:       post.userID,
@@ -74,7 +74,6 @@ struct FeedView: View {
                     profileIsPrivate:    !post.isPublic
                 )
             }
-            .presentationDetents([.large])
         }
     }
 
@@ -91,7 +90,7 @@ struct FeedView: View {
             onRep:         { Task { await viewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
             onDelete:      deleteAction,
             onTap:         { selectedPost  = post },
-            onAvatarTap:   { profilePost   = post },
+            onAvatarTap:   { selectedPost = nil; commentPost = nil; profilePost = post },
             onCommentTap:  { commentPost   = post }
         )
     }
