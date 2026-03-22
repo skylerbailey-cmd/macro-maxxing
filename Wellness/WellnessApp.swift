@@ -135,32 +135,26 @@ struct WellnessApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if showSplash {
+                if showSplash || session.authState == .unknown {
+                    // Show splash while app initializes AND while Firebase resolves auth.
+                    // The splash animation plays, then holds at 100% until auth is ready.
                     SplashView(onComplete: { showSplash = false })
+                        .preferredColorScheme(.dark)
+                        .task {
+                            // If Firebase doesn't resolve within 5 seconds, time out
+                            try? await Task.sleep(for: .seconds(5))
+                            if case .unknown = session.authState {
+                                authTimedOut = true
+                            }
+                        }
+                } else if authTimedOut && session.authState == .unknown {
+                    AuthView()
+                        .environment(session)
                         .preferredColorScheme(.dark)
                 } else {
                     switch session.authState {
                     case .unknown:
-                        if authTimedOut {
-                            // Firebase never resolved — fall through to sign-in
-                            AuthView()
-                                .environment(session)
-                                .preferredColorScheme(.dark)
-                        } else {
-                            // Show a brief loading state while Firebase resolves
-                            ZStack {
-                                Color.black.ignoresSafeArea()
-                                ProgressView()
-                                    .tint(.white)
-                            }
-                            .task {
-                                // Give Firebase 5 seconds to resolve auth, then time out
-                                try? await Task.sleep(for: .seconds(5))
-                                if case .unknown = session.authState {
-                                    authTimedOut = true
-                                }
-                            }
-                        }
+                        EmptyView() // Handled above
 
                     case .unauthenticated:
                         AuthView()

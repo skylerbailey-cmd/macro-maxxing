@@ -90,11 +90,11 @@ struct SplashView: View {
         }
         .task {
             // Brief pause for entrance animation
-            try? await Task.sleep(for: .seconds(0.15))
+            try? await Task.sleep(for: .seconds(0.3))
 
             // Fill the ring 0 → 100% using ease-out cubic
-            let steps    = 40
-            let duration = 0.4
+            let steps    = 50
+            let duration = 1.2
             let interval = duration / Double(steps)
 
             for i in 1...steps {
@@ -104,8 +104,8 @@ struct SplashView: View {
             }
             loadProgress = 1.0
 
-            // Very brief pause at 100%
-            try? await Task.sleep(for: .seconds(0.1))
+            // Hold at 100% so the user sees the completed state
+            try? await Task.sleep(for: .seconds(0.5))
             onComplete()
         }
     }
