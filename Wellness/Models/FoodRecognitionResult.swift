@@ -29,7 +29,7 @@ struct FoodRecognitionResult {
     var carbs: Double
     var fat: Double
     var portionGrams: Double
-    var tier: Int            // 1, 2, or 3
+    var tier: Int            // 1 = Haiku, 2 = Sonnet
     var source: String       // which APIs were used
     var confidence: Double
     var needsUserConfirmation: Bool
@@ -39,9 +39,8 @@ struct FoodRecognitionResult {
 
     var tierBadge: String {
         switch tier {
-        case 1:  return "⚡ Instant"
-        case 2:  return "🔍 Enhanced"
-        case 3:  return "🧠 AI Analysis"
+        case 1:  return "🔍 AI Scan"
+        case 2:  return "🧠 AI Analysis"
         default: return "Unknown"
         }
     }
@@ -56,12 +55,23 @@ struct MealComponent: Codable {
     let fat: Double
 }
 
-/// Intermediate result from Claude Haiku (Tier 2 Step 1)
+/// Intermediate result from Claude Haiku — identification + macro estimation in one call.
 struct HaikuFoodIdentification: Codable {
     let foodName: String
     let portionGrams: Double
     let isMixedMeal: Bool
     let confidence: Double
+    let calories: Int
+    let protein: Double
+    let carbs: Double
+    let fat: Double
+    let components: [MealComponent]?
+}
+
+/// Lightweight food item used by Sonnet text-only macro estimation
+struct HaikuFoodItem: Codable {
+    let name: String
+    let portionGrams: Double
 }
 
 /// Intermediate result from database lookups

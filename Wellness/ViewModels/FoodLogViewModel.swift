@@ -158,15 +158,15 @@ enum AnalysisTier: Equatable {
 
         recognitionResult = result
         populateFromRecognitionResult(result)
-        analysisTier = result.tier == 1 ? .local : .claude
+        analysisTier = .claude
 
         // Update tier counters
         if result.tier == 1 {
             Self.tier1Count += 1
-            print("[Tier1] ✓ Resolved locally: \(result.foodName) — \(result.calories) kcal")
-        } else if result.tier >= 2 {
+            print("[Tier1] ✓ Haiku result: \(result.foodName) — \(result.calories) kcal")
+        } else if result.tier == 2 {
             Self.tier2Count += 1
-            print("[Tier\(result.tier)] ✓ Claude result: \(result.foodName) — \(result.calories) kcal")
+            print("[Tier2] ✓ Sonnet result: \(result.foodName) — \(result.calories) kcal")
         }
 
         if result.tier == 0 && result.calories == 0 {
@@ -192,10 +192,10 @@ enum AnalysisTier: Equatable {
 
         recognitionResult = result
         populateFromRecognitionResult(result)
-        analysisTier = result.tier == 1 ? .local : .claude
+        analysisTier = .claude
 
         if result.tier == 1 { Self.tier1Count += 1 }
-        else if result.tier >= 2 { Self.tier2Count += 1 }
+        else if result.tier == 2 { Self.tier2Count += 1 }
 
         if result.tier == 0 && result.calories == 0 {
             analysisState = .error(FoodRecognitionError.allTiersFailed.localizedDescription)
@@ -204,7 +204,7 @@ enum AnalysisTier: Equatable {
         }
     }
 
-    /// Forces a Claude API analysis, bypassing Tier 1.
+    /// Forces a Sonnet full vision analysis, bypassing Tier 1 (Haiku).
     /// Called when the user taps "Not right? Try AI scan".
     func reanalyzeWithClaude() async {
         guard let image = selectedImage else { return }
@@ -231,11 +231,11 @@ enum AnalysisTier: Equatable {
         }
     }
 
-    /// Escalates to the next tier when user taps "Try better scan".
+    /// Escalates to Sonnet full vision when user taps "Try better scan".
     func escalateAnalysis() async {
         guard let image = selectedImage,
               let current = recognitionResult,
-              current.tier < 3 else { return }
+              current.tier < 2 else { return }
 
         analysisState = .analyzing
 
@@ -249,9 +249,9 @@ enum AnalysisTier: Equatable {
 
         recognitionResult = result
         populateFromRecognitionResult(result)
-        analysisTier = result.tier == 1 ? .local : .claude
+        analysisTier = .claude
 
-        if result.tier >= 2 { Self.tier2Count += 1 }
+        Self.tier2Count += 1
 
         if result.tier == 0 && result.calories == 0 {
             analysisState = .error(FoodRecognitionError.allTiersFailed.localizedDescription)
