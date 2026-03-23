@@ -165,6 +165,23 @@ export default function PrivacyPolicyPage() {
                   FatSecret Terms
                 </a>
               </li>
+              <li>
+                <strong className="text-white">
+                  Google AdMob:
+                </strong>{" "}
+                In-app advertising, including banner, interstitial, and rewarded
+                ads. AdMob may collect device identifiers (such as the
+                Advertising ID), IP address, and interaction data to serve and
+                measure ads. Ad data is processed by Google.{" "}
+                <a
+                  href="https://policies.google.com/technologies/ads"
+                  className="text-brand-purple hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Google Ads Privacy
+                </a>
+              </li>
             </ul>
           </div>
 
@@ -271,10 +288,12 @@ export default function PrivacyPolicyPage() {
               to improve your browsing experience.
             </p>
             <p className="mb-2">
-              We may display advertisements within the App or on our website
-              through third-party ad networks. These networks may collect device
-              identifiers and usage data to serve personalized ads. You can opt
-              out of personalized advertising by adjusting your device settings:
+              We display advertisements within the App using Google AdMob,
+              including banner ads, interstitial ads, and rewarded ads. Google
+              AdMob may collect device identifiers (such as your Advertising ID),
+              IP address, and ad interaction data to serve and measure
+              personalized ads. You can opt out of personalized advertising by
+              adjusting your device settings:
             </p>
             <ul className="list-disc list-inside space-y-1 ml-2">
               <li>
