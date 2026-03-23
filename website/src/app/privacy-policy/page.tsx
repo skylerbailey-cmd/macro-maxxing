@@ -263,7 +263,127 @@ export default function PrivacyPolicyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              10. Changes to This Policy
+              10. Advertising &amp; Cookies
+            </h2>
+            <p className="mb-2">
+              The App itself does not use cookies. Our website (macromaxxing.com)
+              may use cookies and similar tracking technologies for analytics and
+              to improve your browsing experience.
+            </p>
+            <p className="mb-2">
+              We may display advertisements within the App or on our website
+              through third-party ad networks. These networks may collect device
+              identifiers and usage data to serve personalized ads. You can opt
+              out of personalized advertising by adjusting your device settings:
+            </p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li>
+                <strong className="text-white">iOS:</strong> Settings &gt;
+                Privacy &amp; Security &gt; Tracking, and disable &ldquo;Allow
+                Apps to Request to Track.&rdquo;
+              </li>
+              <li>
+                <strong className="text-white">Web:</strong> Manage cookie
+                preferences via your browser settings or our cookie banner (if
+                displayed).
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-white mb-3">
+              11. International Data Transfers
+            </h2>
+            <p>
+              Your data may be processed and stored on servers located in the
+              United States and other countries where our service providers
+              operate (including Google and Anthropic). By using the App, you
+              consent to the transfer of your information to countries that may
+              have different data-protection laws than your country of residence.
+              We take steps to ensure that your data receives an adequate level
+              of protection wherever it is processed.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-white mb-3">
+              12. Your Privacy Rights Under Applicable Law
+            </h2>
+            <p className="mb-3">
+              Depending on where you live, you may have additional rights under
+              local privacy laws such as the California Consumer Privacy Act
+              (CCPA) or the EU/UK General Data Protection Regulation (GDPR).
+            </p>
+
+            <h3 className="text-base font-semibold text-white mt-4 mb-2">
+              California Residents (CCPA)
+            </h3>
+            <ul className="list-disc list-inside space-y-1 ml-2 mb-3">
+              <li>
+                <strong className="text-white">Right to Know:</strong> You may
+                request details about the categories and specific pieces of
+                personal information we have collected about you in the past 12
+                months.
+              </li>
+              <li>
+                <strong className="text-white">Right to Delete:</strong> You
+                may request deletion of your personal information, subject to
+                certain legal exceptions.
+              </li>
+              <li>
+                <strong className="text-white">
+                  Right to Opt Out of Sale:
+                </strong>{" "}
+                We do not sell your personal information as defined by the CCPA.
+              </li>
+              <li>
+                <strong className="text-white">Non-Discrimination:</strong> We
+                will not discriminate against you for exercising your CCPA
+                rights.
+              </li>
+            </ul>
+
+            <h3 className="text-base font-semibold text-white mt-4 mb-2">
+              EU/UK Residents (GDPR)
+            </h3>
+            <ul className="list-disc list-inside space-y-1 ml-2 mb-3">
+              <li>
+                <strong className="text-white">Legal Basis:</strong> We process
+                your data based on your consent (e.g., photo analysis),
+                contractual necessity (e.g., providing App features), and
+                legitimate interests (e.g., improving the App and preventing
+                fraud).
+              </li>
+              <li>
+                <strong className="text-white">Data Portability:</strong> You
+                may request a copy of your data in a structured,
+                machine-readable format.
+              </li>
+              <li>
+                <strong className="text-white">Right to Object:</strong> You
+                may object to processing based on legitimate interests.
+              </li>
+              <li>
+                <strong className="text-white">Supervisory Authority:</strong>{" "}
+                You have the right to lodge a complaint with your local data
+                protection authority.
+              </li>
+            </ul>
+            <p>
+              To exercise any of these rights, contact us at{" "}
+              <a
+                href="mailto:privacy@macromaxxing.com"
+                className="text-brand-purple hover:underline"
+              >
+                privacy@macromaxxing.com
+              </a>
+              . We will respond within the timeframe required by applicable law.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-white mb-3">
+              13. Changes to This Policy
             </h2>
             <p>
               We may update this Privacy Policy from time to time. We will
@@ -274,7 +394,7 @@ export default function PrivacyPolicyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              11. Contact Us
+              14. Contact Us
             </h2>
             <p>
               If you have questions about this Privacy Policy or want to
