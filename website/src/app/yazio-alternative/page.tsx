@@ -106,11 +106,11 @@ export default function YazioAlternativePage() {
             </h2>
             <ComparisonTable
               features={[
-                { name: "3-tier AI photo scanning", macroMaxxing: true, others: "Basic AI" },
+                { name: "Claude AI photo scanning", macroMaxxing: true, others: "Basic AI" },
                 { name: "Voice meal logging", macroMaxxing: true, others: false },
                 { name: "100% free (no upsells)", macroMaxxing: true, others: "Aggressive freemium" },
                 { name: "No ads or pop-ups", macroMaxxing: true, others: false },
-                { name: "Accurate nutrition data", macroMaxxing: "4 verified databases", others: "User-reported issues" },
+                { name: "Accurate nutrition data", macroMaxxing: "USDA + AI", others: "User-reported issues" },
                 { name: "Daily streaks", macroMaxxing: true, others: "Streak baiting for Pro" },
                 { name: "Leaderboards & XP", macroMaxxing: true, others: false },
                 { name: "Social community feed", macroMaxxing: true, others: false },
@@ -129,7 +129,7 @@ export default function YazioAlternativePage() {
             <FeatureCard
               icon="🎯"
               title="Accurate AI"
-              description="3-tier AI system cross-referencing 4 verified databases including USDA. No wildly wrong calorie counts — just accurate macros."
+              description="Claude AI cross-referencing USDA-verified nutrition data. No wildly wrong calorie counts — just accurate macros."
               color="brand-mint"
             />
             <FeatureCard
@@ -174,11 +174,11 @@ export default function YazioAlternativePage() {
               {[
                 {
                   q: "What is the best free alternative to YAZIO?",
-                  a: "Macro Maxxing is the best free alternative to YAZIO. It offers accurate 3-tier AI photo scanning, voice meal logging, customizable fasting timers, gamified streaks, leaderboards, and a social community — all 100% free with no pop-ups, ads, or subscription upsells.",
+                  a: "Macro Maxxing is the best free alternative to YAZIO. It offers accurate Claude AI photo scanning, voice meal logging, customizable fasting timers, gamified streaks, leaderboards, and a social community — all 100% free with no pop-ups, ads, or subscription upsells.",
                 },
                 {
                   q: "Is Macro Maxxing more accurate than YAZIO?",
-                  a: "Yes. Macro Maxxing uses a 3-tier AI system that cross-references 4 verified nutrition databases including USDA FoodData Central. YAZIO users frequently report inaccurate food entries with wildly wrong calorie counts. Accuracy is a core priority for Macro Maxxing.",
+                  a: "Yes. Macro Maxxing uses Claude AI cross-referenced with USDA FoodData Central for verified nutrition data. YAZIO users frequently report inaccurate food entries with wildly wrong calorie counts. Accuracy is a core priority for Macro Maxxing.",
                 },
                 {
                   q: "Does Macro Maxxing have a fasting timer like YAZIO?",

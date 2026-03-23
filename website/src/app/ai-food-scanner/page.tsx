@@ -5,7 +5,7 @@ import { ArticleJsonLd } from "@/components/JsonLd";
 export const metadata: Metadata = {
   title: "AI Food Scanner — Snap a Photo, Get Instant Macros",
   description:
-    "Macro Maxxing's AI food scanner uses 3-tier image recognition to identify food and estimate calories, protein, carbs, and fat from a single photo. Free app.",
+    "Macro Maxxing's AI food scanner uses Claude Haiku and Sonnet to identify food and estimate calories, protein, carbs, and fat from a single photo. Free app.",
   keywords: [
     "AI food scanner",
     "AI food recognition app",
@@ -23,7 +23,7 @@ export default function AIFoodScanner() {
     <>
       <ArticleJsonLd
         title="AI Food Scanner — Snap a Photo, Get Instant Macros"
-        description="How Macro Maxxing's 3-tier AI food recognition system identifies food from photos and estimates macros instantly."
+        description="How Macro Maxxing's AI food recognition powered by Claude Haiku and Sonnet identifies food from photos and estimates macros instantly."
         url="https://macromaxxing.app/ai-food-scanner"
       />
 
@@ -43,25 +43,25 @@ export default function AIFoodScanner() {
             breakdowns for calories, protein, carbs, and fat.
           </p>
 
-          <h2 className="text-2xl font-bold mb-4">How It Works: 3-Tier AI Recognition</h2>
+          <h2 className="text-2xl font-bold mb-4">How It Works: AI-Powered Recognition</h2>
           <p className="text-gray-400 leading-relaxed mb-8">
-            Macro Maxxing uses a sophisticated 3-tier AI system that balances
-            speed, accuracy, and cost. Most foods are recognized instantly on
-            your device — complex meals fall through to more powerful cloud AI.
+            Macro Maxxing uses Claude AI models exclusively for food recognition,
+            powered by Anthropic. Simple foods are handled by fast Claude Haiku —
+            complex meals get the full power of Claude Sonnet.
           </p>
 
           <div className="space-y-6 mb-12">
             <div className="bg-brand-card rounded-xl p-6 border border-white/5 relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1 h-full bg-brand-green" />
               <div className="pl-4">
-                <p className="text-brand-green text-xs font-semibold mb-1">TIER 1 — FASTEST</p>
+                <p className="text-brand-green text-xs font-semibold mb-1">FAST &amp; FREE</p>
                 <h3 className="text-lg font-semibold text-white mb-2">
-                  On-Device Vision AI + USDA Lookup
+                  On-Device Vision + USDA Lookup
                 </h3>
                 <p className="text-gray-400 text-sm">
-                  Uses Apple&apos;s Vision framework to classify food directly on
+                  Uses Apple&apos;s Vision framework to classify simple foods directly on
                   your device. Matches results against the USDA FoodData Central
-                  database. Zero latency, no API costs, works offline.
+                  database. Zero latency, works offline.
                 </p>
               </div>
             </div>
@@ -69,15 +69,14 @@ export default function AIFoodScanner() {
             <div className="bg-brand-card rounded-xl p-6 border border-white/5 relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1 h-full bg-brand-purple" />
               <div className="pl-4">
-                <p className="text-brand-purple text-xs font-semibold mb-1">TIER 2 — BALANCED</p>
+                <p className="text-brand-purple text-xs font-semibold mb-1">CLAUDE HAIKU — BALANCED</p>
                 <h3 className="text-lg font-semibold text-white mb-2">
-                  Claude Haiku + Multi-Database Cross-Reference
+                  Claude Haiku AI Recognition
                 </h3>
                 <p className="text-gray-400 text-sm">
                   For complex or mixed plates, the photo is sent to Claude
-                  Haiku — a fast, cost-effective AI model. Results are
-                  cross-referenced with FatSecret and OpenFoodFacts for maximum
-                  accuracy.
+                  Haiku — a fast, cost-effective AI model by Anthropic. Results are
+                  cross-referenced with USDA data for maximum accuracy.
                 </p>
               </div>
             </div>
@@ -85,7 +84,7 @@ export default function AIFoodScanner() {
             <div className="bg-brand-card rounded-xl p-6 border border-white/5 relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1 h-full bg-brand-gold" />
               <div className="pl-4">
-                <p className="text-brand-gold text-xs font-semibold mb-1">TIER 3 — MOST ACCURATE</p>
+                <p className="text-brand-gold text-xs font-semibold mb-1">CLAUDE SONNET — MOST ACCURATE</p>
                 <h3 className="text-lg font-semibold text-white mb-2">
                   Claude Sonnet Deep Analysis
                 </h3>
@@ -103,7 +102,7 @@ export default function AIFoodScanner() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
             {[
               { stat: "5x faster", desc: "than typing and searching a database" },
-              { stat: "4 databases", desc: "USDA, FatSecret, OpenFoodFacts, AI" },
+              { stat: "USDA + Claude AI", desc: "Verified data + AI analysis" },
               { stat: "Mixed plates", desc: "AI identifies multiple items at once" },
               { stat: "Save & reuse", desc: "Save scanned meals as templates" },
             ].map((item, i) => (
@@ -133,7 +132,7 @@ export default function AIFoodScanner() {
           <p className="text-gray-400 leading-relaxed">
             Whether it&apos;s a classic rice and ground turkey plate, a complex
             curry, sushi, a smoothie bowl, or a loaded burrito — the AI handles
-            it. The 3-tier system means even challenging foods get identified
+            it. Claude AI means even challenging foods get identified
             accurately.
           </p>
         </div>

@@ -78,7 +78,7 @@ export default function LoseItAlternativePage() {
               },
               {
                 issue: "No AI Photo Scanning",
-                desc: "Lose It! has a basic food recognition feature, but it's limited. No 3-tier AI system, no multi-database cross-referencing.",
+                desc: "Lose It! has a basic food recognition feature, but it's limited. No Claude AI-powered scanning, no USDA cross-referencing.",
               },
               {
                 issue: "No Voice Logging",
@@ -136,7 +136,7 @@ export default function LoseItAlternativePage() {
             <FeatureCard
               icon="📸"
               title="Real AI Scanning"
-              description="A 3-tier AI system that identifies any food from a photo and cross-references 4 databases. Not basic image recognition — real nutritional analysis."
+              description="Claude AI identifies any food from a photo and cross-references the USDA database. Not basic image recognition — real nutritional analysis."
               color="brand-purple"
             />
             <FeatureCard
@@ -183,7 +183,7 @@ export default function LoseItAlternativePage() {
                 },
                 {
                   q: "Does Macro Maxxing track macros better than Lose It?",
-                  a: "Yes. Macro Maxxing is built as a macro tracker first. Protein, carbs, and fat are displayed prominently alongside calories. AI photo scanning provides accurate macro breakdowns from 4 nutrition databases. In Lose It!, detailed macros require the Premium subscription.",
+                  a: "Yes. Macro Maxxing is built as a macro tracker first. Protein, carbs, and fat are displayed prominently alongside calories. Claude AI photo scanning provides accurate macro breakdowns with USDA-verified data. In Lose It!, detailed macros require the Premium subscription.",
                 },
                 {
                   q: "Is Macro Maxxing completely free?",

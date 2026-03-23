@@ -179,7 +179,7 @@ export default function CronometerAlternativePage() {
                 },
                 {
                   q: "Is Macro Maxxing as accurate as Cronometer?",
-                  a: "Macro Maxxing pulls nutrition data from 4 verified databases including USDA FoodData Central. Its 3-tier AI system cross-references multiple sources for accuracy. While Cronometer excels at micronutrient detail, Macro Maxxing provides highly accurate macro tracking for calories, protein, carbs, and fat.",
+                  a: "Macro Maxxing uses Claude AI cross-referenced with USDA FoodData Central for verified nutrition data. While Cronometer excels at micronutrient detail, Macro Maxxing provides highly accurate macro tracking for calories, protein, carbs, and fat.",
                 },
                 {
                   q: "Does Macro Maxxing track micronutrients like Cronometer?",

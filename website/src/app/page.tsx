@@ -45,7 +45,7 @@ export default function Home() {
       <section className="border-y border-white/5 py-8 px-4 sm:px-6">
         <div className="max-w-4xl mx-auto flex flex-wrap justify-center gap-8 sm:gap-16 text-center">
           <div>
-            <p className="text-2xl font-bold text-brand-gold">3-Tier AI</p>
+            <p className="text-2xl font-bold text-brand-gold">Claude AI</p>
             <p className="text-gray-500 text-sm">Food Recognition</p>
           </div>
           <div>
@@ -53,8 +53,8 @@ export default function Home() {
             <p className="text-gray-500 text-sm">Input Methods</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-brand-teal">4 Databases</p>
-            <p className="text-gray-500 text-sm">USDA, FatSecret & more</p>
+            <p className="text-2xl font-bold text-brand-teal">USDA + AI</p>
+            <p className="text-gray-500 text-sm">Verified nutrition data</p>
           </div>
           <div>
             <p className="text-2xl font-bold text-brand-green">100% Free</p>
@@ -139,15 +139,15 @@ export default function Home() {
                 Snap a Photo. Get Instant Macros.
               </h3>
               <p className="text-gray-400 mb-6 leading-relaxed">
-                Take a picture of your plate and our 3-tier AI system identifies
-                every food item. It cross-references USDA, FatSecret, and
-                OpenFoodFacts databases for the most accurate nutrition data
-                possible.
+                Take a picture of your plate and our AI system identifies
+                every food item. Powered by Claude Haiku and Sonnet, it
+                cross-references the USDA database for the most accurate
+                nutrition data possible.
               </p>
               <ul className="space-y-3">
                 {[
                   "Vision AI identifies food items on your plate",
-                  "Cross-references 4 nutrition databases for accuracy",
+                  "Cross-references USDA nutrition database for accuracy",
                   "Edit and adjust portions before saving",
                   "Save meals as templates for quick re-logging",
                 ].map((item, i) => (

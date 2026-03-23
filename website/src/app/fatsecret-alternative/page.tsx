@@ -110,7 +110,7 @@ export default function FatSecretAlternativePage() {
                 { name: "Voice meal logging", macroMaxxing: true, others: false },
                 { name: "100% free", macroMaxxing: true, others: true },
                 { name: "Modern, polished UI", macroMaxxing: true, others: false },
-                { name: "Verified nutrition data", macroMaxxing: "4 databases", others: "Unverified" },
+                { name: "Verified nutrition data", macroMaxxing: "USDA + AI", others: "Unverified" },
                 { name: "Daily streaks", macroMaxxing: true, others: false },
                 { name: "Leaderboards & XP", macroMaxxing: true, others: false },
                 { name: "Social community feed", macroMaxxing: true, others: "Basic forums" },
@@ -130,7 +130,7 @@ export default function FatSecretAlternativePage() {
             <FeatureCard
               icon="📸"
               title="AI Photo Scanning"
-              description="Snap a photo and get instant macros from 4 verified databases. FatSecret has no photo scanning — every entry is manual."
+              description="Snap a photo and get instant macros powered by Claude AI and USDA data. FatSecret has no photo scanning — every entry is manual."
               color="brand-purple"
             />
             <FeatureCard
@@ -160,7 +160,7 @@ export default function FatSecretAlternativePage() {
             <FeatureCard
               icon="✅"
               title="Verified Data"
-              description="AI cross-references 4 nutrition databases including USDA. No guessing whether entries are accurate."
+              description="Claude AI cross-references USDA-verified nutrition data. No guessing whether entries are accurate."
               color="brand-cyan"
             />
           </div>
@@ -175,7 +175,7 @@ export default function FatSecretAlternativePage() {
               {[
                 {
                   q: "What is the best alternative to FatSecret?",
-                  a: "Macro Maxxing is the best alternative to FatSecret. Both are free, but Macro Maxxing offers AI photo scanning, voice logging, verified nutrition data from 4 databases, gamified streaks and leaderboards, and a modern social community. It's everything FatSecret should have evolved into.",
+                  a: "Macro Maxxing is the best alternative to FatSecret. Both are free, but Macro Maxxing offers Claude AI photo scanning, voice logging, USDA-verified nutrition data, gamified streaks and leaderboards, and a modern social community. It's everything FatSecret should have evolved into.",
                 },
                 {
                   q: "Is Macro Maxxing free like FatSecret?",
@@ -183,7 +183,7 @@ export default function FatSecretAlternativePage() {
                 },
                 {
                   q: "Is Macro Maxxing more accurate than FatSecret?",
-                  a: "Yes. Macro Maxxing uses a 3-tier AI system that cross-references 4 verified nutrition databases including USDA FoodData Central. FatSecret's database has no clear verification system, so you can't be sure entries are accurate.",
+                  a: "Yes. Macro Maxxing uses Claude AI cross-referenced with USDA FoodData Central for verified nutrition data. FatSecret's database has no clear verification system, so you can't be sure entries are accurate.",
                 },
                 {
                   q: "Does Macro Maxxing have a community like FatSecret?",
