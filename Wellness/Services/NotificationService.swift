@@ -64,9 +64,9 @@ final class NotificationService {
 
     private let streakWarningNotificationID = "com.sbailey.Wellness.streakWarning"
 
-    /// Schedules a one-shot notification at 10 PM tonight warning the user their streak is at risk.
+    /// Schedules a one-shot notification at 8 PM tonight warning the user their streak is at risk.
     /// Safe to call repeatedly — replaces any existing pending notification.
-    /// Does nothing if 10 PM has already passed today or streak is 0.
+    /// Does nothing if 8 PM has already passed today or streak is 0.
     func scheduleStreakWarningIfNeeded(streak: Int) {
         guard streak > 0 else {
             cancelStreakWarningNotification()
@@ -74,17 +74,17 @@ final class NotificationService {
         }
         let cal = Calendar.current
         var components = cal.dateComponents([.year, .month, .day], from: Date())
-        components.hour = 22
+        components.hour = 20
         components.minute = 0
         components.second = 0
         guard let fireDate = cal.date(from: components), fireDate > Date() else {
-            // 10 PM already passed — nothing to schedule for tonight
+            // 8 PM already passed — nothing to schedule for tonight
             return
         }
 
         let content = UNMutableNotificationContent()
         content.title = "Streak at Risk 🔥"
-        content.body  = "2 hours left to hit your macros and keep your \(streak)-day streak alive."
+        content.body  = "4 hours left to hit your macros and keep your \(streak)-day streak alive."
         content.sound = .default
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
