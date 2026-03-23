@@ -245,6 +245,9 @@ final class FoodRecognitionManager {
             }
 
             // Step 2: Parallel database lookups
+            // For single-ingredient foods, also query USDA as a cross-check.
+            // FatSecret/OpenFoodFacts are packaged-food databases and often return
+            // wrong matches for whole foods (e.g. "Orange" → "Orange Cookies").
             async let fatSecretResult = fatSecret.searchFood(
                 query: haikuResult.foodName,
                 targetPortionGrams: haikuResult.portionGrams
@@ -253,11 +256,43 @@ final class FoodRecognitionManager {
                 query: haikuResult.foodName,
                 targetPortionGrams: haikuResult.portionGrams
             )
+            // USDA lookup only for single-ingredient foods — it's the gold
+            // standard for whole foods and catches wrong packaged-food matches.
+            async let usdaBaseMacros = haikuResult.isMixedMeal
+                ? nil
+                : try usda.fetchBaseMacros(query: haikuResult.foodName)
 
             let fs = try? await fatSecretResult
             let off = try? await offResult
+            let usdaBase = try? await usdaBaseMacros
 
-            // Step 3: Merge results
+            // Step 3: If USDA returned a result for this single-ingredient food,
+            // use it directly — USDA is far more accurate for whole foods than
+            // packaged-food databases which often match processed products.
+            if !haikuResult.isMixedMeal, let base = usdaBase {
+                let scaled = base.scaled(to: haikuResult.portionGrams)
+
+                cache.store(foodName: haikuResult.foodName, macrosPer100g: base)
+
+                print("[Tier2] ✅ Using USDA for \"\(haikuResult.foodName)\" — \(Int(scaled.calories)) kcal / \(Int(haikuResult.portionGrams))g")
+
+                ScanAnalyticsService.shared.recordScan(userID: userID, tier: 2, cacheHit: false)
+
+                return FoodRecognitionResult(
+                    foodName: haikuResult.foodName,
+                    calories: Int(scaled.calories),
+                    protein: scaled.protein,
+                    carbs: scaled.carbs,
+                    fat: scaled.fat,
+                    portionGrams: haikuResult.portionGrams,
+                    tier: 2,
+                    source: "USDA FoodData Central (Haiku-identified)",
+                    confidence: haikuResult.confidence,
+                    needsUserConfirmation: haikuResult.confidence < 0.75
+                )
+            }
+
+            // Step 4: Merge FatSecret + OpenFoodFacts results
             guard let merged = NutritionResultMerger.merge(
                 fatSecret: fs,
                 openFoodFacts: off,
