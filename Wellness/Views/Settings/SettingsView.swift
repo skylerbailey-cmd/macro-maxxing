@@ -119,6 +119,9 @@ struct SettingsView: View {
     @State private var showCitySearch    = false
     @State private var showDeleteAccount = false
     @State private var showChangeEmail   = false
+    @State private var isExportingData   = false
+    @State private var exportFileURL:    URL? = nil
+    @State private var exportError:      String? = nil
 
     // Username availability
     private enum UsernameState { case idle, checking, available, taken }
@@ -354,6 +357,24 @@ struct SettingsView: View {
                      : "Enable to track your daily intermittent fasting window on the Home screen.")
             }
 
+            // MARK: Data & Privacy
+            Section("Data & Privacy") {
+                Button {
+                    Task { await exportData() }
+                } label: {
+                    HStack {
+                        Label("Export My Data", systemImage: "square.and.arrow.up")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if isExportingData {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        }
+                    }
+                }
+                .disabled(isExportingData)
+            }
+
             // MARK: Account Actions
             Section {
                 Button(role: .destructive) {
@@ -426,6 +447,18 @@ struct SettingsView: View {
         .sheet(isPresented: $showChangeEmail) {
             ChangeEmailView()
                 .environment(session)
+        }
+        .sheet(item: $exportFileURL) { url in
+            ActivityView(activityItems: [url])
+                .presentationDetents([.medium, .large])
+        }
+        .alert("Export Failed", isPresented: .init(
+            get: { exportError != nil },
+            set: { if !$0 { exportError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(exportError ?? "")
         }
     }
 
@@ -502,6 +535,17 @@ struct SettingsView: View {
             "dateOfBirth": dobString,
         ]
         try? await session.updateProfile(fields: fields)
+    }
+
+    private func exportData() async {
+        isExportingData = true
+        defer { isExportingData = false }
+        do {
+            let url = try await DataExportService.shared.exportAllData(userID: userSettings.userID)
+            exportFileURL = url
+        } catch {
+            exportError = error.localizedDescription
+        }
     }
 
     private func scheduleUsernameCheck(_ raw: String) {
@@ -750,6 +794,22 @@ private struct CitySearchSheet: View {
         }
         .preferredColorScheme(.dark)
     }
+}
+
+// MARK: - Share Sheet (UIActivityViewController wrapper)
+
+extension URL: @retroactive Identifiable {
+    public var id: String { absoluteString }
+}
+
+private struct ActivityView: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 #Preview {
