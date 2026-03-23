@@ -20,17 +20,22 @@ final class NotificationService {
 
     // MARK: - Fasting Window Notification
 
-    /// Schedules a repeating daily notification 90 minutes before the eating window starts
-    /// (i.e. 90 minutes before the fasting window ends).
+    /// Schedules a repeating daily notification 90 minutes before the eating window closes
+    /// so the user can get their last meal in before the fasting period begins.
     func scheduleFastingWindowNotification(windowStartHour: Int, windowStartMinute: Int) {
-        var totalMinutes = windowStartHour * 60 + windowStartMinute - 90
-        if totalMinutes < 0 { totalMinutes += 24 * 60 } // handle midnight rollover
-        let notifyHour   = totalMinutes / 60
-        let notifyMinute = totalMinutes % 60
+        let durationHours = UserDefaults.standard.integer(forKey: "windowDurationHours")
+        let duration = durationHours > 0 ? durationHours : 8
+
+        // Eating window end = start + duration; notify 90 min before close
+        var notifyMinutes = windowStartHour * 60 + windowStartMinute + duration * 60 - 90
+        if notifyMinutes < 0 { notifyMinutes += 24 * 60 }
+        notifyMinutes = notifyMinutes % (24 * 60)
+        let notifyHour   = notifyMinutes / 60
+        let notifyMinute = notifyMinutes % 60
 
         let content = UNMutableNotificationContent()
-        content.title = "Fast Ending Soon"
-        content.body  = "Your fasting window ends in 90 minutes. Start prepping your last meal! 🍳"
+        content.title = "Eating Window Closing Soon"
+        content.body  = "Your eating window closes in 90 minutes. Get your last meal in! 🍽️"
         content.sound = .default
 
         var components    = DateComponents()
