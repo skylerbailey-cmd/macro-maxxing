@@ -319,7 +319,7 @@ struct OnboardingView: View {
         OnboardingPageShell(
             emoji: "🎂",
             title: "When's your birthday?",
-            subtitle: "Used to personalize your experience. Not shown publicly."
+            subtitle: "You must be at least 18 years old to use Macro Maxxing. Not shown publicly."
         ) {
             DatePicker(
                 "",
@@ -336,7 +336,7 @@ struct OnboardingView: View {
 
     private var dobRange: ClosedRange<Date> {
         let oldest = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date()
-        let youngest = Calendar.current.date(byAdding: .year, value: -13, to: Date()) ?? Date()
+        let youngest = Calendar.current.date(byAdding: .year, value: -18, to: Date()) ?? Date()
         return oldest...youngest
     }
 
