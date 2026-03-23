@@ -453,6 +453,21 @@ private struct SavedMealsSheet: View {
                 }, onDelete: { meal in
                     savedMeals.removeAll { $0.id == meal.id }
                     Task { await FoodEntryService.shared.delete(entryID: meal.firebaseEntryID, userID: userID) }
+                }, onEdit: { meal, name, cal, pro, carb, fat in
+                    // Update locally
+                    if let idx = savedMeals.firstIndex(where: { $0.id == meal.id }) {
+                        savedMeals[idx].foodName = name
+                        savedMeals[idx].calories = cal
+                        savedMeals[idx].protein  = pro
+                        savedMeals[idx].carbs    = carb
+                        savedMeals[idx].fat      = fat
+                    }
+                    // Persist to Firestore
+                    Task {
+                        await FoodEntryService.shared.update(
+                            entryID: meal.firebaseEntryID, userID: userID,
+                            foodName: name, calories: cal, protein: pro, carbs: carb, fat: fat)
+                    }
                 })
             }
         }
