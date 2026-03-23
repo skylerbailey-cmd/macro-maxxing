@@ -380,6 +380,18 @@ import FirebaseFirestore
             } else {
                 NotificationService.shared.scheduleStreakWarningIfNeeded(streak: macroStreak)
             }
+
+            // Cancel today's meal-logging reminder once all macro goals are met;
+            // re-schedule it for tomorrow if goals were already met today.
+            if userSettings.mealReminderEnabled {
+                if allMet {
+                    NotificationService.shared.cancelMealReminder()
+                } else {
+                    NotificationService.shared.scheduleMealReminder(
+                        hour: userSettings.mealReminderHour,
+                        minute: userSettings.mealReminderMinute)
+                }
+            }
         }
 
         // Persist today's macro snapshot and fasting window to Firestore (today only)

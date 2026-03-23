@@ -100,6 +100,42 @@ struct AuraGain: Identifiable, Equatable {
         }
     }
 
+    // MARK: - Meal Logging Reminder
+
+    var mealReminderEnabled: Bool = false {
+        didSet {
+            UserDefaults.standard.set(mealReminderEnabled, forKey: "mealReminderEnabled")
+            if mealReminderEnabled {
+                NotificationService.shared.scheduleMealReminder(
+                    hour: mealReminderHour, minute: mealReminderMinute)
+            } else {
+                NotificationService.shared.cancelMealReminder()
+            }
+        }
+    }
+
+    /// Hour component of the daily meal reminder (0-23). Default 12 (noon).
+    var mealReminderHour: Int = 12 {
+        didSet {
+            UserDefaults.standard.set(mealReminderHour, forKey: "mealReminderHour")
+            if mealReminderEnabled {
+                NotificationService.shared.scheduleMealReminder(
+                    hour: mealReminderHour, minute: mealReminderMinute)
+            }
+        }
+    }
+
+    /// Minute component of the daily meal reminder (0-59). Default 0.
+    var mealReminderMinute: Int = 0 {
+        didSet {
+            UserDefaults.standard.set(mealReminderMinute, forKey: "mealReminderMinute")
+            if mealReminderEnabled {
+                NotificationService.shared.scheduleMealReminder(
+                    hour: mealReminderHour, minute: mealReminderMinute)
+            }
+        }
+    }
+
     // MARK: - Streak (device-local — persisted to UserDefaults)
 
     /// Display streak shown in the UI (baseStreak + 1 if today is also met).
@@ -693,6 +729,11 @@ struct AuraGain: Identifiable, Equatable {
             ? Date(timeIntervalSince1970: storedWeekStart) : .distantPast
         self.useGPSLocation = UserDefaults.standard.object(forKey: "useGPSLocation") == nil
             ? true : UserDefaults.standard.bool(forKey: "useGPSLocation")
+        self.mealReminderEnabled = UserDefaults.standard.bool(forKey: "mealReminderEnabled")
+        let storedReminderHour = UserDefaults.standard.object(forKey: "mealReminderHour")
+        self.mealReminderHour = storedReminderHour != nil
+            ? UserDefaults.standard.integer(forKey: "mealReminderHour") : 12
+        self.mealReminderMinute = UserDefaults.standard.integer(forKey: "mealReminderMinute")
         self.excludeDairy  = UserDefaults.standard.bool(forKey: "excludeDairy")
         self.excludeGluten = UserDefaults.standard.bool(forKey: "excludeGluten")
         self.achievedMilestonesRaw = UserDefaults.standard.string(forKey: "achievedMilestones") ?? ""

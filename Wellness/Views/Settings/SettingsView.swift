@@ -130,6 +130,23 @@ struct SettingsView: View {
     @State private var usernameState: UsernameState = .idle
     @State private var usernameCheckTask: Task<Void, Never>? = nil
 
+    /// Two-way binding that converts the hour/minute ints on UserSettings to a Date for DatePicker.
+    private var mealReminderTimeBinding: Binding<Date> {
+        Binding<Date>(
+            get: {
+                var comps = DateComponents()
+                comps.hour   = userSettings.mealReminderHour
+                comps.minute = userSettings.mealReminderMinute
+                return Calendar.current.date(from: comps) ?? Date()
+            },
+            set: { newDate in
+                let comps = Calendar.current.dateComponents([.hour, .minute], from: newDate)
+                userSettings.mealReminderHour   = comps.hour   ?? 12
+                userSettings.mealReminderMinute = comps.minute ?? 0
+            }
+        )
+    }
+
     var body: some View {
         Form {
             // MARK: Profile
@@ -362,6 +379,25 @@ struct SettingsView: View {
                 Text(userSettings.fastingEnabled
                      ? "Your intermittent fasting window is shown on the Home screen. Tap Edit to adjust the start time and duration."
                      : "Enable to track your daily intermittent fasting window on the Home screen.")
+            }
+
+            // MARK: Meal Logging Reminder
+            Section {
+                Toggle("Daily Meal Reminder", isOn: $userSettings.mealReminderEnabled)
+
+                if userSettings.mealReminderEnabled {
+                    DatePicker(
+                        "Reminder Time",
+                        selection: mealReminderTimeBinding,
+                        displayedComponents: .hourAndMinute
+                    )
+                }
+            } header: {
+                Text("Notifications")
+            } footer: {
+                Text(userSettings.mealReminderEnabled
+                     ? "You'll get a daily reminder at the time above if you haven't hit your macro goals yet."
+                     : "Enable to receive a daily push notification reminding you to log your meals.")
             }
 
             // MARK: Privacy & Data
