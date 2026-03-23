@@ -218,11 +218,15 @@ final class FoodRecognitionManager {
         }
     }
 
-    // MARK: - Tier 2: Hybrid Haiku Vision → Sonnet Text-Only Macros
+    // MARK: - Tier 2: Haiku Vision (ID + Macros), Sonnet text-only fallback for low confidence
+
+    /// Confidence threshold below which Haiku's macro estimates are cross-checked
+    /// by sending the identified items to Sonnet as a cheap text-only call.
+    private let sonnetEscalationThreshold: Double = 0.80
 
     private func attemptTier2(image: UIImage, coreMLHint: String?, voiceNote: String?, userID: String) async -> FoodRecognitionResult? {
         do {
-            // Step 1: Haiku identifies every food item on the plate (cheap vision call)
+            // Step 1: Haiku identifies food AND estimates macros in one vision call
             let haikuResult = try await haiku.identifyFood(image: image, coreMLHint: coreMLHint)
 
             // Check cache
@@ -242,15 +246,9 @@ final class FoodRecognitionManager {
                 )
             }
 
-            // Build item list from Haiku's response. Fall back to a single item
-            // if the model didn't return the items array (backwards compatibility).
-            let items = haikuResult.items ?? [
-                HaikuFoodItem(name: haikuResult.foodName, portionGrams: haikuResult.portionGrams)
-            ]
-
-            // Step 2: For single-ingredient foods, try USDA first (free, accurate)
-            if !haikuResult.isMixedMeal, items.count == 1 {
-                if let base = try? await usda.fetchBaseMacros(query: items[0].name) {
+            // Step 2: For single-ingredient foods, try USDA first (free, most accurate)
+            if !haikuResult.isMixedMeal {
+                if let base = try? await usda.fetchBaseMacros(query: haikuResult.foodName) {
                     let scaled = base.scaled(to: haikuResult.portionGrams)
                     cache.store(foodName: haikuResult.foodName, macrosPer100g: base)
                     print("[Tier2] ✅ Using USDA for \"\(haikuResult.foodName)\" — \(Int(scaled.calories)) kcal / \(Int(haikuResult.portionGrams))g")
@@ -270,15 +268,57 @@ final class FoodRecognitionManager {
                 }
             }
 
-            // Step 3: Send Haiku's item list to Sonnet as TEXT ONLY (no image).
-            // This is much cheaper than a Sonnet vision call — Sonnet only does
-            // the nutrition math, Haiku already handled the visual identification.
+            // Step 3: If Haiku is confident, use its macros directly (cheapest path).
+            // If confidence is low, escalate to Sonnet TEXT-ONLY to recalculate macros
+            // using Haiku's food identification — no image sent to Sonnet.
+            let isMixed = (haikuResult.components?.count ?? 0) > 1
+
+            if haikuResult.confidence >= sonnetEscalationThreshold {
+                // Haiku is confident — use its macros directly
+                if haikuResult.portionGrams > 0 {
+                    let factor = 100.0 / haikuResult.portionGrams
+                    cache.store(
+                        foodName: haikuResult.foodName,
+                        macrosPer100g: MacrosPer100g(
+                            calories: Double(haikuResult.calories) * factor,
+                            protein: haikuResult.protein * factor,
+                            carbs: haikuResult.carbs * factor,
+                            fat: haikuResult.fat * factor
+                        )
+                    )
+                }
+
+                print("[Tier2] ✅ Haiku (confident \(Int(haikuResult.confidence * 100))%) for \"\(haikuResult.foodName)\" — \(haikuResult.calories) kcal / \(Int(haikuResult.portionGrams))g")
+                ScanAnalyticsService.shared.recordScan(userID: userID, tier: 2, cacheHit: false)
+
+                return FoodRecognitionResult(
+                    foodName: haikuResult.foodName,
+                    calories: haikuResult.calories,
+                    protein: haikuResult.protein,
+                    carbs: haikuResult.carbs,
+                    fat: haikuResult.fat,
+                    portionGrams: haikuResult.portionGrams,
+                    tier: 2,
+                    source: "Claude Haiku",
+                    confidence: haikuResult.confidence,
+                    needsUserConfirmation: haikuResult.confidence < 0.75 || isMixed,
+                    components: haikuResult.components
+                )
+            }
+
+            // Step 4: Low confidence — ask Sonnet to recalculate macros (text only, no image)
+            let components = haikuResult.components ?? [
+                MealComponent(name: haikuResult.foodName, portionGrams: haikuResult.portionGrams,
+                              calories: haikuResult.calories, protein: haikuResult.protein,
+                              carbs: haikuResult.carbs, fat: haikuResult.fat)
+            ]
+            let items = components.map { HaikuFoodItem(name: $0.name, portionGrams: $0.portionGrams) }
+
             let sonnetResult = try await sonnet.estimateMacros(
                 items: items,
                 fullMealName: haikuResult.foodName
             )
 
-            // Cache the result
             if sonnetResult.portionGrams > 0 {
                 let factor = 100.0 / sonnetResult.portionGrams
                 cache.store(
@@ -292,10 +332,10 @@ final class FoodRecognitionManager {
                 )
             }
 
-            print("[Tier2] ✅ Hybrid Haiku→Sonnet(text) for \"\(haikuResult.foodName)\" — \(sonnetResult.calories) kcal / \(Int(haikuResult.portionGrams))g")
+            print("[Tier2] ✅ Haiku→Sonnet(text) for \"\(haikuResult.foodName)\" — \(sonnetResult.calories) kcal / \(Int(haikuResult.portionGrams))g (Haiku confidence was \(Int(haikuResult.confidence * 100))%)")
             ScanAnalyticsService.shared.recordScan(userID: userID, tier: 2, cacheHit: false)
 
-            let isMixed = (sonnetResult.components?.count ?? 0) > 1
+            let sonnetIsMixed = (sonnetResult.components?.count ?? 0) > 1
 
             return FoodRecognitionResult(
                 foodName: sonnetResult.foodName,
@@ -307,7 +347,7 @@ final class FoodRecognitionManager {
                 tier: 2,
                 source: "Haiku Vision + Sonnet Macros",
                 confidence: haikuResult.confidence,
-                needsUserConfirmation: haikuResult.confidence < 0.75 || isMixed,
+                needsUserConfirmation: haikuResult.confidence < 0.75 || sonnetIsMixed,
                 components: sonnetResult.components
             )
         } catch {

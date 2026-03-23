@@ -14,7 +14,7 @@ final class ClaudeHaikuService {
 
     private init() {}
 
-    /// Sends a food photo to Claude Haiku for identification.
+    /// Sends a food photo to Claude Haiku for identification AND macro estimation in one call.
     /// Optionally includes a Core ML hint if Tier 1 attempted classification.
     func identifyFood(image: UIImage, coreMLHint: String? = nil) async throws -> HaikuFoodIdentification {
         guard let jpegData = resized(image, maxEdge: 768).jpegData(compressionQuality: 0.7) else {
@@ -24,14 +24,33 @@ final class ClaudeHaikuService {
         let base64 = jpegData.base64EncodedString()
 
         var promptParts = [
-            "Identify every distinct food item visible in this photo.",
-            "Estimate each item's portion size in grams using visual cues: hands, forks, spoons, plate size, bowl size, or any other objects in the photo as size references.",
-            "Determine if it is a single ingredient or a mixed meal (multiple distinct foods).",
-            "Return your response as a single JSON object with these exact fields:",
+            "Identify every distinct food item in this photo and calculate accurate macronutrients.",
+            "Estimate portion sizes using visual cues: hands, forks, spoons, plate size, bowl size, or any other objects as size references.",
             """
-            {"foodName": "<descriptive name of the full plate>", "portionGrams": <total grams>, "isMixedMeal": <bool>, "confidence": <0.0-1.0>, "items": [{"name": "<specific food>", "portionGrams": <grams>}, ...]}
+            Use USDA-accurate nutritional values. Reference points:
+            - medium orange (~131g): 62 kcal, 1.2g protein, 15.4g carbs, 0.2g fat
+            - medium banana (~118g): 105 kcal, 1.3g protein, 27g carbs, 0.4g fat
+            - chicken breast (~170g): 280 kcal, 53g protein, 0g carbs, 6g fat
+            - white rice cooked (~150g): 195 kcal, 4g protein, 43g carbs, 0.4g fat
+            - large egg (~50g): 72 kcal, 6.3g protein, 0.4g carbs, 5g fat
+            - broccoli (~150g): 51 kcal, 4.2g protein, 10g carbs, 0.6g fat
+            Do NOT inflate calorie counts. Base every estimate on established nutritional data.
             """,
-            "For a single food, items should have one entry. For a plate with chicken, rice, and broccoli, items should list each separately.",
+            "Return a single JSON object with these exact fields:",
+            """
+            {
+              "foodName": "<descriptive name>",
+              "portionGrams": <total grams>,
+              "isMixedMeal": <bool>,
+              "confidence": <0.0-1.0>,
+              "calories": <total kcal integer>,
+              "protein": <total g>,
+              "carbs": <total g>,
+              "fat": <total g>,
+              "components": [{"name": "<item>", "portionGrams": <g>, "calories": <int>, "protein": <g>, "carbs": <g>, "fat": <g>}]
+            }
+            """,
+            "For a single food, components should have one entry matching the totals.",
             "Reply with ONLY the JSON, no markdown fences, no explanation."
         ]
 
@@ -43,7 +62,7 @@ final class ClaudeHaikuService {
 
         let requestBody: [String: Any] = [
             "model": model,
-            "max_tokens": 256,
+            "max_tokens": 1024,
             "messages": [
                 [
                     "role": "user",

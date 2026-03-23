@@ -56,17 +56,20 @@ struct MealComponent: Codable {
     let fat: Double
 }
 
-/// Intermediate result from Claude Haiku (Tier 2 Step 1)
+/// Intermediate result from Claude Haiku — identification + macro estimation in one call.
 struct HaikuFoodIdentification: Codable {
     let foodName: String
     let portionGrams: Double
     let isMixedMeal: Bool
     let confidence: Double
-    /// Individual food items identified on the plate (used for hybrid Haiku→Sonnet flow)
-    let items: [HaikuFoodItem]?
+    let calories: Int
+    let protein: Double
+    let carbs: Double
+    let fat: Double
+    let components: [MealComponent]?
 }
 
-/// A single food item identified by Haiku vision
+/// Lightweight food item used by Sonnet text-only macro estimation
 struct HaikuFoodItem: Codable {
     let name: String
     let portionGrams: Double
