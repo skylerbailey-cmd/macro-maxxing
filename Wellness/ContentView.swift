@@ -495,9 +495,11 @@ private struct SavedMealsSheet: View {
             carbs:    meal.carbs,
             fat:      meal.fat
         )
+        // Carry over the photo URL from the saved meal
+        entry.photoURL = meal.photoURL
 
         Task {
-            _ = try? await FoodEntryService.shared.save(entry: entry, image: nil)
+            _ = try? await FoodEntryService.shared.save(entry: entry, image: nil, existingPhotoURL: meal.photoURL)
             // Post notification so FoodLogView refreshes
             NotificationCenter.default.post(name: .init("FoodEntryAdded"), object: nil)
         }
