@@ -23,7 +23,7 @@ const comparisonFeatures = [
   { name: "Voice meal logging", macroMaxxing: true, others: false },
   { name: "Auto macro adjustments for workouts", macroMaxxing: true, others: false },
   { name: "Intermittent fasting timer", macroMaxxing: true, others: "Some" },
-  { name: "Multiple nutrition databases", macroMaxxing: "4 databases", others: "1-2" },
+  { name: "Verified nutrition database", macroMaxxing: "USDA + AI", others: "1-2" },
   { name: "Social leaderboards & streaks", macroMaxxing: true, others: "Limited" },
   { name: "Saved meal templates", macroMaxxing: true, others: true },
   { name: "Free to use", macroMaxxing: true, others: "Freemium" },
@@ -68,8 +68,8 @@ export default function BestMacroTrackingApp() {
               Snap a photo or describe your meal with your voice
             </strong>
             , and AI handles the rest — identifying foods, estimating portions,
-            and pulling nutrition data from four databases (USDA, FatSecret,
-            OpenFoodFacts, and our own AI models).
+            and pulling nutrition data from the USDA database, powered
+            exclusively by Claude AI models (Haiku and Sonnet).
           </p>
 
           <h2 className="text-2xl font-bold mb-4 mt-12">
@@ -82,9 +82,8 @@ export default function BestMacroTrackingApp() {
                 📸 AI Photo Scanning
               </h3>
               <p className="text-gray-400 text-sm">
-                Take a picture of your plate. Our 3-tier AI system (local Vision
-                AI → Claude Haiku → Claude Sonnet) identifies every food item
-                and estimates macros. No typing required.
+                Take a picture of your plate. Claude Haiku and Sonnet identify
+                every food item and estimate macros. No typing required.
               </p>
             </div>
             <div className="bg-brand-card rounded-xl p-6 border border-white/5">

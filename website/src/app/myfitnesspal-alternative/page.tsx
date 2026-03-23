@@ -117,7 +117,7 @@ export default function MyFitnessPalAlternativePage() {
                 { name: "Daily streaks", macroMaxxing: true, others: false },
                 { name: "Leaderboards & XP", macroMaxxing: true, others: false },
                 { name: "Social community feed", macroMaxxing: true, others: false },
-                { name: "3-tier AI food recognition", macroMaxxing: true, others: false },
+                { name: "Claude AI food recognition", macroMaxxing: true, others: false },
                 { name: "Workout macro adjustments", macroMaxxing: true, others: "Premium only" },
                 { name: "Saved meal templates", macroMaxxing: true, others: "Premium only" },
                 { name: "Barcode scanning", macroMaxxing: "AI scanning instead", others: "Premium only" },
@@ -194,7 +194,7 @@ export default function MyFitnessPalAlternativePage() {
                 },
                 {
                   q: "Does Macro Maxxing have a food database like MyFitnessPal?",
-                  a: "Macro Maxxing uses a different approach. Instead of a user-submitted database (which often has inaccurate entries), it uses a 3-tier AI system that identifies food from photos and cross-references 4 verified nutrition databases including USDA FoodData Central for accurate macros.",
+                  a: "Macro Maxxing uses a different approach. Instead of a user-submitted database (which often has inaccurate entries), it uses Claude AI (Haiku and Sonnet) to identify food from photos, cross-referenced with USDA FoodData Central for accurate macros.",
                 },
               ].map((faq) => (
                 <div

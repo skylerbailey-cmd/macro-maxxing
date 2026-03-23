@@ -186,7 +186,7 @@ export default function MealPrepTrackerPage() {
                 },
                 {
                   q: "How does AI meal prep scanning work?",
-                  a: "Take a photo of your prepped meal container. Macro Maxxing's 3-tier AI system identifies the ingredients, estimates portions, and calculates macros using data from 4 nutrition databases. You can then save the result as a meal template for future use.",
+                  a: "Take a photo of your prepped meal container. Macro Maxxing's Claude AI identifies the ingredients, estimates portions, and calculates macros using USDA-verified nutrition data. You can then save the result as a meal template for future use.",
                 },
                 {
                   q: "Is Macro Maxxing good for weekly meal prep?",

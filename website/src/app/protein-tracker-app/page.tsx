@@ -111,7 +111,7 @@ export default function ProteinTrackerPage() {
               <FeatureCard
                 icon="📸"
                 title="Photo Scan"
-                description="Take a photo of your meal and AI identifies the food, estimates portions, and calculates protein content from 4 nutrition databases."
+                description="Take a photo of your meal and Claude AI identifies the food, estimates portions, and calculates protein content with USDA-verified data."
                 color="brand-teal"
               />
               <FeatureCard
@@ -202,7 +202,7 @@ export default function ProteinTrackerPage() {
               },
               {
                 q: "Can Macro Maxxing scan food and tell me the protein?",
-                a: "Yes. Take a photo of any meal and Macro Maxxing's 3-tier AI system identifies the food, estimates portions, and calculates protein (plus all other macros) using data from 4 nutrition databases including USDA FoodData Central.",
+                a: "Yes. Take a photo of any meal and Macro Maxxing's Claude AI identifies the food, estimates portions, and calculates protein (plus all other macros) using USDA FoodData Central verified data.",
               },
               {
                 q: "Is Macro Maxxing free for protein tracking?",

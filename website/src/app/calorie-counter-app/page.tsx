@@ -99,8 +99,8 @@ export default function CalorieCounterApp() {
               <div>
                 <h3 className="font-semibold text-white mb-1">Manual Entry</h3>
                 <p className="text-gray-400 text-sm">
-                  Search our database of foods from USDA, FatSecret, and
-                  OpenFoodFacts. Or enter custom macros directly.
+                  Search our USDA-powered food database or enter custom macros
+                  directly.
                 </p>
               </div>
             </div>

@@ -114,7 +114,7 @@ export default function MacroFactorAlternativePage() {
                 { name: "Social community feed", macroMaxxing: true, others: false },
                 { name: "Workout macro adjustments", macroMaxxing: true, others: true },
                 { name: "Algorithm-based coaching", macroMaxxing: false, others: true },
-                { name: "Verified nutrition databases", macroMaxxing: "4 databases", others: "Nutritionix" },
+                { name: "Verified nutrition database", macroMaxxing: "USDA + AI", others: "Nutritionix" },
                 { name: "Intermittent fasting timer", macroMaxxing: true, others: false },
                 { name: "Saved meal templates", macroMaxxing: true, others: true },
               ]}
@@ -136,7 +136,7 @@ export default function MacroFactorAlternativePage() {
             <FeatureCard
               icon="📸"
               title="AI Food Scanning"
-              description="Snap a photo instead of searching databases. 3-tier AI with 4 nutrition databases. MacroFactor has no photo scanning at all."
+              description="Snap a photo instead of searching databases. Claude AI with USDA-verified nutrition data. MacroFactor has no photo scanning at all."
               color="brand-purple"
             />
             <FeatureCard
@@ -198,7 +198,7 @@ export default function MacroFactorAlternativePage() {
               },
               {
                 q: "Is Macro Maxxing as accurate as MacroFactor?",
-                a: "Both apps use verified nutrition databases. Macro Maxxing cross-references 4 databases including USDA FoodData Central. The main difference is input method — Macro Maxxing uses AI scanning and voice, while MacroFactor uses manual database searching.",
+                a: "Both apps use verified nutrition databases. Macro Maxxing uses Claude AI cross-referenced with USDA FoodData Central. The main difference is input method — Macro Maxxing uses AI scanning and voice, while MacroFactor uses manual database searching.",
               },
               {
                 q: "Does Macro Maxxing have algorithm-based coaching like MacroFactor?",

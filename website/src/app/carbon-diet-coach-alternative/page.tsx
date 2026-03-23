@@ -132,7 +132,7 @@ export default function CarbonDietCoachAlternativePage() {
             <FeatureCard
               icon="📸"
               title="AI Photo Scanning"
-              description="Snap a photo and AI identifies your food from 4 databases. Carbon requires manual searching for every single item."
+              description="Snap a photo and Claude AI identifies your food with USDA-verified data. Carbon requires manual searching for every single item."
               color="brand-rose"
             />
             <FeatureCard

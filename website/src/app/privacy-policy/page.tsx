@@ -127,9 +127,10 @@ export default function PrivacyPolicyPage() {
               </li>
               <li>
                 <strong className="text-white">Anthropic (Claude AI):</strong>{" "}
-                Food photo analysis and voice input processing to estimate
-                nutritional content. Photos and text are sent to Anthropic&apos;s
-                API for analysis.{" "}
+                All AI food photo analysis and voice input processing is
+                handled exclusively by Anthropic&apos;s Claude models (Haiku and
+                Sonnet). Photos and text are sent to Anthropic&apos;s API for
+                analysis. No other third-party AI services are used.{" "}
                 <a
                   href="https://www.anthropic.com/privacy"
                   className="text-brand-purple hover:underline"
@@ -150,19 +151,6 @@ export default function PrivacyPolicyPage() {
                   rel="noopener noreferrer"
                 >
                   USDA API Info
-                </a>
-              </li>
-              <li>
-                <strong className="text-white">FatSecret Platform API:</strong>{" "}
-                Supplementary food and nutrition database lookups. Only food
-                search queries are sent; no personal data is transmitted.{" "}
-                <a
-                  href="https://platform.fatsecret.com/api/Default.aspx?screen=rapiTerms"
-                  className="text-brand-purple hover:underline"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  FatSecret Terms
                 </a>
               </li>
               <li>
