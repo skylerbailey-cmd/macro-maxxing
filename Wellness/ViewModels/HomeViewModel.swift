@@ -482,6 +482,11 @@ import FirebaseFirestore
         for m in milestones where streak >= m.days && !userSettings.achievedMilestones.contains(m.days) {
             userSettings.markMilestoneAchieved(m.days)
             userSettings.awardAura(points: m.pts, reason: m.reason)
+
+            // Request App Store review after 3-day or 7-day streak milestone
+            if m.days == 3 || m.days == 7 {
+                AppReviewService.requestReviewIfAppropriate()
+            }
         }
     }
 }
