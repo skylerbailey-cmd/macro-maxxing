@@ -28,7 +28,7 @@ export default function LoseItAlternativePage() {
       <ArticleJsonLd
         title="Best Lose It! Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best free Lose It! alternative with AI scanning, detailed macros, and gamified accountability."
-        url="https://macromaxxing.com/lose-it-alternative"
+        url="https://macromaxxing.app/lose-it-alternative"
       />
 
       <article className="min-h-screen">

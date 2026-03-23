@@ -6,6 +6,7 @@
 import SwiftUI
 import MapKit
 import FirebaseAuth
+import AppTrackingTransparency
 
 // MARK: - FAQ item model
 
@@ -119,6 +120,10 @@ struct SettingsView: View {
     @State private var showCitySearch    = false
     @State private var showDeleteAccount = false
     @State private var showChangeEmail   = false
+    @State private var isExportingData   = false
+    @State private var exportFileURL: URL? = nil
+    @State private var exportError: String? = nil
+    @State private var showExportShare   = false
 
     // Username availability
     private enum UsernameState { case idle, checking, available, taken }
@@ -354,6 +359,76 @@ struct SettingsView: View {
                      : "Enable to track your daily intermittent fasting window on the Home screen.")
             }
 
+            // MARK: Privacy & Data
+            Section {
+                Button {
+                    if let url = URL(string: "https://macromaxxing.app/privacy-policy") {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    HStack {
+                        Label("Privacy Policy", systemImage: "hand.raised.fill")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    ATTrackingManager.requestTrackingAuthorization { _ in }
+                } label: {
+                    HStack {
+                        Label("Ad Tracking Permissions", systemImage: "eye.slash.fill")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text(attStatusText)
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    guard !isExportingData else { return }
+                    isExportingData = true
+                    Task {
+                        do {
+                            let uid = Auth.auth().currentUser?.uid ?? ""
+                            let url = try await DataExportService.shared.exportAllData(userID: uid)
+                            exportFileURL = url
+                            showExportShare = true
+                        } catch {
+                            exportError = error.localizedDescription
+                        }
+                        isExportingData = false
+                    }
+                } label: {
+                    HStack {
+                        Label("Export My Data", systemImage: "square.and.arrow.up")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if isExportingData {
+                            ProgressView().scaleEffect(0.7)
+                        } else {
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            } header: {
+                Text("Privacy & Data")
+            } footer: {
+                Text("We do not sell or share your personal information for advertising purposes. Ad tracking permissions control whether personalized ads are shown. You can export a copy of all your data at any time.")
+            }
+
             // MARK: Account Actions
             Section {
                 Button(role: .destructive) {
@@ -426,6 +501,29 @@ struct SettingsView: View {
         .sheet(isPresented: $showChangeEmail) {
             ChangeEmailView()
                 .environment(session)
+        }
+        .sheet(isPresented: $showExportShare) {
+            if let url = exportFileURL {
+                ShareSheet(activityItems: [url])
+            }
+        }
+        .alert("Export Failed", isPresented: .init(
+            get: { exportError != nil },
+            set: { if !$0 { exportError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(exportError ?? "")
+        }
+    }
+
+    private var attStatusText: String {
+        switch ATTrackingManager.trackingAuthorizationStatus {
+        case .authorized:     return "Allowed"
+        case .denied:         return "Denied"
+        case .restricted:     return "Restricted"
+        case .notDetermined:  return "Not Set"
+        @unknown default:     return "Unknown"
         }
     }
 
@@ -750,6 +848,18 @@ private struct CitySearchSheet: View {
         }
         .preferredColorScheme(.dark)
     }
+}
+
+// MARK: - Share Sheet
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 #Preview {

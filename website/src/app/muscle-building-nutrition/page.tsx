@@ -27,7 +27,7 @@ export default function MuscleBuildingNutritionPage() {
       <ArticleJsonLd
         title="Muscle Building Nutrition Tracker — Bulk & Build Lean Muscle"
         description="Track your bulking macros with AI precision. Hit your calorie surplus and protein goals for muscle growth."
-        url="https://macromaxxing.com/muscle-building-nutrition"
+        url="https://macromaxxing.app/muscle-building-nutrition"
       />
 
       <article className="min-h-screen">

@@ -24,7 +24,7 @@ export default function AIFoodScanner() {
       <ArticleJsonLd
         title="AI Food Scanner — Snap a Photo, Get Instant Macros"
         description="How Macro Maxxing's 3-tier AI food recognition system identifies food from photos and estimates macros instantly."
-        url="https://macromaxxing.com/ai-food-scanner"
+        url="https://macromaxxing.app/ai-food-scanner"
       />
 
       <article className="pt-32 pb-12 px-4 sm:px-6">

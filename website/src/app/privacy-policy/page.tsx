@@ -235,8 +235,8 @@ export default function PrivacyPolicyPage() {
               </li>
               <li>
                 <strong className="text-white">Export</strong> your data —
-                request a full export of your data in a machine-readable format
-                by contacting us.
+                export a full copy of your data in JSON format directly from
+                Account &gt; Privacy &amp; Data &gt; Export My Data in the App.
               </li>
               <li>
                 <strong className="text-white">Delete</strong> your data —
@@ -283,7 +283,7 @@ export default function PrivacyPolicyPage() {
               10. Advertising &amp; Cookies
             </h2>
             <p className="mb-2">
-              The App itself does not use cookies. Our website (macromaxxing.com)
+              The App itself does not use cookies. Our website (macromaxxing.app)
               may use cookies and similar tracking technologies for analytics and
               to improve your browsing experience.
             </p>
@@ -351,9 +351,14 @@ export default function PrivacyPolicyPage() {
               </li>
               <li>
                 <strong className="text-white">
-                  Right to Opt Out of Sale:
+                  Right to Opt Out of Sale/Sharing:
                 </strong>{" "}
-                We do not sell your personal information as defined by the CCPA.
+                We do not sell your personal information. We share limited data
+                with Google AdMob for ad delivery, which may constitute
+                &ldquo;sharing&rdquo; under the CCPA. You can opt out of
+                personalized ads by declining the App Tracking Transparency
+                prompt or adjusting your preferences in Account &gt; Privacy
+                &amp; Data &gt; Ad Tracking Permissions.
               </li>
               <li>
                 <strong className="text-white">Non-Discrimination:</strong> We
@@ -391,10 +396,10 @@ export default function PrivacyPolicyPage() {
             <p>
               To exercise any of these rights, contact us at{" "}
               <a
-                href="mailto:privacy@macromaxxing.com"
+                href="mailto:privacy@macromaxxing.app"
                 className="text-brand-purple hover:underline"
               >
-                privacy@macromaxxing.com
+                privacy@macromaxxing.app
               </a>
               . We will respond within the timeframe required by applicable law.
             </p>
@@ -421,10 +426,10 @@ export default function PrivacyPolicyPage() {
             </p>
             <p className="mt-2">
               <a
-                href="mailto:privacy@macromaxxing.com"
+                href="mailto:privacy@macromaxxing.app"
                 className="text-brand-purple hover:underline"
               >
-                privacy@macromaxxing.com
+                privacy@macromaxxing.app
               </a>
             </p>
           </div>

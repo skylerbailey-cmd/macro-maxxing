@@ -28,7 +28,7 @@ export default function ProteinTrackerPage() {
       <ArticleJsonLd
         title="Best Protein Tracker App — AI-Powered Protein Tracking"
         description="Track your daily protein intake effortlessly with AI photo scanning and voice logging."
-        url="https://macromaxxing.com/protein-tracker-app"
+        url="https://macromaxxing.app/protein-tracker-app"
       />
 
       <article className="min-h-screen">

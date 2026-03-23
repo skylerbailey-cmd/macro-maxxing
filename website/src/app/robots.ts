@@ -8,6 +8,6 @@ export default function robots(): MetadataRoute.Robots {
         allow: "/",
       },
     ],
-    sitemap: "https://macromaxxing.com/sitemap.xml",
+    sitemap: "https://macromaxxing.app/sitemap.xml",
   };
 }

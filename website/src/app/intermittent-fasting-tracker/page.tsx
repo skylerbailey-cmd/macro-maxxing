@@ -24,7 +24,7 @@ export default function IntermittentFastingTracker() {
       <ArticleJsonLd
         title="Intermittent Fasting Tracker with Macro Integration"
         description="Track intermittent fasting with a persistent timer that syncs with your macro goals."
-        url="https://macromaxxing.com/intermittent-fasting-tracker"
+        url="https://macromaxxing.app/intermittent-fasting-tracker"
       />
 
       <article className="pt-32 pb-12 px-4 sm:px-6">

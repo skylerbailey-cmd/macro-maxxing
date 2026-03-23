@@ -28,7 +28,7 @@ export default function NoomAlternativePage() {
       <ArticleJsonLd
         title="Best Noom Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best free Noom alternative with AI macro tracking, gamified accountability, and social community."
-        url="https://macromaxxing.com/noom-alternative"
+        url="https://macromaxxing.app/noom-alternative"
       />
 
       <article className="min-h-screen">

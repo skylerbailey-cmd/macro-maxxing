@@ -28,7 +28,7 @@ export default function MacroFactorAlternativePage() {
       <ArticleJsonLd
         title="Best MacroFactor Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best free MacroFactor alternative with AI scanning and gamified accountability."
-        url="https://macromaxxing.com/macrofactor-alternative"
+        url="https://macromaxxing.app/macrofactor-alternative"
       />
 
       <article className="min-h-screen">

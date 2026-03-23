@@ -28,7 +28,7 @@ export default function LifesumAlternativePage() {
       <ArticleJsonLd
         title="Best Lifesum Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best free Lifesum alternative with AI features and gamified accountability."
-        url="https://macromaxxing.com/lifesum-alternative"
+        url="https://macromaxxing.app/lifesum-alternative"
       />
 
       <article className="min-h-screen">
