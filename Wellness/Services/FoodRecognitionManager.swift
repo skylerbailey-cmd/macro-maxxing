@@ -246,29 +246,7 @@ final class FoodRecognitionManager {
                 )
             }
 
-            // Step 2: For single-ingredient foods, try USDA first (free, most accurate)
-            if !haikuResult.isMixedMeal {
-                if let base = try? await usda.fetchBaseMacros(query: haikuResult.foodName) {
-                    let scaled = base.scaled(to: haikuResult.portionGrams)
-                    cache.store(foodName: haikuResult.foodName, macrosPer100g: base)
-                    print("[Tier2] ✅ Using USDA for \"\(haikuResult.foodName)\" — \(Int(scaled.calories)) kcal / \(Int(haikuResult.portionGrams))g")
-                    ScanAnalyticsService.shared.recordScan(userID: userID, tier: 2, cacheHit: false)
-                    return FoodRecognitionResult(
-                        foodName: haikuResult.foodName,
-                        calories: Int(scaled.calories),
-                        protein: scaled.protein,
-                        carbs: scaled.carbs,
-                        fat: scaled.fat,
-                        portionGrams: haikuResult.portionGrams,
-                        tier: 2,
-                        source: "USDA FoodData Central (Haiku-identified)",
-                        confidence: haikuResult.confidence,
-                        needsUserConfirmation: haikuResult.confidence < 0.75
-                    )
-                }
-            }
-
-            // Step 3: If Haiku is confident, use its macros directly (cheapest path).
+            // Step 2: If Haiku is confident, use its macros directly (cheapest path).
             // If confidence is low, escalate to Sonnet TEXT-ONLY to recalculate macros
             // using Haiku's food identification — no image sent to Sonnet.
             let isMixed = (haikuResult.components?.count ?? 0) > 1
