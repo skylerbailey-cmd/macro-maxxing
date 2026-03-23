@@ -494,7 +494,7 @@ struct SettingsView: View {
             "username": trimmedUsername, "name": trimmedName,
             "location": userSettings.location,
             "auraPoints": userSettings.auraPoints,
-            "streakDays": userSettings.macroStreak,
+            // streakDays is owned by the computeStreak Cloud Function — do NOT overwrite
             "instagramHandle": userSettings.instagramHandle,
             "tiktokHandle": userSettings.tiktokHandle,
             "isPrivateAccount": userSettings.isPrivateAccount,
