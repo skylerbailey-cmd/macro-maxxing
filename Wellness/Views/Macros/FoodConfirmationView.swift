@@ -297,8 +297,8 @@ struct FoodConfirmationView: View {
             }
             .buttonStyle(.plain)
 
-            // Try better scan (only if not already at Tier 3)
-            if recognitionResult.tier < 3 {
+            // Try better scan (only if not already at Tier 2 / Sonnet full vision)
+            if recognitionResult.tier < 2 {
                 Button {
                     isEscalating = true
                     onEscalate()
