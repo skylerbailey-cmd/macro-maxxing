@@ -19,6 +19,8 @@
 
 /* Begin PBXFileReference section */
 		881BD6732F620203003E41BE /* Macro Maxxing.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Macro Maxxing.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		8863DED62F70B20F00047CD0 /* Macro Maxxing.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Macro Maxxing.entitlements"; sourceTree = "<group>"; };
+		8863DED72F70B28F00047CD0 /* Macro MaxxingRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Macro MaxxingRelease.entitlements"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -51,6 +53,8 @@
 		881BD66A2F620203003E41BE = {
 			isa = PBXGroup;
 			children = (
+				8863DED72F70B28F00047CD0 /* Macro MaxxingRelease.entitlements */,
+				8863DED62F70B20F00047CD0 /* Macro Maxxing.entitlements */,
 				881BD6752F620203003E41BE /* Wellness */,
 				881BD6742F620203003E41BE /* Products */,
 			);
@@ -281,6 +285,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Macro Maxxing.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = G22DFJHK4M;
@@ -318,6 +323,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Macro MaxxingRelease.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = G22DFJHK4M;
