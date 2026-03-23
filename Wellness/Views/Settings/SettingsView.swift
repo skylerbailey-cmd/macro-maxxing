@@ -6,6 +6,7 @@
 import SwiftUI
 import MapKit
 import FirebaseAuth
+import AppTrackingTransparency
 
 // MARK: - FAQ item model
 
@@ -120,8 +121,9 @@ struct SettingsView: View {
     @State private var showDeleteAccount = false
     @State private var showChangeEmail   = false
     @State private var isExportingData   = false
-    @State private var exportFileURL:    URL? = nil
-    @State private var exportError:      String? = nil
+    @State private var exportFileURL: URL? = nil
+    @State private var exportError: String? = nil
+    @State private var showExportShare   = false
 
     // Username availability
     private enum UsernameState { case idle, checking, available, taken }
@@ -218,7 +220,7 @@ struct SettingsView: View {
                 DatePicker(
                     "Date of Birth",
                     selection: $dobDate,
-                    in: ...Calendar.current.date(byAdding: .year, value: -13, to: Date())!,
+                    in: ...(Calendar.current.date(byAdding: .year, value: -13, to: Date()) ?? Date()),
                     displayedComponents: .date
                 )
             }
@@ -290,10 +292,15 @@ struct SettingsView: View {
                 pickerRow(label: "Height", display: heightInchesVal > 0 ? Self.formatHeight(heightInchesVal) : "Not set") {
                     activePicker = .height
                 }
+                Picker("Gender", selection: $userSettings.gender) {
+                    Text("Not set").tag("")
+                    Text("Male").tag("male")
+                    Text("Female").tag("female")
+                }
             } header: {
                 Text("Body")
             } footer: {
-                Text("Goal weight is limited to 5 lbs from your current weight. Healthy, sustainable changes happen in small steps — aim to lose or gain 1–2 lbs per week, then update your goal as you progress.")
+                Text("Gender is used to calculate your daily calorie goal more accurately. Goal weight is limited to 5 lbs from your current weight — aim for 1–2 lbs per week.")
             }
 
             // MARK: Nutrition
@@ -357,22 +364,74 @@ struct SettingsView: View {
                      : "Enable to track your daily intermittent fasting window on the Home screen.")
             }
 
-            // MARK: Data & Privacy
-            Section("Data & Privacy") {
+            // MARK: Privacy & Data
+            Section {
                 Button {
-                    Task { await exportData() }
+                    if let url = URL(string: "https://macromaxxing.app/privacy-policy") {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    HStack {
+                        Label("Privacy Policy", systemImage: "hand.raised.fill")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    ATTrackingManager.requestTrackingAuthorization { _ in }
+                } label: {
+                    HStack {
+                        Label("Ad Tracking Permissions", systemImage: "eye.slash.fill")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text(attStatusText)
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    guard !isExportingData else { return }
+                    isExportingData = true
+                    Task {
+                        do {
+                            let uid = Auth.auth().currentUser?.uid ?? ""
+                            let url = try await DataExportService.shared.exportAllData(userID: uid)
+                            exportFileURL = url
+                            showExportShare = true
+                        } catch {
+                            exportError = error.localizedDescription
+                        }
+                        isExportingData = false
+                    }
                 } label: {
                     HStack {
                         Label("Export My Data", systemImage: "square.and.arrow.up")
                             .foregroundStyle(.primary)
                         Spacer()
                         if isExportingData {
-                            ProgressView()
-                                .scaleEffect(0.8)
+                            ProgressView().scaleEffect(0.7)
+                        } else {
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
-                .disabled(isExportingData)
+                .buttonStyle(.plain)
+            } header: {
+                Text("Privacy & Data")
+            } footer: {
+                Text("We do not sell or share your personal information for advertising purposes. Ad tracking permissions control whether personalized ads are shown. You can export a copy of all your data at any time.")
             }
 
             // MARK: Account Actions
@@ -448,9 +507,10 @@ struct SettingsView: View {
             ChangeEmailView()
                 .environment(session)
         }
-        .sheet(item: $exportFileURL) { url in
-            ActivityView(activityItems: [url])
-                .presentationDetents([.medium, .large])
+        .sheet(isPresented: $showExportShare) {
+            if let url = exportFileURL {
+                ShareSheet(activityItems: [url])
+            }
         }
         .alert("Export Failed", isPresented: .init(
             get: { exportError != nil },
@@ -459,6 +519,16 @@ struct SettingsView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(exportError ?? "")
+        }
+    }
+
+    private var attStatusText: String {
+        switch ATTrackingManager.trackingAuthorizationStatus {
+        case .authorized:     return "Allowed"
+        case .denied:         return "Denied"
+        case .restricted:     return "Restricted"
+        case .notDetermined:  return "Not Set"
+        @unknown default:     return "Unknown"
         }
     }
 
@@ -522,7 +592,7 @@ struct SettingsView: View {
             "username": trimmedUsername, "name": trimmedName,
             "location": userSettings.location,
             "auraPoints": userSettings.auraPoints,
-            "streakDays": userSettings.macroStreak,
+            // streakDays is owned by the computeStreak Cloud Function — do NOT overwrite
             "instagramHandle": userSettings.instagramHandle,
             "tiktokHandle": userSettings.tiktokHandle,
             "isPrivateAccount": userSettings.isPrivateAccount,
@@ -530,22 +600,14 @@ struct SettingsView: View {
             "goalWeight": goalWeightVal,
             "heightInches": heightInchesVal,
             "proteinPerLb": proteinPerLbVal,
+            "gender":       userSettings.gender,
             "fastingEnabled": userSettings.fastingEnabled,
             "auraPopupsEnabled": userSettings.auraPopupsEnabled,
+            "excludeDairy":      userSettings.excludeDairy,
+            "excludeGluten":     userSettings.excludeGluten,
             "dateOfBirth": dobString,
         ]
         try? await session.updateProfile(fields: fields)
-    }
-
-    private func exportData() async {
-        isExportingData = true
-        defer { isExportingData = false }
-        do {
-            let url = try await DataExportService.shared.exportAllData(userID: userSettings.userID)
-            exportFileURL = url
-        } catch {
-            exportError = error.localizedDescription
-        }
     }
 
     private func scheduleUsernameCheck(_ raw: String) {
@@ -796,13 +858,9 @@ private struct CitySearchSheet: View {
     }
 }
 
-// MARK: - Share Sheet (UIActivityViewController wrapper)
+// MARK: - Share Sheet
 
-extension URL: @retroactive Identifiable {
-    public var id: String { absoluteString }
-}
-
-private struct ActivityView: UIViewControllerRepresentable {
+private struct ShareSheet: UIViewControllerRepresentable {
     let activityItems: [Any]
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
