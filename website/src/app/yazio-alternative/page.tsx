@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import ComparisonTable from "@/components/ComparisonTable";
-import FeatureCard from "@/components/FeatureCard";
-import DownloadCTA from "@/components/DownloadCTA";
+import { ComparisonTable } from "@/components/ComparisonTable";
+import { FeatureCard } from "@/components/FeatureCard";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title: "Best YAZIO Alternative 2026 — Macro Maxxing vs YAZIO",
@@ -28,7 +28,7 @@ export default function YazioAlternativePage() {
       <ArticleJsonLd
         title="Best YAZIO Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best free YAZIO alternative with accurate AI scanning, no upsells, and gamified accountability."
-        url="https://macromaxxing.com/yazio-alternative"
+        url="https://macromaxxing.app/yazio-alternative"
       />
 
       <article className="min-h-screen">

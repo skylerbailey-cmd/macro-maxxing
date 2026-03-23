@@ -24,7 +24,7 @@ export default function WorkoutTrackerApp() {
       <ArticleJsonLd
         title="Workout Tracker App with Auto Macro Adjustments"
         description="Log workouts by voice or manually and auto-adjust daily macros based on ISSN & ACSM guidelines."
-        url="https://macromaxxing.com/workout-tracker-app"
+        url="https://macromaxxing.app/workout-tracker-app"
       />
 
       <article className="pt-32 pb-12 px-4 sm:px-6">

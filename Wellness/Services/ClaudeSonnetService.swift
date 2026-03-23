@@ -7,9 +7,10 @@
 
 import UIKit
 
+import FirebaseFunctions
+
 final class ClaudeSonnetService {
     static let shared = ClaudeSonnetService()
-    private let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
     private let model = "claude-sonnet-4-6"
 
     private init() {}
@@ -68,9 +69,9 @@ For single items, the components array should have one entry matching the totals
 Reply with ONLY the JSON, no markdown fences, no extra text.
 """
 
-        let requestBody: [String: Any] = [
+        let payload: [String: Any] = [
             "model": model,
-            "max_tokens": 1024,
+            "maxTokens": 1024,
             "messages": [
                 [
                     "role": "user",
@@ -82,23 +83,16 @@ Reply with ONLY the JSON, no markdown fences, no extra text.
             ]
         ]
 
-        var urlRequest = URLRequest(url: endpoint)
-        urlRequest.httpMethod = "POST"
-        urlRequest.timeoutInterval = 20
-        urlRequest.setValue(Config.claudeApiKey, forHTTPHeaderField: "x-api-key")
-        urlRequest.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-        let (data, response) = try await performRequest(urlRequest)
-
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-            throw FoodRecognitionError.apiError(statusCode: code)
+        let result: HTTPSCallableResult
+        do {
+            result = try await Functions.functions().httpsCallable("proxyClaude").call(payload)
+        } catch {
+            throw FoodRecognitionError.noConnection
         }
 
-        let claudeResponse = try JSONDecoder().decode(ClaudeAPIResponse.self, from: data)
-        guard let text = claudeResponse.content.first(where: { $0.type == "text" })?.text else {
+        guard let responseDict = result.data as? [String: Any],
+              let content = responseDict["content"] as? [[String: Any]],
+              let text = content.first(where: { $0["type"] as? String == "text" })?["text"] as? String else {
             throw FoodRecognitionError.noContent
         }
 

@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import FeatureCard from "@/components/FeatureCard";
-import DownloadCTA from "@/components/DownloadCTA";
+import { FeatureCard } from "@/components/FeatureCard";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title:
@@ -28,7 +28,7 @@ export default function StreaksAndGamificationPage() {
       <ArticleJsonLd
         title="Streaks, Leaderboards & Gamified Macro Tracking"
         description="Turn nutrition tracking into a game with daily streaks, Aura XP, and competitive leaderboards."
-        url="https://macromaxxing.com/streaks-and-gamification"
+        url="https://macromaxxing.app/streaks-and-gamification"
       />
 
       <article className="min-h-screen">

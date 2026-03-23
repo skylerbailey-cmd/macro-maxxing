@@ -194,7 +194,7 @@ final class UserProfileService {
             "name":              userSettings.name,
             "location":          userSettings.location,
             "auraPoints":        userSettings.auraPoints,
-            "streakDays":        userSettings.macroStreak,
+            // streakDays is owned by the computeStreak Cloud Function — do NOT overwrite
             "bio":               userSettings.bio,
             "instagramHandle":   userSettings.instagramHandle,
             "tiktokHandle":      userSettings.tiktokHandle,
@@ -202,6 +202,7 @@ final class UserProfileService {
             "currentWeight":     userSettings.currentWeight,
             "goalWeight":        userSettings.goalWeight,
             "proteinPerLb":      userSettings.proteinPerLb,
+            "gender":            userSettings.gender,
             "fastingEnabled":    userSettings.fastingEnabled,
             "auraPopupsEnabled": userSettings.auraPopupsEnabled,
             "excludeDairy":          userSettings.excludeDairy,

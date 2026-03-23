@@ -5,7 +5,7 @@ import { ArticleJsonLd } from "@/components/JsonLd";
 export const metadata: Metadata = {
   title: "Voice Food Logging — Log Meals by Speaking",
   description:
-    "Log meals and workouts with your voice. Say what you ate and AI generates accurate macro breakdowns. Hands-free food tracking for athletes on the go.",
+    "Log meals and workouts with your voice. Say what you ate and AI generates accurate macro breakdowns. Hands-free food tracking for people on the go.",
   keywords: [
     "voice food logging",
     "voice meal tracker",
@@ -24,7 +24,7 @@ export default function VoiceFoodLogging() {
       <ArticleJsonLd
         title="Voice Food Logging — Log Meals by Speaking"
         description="Log meals and workouts with your voice. AI generates accurate macro breakdowns from natural speech."
-        url="https://macromaxxing.com/voice-food-logging"
+        url="https://macromaxxing.app/voice-food-logging"
       />
 
       <article className="pt-32 pb-12 px-4 sm:px-6">

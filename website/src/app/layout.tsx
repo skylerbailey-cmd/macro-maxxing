@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     template: "%s | Macro Maxxing",
   },
   description:
-    "Track macros with AI photo analysis, voice logging, and smart workout adjustments. The most advanced macro tracking app for serious athletes and fitness enthusiasts.",
+    "Track macros with AI photo analysis, voice logging, and smart workout adjustments. The most advanced macro tracking app for people serious about their nutrition.",
   keywords: [
     "macro tracker",
     "macro tracking app",

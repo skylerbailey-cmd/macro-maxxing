@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import FeatureCard from "@/components/FeatureCard";
-import DownloadCTA from "@/components/DownloadCTA";
+import { FeatureCard } from "@/components/FeatureCard";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title:
@@ -28,7 +28,7 @@ export default function SocialFitnessCommunityPage() {
       <ArticleJsonLd
         title="Social Fitness Community & Accountability Feed"
         description="Join a social fitness community built into your macro tracker. Share meals, celebrate streaks, and stay accountable."
-        url="https://macromaxxing.com/social-fitness-community"
+        url="https://macromaxxing.app/social-fitness-community"
       />
 
       <article className="min-h-screen">

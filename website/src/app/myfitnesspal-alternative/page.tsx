@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import ComparisonTable from "@/components/ComparisonTable";
-import FeatureCard from "@/components/FeatureCard";
-import DownloadCTA from "@/components/DownloadCTA";
+import { ComparisonTable } from "@/components/ComparisonTable";
+import { FeatureCard } from "@/components/FeatureCard";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title:
@@ -29,7 +29,7 @@ export default function MyFitnessPalAlternativePage() {
       <ArticleJsonLd
         title="Best MyFitnessPal Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best free MyFitnessPal alternative with AI food scanning, no ads, and gamified accountability."
-        url="https://macromaxxing.com/myfitnesspal-alternative"
+        url="https://macromaxxing.app/myfitnesspal-alternative"
       />
 
       <article className="min-h-screen">

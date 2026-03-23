@@ -4,10 +4,10 @@
 //
 
 import Foundation
+import FirebaseFunctions
 
 final class ClaudeAnalysisService {
-    private let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
-    private let model    = "claude-sonnet-4-6"
+    private let model = "claude-sonnet-4-6"
 
     /// Reads dietary exclusion toggles from UserDefaults and returns a prompt
     /// fragment to inject into both the nutrition coach and meal planner prompts.
@@ -49,23 +49,17 @@ final class ClaudeAnalysisService {
     func analyze(_ input: NutritionInput) async throws -> String {
         let prompt = buildPrompt(input)
 
-        let body = RequestBody(
-            model: model,
-            maxTokens: 2048,
-            messages: [RequestBody.Message(role: "user", content: prompt)]
-        )
+        let payload: [String: Any] = [
+            "model": model,
+            "maxTokens": 2048,
+            "messages": [["role": "user", "content": prompt]]
+        ]
 
-        var req = URLRequest(url: endpoint)
-        req.httpMethod = "POST"
-        req.setValue(Config.anthropicAPIKey, forHTTPHeaderField: "x-api-key")
-        req.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONEncoder().encode(body)
+        let result = try await Functions.functions().httpsCallable("proxyClaude").call(payload)
 
-        let (data, _) = try await performRequest(req)
-
-        let decoded = try JSONDecoder().decode(ResponseBody.self, from: data)
-        guard let text = decoded.content.first(where: { $0.type == "text" })?.text else {
+        guard let responseDict = result.data as? [String: Any],
+              let content = responseDict["content"] as? [[String: Any]],
+              let text = content.first(where: { $0["type"] as? String == "text" })?["text"] as? String else {
             throw ClaudeServiceError.noContent
         }
         return text
@@ -293,21 +287,16 @@ final class ClaudeAnalysisService {
         - No intro line, no outro — just the 2 numbered options
         """
 
-        let body = RequestBody(
-            model: model,
-            maxTokens: 800,
-            messages: [RequestBody.Message(role: "user", content: prompt)]
-        )
-        var req = URLRequest(url: endpoint)
-        req.httpMethod = "POST"
-        req.setValue(Config.anthropicAPIKey, forHTTPHeaderField: "x-api-key")
-        req.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONEncoder().encode(body)
+        let payload: [String: Any] = [
+            "model": model,
+            "maxTokens": 800,
+            "messages": [["role": "user", "content": prompt]]
+        ]
 
-        let (data, _) = try await performRequest(req)
-        let decoded = try JSONDecoder().decode(ResponseBody.self, from: data)
-        guard let text = decoded.content.first(where: { $0.type == "text" })?.text else {
+        let result = try await Functions.functions().httpsCallable("proxyClaude").call(payload)
+        guard let responseDict = result.data as? [String: Any],
+              let content = responseDict["content"] as? [[String: Any]],
+              let text = content.first(where: { $0["type"] as? String == "text" })?["text"] as? String else {
             throw ClaudeServiceError.noContent
         }
         return text
@@ -340,21 +329,16 @@ final class ClaudeAnalysisService {
         {"name": "...", "workoutType": "Strength", "durationMinutes": 45, "caloriesBurned": 350}
         """
 
-        let body = RequestBody(
-            model: model,
-            maxTokens: 150,
-            messages: [RequestBody.Message(role: "user", content: prompt)]
-        )
-        var req = URLRequest(url: endpoint)
-        req.httpMethod = "POST"
-        req.setValue(Config.anthropicAPIKey, forHTTPHeaderField: "x-api-key")
-        req.setValue("2023-06-01",           forHTTPHeaderField: "anthropic-version")
-        req.setValue("application/json",     forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONEncoder().encode(body)
+        let payload: [String: Any] = [
+            "model": model,
+            "maxTokens": 150,
+            "messages": [["role": "user", "content": prompt]]
+        ]
 
-        let (data, _) = try await performRequest(req)
-        let decoded = try JSONDecoder().decode(ResponseBody.self, from: data)
-        guard let text = decoded.content.first(where: { $0.type == "text" })?.text,
+        let callResult = try await Functions.functions().httpsCallable("proxyClaude").call(payload)
+        guard let responseDict = callResult.data as? [String: Any],
+              let contentArr = responseDict["content"] as? [[String: Any]],
+              let text = contentArr.first(where: { $0["type"] as? String == "text" })?["text"] as? String,
               let jsonData = text.data(using: .utf8),
               let json     = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
               let name     = json["name"]            as? String,
@@ -368,74 +352,4 @@ final class ClaudeAnalysisService {
                                   durationMinutes: duration, caloriesBurned: calories)
     }
 
-    // MARK: - Request helper with retry
-
-    /// Performs an API request, retrying up to `maxRetries` times on 529 (overloaded)
-    /// with a 2-second delay between attempts. Maps common HTTP errors to user-friendly cases.
-    private func performRequest(_ request: URLRequest, maxRetries: Int = 3) async throws -> (Data, URLResponse) {
-        for attempt in 1...maxRetries {
-            let data: Data
-            let response: URLResponse
-            do {
-                (data, response) = try await URLSession.shared.data(for: request)
-            } catch let urlError as URLError {
-                switch urlError.code {
-                case .notConnectedToInternet, .networkConnectionLost,
-                     .cannotFindHost, .cannotConnectToHost, .timedOut, .dataNotAllowed:
-                    throw ClaudeServiceError.noConnection
-                default:
-                    throw urlError
-                }
-            }
-
-            guard let http = response as? HTTPURLResponse else {
-                return (data, response)
-            }
-
-            if http.statusCode == 200 {
-                return (data, response)
-            }
-
-            // Retry on 529 (overloaded) with 2-second delay
-            if http.statusCode == 529 && attempt < maxRetries {
-                try await Task.sleep(nanoseconds: 2_000_000_000)
-                continue
-            }
-
-            // Map status codes to user-friendly errors
-            switch http.statusCode {
-            case 529: throw ClaudeServiceError.overloaded
-            case 429: throw ClaudeServiceError.rateLimited
-            case 500: throw ClaudeServiceError.serverError
-            default:  throw ClaudeServiceError.badResponse(statusCode: http.statusCode)
-            }
-        }
-        throw ClaudeServiceError.serverError
-    }
-
-    // MARK: - Codable types
-
-    private struct RequestBody: Encodable {
-        let model:     String
-        let maxTokens: Int
-        let messages:  [Message]
-
-        struct Message: Encodable {
-            let role:    String
-            let content: String
-        }
-
-        enum CodingKeys: String, CodingKey {
-            case model, messages
-            case maxTokens = "max_tokens"
-        }
-    }
-
-    private struct ResponseBody: Decodable {
-        let content: [ContentBlock]
-        struct ContentBlock: Decodable {
-            let type: String
-            let text: String?
-        }
-    }
 }

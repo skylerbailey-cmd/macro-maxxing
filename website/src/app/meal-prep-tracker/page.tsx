@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import FeatureCard from "@/components/FeatureCard";
-import DownloadCTA from "@/components/DownloadCTA";
+import { FeatureCard } from "@/components/FeatureCard";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title: "Meal Prep Tracker — Save & Reuse Meals with AI Macros | Macro Maxxing",
@@ -27,7 +27,7 @@ export default function MealPrepTrackerPage() {
       <ArticleJsonLd
         title="Meal Prep Tracker — Save & Reuse Meals with AI Macros"
         description="Track meal prep macros effortlessly. Scan once, save as a template, log all week with one tap."
-        url="https://macromaxxing.com/meal-prep-tracker"
+        url="https://macromaxxing.app/meal-prep-tracker"
       />
 
       <article className="min-h-screen">

@@ -6,6 +6,7 @@
 import SwiftUI
 import MapKit
 import FirebaseAuth
+import AppTrackingTransparency
 
 // MARK: - FAQ item model
 
@@ -119,6 +120,10 @@ struct SettingsView: View {
     @State private var showCitySearch    = false
     @State private var showDeleteAccount = false
     @State private var showChangeEmail   = false
+    @State private var isExportingData   = false
+    @State private var exportFileURL: URL? = nil
+    @State private var exportError: String? = nil
+    @State private var showExportShare   = false
 
     // Username availability
     private enum UsernameState { case idle, checking, available, taken }
@@ -287,10 +292,15 @@ struct SettingsView: View {
                 pickerRow(label: "Height", display: heightInchesVal > 0 ? Self.formatHeight(heightInchesVal) : "Not set") {
                     activePicker = .height
                 }
+                Picker("Gender", selection: $userSettings.gender) {
+                    Text("Not set").tag("")
+                    Text("Male").tag("male")
+                    Text("Female").tag("female")
+                }
             } header: {
                 Text("Body")
             } footer: {
-                Text("Goal weight is limited to 5 lbs from your current weight. Healthy, sustainable changes happen in small steps — aim to lose or gain 1–2 lbs per week, then update your goal as you progress.")
+                Text("Gender is used to calculate your daily calorie goal more accurately. Goal weight is limited to 5 lbs from your current weight — aim for 1–2 lbs per week.")
             }
 
             // MARK: Nutrition
@@ -352,6 +362,76 @@ struct SettingsView: View {
                 Text(userSettings.fastingEnabled
                      ? "Your intermittent fasting window is shown on the Home screen. Tap Edit to adjust the start time and duration."
                      : "Enable to track your daily intermittent fasting window on the Home screen.")
+            }
+
+            // MARK: Privacy & Data
+            Section {
+                Button {
+                    if let url = URL(string: "https://macromaxxing.app/privacy-policy") {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    HStack {
+                        Label("Privacy Policy", systemImage: "hand.raised.fill")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    ATTrackingManager.requestTrackingAuthorization { _ in }
+                } label: {
+                    HStack {
+                        Label("Ad Tracking Permissions", systemImage: "eye.slash.fill")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text(attStatusText)
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    guard !isExportingData else { return }
+                    isExportingData = true
+                    Task {
+                        do {
+                            let uid = Auth.auth().currentUser?.uid ?? ""
+                            let url = try await DataExportService.shared.exportAllData(userID: uid)
+                            exportFileURL = url
+                            showExportShare = true
+                        } catch {
+                            exportError = error.localizedDescription
+                        }
+                        isExportingData = false
+                    }
+                } label: {
+                    HStack {
+                        Label("Export My Data", systemImage: "square.and.arrow.up")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if isExportingData {
+                            ProgressView().scaleEffect(0.7)
+                        } else {
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            } header: {
+                Text("Privacy & Data")
+            } footer: {
+                Text("We do not sell or share your personal information for advertising purposes. Ad tracking permissions control whether personalized ads are shown. You can export a copy of all your data at any time.")
             }
 
             // MARK: Account Actions
@@ -427,6 +507,29 @@ struct SettingsView: View {
             ChangeEmailView()
                 .environment(session)
         }
+        .sheet(isPresented: $showExportShare) {
+            if let url = exportFileURL {
+                ShareSheet(activityItems: [url])
+            }
+        }
+        .alert("Export Failed", isPresented: .init(
+            get: { exportError != nil },
+            set: { if !$0 { exportError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(exportError ?? "")
+        }
+    }
+
+    private var attStatusText: String {
+        switch ATTrackingManager.trackingAuthorizationStatus {
+        case .authorized:     return "Allowed"
+        case .denied:         return "Denied"
+        case .restricted:     return "Restricted"
+        case .notDetermined:  return "Not Set"
+        @unknown default:     return "Unknown"
+        }
     }
 
     // MARK: - Helpers
@@ -489,7 +592,7 @@ struct SettingsView: View {
             "username": trimmedUsername, "name": trimmedName,
             "location": userSettings.location,
             "auraPoints": userSettings.auraPoints,
-            "streakDays": userSettings.macroStreak,
+            // streakDays is owned by the computeStreak Cloud Function — do NOT overwrite
             "instagramHandle": userSettings.instagramHandle,
             "tiktokHandle": userSettings.tiktokHandle,
             "isPrivateAccount": userSettings.isPrivateAccount,
@@ -497,6 +600,7 @@ struct SettingsView: View {
             "goalWeight": goalWeightVal,
             "heightInches": heightInchesVal,
             "proteinPerLb": proteinPerLbVal,
+            "gender":       userSettings.gender,
             "fastingEnabled": userSettings.fastingEnabled,
             "auraPopupsEnabled": userSettings.auraPopupsEnabled,
             "excludeDairy":      userSettings.excludeDairy,
@@ -752,6 +856,18 @@ private struct CitySearchSheet: View {
         }
         .preferredColorScheme(.dark)
     }
+}
+
+// MARK: - Share Sheet
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 #Preview {

@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import ComparisonTable from "@/components/ComparisonTable";
-import FeatureCard from "@/components/FeatureCard";
-import DownloadCTA from "@/components/DownloadCTA";
+import { ComparisonTable } from "@/components/ComparisonTable";
+import { FeatureCard } from "@/components/FeatureCard";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title: "Best Lifesum Alternative 2026 — Macro Maxxing vs Lifesum",
@@ -28,7 +28,7 @@ export default function LifesumAlternativePage() {
       <ArticleJsonLd
         title="Best Lifesum Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best free Lifesum alternative with AI features and gamified accountability."
-        url="https://macromaxxing.com/lifesum-alternative"
+        url="https://macromaxxing.app/lifesum-alternative"
       />
 
       <article className="min-h-screen">
@@ -177,7 +177,7 @@ export default function LifesumAlternativePage() {
                 },
                 {
                   q: "Is Macro Maxxing better than Lifesum?",
-                  a: "For athletes and fitness enthusiasts, yes. Macro Maxxing offers AI-powered food scanning and voice logging (which Lifesum doesn't have), gamified accountability with streaks and leaderboards, and a social community for motivation — all free. Lifesum has more diet plan variety but locks most features behind a paywall.",
+                  a: "For anyone serious about their macros, yes. Macro Maxxing offers AI-powered food scanning and voice logging (which Lifesum doesn't have), gamified accountability with streaks and leaderboards, and a social community for motivation — all free. Lifesum has more diet plan variety but locks most features behind a paywall.",
                 },
                 {
                   q: "Does Macro Maxxing have diet plans like Lifesum?",

@@ -45,6 +45,7 @@ struct UserProfile: Codable, Identifiable {
     var goalWeight:       Double
     var heightInches:     Int
     var proteinPerLb:     Double
+    var gender:           String
     var fastingEnabled:       Bool
     var windowStartHour:      Int
     var windowStartMinute:    Int
@@ -116,6 +117,7 @@ struct UserProfile: Codable, Identifiable {
         goalWeight:       Double = 160,
         heightInches:     Int    = 0,
         proteinPerLb:     Double = 0.9,
+        gender:           String = "",
         fastingEnabled:       Bool     = false,
         windowStartHour:      Int      = 9,
         windowStartMinute:    Int      = 0,
@@ -157,6 +159,7 @@ struct UserProfile: Codable, Identifiable {
         self.goalWeight       = goalWeight
         self.heightInches     = heightInches
         self.proteinPerLb     = proteinPerLb
+        self.gender           = gender
         self.fastingEnabled      = fastingEnabled
         self.windowStartHour     = windowStartHour
         self.windowStartMinute   = windowStartMinute
@@ -250,6 +253,7 @@ extension UserProfile {
             "instagramHandle": "",
             "tiktokHandle":    "",
             "dateOfBirth":     "",
+            "gender":          "",
         ]
         for (key, value) in stringDefaults where data[key] == nil {
             data[key] = value

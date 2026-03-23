@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import ComparisonTable from "@/components/ComparisonTable";
-import FeatureCard from "@/components/FeatureCard";
-import DownloadCTA from "@/components/DownloadCTA";
+import { ComparisonTable } from "@/components/ComparisonTable";
+import { FeatureCard } from "@/components/FeatureCard";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title: "Best Cronometer Alternative 2026 — Macro Maxxing vs Cronometer",
@@ -28,7 +28,7 @@ export default function CronometerAlternativePage() {
       <ArticleJsonLd
         title="Best Cronometer Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best free Cronometer alternative with AI scanning and simpler tracking."
-        url="https://macromaxxing.com/cronometer-alternative"
+        url="https://macromaxxing.app/cronometer-alternative"
       />
 
       <article className="min-h-screen">
@@ -86,7 +86,7 @@ export default function CronometerAlternativePage() {
               },
               {
                 issue: "Steep Learning Curve",
-                desc: "New users often feel lost navigating the detailed views, charts, and micronutrient panels. It's built for nutrition nerds, not everyday athletes.",
+                desc: "New users often feel lost navigating the detailed views, charts, and micronutrient panels. It's built for nutrition nerds, not everyday people.",
               },
             ].map((item) => (
               <div
@@ -183,7 +183,7 @@ export default function CronometerAlternativePage() {
                 },
                 {
                   q: "Does Macro Maxxing track micronutrients like Cronometer?",
-                  a: "Macro Maxxing is focused on macronutrient tracking — calories, protein, carbs, and fat. If you need detailed micronutrient analysis (vitamins, minerals), Cronometer may be more suitable. But for most athletes focused on macros and body composition, Macro Maxxing is faster and easier to use.",
+                  a: "Macro Maxxing is focused on macronutrient tracking — calories, protein, carbs, and fat. If you need detailed micronutrient analysis (vitamins, minerals), Cronometer may be more suitable. But for most people focused on macros and body composition, Macro Maxxing is faster and easier to use.",
                 },
                 {
                   q: "Is Macro Maxxing free?",

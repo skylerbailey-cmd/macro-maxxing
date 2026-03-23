@@ -886,7 +886,11 @@ private struct MacroGaugeCard: View {
         guard goal > 0 else { return 0 }
         return min(value / goal, 1.0)
     }
-    private var isGoalMet: Bool { progress >= 0.85 }
+    private var isGoalMet: Bool {
+        guard goal > 0 else { return false }
+        let pct = value / goal
+        return pct >= 0.85 && pct <= 1.15
+    }
     private let trackFraction: Double = 0.75
     private let lineWidth: CGFloat = 12
 

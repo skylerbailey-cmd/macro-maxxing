@@ -417,7 +417,7 @@ struct FoodLogView: View {
         viewModel.selectedImage = img
         externalImage = nil
         // Open the analysis sheet so the image gets processed by AI
-        showingAnalysisSheet = true
+        activeMealSheet = .analysis
     }
 
     private var profileAvatarIcon: some View {

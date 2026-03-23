@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import FeatureCard from "@/components/FeatureCard";
-import DownloadCTA from "@/components/DownloadCTA";
+import { FeatureCard } from "@/components/FeatureCard";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title:
@@ -32,7 +32,7 @@ export default function LooksmaxxingMacroTrackerPage() {
       <ArticleJsonLd
         title="Looksmaxxing Macro Tracker — Nutrition for Your Glow Up"
         description="The best macro tracker for looksmaxxing. Track protein, calories, and nutrition to optimize your physique, skin, and overall appearance."
-        url="https://macromaxxing.com/looksmaxxing-macro-tracker"
+        url="https://macromaxxing.app/looksmaxxing-macro-tracker"
       />
 
       <article className="min-h-screen">

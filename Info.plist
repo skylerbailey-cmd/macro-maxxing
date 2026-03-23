@@ -228,6 +228,8 @@
 			<string>wg4vff78zm.skadnetwork</string>
 		</dict>
 	</array>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Macro Maxxing uses this to show you relevant ads. You can change this anytime in Settings. We never sell your personal data.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

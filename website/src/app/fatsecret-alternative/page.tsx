@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 import { ArticleJsonLd } from "@/components/JsonLd";
-import ComparisonTable from "@/components/ComparisonTable";
-import FeatureCard from "@/components/FeatureCard";
-import DownloadCTA from "@/components/DownloadCTA";
+import { ComparisonTable } from "@/components/ComparisonTable";
+import { FeatureCard } from "@/components/FeatureCard";
+import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title: "Best FatSecret Alternative 2026 — Macro Maxxing vs FatSecret",
@@ -28,7 +28,7 @@ export default function FatSecretAlternativePage() {
       <ArticleJsonLd
         title="Best FatSecret Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best modern alternative to FatSecret with AI scanning and gamified accountability."
-        url="https://macromaxxing.com/fatsecret-alternative"
+        url="https://macromaxxing.app/fatsecret-alternative"
       />
 
       <article className="min-h-screen">

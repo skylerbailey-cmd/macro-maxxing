@@ -15,7 +15,7 @@ export function Footer() {
             </div>
             <p className="text-gray-400 text-sm">
               log the mog. The AI-powered macro tracker built for serious
-              athletes.
+              people.
             </p>
           </div>
 
@@ -170,7 +170,7 @@ export function Footer() {
         <div className="border-t border-white/5 mt-12 pt-8 flex flex-col sm:flex-row justify-between items-center text-xs text-gray-500">
           <p>&copy; {new Date().getFullYear()} Macro Maxxing. All rights reserved.</p>
           <div className="flex gap-6 mt-4 sm:mt-0">
-            <Link href="#" className="hover:text-white transition">
+            <Link href="/privacy-policy" className="hover:text-white transition">
               Privacy Policy
             </Link>
             <Link href="#" className="hover:text-white transition">
