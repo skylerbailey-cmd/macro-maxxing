@@ -62,6 +62,14 @@ struct HaikuFoodIdentification: Codable {
     let portionGrams: Double
     let isMixedMeal: Bool
     let confidence: Double
+    /// Individual food items identified on the plate (used for hybrid Haiku→Sonnet flow)
+    let items: [HaikuFoodItem]?
+}
+
+/// A single food item identified by Haiku vision
+struct HaikuFoodItem: Codable {
+    let name: String
+    let portionGrams: Double
 }
 
 /// Intermediate result from database lookups

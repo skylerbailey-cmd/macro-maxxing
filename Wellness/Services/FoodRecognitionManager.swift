@@ -15,8 +15,6 @@ final class FoodRecognitionManager {
     private let localClassifier = LocalFoodClassifier.shared
     private let usda = USDAService.shared
     private let haiku = ClaudeHaikuService.shared
-    private let fatSecret = FatSecretService.shared
-    private let openFoodFacts = OpenFoodFactsService.shared
     private let sonnet = ClaudeSonnetService.shared
     private let cache = FoodRecognitionCache.shared
 
@@ -220,11 +218,11 @@ final class FoodRecognitionManager {
         }
     }
 
-    // MARK: - Tier 2: Claude Haiku + Parallel DB Lookup
+    // MARK: - Tier 2: Hybrid Haiku Vision → Sonnet Text-Only Macros
 
     private func attemptTier2(image: UIImage, coreMLHint: String?, voiceNote: String?, userID: String) async -> FoodRecognitionResult? {
         do {
-            // Step 1: Claude Haiku identifies the food
+            // Step 1: Haiku identifies every food item on the plate (cheap vision call)
             let haikuResult = try await haiku.identifyFood(image: image, coreMLHint: coreMLHint)
 
             // Check cache
@@ -244,101 +242,74 @@ final class FoodRecognitionManager {
                 )
             }
 
-            // Step 2: Parallel database lookups
-            // For single-ingredient foods, also query USDA as a cross-check.
-            // FatSecret/OpenFoodFacts are packaged-food databases and often return
-            // wrong matches for whole foods (e.g. "Orange" → "Orange Cookies").
-            async let fatSecretResult = fatSecret.searchFood(
-                query: haikuResult.foodName,
-                targetPortionGrams: haikuResult.portionGrams
+            // Build item list from Haiku's response. Fall back to a single item
+            // if the model didn't return the items array (backwards compatibility).
+            let items = haikuResult.items ?? [
+                HaikuFoodItem(name: haikuResult.foodName, portionGrams: haikuResult.portionGrams)
+            ]
+
+            // Step 2: For single-ingredient foods, try USDA first (free, accurate)
+            if !haikuResult.isMixedMeal, items.count == 1 {
+                if let base = try? await usda.fetchBaseMacros(query: items[0].name) {
+                    let scaled = base.scaled(to: haikuResult.portionGrams)
+                    cache.store(foodName: haikuResult.foodName, macrosPer100g: base)
+                    print("[Tier2] ✅ Using USDA for \"\(haikuResult.foodName)\" — \(Int(scaled.calories)) kcal / \(Int(haikuResult.portionGrams))g")
+                    ScanAnalyticsService.shared.recordScan(userID: userID, tier: 2, cacheHit: false)
+                    return FoodRecognitionResult(
+                        foodName: haikuResult.foodName,
+                        calories: Int(scaled.calories),
+                        protein: scaled.protein,
+                        carbs: scaled.carbs,
+                        fat: scaled.fat,
+                        portionGrams: haikuResult.portionGrams,
+                        tier: 2,
+                        source: "USDA FoodData Central (Haiku-identified)",
+                        confidence: haikuResult.confidence,
+                        needsUserConfirmation: haikuResult.confidence < 0.75
+                    )
+                }
+            }
+
+            // Step 3: Send Haiku's item list to Sonnet as TEXT ONLY (no image).
+            // This is much cheaper than a Sonnet vision call — Sonnet only does
+            // the nutrition math, Haiku already handled the visual identification.
+            let sonnetResult = try await sonnet.estimateMacros(
+                items: items,
+                fullMealName: haikuResult.foodName
             )
-            async let offResult = openFoodFacts.searchFood(
-                query: haikuResult.foodName,
-                targetPortionGrams: haikuResult.portionGrams
-            )
-            // USDA lookup only for single-ingredient foods — it's the gold
-            // standard for whole foods and catches wrong packaged-food matches.
-            async let usdaBaseMacros = haikuResult.isMixedMeal
-                ? nil
-                : try usda.fetchBaseMacros(query: haikuResult.foodName)
 
-            let fs = try? await fatSecretResult
-            let off = try? await offResult
-            let usdaBase = try? await usdaBaseMacros
-
-            // Step 3: If USDA returned a result for this single-ingredient food,
-            // use it directly — USDA is far more accurate for whole foods than
-            // packaged-food databases which often match processed products.
-            if !haikuResult.isMixedMeal, let base = usdaBase {
-                let scaled = base.scaled(to: haikuResult.portionGrams)
-
-                cache.store(foodName: haikuResult.foodName, macrosPer100g: base)
-
-                print("[Tier2] ✅ Using USDA for \"\(haikuResult.foodName)\" — \(Int(scaled.calories)) kcal / \(Int(haikuResult.portionGrams))g")
-
-                ScanAnalyticsService.shared.recordScan(userID: userID, tier: 2, cacheHit: false)
-
-                return FoodRecognitionResult(
+            // Cache the result
+            if sonnetResult.portionGrams > 0 {
+                let factor = 100.0 / sonnetResult.portionGrams
+                cache.store(
                     foodName: haikuResult.foodName,
-                    calories: Int(scaled.calories),
-                    protein: scaled.protein,
-                    carbs: scaled.carbs,
-                    fat: scaled.fat,
-                    portionGrams: haikuResult.portionGrams,
-                    tier: 2,
-                    source: "USDA FoodData Central (Haiku-identified)",
-                    confidence: haikuResult.confidence,
-                    needsUserConfirmation: haikuResult.confidence < 0.75
+                    macrosPer100g: MacrosPer100g(
+                        calories: Double(sonnetResult.calories) * factor,
+                        protein: sonnetResult.protein * factor,
+                        carbs: sonnetResult.carbs * factor,
+                        fat: sonnetResult.fat * factor
+                    )
                 )
             }
 
-            // Step 4: Merge FatSecret + OpenFoodFacts results
-            guard let merged = NutritionResultMerger.merge(
-                fatSecret: fs,
-                openFoodFacts: off,
-                isMixedMeal: haikuResult.isMixedMeal
-            ) else {
-                return nil  // Neither database returned results → escalate to Tier 3
-            }
-
-            // Cache the base macros
-            cache.storeFromResult(
-                foodName: haikuResult.foodName,
-                macroResult: merged.result,
-                portionGrams: haikuResult.portionGrams
-            )
-
-            // Sanity check: reject results with unreasonable calorie density
-            // Pure oils top out ~900 kcal/100g; nuts/seeds/nut butters ~550-650;
-            // anything above 920 is likely a bad product match.
-            let calPer100g = merged.result.calories / (haikuResult.portionGrams / 100.0)
-            if calPer100g > 920 && !haikuResult.isMixedMeal {
-                print("[Tier2] ⚠️ Rejected: \(haikuResult.foodName) has \(Int(calPer100g)) kcal/100g — likely wrong product match")
-                return nil  // escalate to Tier 3
-            }
-
+            print("[Tier2] ✅ Hybrid Haiku→Sonnet(text) for \"\(haikuResult.foodName)\" — \(sonnetResult.calories) kcal / \(Int(haikuResult.portionGrams))g")
             ScanAnalyticsService.shared.recordScan(userID: userID, tier: 2, cacheHit: false)
 
+            let isMixed = (sonnetResult.components?.count ?? 0) > 1
+
             return FoodRecognitionResult(
-                foodName: haikuResult.foodName,
-                calories: Int(merged.result.calories),
-                protein: merged.result.protein,
-                carbs: merged.result.carbs,
-                fat: merged.result.fat,
-                portionGrams: haikuResult.portionGrams,
+                foodName: sonnetResult.foodName,
+                calories: sonnetResult.calories,
+                protein: sonnetResult.protein,
+                carbs: sonnetResult.carbs,
+                fat: sonnetResult.fat,
+                portionGrams: sonnetResult.portionGrams,
                 tier: 2,
-                source: merged.result.source,
+                source: "Haiku Vision + Sonnet Macros",
                 confidence: haikuResult.confidence,
-                needsUserConfirmation: merged.flagged || haikuResult.confidence < 0.75 || haikuResult.isMixedMeal
+                needsUserConfirmation: haikuResult.confidence < 0.75 || isMixed,
+                components: sonnetResult.components
             )
-        } catch let error as FoodRecognitionError {
-            // Rate limited or overloaded → try Tier 3
-            switch error {
-            case .rateLimited, .overloaded:
-                return nil
-            default:
-                return nil
-            }
         } catch {
             return nil
         }

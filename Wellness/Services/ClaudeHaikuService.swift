@@ -24,11 +24,14 @@ final class ClaudeHaikuService {
         let base64 = jpegData.base64EncodedString()
 
         var promptParts = [
-            "Identify the food in this photo as specifically as possible.",
-            "Estimate the portion size in grams using visual cues: hands, forks, spoons, plate size, bowl size, or any other objects in the photo as size references.",
-            "Determine if it is a single ingredient or a mixed meal.",
+            "Identify every distinct food item visible in this photo.",
+            "Estimate each item's portion size in grams using visual cues: hands, forks, spoons, plate size, bowl size, or any other objects in the photo as size references.",
+            "Determine if it is a single ingredient or a mixed meal (multiple distinct foods).",
             "Return your response as a single JSON object with these exact fields:",
-            "{\"foodName\": \"<name>\", \"portionGrams\": <number>, \"isMixedMeal\": <bool>, \"confidence\": <0.0-1.0>}",
+            """
+            {"foodName": "<descriptive name of the full plate>", "portionGrams": <total grams>, "isMixedMeal": <bool>, "confidence": <0.0-1.0>, "items": [{"name": "<specific food>", "portionGrams": <grams>}, ...]}
+            """,
+            "For a single food, items should have one entry. For a plate with chicken, rice, and broccoli, items should list each separately.",
             "Reply with ONLY the JSON, no markdown fences, no explanation."
         ]
 

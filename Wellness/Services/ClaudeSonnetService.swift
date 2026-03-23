@@ -110,6 +110,86 @@ Reply with ONLY the JSON, no markdown fences, no extra text.
         return try JSONDecoder().decode(SonnetAnalysisResult.self, from: jsonData)
     }
 
+    // MARK: - Text-Only Macro Estimation (Hybrid Flow)
+
+    /// Estimates macros for a list of food items identified by Haiku — no image required.
+    /// This is much cheaper than sending an image to Sonnet since it's text-only.
+    func estimateMacros(items: [HaikuFoodItem], fullMealName: String) async throws -> SonnetAnalysisResult {
+        let itemLines = items.map { "- \($0.name): \($0.portionGrams)g" }.joined(separator: "\n")
+        let totalGrams = items.reduce(0.0) { $0 + $1.portionGrams }
+
+        let prompt = """
+        Calculate accurate macronutrients for this meal. Use values consistent with USDA FoodData Central.
+
+        Common reference points:
+        - a medium orange (~131g) is ~62 kcal, 1.2g protein, 15.4g carbs, 0.2g fat
+        - a medium banana (~118g) is ~105 kcal, 1.3g protein, 27g carbs, 0.4g fat
+        - chicken breast (~170g) is ~280 kcal, 53g protein, 0g carbs, 6g fat
+        - white rice cooked (~150g) is ~195 kcal, 4g protein, 43g carbs, 0.4g fat
+        - a large egg (~50g) is ~72 kcal, 6.3g protein, 0.4g carbs, 5g fat
+        - broccoli (~150g) is ~51 kcal, 4.2g protein, 10g carbs, 0.6g fat
+
+        Food items to analyze:
+        \(itemLines)
+
+        Return a single JSON object:
+        {
+          "foodName": "\(fullMealName)",
+          "components": [
+            {"name": "<item>", "portionGrams": <g>, "calories": <int>, "protein": <g>, "carbs": <g>, "fat": <g>}
+          ],
+          "portionGrams": \(totalGrams),
+          "calories": <total kcal as integer>,
+          "protein": <total g>,
+          "carbs": <total g>,
+          "fat": <total g>,
+          "confidenceScore": <0.0-1.0>,
+          "reasoning": "<brief explanation>"
+        }
+
+        Do NOT guess or inflate calorie counts. Base every estimate on established nutritional data.
+        Reply with ONLY the JSON, no markdown fences, no extra text.
+        """
+
+        let requestBody: [String: Any] = [
+            "model": model,
+            "max_tokens": 1024,
+            "messages": [
+                [
+                    "role": "user",
+                    "content": prompt
+                ]
+            ]
+        ]
+
+        var urlRequest = URLRequest(url: endpoint)
+        urlRequest.httpMethod = "POST"
+        urlRequest.timeoutInterval = 15
+        urlRequest.setValue(Config.claudeApiKey, forHTTPHeaderField: "x-api-key")
+        urlRequest.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+        let (data, response) = try await performRequest(urlRequest)
+
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+            throw FoodRecognitionError.apiError(statusCode: code)
+        }
+
+        let claudeResponse = try JSONDecoder().decode(ClaudeAPIResponse.self, from: data)
+        guard let text = claudeResponse.content.first(where: { $0.type == "text" })?.text else {
+            throw FoodRecognitionError.noContent
+        }
+
+        let jsonString = stripMarkdownFences(text)
+        guard let jsonData = jsonString.data(using: .utf8) else {
+            throw FoodRecognitionError.malformedJSON(text)
+        }
+
+        return try JSONDecoder().decode(SonnetAnalysisResult.self, from: jsonData)
+    }
+
     // MARK: - Network Helpers
 
     private func performRequest(_ request: URLRequest, maxRetries: Int = 3) async throws -> (Data, URLResponse) {
