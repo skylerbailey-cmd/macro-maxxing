@@ -43,6 +43,11 @@ struct OnboardingView: View {
     @State private var checkingUsername           = false
     @State private var usernameCheckTask: Task<Void, Never>? = nil
 
+    // Age verification state (iOS 26+ Declared Age Range API)
+    @State private var ageVerified = false
+    @State private var ageCheckInProgress = false
+    @State private var ageCheckDeclined = false
+
     // Saving state
     @State private var isSaving = false
     @State private var saveError: String? = nil
@@ -319,24 +324,82 @@ struct OnboardingView: View {
         OnboardingPageShell(
             emoji: "🎂",
             title: "When's your birthday?",
-            subtitle: "Used to personalize your experience. Not shown publicly."
+            subtitle: "You must be at least 18 years old to use Macro Maxxing. Not shown publicly."
         ) {
-            DatePicker(
-                "",
-                selection: $dateOfBirth,
-                in: dobRange,
-                displayedComponents: .date
-            )
-            .datePickerStyle(.wheel)
-            .labelsHidden()
-            .colorScheme(.dark)
-            .frame(maxWidth: .infinity)
+            VStack(spacing: 16) {
+                // On iOS 26+, try Apple's Declared Age Range API first
+                if AgeVerificationService.isAvailable && !ageVerified && !ageCheckDeclined {
+                    Button {
+                        Task { await requestAppleAgeVerification() }
+                    } label: {
+                        HStack(spacing: 10) {
+                            if ageCheckInProgress {
+                                ProgressView().tint(.black)
+                            } else {
+                                Image(systemName: "checkmark.shield.fill")
+                                    .font(.system(size: 16, weight: .semibold))
+                                Text("Verify Age with Apple")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                        }
+                        .foregroundStyle(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color.white, in: RoundedRectangle(cornerRadius: 14))
+                    }
+                    .disabled(ageCheckInProgress)
+                    .buttonStyle(.plain)
+
+                    Text("or enter your date of birth below")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.40))
+                }
+
+                if ageVerified {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text("Age verified by Apple")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.green)
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                DatePicker(
+                    "",
+                    selection: $dateOfBirth,
+                    in: dobRange,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.wheel)
+                .labelsHidden()
+                .colorScheme(.dark)
+                .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    private func requestAppleAgeVerification() async {
+        ageCheckInProgress = true
+        let result = await AgeVerificationService.verifyAge()
+        ageCheckInProgress = false
+
+        switch result {
+        case .verified:
+            ageVerified = true
+        case .underage:
+            saveError = "You must be at least 18 years old to use Macro Maxxing."
+        case .declined:
+            ageCheckDeclined = true
+        case .unavailable:
+            ageCheckDeclined = true
         }
     }
 
     private var dobRange: ClosedRange<Date> {
         let oldest = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date()
-        let youngest = Calendar.current.date(byAdding: .year, value: -13, to: Date()) ?? Date()
+        let youngest = Calendar.current.date(byAdding: .year, value: -18, to: Date()) ?? Date()
         return oldest...youngest
     }
 
