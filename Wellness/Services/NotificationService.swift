@@ -104,6 +104,42 @@ final class NotificationService {
         )
     }
 
+    // MARK: - Meal Logging Reminder
+
+    private let mealReminderNotificationID = "com.sbailey.Wellness.mealReminder"
+
+    /// Schedules a daily notification at the given hour/minute reminding the user
+    /// to log a meal if they haven't hit their macro goals yet.
+    /// The notification fires every day; the app cancels it for the current day
+    /// once goals are met or a meal is logged.
+    func scheduleMealReminder(hour: Int, minute: Int) {
+        let content = UNMutableNotificationContent()
+        content.title = "Don't Forget to Log Your Meals"
+        content.body  = "You haven't hit your macro goals yet today. Open the app to log a meal!"
+        content.sound = .default
+
+        var components    = DateComponents()
+        components.hour   = hour
+        components.minute = minute
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+        let request = UNNotificationRequest(
+            identifier: mealReminderNotificationID,
+            content: content,
+            trigger: trigger
+        )
+
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [mealReminderNotificationID])
+        center.add(request)
+    }
+
+    func cancelMealReminder() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(
+            withIdentifiers: [mealReminderNotificationID]
+        )
+    }
+
     // MARK: - New Post Local Notification
 
     /// Fires an immediate local notification when a subscribed user posts.
