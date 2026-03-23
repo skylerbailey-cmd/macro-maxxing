@@ -28,7 +28,7 @@ export default function CarbonDietCoachAlternativePage() {
       <ArticleJsonLd
         title="Best Carbon Diet Coach Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best free Carbon Diet Coach alternative with AI scanning and gamified tracking."
-        url="https://macromaxxing.com/carbon-diet-coach-alternative"
+        url="https://macromaxxing.app/carbon-diet-coach-alternative"
       />
 
       <article className="min-h-screen">

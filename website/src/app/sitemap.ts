@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://macromaxxing.com";
+  const baseUrl = "https://macromaxxing.app";
   const lastModified = new Date("2026-03-22");
 
   return [

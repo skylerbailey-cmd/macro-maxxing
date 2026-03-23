@@ -28,7 +28,7 @@ export default function CronometerAlternativePage() {
       <ArticleJsonLd
         title="Best Cronometer Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best free Cronometer alternative with AI scanning and simpler tracking."
-        url="https://macromaxxing.com/cronometer-alternative"
+        url="https://macromaxxing.app/cronometer-alternative"
       />
 
       <article className="min-h-screen">

@@ -165,6 +165,23 @@ export default function PrivacyPolicyPage() {
                   FatSecret Terms
                 </a>
               </li>
+              <li>
+                <strong className="text-white">
+                  Google AdMob:
+                </strong>{" "}
+                In-app advertising, including banner, interstitial, and rewarded
+                ads. AdMob may collect device identifiers (such as the
+                Advertising ID), IP address, and interaction data to serve and
+                measure ads. Ad data is processed by Google.{" "}
+                <a
+                  href="https://policies.google.com/technologies/ads"
+                  className="text-brand-purple hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Google Ads Privacy
+                </a>
+              </li>
             </ul>
           </div>
 
@@ -218,8 +235,8 @@ export default function PrivacyPolicyPage() {
               </li>
               <li>
                 <strong className="text-white">Export</strong> your data —
-                request a full export of your data in a machine-readable format
-                by contacting us.
+                export a full copy of your data in JSON format directly from
+                Account &gt; Privacy &amp; Data &gt; Export My Data in the App.
               </li>
               <li>
                 <strong className="text-white">Delete</strong> your data —
@@ -263,7 +280,134 @@ export default function PrivacyPolicyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              10. Changes to This Policy
+              10. Advertising &amp; Cookies
+            </h2>
+            <p className="mb-2">
+              The App itself does not use cookies. Our website (macromaxxing.app)
+              may use cookies and similar tracking technologies for analytics and
+              to improve your browsing experience.
+            </p>
+            <p className="mb-2">
+              We display advertisements within the App using Google AdMob,
+              including banner ads, interstitial ads, and rewarded ads. Google
+              AdMob may collect device identifiers (such as your Advertising ID),
+              IP address, and ad interaction data to serve and measure
+              personalized ads. You can opt out of personalized advertising by
+              adjusting your device settings:
+            </p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li>
+                <strong className="text-white">iOS:</strong> Settings &gt;
+                Privacy &amp; Security &gt; Tracking, and disable &ldquo;Allow
+                Apps to Request to Track.&rdquo;
+              </li>
+              <li>
+                <strong className="text-white">Web:</strong> Manage cookie
+                preferences via your browser settings or our cookie banner (if
+                displayed).
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-white mb-3">
+              11. International Data Transfers
+            </h2>
+            <p>
+              Your data may be processed and stored on servers located in the
+              United States and other countries where our service providers
+              operate (including Google and Anthropic). By using the App, you
+              consent to the transfer of your information to countries that may
+              have different data-protection laws than your country of residence.
+              We take steps to ensure that your data receives an adequate level
+              of protection wherever it is processed.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-white mb-3">
+              12. Your Privacy Rights Under Applicable Law
+            </h2>
+            <p className="mb-3">
+              Depending on where you live, you may have additional rights under
+              local privacy laws such as the California Consumer Privacy Act
+              (CCPA) or the EU/UK General Data Protection Regulation (GDPR).
+            </p>
+
+            <h3 className="text-base font-semibold text-white mt-4 mb-2">
+              California Residents (CCPA)
+            </h3>
+            <ul className="list-disc list-inside space-y-1 ml-2 mb-3">
+              <li>
+                <strong className="text-white">Right to Know:</strong> You may
+                request details about the categories and specific pieces of
+                personal information we have collected about you in the past 12
+                months.
+              </li>
+              <li>
+                <strong className="text-white">Right to Delete:</strong> You
+                may request deletion of your personal information, subject to
+                certain legal exceptions.
+              </li>
+              <li>
+                <strong className="text-white">
+                  Right to Opt Out of Sale/Sharing:
+                </strong>{" "}
+                We do not sell your personal information. We share limited data
+                with Google AdMob for ad delivery, which may constitute
+                &ldquo;sharing&rdquo; under the CCPA. You can opt out of
+                personalized ads by declining the App Tracking Transparency
+                prompt or adjusting your preferences in Account &gt; Privacy
+                &amp; Data &gt; Ad Tracking Permissions.
+              </li>
+              <li>
+                <strong className="text-white">Non-Discrimination:</strong> We
+                will not discriminate against you for exercising your CCPA
+                rights.
+              </li>
+            </ul>
+
+            <h3 className="text-base font-semibold text-white mt-4 mb-2">
+              EU/UK Residents (GDPR)
+            </h3>
+            <ul className="list-disc list-inside space-y-1 ml-2 mb-3">
+              <li>
+                <strong className="text-white">Legal Basis:</strong> We process
+                your data based on your consent (e.g., photo analysis),
+                contractual necessity (e.g., providing App features), and
+                legitimate interests (e.g., improving the App and preventing
+                fraud).
+              </li>
+              <li>
+                <strong className="text-white">Data Portability:</strong> You
+                may request a copy of your data in a structured,
+                machine-readable format.
+              </li>
+              <li>
+                <strong className="text-white">Right to Object:</strong> You
+                may object to processing based on legitimate interests.
+              </li>
+              <li>
+                <strong className="text-white">Supervisory Authority:</strong>{" "}
+                You have the right to lodge a complaint with your local data
+                protection authority.
+              </li>
+            </ul>
+            <p>
+              To exercise any of these rights, contact us at{" "}
+              <a
+                href="mailto:privacy@macromaxxing.app"
+                className="text-brand-purple hover:underline"
+              >
+                privacy@macromaxxing.app
+              </a>
+              . We will respond within the timeframe required by applicable law.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-white mb-3">
+              13. Changes to This Policy
             </h2>
             <p>
               We may update this Privacy Policy from time to time. We will
@@ -274,7 +418,7 @@ export default function PrivacyPolicyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              11. Contact Us
+              14. Contact Us
             </h2>
             <p>
               If you have questions about this Privacy Policy or want to
@@ -282,10 +426,10 @@ export default function PrivacyPolicyPage() {
             </p>
             <p className="mt-2">
               <a
-                href="mailto:privacy@macromaxxing.com"
+                href="mailto:privacy@macromaxxing.app"
                 className="text-brand-purple hover:underline"
               >
-                privacy@macromaxxing.com
+                privacy@macromaxxing.app
               </a>
             </p>
           </div>

@@ -27,7 +27,7 @@ export default function GymDietPlanPage() {
       <ArticleJsonLd
         title="Gym Diet Plan Tracker — Track Your Training Diet with AI"
         description="Track your gym diet plan with AI photo scanning and voice logging. Smart workout macro adjustments."
-        url="https://macromaxxing.com/gym-diet-plan"
+        url="https://macromaxxing.app/gym-diet-plan"
       />
 
       <article className="min-h-screen">

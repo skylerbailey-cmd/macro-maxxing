@@ -27,7 +27,7 @@ export default function BodyRecompositionPage() {
       <ArticleJsonLd
         title="Body Recomposition Tracker — Lose Fat & Build Muscle"
         description="Track your body recomposition with AI. Lose fat and build muscle simultaneously with precise macro tracking."
-        url="https://macromaxxing.com/body-recomposition-tracker"
+        url="https://macromaxxing.app/body-recomposition-tracker"
       />
 
       <article className="min-h-screen">

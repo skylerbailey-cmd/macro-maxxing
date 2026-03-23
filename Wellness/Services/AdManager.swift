@@ -10,6 +10,7 @@
 import UIKit
 import Combine
 import GoogleMobileAds
+import AppTrackingTransparency
 
 @MainActor
 final class AdManager: NSObject, ObservableObject {
@@ -43,12 +44,22 @@ final class AdManager: NSObject, ObservableObject {
     // MARK: - Initialize SDK
 
     /// Call once on app launch (e.g. in WellnessApp .task).
+    /// Requests ATT authorization before initializing the ads SDK so that
+    /// AdMob respects the user's tracking preference from the first ad request.
     func initialize() {
-        MobileAds.shared.start { [weak self] _ in
-            print("[AdManager] Google Mobile Ads SDK initialized")
-            self?.isReady = true
-            self?.preloadRewarded()
-            self?.preloadInterstitial()
+        // ATT must be requested after the app becomes active (not from applicationDidFinishLaunching).
+        // DispatchQueue.main.asyncAfter gives the UI a moment to settle.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            ATTrackingManager.requestTrackingAuthorization { _ in
+                DispatchQueue.main.async { [weak self] in
+                    MobileAds.shared.start { _ in
+                        print("[AdManager] Google Mobile Ads SDK initialized")
+                        self?.isReady = true
+                        self?.preloadRewarded()
+                        self?.preloadInterstitial()
+                    }
+                }
+            }
         }
     }
 

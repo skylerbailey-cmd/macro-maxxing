@@ -24,7 +24,7 @@ export default function VoiceFoodLogging() {
       <ArticleJsonLd
         title="Voice Food Logging — Log Meals by Speaking"
         description="Log meals and workouts with your voice. AI generates accurate macro breakdowns from natural speech."
-        url="https://macromaxxing.com/voice-food-logging"
+        url="https://macromaxxing.app/voice-food-logging"
       />
 
       <article className="pt-32 pb-12 px-4 sm:px-6">

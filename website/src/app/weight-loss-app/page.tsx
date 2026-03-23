@@ -27,7 +27,7 @@ export default function WeightLossAppPage() {
       <ArticleJsonLd
         title="Best Free Weight Loss App — AI Calorie & Macro Tracker"
         description="Lose weight with the easiest calorie and macro tracker. AI photo scanning, voice logging, and gamified accountability."
-        url="https://macromaxxing.com/weight-loss-app"
+        url="https://macromaxxing.app/weight-loss-app"
       />
 
       <article className="min-h-screen">

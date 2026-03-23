@@ -35,7 +35,7 @@ export default function CalorieCounterApp() {
       <ArticleJsonLd
         title="Free Calorie Counter App with AI"
         description="Count calories with AI photo scanning and voice logging. No barcode scanning required."
-        url="https://macromaxxing.com/calorie-counter-app"
+        url="https://macromaxxing.app/calorie-counter-app"
       />
 
       <article className="pt-32 pb-12 px-4 sm:px-6">

@@ -36,7 +36,7 @@ export default function BestMacroTrackingApp() {
       <ArticleJsonLd
         title="Best Macro Tracking App in 2026"
         description="Compare the best macro tracking apps and see why Macro Maxxing leads with AI-powered food scanning, voice logging, and smart workout adjustments."
-        url="https://macromaxxing.com/best-macro-tracking-app"
+        url="https://macromaxxing.app/best-macro-tracking-app"
       />
 
       <article className="pt-32 pb-12 px-4 sm:px-6">

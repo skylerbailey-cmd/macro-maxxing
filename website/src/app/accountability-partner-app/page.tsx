@@ -27,7 +27,7 @@ export default function AccountabilityPartnerPage() {
       <ArticleJsonLd
         title="Accountability Partner App for Diet & Fitness"
         description="Find accountability for your diet and fitness goals with streaks, leaderboards, and a social community."
-        url="https://macromaxxing.com/accountability-partner-app"
+        url="https://macromaxxing.app/accountability-partner-app"
       />
 
       <article className="min-h-screen">

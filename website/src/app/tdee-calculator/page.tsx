@@ -26,7 +26,7 @@ export default function TDEECalculatorPage() {
       <ArticleJsonLd
         title="TDEE Calculator & Macro Tracker — Know Your Numbers"
         description="Calculate your TDEE and track macros with AI. Find your maintenance calories, set targets, and stay on track."
-        url="https://macromaxxing.com/tdee-calculator"
+        url="https://macromaxxing.app/tdee-calculator"
       />
 
       <article className="min-h-screen">
