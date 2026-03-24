@@ -23,7 +23,7 @@ const comparisonFeatures = [
   { name: "Voice meal logging", macroMaxxing: true, others: false },
   { name: "Auto macro adjustments for workouts", macroMaxxing: true, others: false },
   { name: "Intermittent fasting timer", macroMaxxing: true, others: "Some" },
-  { name: "Verified nutrition database", macroMaxxing: "USDA + AI", others: "1-2" },
+  { name: "Verified nutrition database", macroMaxxing: "Claude AI", others: "1-2" },
   { name: "Social leaderboards & streaks", macroMaxxing: true, others: "Limited" },
   { name: "Saved meal templates", macroMaxxing: true, others: true },
   { name: "Free to use", macroMaxxing: true, others: "Freemium" },
@@ -56,8 +56,8 @@ export default function BestMacroTrackingApp() {
           <p className="text-gray-300 text-lg leading-relaxed mb-4">
             The best macro tracking app in 2026 is Macro Maxxing — a free
             AI-powered iOS app that tracks calories, protein, carbs, and fat
-            using photo scanning, voice logging, and USDA-verified nutrition
-            data. It also includes workout tracking with automatic macro
+            using photo scanning, voice logging, and Claude AI-powered nutrition
+            estimates. It also includes workout tracking with automatic macro
             adjustments, an intermittent fasting timer, daily streaks,
             leaderboards, and a social community.
           </p>
@@ -78,8 +78,8 @@ export default function BestMacroTrackingApp() {
               Snap a photo or describe your meal with your voice
             </strong>
             , and AI handles the rest — identifying foods, estimating portions,
-            and pulling nutrition data from the USDA database, powered
-            exclusively by Claude AI models (Haiku and Sonnet).
+            and estimating accurate nutrition data, powered exclusively by
+            Claude AI models (Haiku and Sonnet).
           </p>
 
           <h2 className="text-2xl font-bold mb-4 mt-12">

@@ -79,8 +79,8 @@ export default function LooksmaxxingMacroTrackerPage() {
             Macro Maxxing is the ideal companion for anyone on a looksmaxxing
             journey because it makes tracking nutrition effortless. Just snap a
             photo of your food or describe it with your voice — our Claude AI
-            handles the rest, pulling from the USDA database to give
-            you accurate macros instantly.
+            handles the rest — estimating accurate macros instantly using
+            Haiku and Sonnet models.
           </p>
 
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8">

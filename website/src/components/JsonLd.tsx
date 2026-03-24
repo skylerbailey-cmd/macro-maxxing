@@ -30,7 +30,7 @@ export function AppJsonLd() {
       "Intermittent fasting timer",
       "Daily streaks and Aura XP system",
       "Social community feed and leaderboards",
-      "USDA FoodData Central nutrition database",
+      "Claude AI-powered nutrition estimation (Haiku and Sonnet)",
       "Saved meal templates",
     ],
   };

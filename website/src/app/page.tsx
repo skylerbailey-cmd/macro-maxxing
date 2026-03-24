@@ -23,7 +23,7 @@ export default function Home() {
             Macro Maxxing is a free AI-powered macro tracking app for iOS that
             lets you log food by snapping a photo or describing your meal with
             your voice. It estimates calories, protein, carbs, and fat using
-            Claude AI and the USDA nutrition database.
+            Claude AI models (Haiku and Sonnet).
           </p>
           <p className="text-gray-400 text-base max-w-2xl mx-auto mb-10">
             Includes workout tracking with automatic macro adjustments, an
@@ -59,8 +59,8 @@ export default function Home() {
             <p className="text-gray-500 text-sm">Input Methods</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-brand-teal">USDA + AI</p>
-            <p className="text-gray-500 text-sm">Verified nutrition data</p>
+            <p className="text-2xl font-bold text-brand-teal">Haiku + Sonnet</p>
+            <p className="text-gray-500 text-sm">Dual-Model AI Pipeline</p>
           </div>
           <div>
             <p className="text-2xl font-bold text-brand-green">100% Free</p>
@@ -147,13 +147,13 @@ export default function Home() {
               <p className="text-gray-400 mb-6 leading-relaxed">
                 Take a picture of your plate and our AI system identifies
                 every food item. Powered by Claude Haiku and Sonnet, it
-                cross-references the USDA database for the most accurate
-                nutrition data possible.
+                analyzes your food and estimates accurate macros using
+                real-world nutritional knowledge.
               </p>
               <ul className="space-y-3">
                 {[
                   "Vision AI identifies food items on your plate",
-                  "Cross-references USDA nutrition database for accuracy",
+                  "Dual-model AI pipeline for maximum accuracy",
                   "Edit and adjust portions before saving",
                   "Save meals as templates for quick re-logging",
                 ].map((item, i) => (
