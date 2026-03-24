@@ -356,14 +356,17 @@ exports.resetExpiredStreaks = onSchedule(
     const db = getFirestore();
 
     const now = new Date();
-    const yesterday = new Date(Date.UTC(
+    // Use day-before-yesterday as the threshold — gives users a full day
+    // to open the app and have computeStreak update their lastStreakDate.
+    // Without this buffer, the nightly job races the morning app open.
+    const dayBeforeYesterday = new Date(Date.UTC(
       now.getUTCFullYear(),
       now.getUTCMonth(),
-      now.getUTCDate() - 1
+      now.getUTCDate() - 2
     ));
-    const yesterdayStr = yesterday.toISOString().split("T")[0];
+    const thresholdStr = dayBeforeYesterday.toISOString().split("T")[0];
 
-    console.log(`Streak reset job started. Threshold: ${yesterdayStr}`);
+    console.log(`Streak reset job started. Threshold: ${thresholdStr}`);
 
     const snapshot = await db.collection("users")
       .where("streakDays", ">", 0)
@@ -382,8 +385,10 @@ exports.resetExpiredStreaks = onSchedule(
     for (const doc of snapshot.docs) {
       const lastStreakDate = doc.data().lastStreakDate ?? "";
 
-      // If lastStreakDate is before yesterday the user missed at least one day.
-      if (lastStreakDate < yesterdayStr) {
+      // If lastStreakDate is before day-before-yesterday, the user missed 2+ days.
+      // This gives users a full day to open the app after missing, matching the
+      // same gap logic used by the computeStreak callable function.
+      if (lastStreakDate < thresholdStr) {
         batch.update(doc.ref, { streakDays: 0 });
         pendingWrites++;
         resetCount++;
