@@ -310,65 +310,76 @@ import FirebaseFirestore
         // ── Streak calculation (today only) ───────────────────────────────────
         if isSelectedDateToday {
             let uid = userSettings.userID
-
-            // Call the Cloud Function once per calendar day. The function itself
-            // also short-circuits if lastStreakDate already equals yesterday,
-            // but skipping the call entirely avoids the network round-trip.
             let todayKey = MacroHistoryService.dateString(for: Date())
-            if !uid.isEmpty && userSettings.lastStreakCheckDate != todayKey {
-                userSettings.baseStreak = await StreakService.computeHistoricalStreak(
-                    userID:        uid,
-                    goalCalories:  goalCalories,
-                    goalProtein:   goalProtein,
-                    goalCarbs:     goalCarbs,
-                    goalFat:       goalFat,
-                    shieldedDates: Set(userSettings.shieldedDates)
-                )
-                userSettings.lastStreakCheckDate = todayKey
-            }
-
-            // Display streak = historical base + 1 if today is also met.
-            let todayAllMet   = totalCalories > 0 && macroGoalsMet.allSatisfy { $0 }
-            let previousStreak = userSettings.macroStreak
-            let display        = userSettings.baseStreak + (todayAllMet ? 1 : 0)
-
-            macroStreak               = display
-            userSettings.macroStreak  = display
-            if display > userSettings.longestStreak {
-                userSettings.longestStreak = display
-            }
-
-            // Detect a streak break: streak dropped to 0 from a meaningful value,
-            // and we haven't already recorded this specific break.
             let yesterdayStr = MacroHistoryService.dateString(
                 for: Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date())
-            if display == 0
-                && previousStreak > 1
-                && userSettings.streakBreakDate != yesterdayStr
-                && userSettings.lastStreakBeforeBreak == 0 {
-                userSettings.lastStreakBeforeBreak = previousStreak
-                userSettings.streakBreakDate       = yesterdayStr
-                userSettings.pendingStreakBreak     = previousStreak
-                let broken = previousStreak
-                Task {
-                    try? await UserProfileService.shared.updateProfile(
-                        userID: uid,
-                        fields: ["lastStreakBeforeBreak": broken, "streakBreakDate": yesterdayStr])
+            let todayAllMet = totalCalories > 0 && macroGoalsMet.allSatisfy { $0 }
+            let previousStreak = userSettings.macroStreak
+
+            // 1. Check for streak break: if lastGoalsMetDate is NOT yesterday
+            //    and NOT today, the streak is broken → reset to 0.
+            let lastMet = userSettings.lastGoalsMetDate
+            if !lastMet.isEmpty && lastMet != yesterdayStr && lastMet != todayKey && userSettings.macroStreak > 0 {
+                userSettings.macroStreak = 0
+                macroStreak = 0
+                if !uid.isEmpty {
+                    Task {
+                        try? await UserProfileService.shared.updateProfile(
+                            userID: uid, fields: ["streakDays": 0])
+                    }
+                }
+
+                // Record the break for streak shield
+                if previousStreak > 1
+                    && userSettings.streakBreakDate != yesterdayStr
+                    && userSettings.lastStreakBeforeBreak == 0 {
+                    userSettings.lastStreakBeforeBreak = previousStreak
+                    userSettings.streakBreakDate       = yesterdayStr
+                    userSettings.pendingStreakBreak     = previousStreak
+                    Task {
+                        try? await UserProfileService.shared.updateProfile(
+                            userID: uid,
+                            fields: ["lastStreakBeforeBreak": previousStreak, "streakBreakDate": yesterdayStr])
+                    }
                 }
             }
 
-            // Note: streakDays is written to Firestore by the computeStreak Cloud Function.
+            // 2. If all 4 macros are met today AND we haven't already counted today → increment
+            if todayAllMet && userSettings.lastGoalsMetDate != todayKey {
+                let newStreak = userSettings.macroStreak + 1
+                userSettings.macroStreak    = newStreak
+                userSettings.lastGoalsMetDate = todayKey
+                macroStreak = newStreak
 
-            // Congrats popup — fires once per calendar day when goals are first met.
-            if todayAllMet && !Calendar.current.isDateInToday(userSettings.lastCelebrationDate) {
-                userSettings.lastCelebrationDate  = Date()
-                userSettings.pendingStreakCongrats = display
-            }
+                if newStreak > userSettings.longestStreak {
+                    userSettings.longestStreak = newStreak
+                }
 
-            // Only check milestones if Firestore data (achievedMilestones) has been restored.
-            // Prevents re-awarding milestones after reinstall before populate(from:) runs.
-            if userSettings.profileLoaded {
-                checkStreakMilestones(display)
+                // Write to Firestore immediately
+                if !uid.isEmpty {
+                    Task {
+                        try? await UserProfileService.shared.updateProfile(
+                            userID: uid,
+                            fields: [
+                                "streakDays":       newStreak,
+                                "lastGoalsMetDate": todayKey,
+                                "longestStreak":    max(newStreak, userSettings.longestStreak),
+                            ])
+                    }
+                }
+
+                // Congrats popup — fires once per day when goals are first met
+                if !Calendar.current.isDateInToday(userSettings.lastCelebrationDate) {
+                    userSettings.lastCelebrationDate  = Date()
+                    userSettings.pendingStreakCongrats = newStreak
+                }
+
+                // Check milestones (only if Firestore data is restored)
+                if userSettings.profileLoaded {
+                    checkStreakMilestones(newStreak)
+                }
+            } else {
+                macroStreak = userSettings.macroStreak
             }
         }
 

@@ -207,7 +207,7 @@ final class UserProfileService {
             "auraPopupsEnabled": userSettings.auraPopupsEnabled,
             "excludeDairy":          userSettings.excludeDairy,
             "excludeGluten":         userSettings.excludeGluten,
-            "lastStreakCheckDate":   userSettings.lastStreakCheckDate,
+            "lastGoalsMetDate":     userSettings.lastGoalsMetDate,
         ]
         do {
             try await updateProfile(userID: userID, fields: fields)

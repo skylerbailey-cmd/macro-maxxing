@@ -136,25 +136,19 @@ struct AuraGain: Identifiable, Equatable {
         }
     }
 
-    // MARK: - Streak (device-local — persisted to UserDefaults)
+    // MARK: - Streak (Firestore is source of truth)
 
-    /// Display streak shown in the UI (baseStreak + 1 if today is also met).
+    /// Current running streak — read from Firestore, incremented when all 4 macros are met.
     var macroStreak: Int = 0 {
         didSet { UserDefaults.standard.set(macroStreak, forKey: "macroStreak") }
-    }
-    /// Consecutive historical days met, ending yesterday. Computed once per day
-    /// and persisted so it survives app restarts within the same calendar day.
-    var baseStreak: Int = 0 {
-        didSet { UserDefaults.standard.set(baseStreak, forKey: "baseStreak") }
     }
     /// All-time best streak.
     var longestStreak: Int = 0 {
         didSet { UserDefaults.standard.set(longestStreak, forKey: "longestStreak") }
     }
-    /// "yyyy-MM-dd" of the last day the historical streak walk ran. Prevents
-    /// re-fetching all of Firestore on every meal load.
-    var lastStreakCheckDate: String = "" {
-        didSet { UserDefaults.standard.set(lastStreakCheckDate, forKey: "lastStreakCheckDate") }
+    /// "yyyy-MM-dd" of the last day all macro goals were met. Used to detect streak breaks.
+    var lastGoalsMetDate: String = "" {
+        didSet { UserDefaults.standard.set(lastGoalsMetDate, forKey: "lastGoalsMetDate") }
     }
     /// Set when the user first hits all macro goals for the day.
     /// Observed by ContentView to show a streak congrats popup.
@@ -189,7 +183,6 @@ struct AuraGain: Identifiable, Equatable {
         shieldedDates = dates
 
         macroStreak  = lastStreakBeforeBreak
-        baseStreak   = lastStreakBeforeBreak
 
         let restored = lastStreakBeforeBreak
         let shielded = dates
@@ -583,18 +576,11 @@ struct AuraGain: Identifiable, Equatable {
             achievedMilestonesRaw = local.map { String($0) }.joined(separator: ",")
         }
         auraPoints        = profile.auraPoints
-        // Restore streak fields from Firestore. Take the higher streak value so a
-        // local cache never overwrites a streak that was already correctly computed.
-        macroStreak         = max(macroStreak, profile.streakDays)
-        // baseStreak must also be seeded from Firestore so the hub calculation
-        // (display = baseStreak + todayAllMet) doesn't start from 0 on a fresh
-        // install or after UserDefaults is cleared.
-        baseStreak          = max(baseStreak, profile.streakDays)
-        longestStreak       = max(longestStreak, profile.longestStreak)
-        // Take whichever check date is more recent (non-empty string comparison works
-        // because "yyyy-MM-dd" sorts lexicographically).
-        if profile.lastStreakCheckDate > lastStreakCheckDate {
-            lastStreakCheckDate = profile.lastStreakCheckDate
+        // Restore streak from Firestore (source of truth)
+        macroStreak       = profile.streakDays
+        longestStreak     = max(longestStreak, profile.longestStreak)
+        if profile.lastGoalsMetDate > lastGoalsMetDate {
+            lastGoalsMetDate = profile.lastGoalsMetDate
         }
 
         // Restore weekly aura from Firestore, then check if a new week has started
@@ -665,9 +651,8 @@ struct AuraGain: Identifiable, Equatable {
 
         // Streak & goals-met history
         macroStreak           = 0
-        baseStreak            = 0
         longestStreak         = 0
-        lastStreakCheckDate   = ""
+        lastGoalsMetDate      = ""
         lastStreakBeforeBreak = 0
         streakBreakDate       = ""
         shieldedDates         = []
@@ -742,9 +727,8 @@ struct AuraGain: Identifiable, Equatable {
             ? Date(timeIntervalSince1970: storedCelebDate) : .distantPast
         self.goalsMetDatesRaw      = UserDefaults.standard.string(forKey: "goalsMetDates") ?? ""
         self.macroStreak           = UserDefaults.standard.integer(forKey: "macroStreak")
-        self.baseStreak            = UserDefaults.standard.integer(forKey: "baseStreak")
         self.longestStreak         = UserDefaults.standard.integer(forKey: "longestStreak")
-        self.lastStreakCheckDate    = UserDefaults.standard.string(forKey: "lastStreakCheckDate") ?? ""
+        self.lastGoalsMetDate      = UserDefaults.standard.string(forKey: "lastGoalsMetDate") ?? ""
         self.lastStreakBeforeBreak  = UserDefaults.standard.integer(forKey: "lastStreakBeforeBreak")
         self.streakBreakDate        = UserDefaults.standard.string(forKey: "streakBreakDate") ?? ""
         self.brainstormUsageCount  = UserDefaults.standard.integer(forKey: "brainstormUsageCount")
