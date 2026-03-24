@@ -2,8 +2,13 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { OrganizationJsonLd } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
   title: {
     default: "Macro Maxxing — AI-Powered Macro Tracker & Nutrition App",
     template: "%s | Macro Maxxing",
@@ -53,6 +58,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
+        <OrganizationJsonLd />
         <Header />
         <main>{children}</main>
         <Footer />

@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { ArticleJsonLd } from "@/components/JsonLd";
+import { ArticleJsonLd, FAQPageJsonLd, BreadcrumbJsonLd } from "@/components/JsonLd";
 import { ComparisonTable } from "@/components/ComparisonTable";
 import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
@@ -22,6 +22,25 @@ export const metadata: Metadata = {
   ],
 };
 
+const faqs = [
+  {
+    question: "What is the best alternative to FatSecret?",
+    answer: "Macro Maxxing is the best alternative to FatSecret. Both are free, but Macro Maxxing offers Claude AI photo scanning, voice logging, USDA-verified nutrition data, gamified streaks and leaderboards, and a modern social community. It's everything FatSecret should have evolved into.",
+  },
+  {
+    question: "Is Macro Maxxing free like FatSecret?",
+    answer: "Yes. Macro Maxxing is 100% free, just like FatSecret. The difference is that Macro Maxxing includes modern AI features (photo scanning, voice logging), gamification (streaks, XP, leaderboards), and a social community — all at no cost.",
+  },
+  {
+    question: "Is Macro Maxxing more accurate than FatSecret?",
+    answer: "Yes. Macro Maxxing uses Claude AI cross-referenced with USDA FoodData Central for verified nutrition data. FatSecret's database has no clear verification system, so you can't be sure entries are accurate.",
+  },
+  {
+    question: "Does Macro Maxxing have a community like FatSecret?",
+    answer: "Macro Maxxing has a modern social feed where users share meals, celebrate streaks, and follow friends — far more engaging than FatSecret's basic forum format. Combined with leaderboards and Aura XP, it creates real accountability.",
+  },
+];
+
 export default function FatSecretAlternativePage() {
   return (
     <>
@@ -29,6 +48,13 @@ export default function FatSecretAlternativePage() {
         title="Best FatSecret Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best modern alternative to FatSecret with AI scanning and gamified accountability."
         url="https://macromaxxing.app/fatsecret-alternative"
+      />
+      <FAQPageJsonLd faqs={faqs} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://macromaxxing.app" },
+          { name: "FatSecret Alternative", url: "https://macromaxxing.app/fatsecret-alternative" },
+        ]}
       />
 
       <article className="min-h-screen">
@@ -42,17 +68,31 @@ export default function FatSecretAlternativePage() {
               Free Tracking,{" "}
               <span className="text-gradient">Modernized</span>
             </h1>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
-              FatSecret is free — but it feels like 2010. Macro Maxxing is also
-              free, but with AI photo scanning, voice logging, gamified streaks,
-              leaderboards, and a real community. Same price, next generation.
+            <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
+              Macro Maxxing is a free, modern FatSecret alternative that adds AI
+              photo scanning, voice logging, and USDA-verified nutrition data to
+              the free tracking experience. It includes gamified streaks,
+              leaderboards, and a social community — the evolution FatSecret
+              never made.
             </p>
+            <p className="text-gray-500 text-sm mb-8">Last updated: March 2026</p>
             <a
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-purple hover:bg-brand-purple/80 text-white font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
               Upgrade for Free
             </a>
+          </div>
+        </section>
+
+        {/* TL;DR */}
+        <section className="max-w-4xl mx-auto px-4 py-8 border-b border-white/5">
+          <div className="bg-brand-purple/5 border border-brand-purple/20 rounded-2xl p-6">
+            <h2 className="text-sm font-semibold text-brand-purple uppercase tracking-wider mb-3">TL;DR</h2>
+            <p className="text-gray-300 text-lg leading-relaxed">
+              <strong className="text-white">Macro Maxxing is the best modern alternative to FatSecret — both are free, but Macro Maxxing is a generation ahead.</strong>{" "}
+              It adds AI photo scanning, voice logging, USDA-verified data, gamified streaks, and a social community to the free tracking experience. The trade-off: FatSecret has a larger food database built over 17+ years and supports more platforms (web, Android), while Macro Maxxing is iOS-only with AI-powered accuracy.
+            </p>
           </div>
         </section>
 
@@ -166,38 +206,70 @@ export default function FatSecretAlternativePage() {
           </div>
         </section>
 
+        {/* Who should switch */}
+        <section className="py-16 md:py-20 max-w-4xl mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold mb-8">
+            Who Should Switch — and Who Shouldn&apos;t
+          </h2>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-brand-green/5 border border-brand-green/20 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macro Maxxing if you:</h3>
+              <ul className="space-y-2 text-gray-300 text-sm">
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want a modern app with AI photo scanning and voice logging</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Are frustrated by FatSecret&apos;s outdated interface and crashes</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want verified nutrition data you can trust</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want gamification and social features for motivation</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Use iOS and want a premium tracking experience for free</li>
+              </ul>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-gray-400 mb-4">FatSecret may still be better if you:</h3>
+              <ul className="space-y-2 text-gray-400 text-sm">
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android or web access (Macro Maxxing is iOS only)</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Rely on FatSecret&apos;s large, established food database</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Use FatSecret&apos;s recipe builder and meal planning features</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Prefer forum-style community discussions</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* How to switch */}
+        <section className="py-12 max-w-4xl mx-auto px-4">
+          <div className="bg-brand-card rounded-2xl border border-white/5 p-6 md:p-8">
+            <h2 className="text-2xl font-bold mb-4">How to Switch from FatSecret</h2>
+            <div className="grid md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-brand-purple font-bold text-lg mb-1">1. Download</p>
+                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. Still free, just modern.</p>
+              </div>
+              <div>
+                <p className="text-brand-purple font-bold text-lg mb-1">2. Set Targets</p>
+                <p className="text-gray-400 text-sm">Enter your calorie and macro goals. Same data, better tools.</p>
+              </div>
+              <div>
+                <p className="text-brand-purple font-bold text-lg mb-1">3. Experience AI</p>
+                <p className="text-gray-400 text-sm">Snap a photo instead of typing. See what modern tracking feels like.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="py-16 md:py-20 bg-white/[0.02]">
           <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold mb-8">
               Frequently Asked Questions
             </h2>
             <div className="space-y-6">
-              {[
-                {
-                  q: "What is the best alternative to FatSecret?",
-                  a: "Macro Maxxing is the best alternative to FatSecret. Both are free, but Macro Maxxing offers Claude AI photo scanning, voice logging, USDA-verified nutrition data, gamified streaks and leaderboards, and a modern social community. It's everything FatSecret should have evolved into.",
-                },
-                {
-                  q: "Is Macro Maxxing free like FatSecret?",
-                  a: "Yes. Macro Maxxing is 100% free, just like FatSecret. The difference is that Macro Maxxing includes modern AI features (photo scanning, voice logging), gamification (streaks, XP, leaderboards), and a social community — all at no cost.",
-                },
-                {
-                  q: "Is Macro Maxxing more accurate than FatSecret?",
-                  a: "Yes. Macro Maxxing uses Claude AI cross-referenced with USDA FoodData Central for verified nutrition data. FatSecret's database has no clear verification system, so you can't be sure entries are accurate.",
-                },
-                {
-                  q: "Does Macro Maxxing have a community like FatSecret?",
-                  a: "Macro Maxxing has a modern social feed where users share meals, celebrate streaks, and follow friends — far more engaging than FatSecret's basic forum format. Combined with leaderboards and Aura XP, it creates real accountability.",
-                },
-              ].map((faq) => (
+              {faqs.map((faq) => (
                 <div
-                  key={faq.q}
+                  key={faq.question}
                   className="bg-white/5 border border-white/10 rounded-2xl p-6"
                 >
                   <h3 className="text-lg font-bold text-white mb-2">
-                    {faq.q}
+                    {faq.question}
                   </h3>
-                  <p className="text-gray-300">{faq.a}</p>
+                  <p className="text-gray-300">{faq.answer}</p>
                 </div>
               ))}
             </div>

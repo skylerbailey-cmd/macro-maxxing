@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1e1438"/>
+      <stop offset="100%" stop-color="#0d0b1a"/>
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="dotGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+
+  <!-- Purple ring -->
+  <circle cx="64" cy="64" r="42" fill="none" stroke="#b48eff" stroke-width="8" filter="url(#glow)" opacity="0.9"/>
+
+  <!-- Inner subtle ring -->
+  <circle cx="64" cy="64" r="33" fill="none" stroke="#2a1f45" stroke-width="5"/>
+
+  <!-- Fork icon (3 tines + handle) -->
+  <g fill="#e8e0f0">
+    <rect x="54" y="38" width="4.5" height="22" rx="2.25"/>
+    <rect x="61.75" y="38" width="4.5" height="22" rx="2.25"/>
+    <rect x="69.5" y="38" width="4.5" height="22" rx="2.25"/>
+    <rect x="60" y="55" width="8" height="26" rx="4"/>
+  </g>
+
+  <!-- Colored dots -->
+  <circle cx="64" cy="18" r="6" fill="#ffaa33" filter="url(#dotGlow)"/>
+  <circle cx="18" cy="64" r="5.5" fill="#ffaacc" filter="url(#dotGlow)"/>
+  <circle cx="110" cy="64" r="5.5" fill="#66ddff" filter="url(#dotGlow)"/>
+  <circle cx="76" cy="108" r="5.5" fill="#55eebb" filter="url(#dotGlow)"/>
+</svg>
