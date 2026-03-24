@@ -5,6 +5,10 @@ import { Footer } from "@/components/Footer";
 import { OrganizationJsonLd } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
   title: {
     default: "Macro Maxxing — AI-Powered Macro Tracker & Nutrition App",
     template: "%s | Macro Maxxing",
