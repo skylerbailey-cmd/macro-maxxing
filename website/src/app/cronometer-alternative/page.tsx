@@ -85,6 +85,17 @@ export default function CronometerAlternativePage() {
           </div>
         </section>
 
+        {/* TL;DR */}
+        <section className="max-w-4xl mx-auto px-4 py-8 border-b border-white/5">
+          <div className="bg-brand-teal/5 border border-brand-teal/20 rounded-2xl p-6">
+            <h2 className="text-sm font-semibold text-brand-teal uppercase tracking-wider mb-3">TL;DR</h2>
+            <p className="text-gray-300 text-lg leading-relaxed">
+              <strong className="text-white">Macro Maxxing is the best free Cronometer alternative for users who want accurate macro tracking without the complexity.</strong>{" "}
+              It replaces manual entry with AI photo scanning and voice logging, adds gamified streaks and a social community, and costs $0 versus Cronometer Gold at $50/year. The trade-off: Cronometer has detailed micronutrient tracking that Macro Maxxing doesn&apos;t offer — if you need vitamin and mineral data, Cronometer is still the better choice.
+            </p>
+          </div>
+        </section>
+
         <section className="py-16 md:py-20 max-w-4xl mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
             Why People Look for Cronometer Alternatives
@@ -191,6 +202,55 @@ export default function CronometerAlternativePage() {
               description="Log workouts and your macro targets adjust automatically. Cronometer doesn't account for training days."
               color="brand-cyan"
             />
+          </div>
+        </section>
+
+        {/* Who should switch */}
+        <section className="py-16 md:py-20 max-w-4xl mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold mb-8">
+            Who Should Switch — and Who Shouldn&apos;t
+          </h2>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-brand-green/5 border border-brand-green/20 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macro Maxxing if you:</h3>
+              <ul className="space-y-2 text-gray-300 text-sm">
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Primarily track macros (calories, protein, carbs, fat)</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Find Cronometer&apos;s interface overwhelming or slow</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want faster logging with AI photos and voice</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want gamification and social features for motivation</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Don&apos;t want to pay for Gold features</li>
+              </ul>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-gray-400 mb-4">Cronometer may still be better if you:</h3>
+              <ul className="space-y-2 text-gray-400 text-sm">
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need detailed micronutrient tracking (vitamins, minerals)</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Follow a specific medical diet requiring micronutrient monitoring</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Prefer data-dense interfaces with deep analytics</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macro Maxxing is iOS only)</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* How to switch */}
+        <section className="py-12 max-w-4xl mx-auto px-4">
+          <div className="bg-brand-card rounded-2xl border border-white/5 p-6 md:p-8">
+            <h2 className="text-2xl font-bold mb-4">How to Switch from Cronometer</h2>
+            <div className="grid md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-brand-teal font-bold text-lg mb-1">1. Download</p>
+                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. No account migration needed.</p>
+              </div>
+              <div>
+                <p className="text-brand-teal font-bold text-lg mb-1">2. Set Macro Targets</p>
+                <p className="text-gray-400 text-sm">Transfer your calorie and macro goals. Focus on the numbers that drive results.</p>
+              </div>
+              <div>
+                <p className="text-brand-teal font-bold text-lg mb-1">3. Log with AI</p>
+                <p className="text-gray-400 text-sm">Snap photos instead of searching databases. Experience how fast tracking can be.</p>
+              </div>
+            </div>
           </div>
         </section>
 

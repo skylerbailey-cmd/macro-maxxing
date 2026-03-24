@@ -85,6 +85,17 @@ export default function MacroFactorAlternativePage() {
           </div>
         </section>
 
+        {/* TL;DR */}
+        <section className="max-w-4xl mx-auto px-4 py-8 border-b border-white/5">
+          <div className="bg-brand-gold/5 border border-brand-gold/20 rounded-2xl p-6">
+            <h2 className="text-sm font-semibold text-brand-gold uppercase tracking-wider mb-3">TL;DR</h2>
+            <p className="text-gray-300 text-lg leading-relaxed">
+              <strong className="text-white">Macro Maxxing is the best free MacroFactor alternative with AI features MacroFactor doesn&apos;t offer.</strong>{" "}
+              It provides photo scanning, voice logging, gamified streaks, leaderboards, and a social community for $0 versus MacroFactor&apos;s $12/month. The trade-off: MacroFactor has a unique algorithm that auto-adjusts your calorie targets weekly based on weight trends — if fully automated coaching is your priority, MacroFactor&apos;s algorithm is unmatched.
+            </p>
+          </div>
+        </section>
+
         <section className="py-16 md:py-20 max-w-4xl mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
             MacroFactor: Great App, Big Price Tag
@@ -195,23 +206,54 @@ export default function MacroFactorAlternativePage() {
           </div>
         </section>
 
+        {/* Who should switch */}
         <section className="py-16 md:py-20 bg-white/[0.02]">
           <div className="max-w-4xl mx-auto px-4">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              When MacroFactor Might Be Better
+            <h2 className="text-3xl md:text-4xl font-bold mb-8">
+              Who Should Switch — and Who Shouldn&apos;t
             </h2>
-            <p className="text-gray-300 text-lg mb-6">
-              To be fair, MacroFactor has one standout feature: its
-              algorithm-driven coaching system that adjusts your calorie targets
-              based on your actual weight trends. If you want a fully automated
-              coach that adjusts your targets week-by-week based on scale data,
-              MacroFactor excels at this.
-            </p>
-            <p className="text-gray-300 text-lg">
-              However, if you prefer AI-powered food logging, gamified
-              accountability, social community features, and not paying
-              $12/month — Macro Maxxing is the clear choice.
-            </p>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="bg-brand-green/5 border border-brand-green/20 rounded-2xl p-6">
+                <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macro Maxxing if you:</h3>
+                <ul className="space-y-2 text-gray-300 text-sm">
+                  <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want faster food logging with AI scanning and voice input</li>
+                  <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Don&apos;t want to pay $12/month ($144/year) for a macro tracker</li>
+                  <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Are motivated by streaks, leaderboards, and social competition</li>
+                  <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want a community for accountability, not just solo tracking</li>
+                  <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Can manage your own calorie targets or adjust them manually</li>
+                </ul>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                <h3 className="text-lg font-bold text-gray-400 mb-4">MacroFactor may still be better if you:</h3>
+                <ul className="space-y-2 text-gray-400 text-sm">
+                  <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Want fully automated calorie adjustments based on weight trends</li>
+                  <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Prefer algorithm-driven coaching over self-directed tracking</li>
+                  <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Value the Stronger By Science research-backed methodology</li>
+                  <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macro Maxxing is iOS only)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* How to switch */}
+        <section className="py-12 max-w-4xl mx-auto px-4">
+          <div className="bg-brand-card rounded-2xl border border-white/5 p-6 md:p-8">
+            <h2 className="text-2xl font-bold mb-4">How to Switch from MacroFactor</h2>
+            <div className="grid md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-brand-gold font-bold text-lg mb-1">1. Download</p>
+                <p className="text-gray-400 text-sm">Get Macro Maxxing free. No trial, no credit card, no subscription.</p>
+              </div>
+              <div>
+                <p className="text-brand-gold font-bold text-lg mb-1">2. Set Your Targets</p>
+                <p className="text-gray-400 text-sm">Enter your current calorie and macro targets from MacroFactor.</p>
+              </div>
+              <div>
+                <p className="text-brand-gold font-bold text-lg mb-1">3. Cancel & Save</p>
+                <p className="text-gray-400 text-sm">Cancel your MacroFactor subscription and save $144/year. Start logging with AI.</p>
+              </div>
+            </div>
           </div>
         </section>
 

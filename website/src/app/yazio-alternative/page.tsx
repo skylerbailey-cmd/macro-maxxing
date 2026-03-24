@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { ArticleJsonLd } from "@/components/JsonLd";
+import { ArticleJsonLd, FAQPageJsonLd, BreadcrumbJsonLd } from "@/components/JsonLd";
 import { ComparisonTable } from "@/components/ComparisonTable";
 import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
@@ -22,6 +22,25 @@ export const metadata: Metadata = {
   ],
 };
 
+const faqs = [
+  {
+    question: "What is the best free alternative to YAZIO?",
+    answer: "Macro Maxxing is the best free alternative to YAZIO. It offers accurate Claude AI photo scanning, voice meal logging, customizable fasting timers, gamified streaks, leaderboards, and a social community — all 100% free with no pop-ups, ads, or subscription upsells.",
+  },
+  {
+    question: "Is Macro Maxxing more accurate than YAZIO?",
+    answer: "Yes. Macro Maxxing uses Claude AI cross-referenced with USDA FoodData Central for verified nutrition data. YAZIO users frequently report inaccurate food entries with wildly wrong calorie counts. Accuracy is a core priority for Macro Maxxing.",
+  },
+  {
+    question: "Does Macro Maxxing have a fasting timer like YAZIO?",
+    answer: "Yes. Macro Maxxing includes a fully customizable intermittent fasting timer supporting 16:8, 18:6, 20:4, OMAD, and any custom window. Unlike YAZIO's fasting feature which users report as inflexible, Macro Maxxing lets you set any schedule you want — for free.",
+  },
+  {
+    question: "Is Macro Maxxing really free with no upsells?",
+    answer: "Yes. Every feature in Macro Maxxing is free — AI scanning, voice logging, fasting timer, streaks, leaderboards, and social community. There is no premium tier, no ads, and no pop-ups asking you to subscribe. It's the anti-YAZIO experience.",
+  },
+];
+
 export default function YazioAlternativePage() {
   return (
     <>
@@ -29,6 +48,13 @@ export default function YazioAlternativePage() {
         title="Best YAZIO Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best free YAZIO alternative with accurate AI scanning, no upsells, and gamified accountability."
         url="https://macromaxxing.app/yazio-alternative"
+      />
+      <FAQPageJsonLd faqs={faqs} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://macromaxxing.app" },
+          { name: "YAZIO Alternative", url: "https://macromaxxing.app/yazio-alternative" },
+        ]}
       />
 
       <article className="min-h-screen">
@@ -42,18 +68,31 @@ export default function YazioAlternativePage() {
               Accurate AI Tracking,{" "}
               <span className="text-gradient">Zero Upsells</span>
             </h1>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
-              YAZIO bombards you with pop-ups, upsells, and inaccurate food
-              data. Macro Maxxing gives you precise AI macro tracking, real
-              gamification, and a social community — completely free with no
-              annoying prompts.
+            <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
+              Macro Maxxing is a free YAZIO alternative that provides accurate
+              AI-powered macro tracking without the aggressive upsells, pop-ups,
+              or inaccurate food data that YAZIO users report. It includes
+              gamified streaks, leaderboards, and a social community — all free
+              with zero subscription prompts.
             </p>
+            <p className="text-gray-500 text-sm mb-8">Last updated: March 2026</p>
             <a
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-mint hover:bg-brand-mint/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
               Switch to Macro Maxxing — Free
             </a>
+          </div>
+        </section>
+
+        {/* TL;DR */}
+        <section className="max-w-4xl mx-auto px-4 py-8 border-b border-white/5">
+          <div className="bg-brand-mint/5 border border-brand-mint/20 rounded-2xl p-6">
+            <h2 className="text-sm font-semibold text-brand-mint uppercase tracking-wider mb-3">TL;DR</h2>
+            <p className="text-gray-300 text-lg leading-relaxed">
+              <strong className="text-white">Macro Maxxing is the best free YAZIO alternative with accurate data and zero upsells.</strong>{" "}
+              It provides Claude AI photo scanning, voice logging, a customizable fasting timer, and gamified accountability — all free with no ads or pop-ups. The trade-off: YAZIO has a larger international food database (especially for European foods) and offers structured meal plans, which some users prefer for guided nutrition.
+            </p>
           </div>
         </section>
 
@@ -165,38 +204,70 @@ export default function YazioAlternativePage() {
           </div>
         </section>
 
+        {/* Who should switch */}
+        <section className="py-16 md:py-20 max-w-4xl mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold mb-8">
+            Who Should Switch — and Who Shouldn&apos;t
+          </h2>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-brand-green/5 border border-brand-green/20 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macro Maxxing if you:</h3>
+              <ul className="space-y-2 text-gray-300 text-sm">
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Are frustrated by YAZIO&apos;s constant subscription pop-ups</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Have experienced inaccurate food data in YAZIO</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want AI photo scanning and voice logging</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want real gamification (not streak-baiting for premium)</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want a customizable fasting timer that actually works</li>
+              </ul>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-gray-400 mb-4">YAZIO may still be better if you:</h3>
+              <ul className="space-y-2 text-gray-400 text-sm">
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need a large European food database</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Want structured meal plans and recipes</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Prefer a guided nutrition program over self-directed tracking</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macro Maxxing is iOS only)</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* How to switch */}
+        <section className="py-12 max-w-4xl mx-auto px-4">
+          <div className="bg-brand-card rounded-2xl border border-white/5 p-6 md:p-8">
+            <h2 className="text-2xl font-bold mb-4">How to Switch from YAZIO</h2>
+            <div className="grid md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-brand-mint font-bold text-lg mb-1">1. Download</p>
+                <p className="text-gray-400 text-sm">Get Macro Maxxing free. No trial period, no credit card required.</p>
+              </div>
+              <div>
+                <p className="text-brand-mint font-bold text-lg mb-1">2. Set Goals</p>
+                <p className="text-gray-400 text-sm">Enter your macro targets and fasting schedule. Full control from the start.</p>
+              </div>
+              <div>
+                <p className="text-brand-mint font-bold text-lg mb-1">3. Enjoy the Silence</p>
+                <p className="text-gray-400 text-sm">No pop-ups. No upsells. Just fast, accurate tracking with AI.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="py-16 md:py-20 bg-white/[0.02]">
           <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold mb-8">
               Frequently Asked Questions
             </h2>
             <div className="space-y-6">
-              {[
-                {
-                  q: "What is the best free alternative to YAZIO?",
-                  a: "Macro Maxxing is the best free alternative to YAZIO. It offers accurate Claude AI photo scanning, voice meal logging, customizable fasting timers, gamified streaks, leaderboards, and a social community — all 100% free with no pop-ups, ads, or subscription upsells.",
-                },
-                {
-                  q: "Is Macro Maxxing more accurate than YAZIO?",
-                  a: "Yes. Macro Maxxing uses Claude AI cross-referenced with USDA FoodData Central for verified nutrition data. YAZIO users frequently report inaccurate food entries with wildly wrong calorie counts. Accuracy is a core priority for Macro Maxxing.",
-                },
-                {
-                  q: "Does Macro Maxxing have a fasting timer like YAZIO?",
-                  a: "Yes. Macro Maxxing includes a fully customizable intermittent fasting timer supporting 16:8, 18:6, 20:4, OMAD, and any custom window. Unlike YAZIO's fasting feature which users report as inflexible, Macro Maxxing lets you set any schedule you want — for free.",
-                },
-                {
-                  q: "Is Macro Maxxing really free with no upsells?",
-                  a: "Yes. Every feature in Macro Maxxing is free — AI scanning, voice logging, fasting timer, streaks, leaderboards, and social community. There is no premium tier, no ads, and no pop-ups asking you to subscribe. It's the anti-YAZIO experience.",
-                },
-              ].map((faq) => (
+              {faqs.map((faq) => (
                 <div
-                  key={faq.q}
+                  key={faq.question}
                   className="bg-white/5 border border-white/10 rounded-2xl p-6"
                 >
                   <h3 className="text-lg font-bold text-white mb-2">
-                    {faq.q}
+                    {faq.question}
                   </h3>
-                  <p className="text-gray-300">{faq.a}</p>
+                  <p className="text-gray-300">{faq.answer}</p>
                 </div>
               ))}
             </div>

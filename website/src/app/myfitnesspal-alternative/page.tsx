@@ -86,6 +86,17 @@ export default function MyFitnessPalAlternativePage() {
           </div>
         </section>
 
+        {/* TL;DR */}
+        <section className="max-w-4xl mx-auto px-4 py-8 border-b border-white/5">
+          <div className="bg-brand-purple/5 border border-brand-purple/20 rounded-2xl p-6">
+            <h2 className="text-sm font-semibold text-brand-purple uppercase tracking-wider mb-3">TL;DR</h2>
+            <p className="text-gray-300 text-lg leading-relaxed">
+              <strong className="text-white">Macro Maxxing is the best free MyFitnessPal alternative in 2026.</strong>{" "}
+              It replaces manual database searching with AI photo scanning and voice logging, adds gamified streaks and leaderboards for accountability, and includes a social community — all at $0 versus MyFitnessPal Premium at $20/month. The main trade-off: MyFitnessPal has a larger food database and barcode scanning, while Macro Maxxing relies on AI recognition and USDA-verified data.
+            </p>
+          </div>
+        </section>
+
         {/* Why people leave MFP */}
         <section className="py-16 md:py-20 max-w-4xl mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
@@ -197,6 +208,55 @@ export default function MyFitnessPalAlternativePage() {
               description="Instead of a massive user-submitted database with inconsistent data, Macro Maxxing uses 4 verified nutrition databases including USDA FoodData Central."
               color="brand-cyan"
             />
+          </div>
+        </section>
+
+        {/* Who should switch */}
+        <section className="py-16 md:py-20 max-w-4xl mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold mb-8">
+            Who Should Switch — and Who Shouldn&apos;t
+          </h2>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-brand-green/5 border border-brand-green/20 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macro Maxxing if you:</h3>
+              <ul className="space-y-2 text-gray-300 text-sm">
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want faster logging with AI photo scanning and voice input</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Are tired of ads and paywalls for basic features</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want gamified accountability (streaks, XP, leaderboards)</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want a social community for motivation</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Care about macro tracking over just calorie counting</li>
+              </ul>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-gray-400 mb-4">MyFitnessPal may still be better if you:</h3>
+              <ul className="space-y-2 text-gray-400 text-sm">
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Rely heavily on barcode scanning for packaged foods</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need the largest possible food database with user submissions</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Use third-party integrations (Fitbit, Garmin, etc.) that MyFitnessPal supports</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macro Maxxing is iOS only)</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* How to switch */}
+        <section className="py-12 max-w-4xl mx-auto px-4">
+          <div className="bg-brand-card rounded-2xl border border-white/5 p-6 md:p-8">
+            <h2 className="text-2xl font-bold mb-4">How to Switch from MyFitnessPal</h2>
+            <div className="grid md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-brand-purple font-bold text-lg mb-1">1. Download</p>
+                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. Set up takes under 2 minutes.</p>
+              </div>
+              <div>
+                <p className="text-brand-purple font-bold text-lg mb-1">2. Set Your Macros</p>
+                <p className="text-gray-400 text-sm">Enter your goals and macro targets. No data migration needed — start fresh with better tools.</p>
+              </div>
+              <div>
+                <p className="text-brand-purple font-bold text-lg mb-1">3. Start Logging with AI</p>
+                <p className="text-gray-400 text-sm">Snap a photo or describe your meal. Build your streak from day one.</p>
+              </div>
+            </div>
           </div>
         </section>
 

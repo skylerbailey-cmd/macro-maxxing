@@ -85,6 +85,17 @@ export default function NoomAlternativePage() {
           </div>
         </section>
 
+        {/* TL;DR */}
+        <section className="max-w-4xl mx-auto px-4 py-8 border-b border-white/5">
+          <div className="bg-brand-green/5 border border-brand-green/20 rounded-2xl p-6">
+            <h2 className="text-sm font-semibold text-brand-green uppercase tracking-wider mb-3">TL;DR</h2>
+            <p className="text-gray-300 text-lg leading-relaxed">
+              <strong className="text-white">Macro Maxxing is the best free Noom alternative for people who want real macro tracking instead of color-coded food categories.</strong>{" "}
+              It provides AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — all free versus Noom&apos;s $40-60/month. The trade-off: Noom includes psychology-based coaching and behavioral lessons, while Macro Maxxing focuses on precise tracking with gamified accountability.
+            </p>
+          </div>
+        </section>
+
         <section className="py-16 md:py-20 max-w-4xl mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
             Why People Are Looking Beyond Noom
@@ -191,6 +202,55 @@ export default function NoomAlternativePage() {
               description="Weight loss, muscle gain, body recomp, or maintenance. Macro Maxxing works for any fitness goal, not just weight loss."
               color="brand-cyan"
             />
+          </div>
+        </section>
+
+        {/* Who should switch */}
+        <section className="py-16 md:py-20 max-w-4xl mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold mb-8">
+            Who Should Switch — and Who Shouldn&apos;t
+          </h2>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-brand-green/5 border border-brand-green/20 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macro Maxxing if you:</h3>
+              <ul className="space-y-2 text-gray-300 text-sm">
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want precise macro tracking (protein, carbs, fat) — not color codes</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Don&apos;t want to pay $40-60/month for a food tracker</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want AI photo scanning and voice logging for faster tracking</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Are motivated by game mechanics (streaks, leaderboards) more than lessons</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Have goals beyond weight loss (muscle gain, recomp, maintenance)</li>
+              </ul>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-gray-400 mb-4">Noom may still be better if you:</h3>
+              <ul className="space-y-2 text-gray-400 text-sm">
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Want psychology-based coaching and behavioral change lessons</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Prefer a guided program over self-directed tracking</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Don&apos;t need detailed macro breakdowns — just general healthy eating</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macro Maxxing is iOS only)</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* How to switch */}
+        <section className="py-12 max-w-4xl mx-auto px-4">
+          <div className="bg-brand-card rounded-2xl border border-white/5 p-6 md:p-8">
+            <h2 className="text-2xl font-bold mb-4">How to Switch from Noom</h2>
+            <div className="grid md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-brand-green font-bold text-lg mb-1">1. Download</p>
+                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. No subscription, no trial period.</p>
+              </div>
+              <div>
+                <p className="text-brand-green font-bold text-lg mb-1">2. Set Real Macros</p>
+                <p className="text-gray-400 text-sm">Enter your actual calorie and macro targets based on your specific goals.</p>
+              </div>
+              <div>
+                <p className="text-brand-green font-bold text-lg mb-1">3. Cancel Noom</p>
+                <p className="text-gray-400 text-sm">Save $40-60/month. Start logging with AI and building your streak.</p>
+              </div>
+            </div>
           </div>
         </section>
 
