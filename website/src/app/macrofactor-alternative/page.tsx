@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { ArticleJsonLd } from "@/components/JsonLd";
+import { ArticleJsonLd, FAQPageJsonLd, BreadcrumbJsonLd } from "@/components/JsonLd";
 import { ComparisonTable } from "@/components/ComparisonTable";
 import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
@@ -22,6 +22,25 @@ export const metadata: Metadata = {
   ],
 };
 
+const faqs = [
+  {
+    question: "What is the best free alternative to MacroFactor?",
+    answer: "Macro Maxxing is the best free alternative to MacroFactor. It offers AI photo scanning and voice logging (which MacroFactor lacks), gamified streaks and leaderboards, and a social community — all for free. MacroFactor costs $12/month with no free tier.",
+  },
+  {
+    question: "Is Macro Maxxing as accurate as MacroFactor?",
+    answer: "Both apps use verified nutrition databases. Macro Maxxing uses Claude AI cross-referenced with USDA FoodData Central. The main difference is input method — Macro Maxxing uses AI scanning and voice, while MacroFactor uses manual database searching.",
+  },
+  {
+    question: "Does Macro Maxxing have algorithm-based coaching like MacroFactor?",
+    answer: "Macro Maxxing focuses on AI-powered food logging and gamified accountability rather than algorithm-based calorie coaching. If auto-adjusting calorie targets based on weight trends is your top priority, MacroFactor's algorithm is unique. For everything else, Macro Maxxing offers more features at no cost.",
+  },
+  {
+    question: "Why switch from MacroFactor to Macro Maxxing?",
+    answer: "Save $144/year, get AI photo scanning and voice logging (faster than manual entry), enjoy gamified streaks and leaderboards for motivation, and join a social community for accountability. The only feature you'd lose is MacroFactor's auto-adjusting calorie algorithm.",
+  },
+];
+
 export default function MacroFactorAlternativePage() {
   return (
     <>
@@ -29,6 +48,13 @@ export default function MacroFactorAlternativePage() {
         title="Best MacroFactor Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best free MacroFactor alternative with AI scanning and gamified accountability."
         url="https://macromaxxing.app/macrofactor-alternative"
+      />
+      <FAQPageJsonLd faqs={faqs} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://macromaxxing.app" },
+          { name: "MacroFactor Alternative", url: "https://macromaxxing.app/macrofactor-alternative" },
+        ]}
       />
 
       <article className="min-h-screen">
@@ -42,11 +68,14 @@ export default function MacroFactorAlternativePage() {
               Smart Macro Tracking,{" "}
               <span className="text-gradient-gold">Zero Cost</span>
             </h1>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
-              MacroFactor is a great app — but at $12/month, it&apos;s expensive.
-              Macro Maxxing gives you AI-powered macro tracking, voice logging,
-              streaks, leaderboards, and a social community for $0.
+            <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
+              Macro Maxxing is a free MacroFactor alternative that provides
+              AI-powered macro tracking with photo scanning and voice logging —
+              features MacroFactor doesn&apos;t offer at any price. It includes
+              gamified streaks, leaderboards, and a social community, all at $0
+              versus MacroFactor&apos;s $12/month ($144/year).
             </p>
+            <p className="text-gray-500 text-sm mb-8">Last updated: March 2026</p>
             <a
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-gold hover:bg-brand-gold/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
@@ -191,34 +220,17 @@ export default function MacroFactorAlternativePage() {
             Frequently Asked Questions
           </h2>
           <div className="space-y-6">
-            {[
-              {
-                q: "What is the best free alternative to MacroFactor?",
-                a: "Macro Maxxing is the best free alternative to MacroFactor. It offers AI photo scanning and voice logging (which MacroFactor lacks), gamified streaks and leaderboards, and a social community — all for free. MacroFactor costs $12/month with no free tier.",
-              },
-              {
-                q: "Is Macro Maxxing as accurate as MacroFactor?",
-                a: "Both apps use verified nutrition databases. Macro Maxxing uses Claude AI cross-referenced with USDA FoodData Central. The main difference is input method — Macro Maxxing uses AI scanning and voice, while MacroFactor uses manual database searching.",
-              },
-              {
-                q: "Does Macro Maxxing have algorithm-based coaching like MacroFactor?",
-                a: "Macro Maxxing focuses on AI-powered food logging and gamified accountability rather than algorithm-based calorie coaching. If auto-adjusting calorie targets based on weight trends is your top priority, MacroFactor's algorithm is unique. For everything else, Macro Maxxing offers more features at no cost.",
-              },
-              {
-                q: "Why switch from MacroFactor to Macro Maxxing?",
-                a: "Save $144/year, get AI photo scanning and voice logging (faster than manual entry), enjoy gamified streaks and leaderboards for motivation, and join a social community for accountability. The only feature you'd lose is MacroFactor's auto-adjusting calorie algorithm.",
-              },
-            ].map((faq) => (
-              <div
-                key={faq.q}
-                className="bg-white/5 border border-white/10 rounded-2xl p-6"
-              >
-                <h3 className="text-lg font-bold text-white mb-2">
-                  {faq.q}
-                </h3>
-                <p className="text-gray-300">{faq.a}</p>
-              </div>
-            ))}
+              {faqs.map((faq) => (
+                <div
+                  key={faq.question}
+                  className="bg-white/5 border border-white/10 rounded-2xl p-6"
+                >
+                  <h3 className="text-lg font-bold text-white mb-2">
+                    {faq.question}
+                  </h3>
+                  <p className="text-gray-300">{faq.answer}</p>
+                </div>
+              ))}
           </div>
         </section>
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { DownloadCTA } from "@/components/DownloadCTA";
-import { ArticleJsonLd } from "@/components/JsonLd";
+import { ArticleJsonLd, BreadcrumbJsonLd } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
   title: "AI Food Scanner — Snap a Photo, Get Instant Macros",
@@ -26,6 +26,12 @@ export default function AIFoodScanner() {
         description="How Macro Maxxing's AI food recognition powered by Claude Haiku and Sonnet identifies food from photos and estimates macros instantly."
         url="https://macromaxxing.app/ai-food-scanner"
       />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://macromaxxing.app" },
+          { name: "AI Food Scanner", url: "https://macromaxxing.app/ai-food-scanner" },
+        ]}
+      />
 
       <article className="pt-32 pb-12 px-4 sm:px-6">
         <div className="max-w-3xl mx-auto">
@@ -37,11 +43,15 @@ export default function AIFoodScanner() {
             <br />
             <span className="text-gradient">Photo to Macros in Seconds</span>
           </h1>
-          <p className="text-gray-400 text-lg leading-relaxed mb-12">
-            Stop typing food names into a search bar. Just snap a photo of your
-            meal and let AI identify every item on your plate — with full macro
-            breakdowns for calories, protein, carbs, and fat.
+          <p className="text-gray-300 text-lg leading-relaxed mb-4">
+            An AI food scanner is a mobile app feature that uses artificial
+            intelligence to identify food items from a photo and estimate their
+            nutritional content including calories, protein, carbs, and fat.
+            Macro Maxxing&apos;s AI food scanner is powered by Claude AI (Haiku
+            and Sonnet models) and cross-references the USDA FoodData Central
+            database for verified macro data.
           </p>
+          <p className="text-gray-500 text-sm mb-12">Last updated: March 2026</p>
 
           <h2 className="text-2xl font-bold mb-4">How It Works: AI-Powered Recognition</h2>
           <p className="text-gray-400 leading-relaxed mb-8">

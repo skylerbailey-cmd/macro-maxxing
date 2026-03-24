@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { ArticleJsonLd } from "@/components/JsonLd";
+import { ArticleJsonLd, FAQPageJsonLd, BreadcrumbJsonLd } from "@/components/JsonLd";
 import { ComparisonTable } from "@/components/ComparisonTable";
 import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
@@ -22,6 +22,25 @@ export const metadata: Metadata = {
   ],
 };
 
+const faqs = [
+  {
+    question: "What is the best free alternative to Noom?",
+    answer: "Macro Maxxing is the best free alternative to Noom. It offers AI-powered macro tracking (not just color-coded foods), gamified streaks and leaderboards, and a social community for accountability — all completely free. Noom costs $40-60/month.",
+  },
+  {
+    question: "Is Macro Maxxing better than Noom for weight loss?",
+    answer: "For most people, yes. Macro Maxxing provides precise calorie and macro tracking (which drives weight loss results) with AI scanning and gamified accountability. Noom's color system oversimplifies nutrition, and its coaching is largely automated. Macro Maxxing gives you better tracking tools and community accountability for free.",
+  },
+  {
+    question: "Does Macro Maxxing have coaching like Noom?",
+    answer: "Macro Maxxing takes a different approach. Instead of scripted coaching, it uses gamified accountability (streaks, XP, leaderboards) and a real social community where users share meals and hold each other accountable. Research shows that social accountability is more effective than generic coaching for long-term habit change.",
+  },
+  {
+    question: "Why is Macro Maxxing free when Noom costs $60/month?",
+    answer: "Macro Maxxing is designed to be accessible to everyone. It doesn't have paid coaching staff or lengthy psychology curriculums to fund. Instead, it uses AI for food logging and builds accountability through streaks, leaderboards, and community — all of which can be delivered at no cost to users.",
+  },
+];
+
 export default function NoomAlternativePage() {
   return (
     <>
@@ -29,6 +48,13 @@ export default function NoomAlternativePage() {
         title="Best Noom Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best free Noom alternative with AI macro tracking, gamified accountability, and social community."
         url="https://macromaxxing.app/noom-alternative"
+      />
+      <FAQPageJsonLd faqs={faqs} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://macromaxxing.app" },
+          { name: "Noom Alternative", url: "https://macromaxxing.app/noom-alternative" },
+        ]}
       />
 
       <article className="min-h-screen">
@@ -42,12 +68,14 @@ export default function NoomAlternativePage() {
               Real Macro Tracking, Not{" "}
               <span className="text-gradient">Color Coding</span>
             </h1>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
-              Noom charges up to $60/month for psychology-based weight loss with
-              a simplified color-coded food system. Macro Maxxing gives you
-              precise AI-powered macro tracking, gamified accountability, and a
-              real community — completely free.
+            <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
+              Macro Maxxing is a free Noom alternative that provides precise
+              AI-powered macro tracking instead of Noom's simplified color-coded
+              food system. It includes photo scanning, voice logging, daily
+              streaks, leaderboards, and a social community — at $0 versus
+              Noom's $40-60/month subscription.
             </p>
+            <p className="text-gray-500 text-sm mb-8">Last updated: March 2026</p>
             <a
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-green hover:bg-brand-green/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
@@ -172,32 +200,15 @@ export default function NoomAlternativePage() {
               Frequently Asked Questions
             </h2>
             <div className="space-y-6">
-              {[
-                {
-                  q: "What is the best free alternative to Noom?",
-                  a: "Macro Maxxing is the best free alternative to Noom. It offers AI-powered macro tracking (not just color-coded foods), gamified streaks and leaderboards, and a social community for accountability — all completely free. Noom costs $40-60/month.",
-                },
-                {
-                  q: "Is Macro Maxxing better than Noom for weight loss?",
-                  a: "For most people, yes. Macro Maxxing provides precise calorie and macro tracking (which drives weight loss results) with AI scanning and gamified accountability. Noom's color system oversimplifies nutrition, and its coaching is largely automated. Macro Maxxing gives you better tracking tools and community accountability for free.",
-                },
-                {
-                  q: "Does Macro Maxxing have coaching like Noom?",
-                  a: "Macro Maxxing takes a different approach. Instead of scripted coaching, it uses gamified accountability (streaks, XP, leaderboards) and a real social community where users share meals and hold each other accountable. Research shows that social accountability is more effective than generic coaching for long-term habit change.",
-                },
-                {
-                  q: "Why is Macro Maxxing free when Noom costs $60/month?",
-                  a: "Macro Maxxing is designed to be accessible to everyone. It doesn't have paid coaching staff or lengthy psychology curriculums to fund. Instead, it uses AI for food logging and builds accountability through streaks, leaderboards, and community — all of which can be delivered at no cost to users.",
-                },
-              ].map((faq) => (
+              {faqs.map((faq) => (
                 <div
-                  key={faq.q}
+                  key={faq.question}
                   className="bg-white/5 border border-white/10 rounded-2xl p-6"
                 >
                   <h3 className="text-lg font-bold text-white mb-2">
-                    {faq.q}
+                    {faq.question}
                   </h3>
-                  <p className="text-gray-300">{faq.a}</p>
+                  <p className="text-gray-300">{faq.answer}</p>
                 </div>
               ))}
             </div>

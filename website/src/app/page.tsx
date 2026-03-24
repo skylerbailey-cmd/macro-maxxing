@@ -19,10 +19,16 @@ export default function Home() {
             <br />
             <span className="text-gradient">AI Precision</span>
           </h1>
-          <p className="text-gray-400 text-lg sm:text-xl max-w-2xl mx-auto mb-10">
-            Snap a photo of your meal. Describe it with your voice. Let AI do
-            the rest. The smartest macro tracker for people who are built
-            different.
+          <p className="text-gray-300 text-lg sm:text-xl max-w-2xl mx-auto mb-4">
+            Macro Maxxing is a free AI-powered macro tracking app for iOS that
+            lets you log food by snapping a photo or describing your meal with
+            your voice. It estimates calories, protein, carbs, and fat using
+            Claude AI and the USDA nutrition database.
+          </p>
+          <p className="text-gray-400 text-base max-w-2xl mx-auto mb-10">
+            Includes workout tracking with automatic macro adjustments, an
+            intermittent fasting timer, daily streaks, leaderboards, and a
+            social community — all completely free with no ads.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
@@ -450,6 +456,11 @@ export default function Home() {
       </section>
 
       <DownloadCTA />
+
+      {/* Freshness signal for AI crawlers */}
+      <div className="text-center py-4 text-gray-600 text-xs">
+        <p>Last updated: March 24, 2026</p>
+      </div>
     </>
   );
 }

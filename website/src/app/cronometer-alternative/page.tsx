@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { ArticleJsonLd } from "@/components/JsonLd";
+import { ArticleJsonLd, FAQPageJsonLd, BreadcrumbJsonLd } from "@/components/JsonLd";
 import { ComparisonTable } from "@/components/ComparisonTable";
 import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
@@ -22,6 +22,25 @@ export const metadata: Metadata = {
   ],
 };
 
+const faqs = [
+  {
+    question: "What is the best alternative to Cronometer?",
+    answer: "Macro Maxxing is the best free alternative to Cronometer for macro tracking. It uses AI photo scanning and voice logging instead of manual entry, includes gamification (streaks, leaderboards, XP) for accountability, and has a social community — all at no cost.",
+  },
+  {
+    question: "Is Macro Maxxing as accurate as Cronometer?",
+    answer: "Macro Maxxing uses Claude AI cross-referenced with USDA FoodData Central for verified nutrition data. While Cronometer excels at micronutrient detail, Macro Maxxing provides highly accurate macro tracking for calories, protein, carbs, and fat.",
+  },
+  {
+    question: "Does Macro Maxxing track micronutrients like Cronometer?",
+    answer: "Macro Maxxing is focused on macronutrient tracking — calories, protein, carbs, and fat. If you need detailed micronutrient analysis (vitamins, minerals), Cronometer may be more suitable. But for most people focused on macros and body composition, Macro Maxxing is faster and easier to use.",
+  },
+  {
+    question: "Is Macro Maxxing free?",
+    answer: "Yes. Macro Maxxing is 100% free with no premium tier or subscription. All features including AI scanning, voice logging, streaks, leaderboards, and the social community are completely free. Cronometer charges $50/year for Gold features.",
+  },
+];
+
 export default function CronometerAlternativePage() {
   return (
     <>
@@ -29,6 +48,13 @@ export default function CronometerAlternativePage() {
         title="Best Cronometer Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best free Cronometer alternative with AI scanning and simpler tracking."
         url="https://macromaxxing.app/cronometer-alternative"
+      />
+      <FAQPageJsonLd faqs={faqs} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://macromaxxing.app" },
+          { name: "Cronometer Alternative", url: "https://macromaxxing.app/cronometer-alternative" },
+        ]}
       />
 
       <article className="min-h-screen">
@@ -42,12 +68,14 @@ export default function CronometerAlternativePage() {
               All the Accuracy,{" "}
               <span className="text-gradient">None of the Complexity</span>
             </h1>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
-              Cronometer is powerful but overwhelming. Macro Maxxing gives you
-              accurate macro tracking with AI photo scanning, voice logging,
-              and gamified accountability — without the learning curve. 100%
-              free.
+            <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
+              Macro Maxxing is a free Cronometer alternative that provides
+              accurate macro tracking with AI photo scanning and voice logging,
+              without Cronometer's complex interface or $50/year Gold
+              subscription. It adds gamified streaks, leaderboards, and a
+              social community for accountability.
             </p>
+            <p className="text-gray-500 text-sm mb-8">Last updated: March 2026</p>
             <a
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-teal hover:bg-brand-teal/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
@@ -172,32 +200,15 @@ export default function CronometerAlternativePage() {
               Frequently Asked Questions
             </h2>
             <div className="space-y-6">
-              {[
-                {
-                  q: "What is the best alternative to Cronometer?",
-                  a: "Macro Maxxing is the best free alternative to Cronometer for macro tracking. It uses AI photo scanning and voice logging instead of manual entry, includes gamification (streaks, leaderboards, XP) for accountability, and has a social community — all at no cost.",
-                },
-                {
-                  q: "Is Macro Maxxing as accurate as Cronometer?",
-                  a: "Macro Maxxing uses Claude AI cross-referenced with USDA FoodData Central for verified nutrition data. While Cronometer excels at micronutrient detail, Macro Maxxing provides highly accurate macro tracking for calories, protein, carbs, and fat.",
-                },
-                {
-                  q: "Does Macro Maxxing track micronutrients like Cronometer?",
-                  a: "Macro Maxxing is focused on macronutrient tracking — calories, protein, carbs, and fat. If you need detailed micronutrient analysis (vitamins, minerals), Cronometer may be more suitable. But for most people focused on macros and body composition, Macro Maxxing is faster and easier to use.",
-                },
-                {
-                  q: "Is Macro Maxxing free?",
-                  a: "Yes. Macro Maxxing is 100% free with no premium tier or subscription. All features including AI scanning, voice logging, streaks, leaderboards, and the social community are completely free. Cronometer charges $50/year for Gold features.",
-                },
-              ].map((faq) => (
+              {faqs.map((faq) => (
                 <div
-                  key={faq.q}
+                  key={faq.question}
                   className="bg-white/5 border border-white/10 rounded-2xl p-6"
                 >
                   <h3 className="text-lg font-bold text-white mb-2">
-                    {faq.q}
+                    {faq.question}
                   </h3>
-                  <p className="text-gray-300">{faq.a}</p>
+                  <p className="text-gray-300">{faq.answer}</p>
                 </div>
               ))}
             </div>

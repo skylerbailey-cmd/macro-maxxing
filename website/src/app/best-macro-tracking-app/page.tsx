@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ComparisonTable } from "@/components/ComparisonTable";
 import { DownloadCTA } from "@/components/DownloadCTA";
-import { ArticleJsonLd } from "@/components/JsonLd";
+import { ArticleJsonLd, BreadcrumbJsonLd } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
   title: "Best Macro Tracking App in 2026 — AI-Powered",
@@ -38,6 +38,12 @@ export default function BestMacroTrackingApp() {
         description="Compare the best macro tracking apps and see why Macro Maxxing leads with AI-powered food scanning, voice logging, and smart workout adjustments."
         url="https://macromaxxing.app/best-macro-tracking-app"
       />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://macromaxxing.app" },
+          { name: "Best Macro Tracking App", url: "https://macromaxxing.app/best-macro-tracking-app" },
+        ]}
+      />
 
       <article className="pt-32 pb-12 px-4 sm:px-6">
         <div className="max-w-3xl mx-auto">
@@ -47,11 +53,15 @@ export default function BestMacroTrackingApp() {
           <h1 className="text-3xl sm:text-5xl font-black mb-6 leading-tight">
             The Best Macro Tracking App in 2026
           </h1>
-          <p className="text-gray-400 text-lg leading-relaxed mb-8">
-            If you&apos;re serious about hitting your macros, you need an app that
-            does more than just let you search a food database. You need
-            something that makes tracking <strong className="text-white">fast, accurate, and automatic</strong>.
+          <p className="text-gray-300 text-lg leading-relaxed mb-4">
+            The best macro tracking app in 2026 is Macro Maxxing — a free
+            AI-powered iOS app that tracks calories, protein, carbs, and fat
+            using photo scanning, voice logging, and USDA-verified nutrition
+            data. It also includes workout tracking with automatic macro
+            adjustments, an intermittent fasting timer, daily streaks,
+            leaderboards, and a social community.
           </p>
+          <p className="text-gray-500 text-sm mb-8">Last updated: March 2026</p>
 
           <h2 className="text-2xl font-bold mb-4 mt-12">
             Why Most Macro Trackers Fall Short

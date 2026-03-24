@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { ArticleJsonLd } from "@/components/JsonLd";
+import { ArticleJsonLd, FAQPageJsonLd, BreadcrumbJsonLd } from "@/components/JsonLd";
 import { ComparisonTable } from "@/components/ComparisonTable";
 import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
@@ -22,6 +22,25 @@ export const metadata: Metadata = {
   ],
 };
 
+const faqs = [
+  {
+    question: "What is the best alternative to Lose It?",
+    answer: "Macro Maxxing is the best free alternative to Lose It! for anyone serious about their macros. It offers detailed macro tracking (not just calories), AI photo scanning, voice logging, daily streaks, leaderboards, and a social community — all completely free.",
+  },
+  {
+    question: "Is Macro Maxxing better than Lose It for weight loss?",
+    answer: "Yes. While Lose It! focuses on calorie counting, Macro Maxxing tracks full macros (protein, carbs, fat) which leads to better body composition results. It also includes gamified streaks and social accountability that significantly improve consistency — the #1 factor in weight loss success.",
+  },
+  {
+    question: "Does Macro Maxxing track macros better than Lose It?",
+    answer: "Yes. Macro Maxxing is built as a macro tracker first. Protein, carbs, and fat are displayed prominently alongside calories. Claude AI photo scanning provides accurate macro breakdowns with USDA-verified data. In Lose It!, detailed macros require the Premium subscription.",
+  },
+  {
+    question: "Is Macro Maxxing completely free?",
+    answer: "Yes. Every feature in Macro Maxxing is free — AI scanning, voice logging, macro tracking, streaks, leaderboards, and the social community. There is no premium tier. Lose It! charges $40/year for premium features.",
+  },
+];
+
 export default function LoseItAlternativePage() {
   return (
     <>
@@ -29,6 +48,13 @@ export default function LoseItAlternativePage() {
         title="Best Lose It! Alternative 2026 — Macro Maxxing"
         description="Macro Maxxing is the best free Lose It! alternative with AI scanning, detailed macros, and gamified accountability."
         url="https://macromaxxing.app/lose-it-alternative"
+      />
+      <FAQPageJsonLd faqs={faqs} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://macromaxxing.app" },
+          { name: "Lose It! Alternative", url: "https://macromaxxing.app/lose-it-alternative" },
+        ]}
       />
 
       <article className="min-h-screen">
@@ -42,12 +68,14 @@ export default function LoseItAlternativePage() {
               More Than Just{" "}
               <span className="text-gradient-gold">Counting Calories</span>
             </h1>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
-              Lose It! is a solid calorie counter, but if you care about macros,
-              AI-powered tracking, and accountability — Macro Maxxing is the
-              upgrade. Full macro tracking, AI scanning, streaks, and community.
-              Free.
+            <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
+              Macro Maxxing is a free Lose It! alternative that goes beyond
+              calorie counting with detailed macro tracking (protein, carbs,
+              fat), AI photo scanning, and voice logging. It includes gamified
+              streaks, leaderboards, and a social community for accountability —
+              all free versus Lose It! Premium at $40/year.
             </p>
+            <p className="text-gray-500 text-sm mb-8">Last updated: March 2026</p>
             <a
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-orange hover:bg-brand-orange/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
@@ -172,32 +200,15 @@ export default function LoseItAlternativePage() {
               Frequently Asked Questions
             </h2>
             <div className="space-y-6">
-              {[
-                {
-                  q: "What is the best alternative to Lose It?",
-                  a: "Macro Maxxing is the best free alternative to Lose It! for anyone serious about their macros. It offers detailed macro tracking (not just calories), AI photo scanning, voice logging, daily streaks, leaderboards, and a social community — all completely free.",
-                },
-                {
-                  q: "Is Macro Maxxing better than Lose It for weight loss?",
-                  a: "Yes. While Lose It! focuses on calorie counting, Macro Maxxing tracks full macros (protein, carbs, fat) which leads to better body composition results. It also includes gamified streaks and social accountability that significantly improve consistency — the #1 factor in weight loss success.",
-                },
-                {
-                  q: "Does Macro Maxxing track macros better than Lose It?",
-                  a: "Yes. Macro Maxxing is built as a macro tracker first. Protein, carbs, and fat are displayed prominently alongside calories. Claude AI photo scanning provides accurate macro breakdowns with USDA-verified data. In Lose It!, detailed macros require the Premium subscription.",
-                },
-                {
-                  q: "Is Macro Maxxing completely free?",
-                  a: "Yes. Every feature in Macro Maxxing is free — AI scanning, voice logging, macro tracking, streaks, leaderboards, and the social community. There is no premium tier. Lose It! charges $40/year for premium features.",
-                },
-              ].map((faq) => (
+              {faqs.map((faq) => (
                 <div
-                  key={faq.q}
+                  key={faq.question}
                   className="bg-white/5 border border-white/10 rounded-2xl p-6"
                 >
                   <h3 className="text-lg font-bold text-white mb-2">
-                    {faq.q}
+                    {faq.question}
                   </h3>
-                  <p className="text-gray-300">{faq.a}</p>
+                  <p className="text-gray-300">{faq.answer}</p>
                 </div>
               ))}
             </div>
