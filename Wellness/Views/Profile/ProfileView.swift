@@ -55,6 +55,7 @@ struct ProfileView: View {
     // Firestore posts (primary source for profile grid)
     @State private var firestorePosts: [FeedPost] = []
     @State private var postsLoading   = false
+    @State private var selectedPostLabel: PostLabel? = nil
 
     // Follow state
     @State private var followStateLoaded:     Bool   = false
@@ -948,6 +949,11 @@ struct ProfileView: View {
         .padding(.bottom, 40)
     }
 
+    private var filteredPosts: [FeedPost] {
+        guard let label = selectedPostLabel else { return firestorePosts }
+        return firestorePosts.filter { $0.postLabel == label.rawValue }
+    }
+
     private var postsGrid: some View {
         VStack(alignment: .leading, spacing: 10) {
             Rectangle()
@@ -960,26 +966,37 @@ struct ProfileView: View {
                     .tracking(2)
                     .foregroundStyle(.white.opacity(0.35))
                 Spacer()
-                Text("\(firestorePosts.count)")
+                Text("\(filteredPosts.count)")
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(purpl.opacity(0.60))
             }
             .padding(.horizontal, 16)
             .padding(.top, 32)
 
+            // Label filter chips
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    profileLabelChip(label: nil, title: "All")
+                    ForEach(PostLabel.allCases, id: \.self) { label in
+                        profileLabelChip(label: label, title: label.rawValue)
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+
             if postsLoading {
                 ProgressView()
                     .tint(purpl)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 40)
-            } else if firestorePosts.isEmpty {
+            } else if filteredPosts.isEmpty {
                 VStack(spacing: 8) {
                     Text("💀")
                         .font(.system(size: 36))
-                    Text("No posts yet.")
+                    Text(selectedPostLabel == nil ? "No posts yet." : "No \(selectedPostLabel!.rawValue) posts.")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.25))
-                    Text("Post your first W to the feed.")
+                    Text(selectedPostLabel == nil ? "Post your first W to the feed." : "Try a different filter.")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.15))
                 }
@@ -987,7 +1004,7 @@ struct ProfileView: View {
                 .padding(.vertical, 40)
             } else {
                 LazyVStack(spacing: 12) {
-                    ForEach(firestorePosts) { post in
+                    ForEach(filteredPosts) { post in
                         let currentUserID = ownUserSettings?.userID ?? currentUserSettings?.userID ?? ""
                         FeedPostCard(
                             post:          post,
@@ -1002,6 +1019,38 @@ struct ProfileView: View {
                 }
             }
         }
+    }
+
+    private func profileLabelChip(label: PostLabel?, title: String) -> some View {
+        let isSelected = selectedPostLabel == label
+        let chipColor: Color = {
+            guard let l = label else { return .white }
+            switch l {
+            case .transformation: return Color(red: 0.35, green: 0.75, blue: 1.00)
+            case .fuelLog:        return Color(red: 1.00, green: 0.55, blue: 0.15)
+            case .mealInspo:      return Color(red: 1.00, green: 0.30, blue: 0.55)
+            case .mogBoard:       return Color(red: 1.00, green: 0.80, blue: 0.20)
+            case .advice:         return Color(red: 1.00, green: 0.90, blue: 0.20)
+            case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
+            case .goalPost:       return Color(red: 0.65, green: 0.45, blue: 1.00)
+            }
+        }()
+
+        return Button {
+            withAnimation(.spring(duration: 0.2)) {
+                selectedPostLabel = isSelected ? nil : label
+            }
+        } label: {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(isSelected ? .black : .white.opacity(0.55))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(
+                    Capsule().fill(isSelected ? chipColor : Color.white.opacity(0.07))
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Helpers
