@@ -69,7 +69,7 @@ export default function MuscleBuildingNutritionPage() {
           </p>
           <p className="text-gray-300 text-lg">
             Macro Maxxing makes tracking your bulk effortless. AI scans your
-            food photos and uses Claude AI with USDA-verified data to give you
+            food photos and uses Claude AI (Haiku and Sonnet) to give you
             accurate macros. Smart workout adjustments ensure your daily targets
             account for training days vs rest days.
           </p>

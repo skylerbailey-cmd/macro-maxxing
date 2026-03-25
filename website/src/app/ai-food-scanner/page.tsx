@@ -48,8 +48,8 @@ export default function AIFoodScanner() {
             intelligence to identify food items from a photo and estimate their
             nutritional content including calories, protein, carbs, and fat.
             Macro Maxxing&apos;s AI food scanner is powered by Claude AI (Haiku
-            and Sonnet models) and cross-references the USDA FoodData Central
-            database for verified macro data.
+            and Sonnet models) to analyze your food and estimate accurate
+            macro data.
           </p>
           <p className="text-gray-500 text-sm mb-12">Last updated: March 2026</p>
 
@@ -64,14 +64,13 @@ export default function AIFoodScanner() {
             <div className="bg-brand-card rounded-xl p-6 border border-white/5 relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1 h-full bg-brand-green" />
               <div className="pl-4">
-                <p className="text-brand-green text-xs font-semibold mb-1">FAST &amp; FREE</p>
+                <p className="text-brand-green text-xs font-semibold mb-1">FAST &amp; EFFICIENT</p>
                 <h3 className="text-lg font-semibold text-white mb-2">
-                  On-Device Vision + USDA Lookup
+                  Claude Haiku — Quick Scan
                 </h3>
                 <p className="text-gray-400 text-sm">
-                  Uses Apple&apos;s Vision framework to classify simple foods directly on
-                  your device. Matches results against the USDA FoodData Central
-                  database. Zero latency, works offline.
+                  Simple, single-ingredient foods are handled by Claude Haiku —
+                  Anthropic&apos;s fastest model. Get accurate macros in under a second.
                 </p>
               </div>
             </div>
@@ -85,8 +84,8 @@ export default function AIFoodScanner() {
                 </h3>
                 <p className="text-gray-400 text-sm">
                   For complex or mixed plates, the photo is sent to Claude
-                  Haiku — a fast, cost-effective AI model by Anthropic. Results are
-                  cross-referenced with USDA data for maximum accuracy.
+                  Haiku — a fast, cost-effective AI model by Anthropic that
+                  identifies foods and estimates macros with high accuracy.
                 </p>
               </div>
             </div>
@@ -112,7 +111,7 @@ export default function AIFoodScanner() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
             {[
               { stat: "5x faster", desc: "than typing and searching a database" },
-              { stat: "USDA + Claude AI", desc: "Verified data + AI analysis" },
+              { stat: "Haiku + Sonnet", desc: "Dual-model AI analysis" },
               { stat: "Mixed plates", desc: "AI identifies multiple items at once" },
               { stat: "Save & reuse", desc: "Save scanned meals as templates" },
             ].map((item, i) => (

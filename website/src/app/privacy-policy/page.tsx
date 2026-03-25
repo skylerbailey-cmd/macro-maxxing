@@ -141,19 +141,6 @@ export default function PrivacyPolicyPage() {
                 </a>
               </li>
               <li>
-                <strong className="text-white">USDA FoodData Central:</strong>{" "}
-                Nutritional database lookups for food items. Only food search
-                queries are sent; no personal data is transmitted.{" "}
-                <a
-                  href="https://fdc.nal.usda.gov/api-guide"
-                  className="text-brand-purple hover:underline"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  USDA API Info
-                </a>
-              </li>
-              <li>
                 <strong className="text-white">
                   Google AdMob:
                 </strong>{" "}

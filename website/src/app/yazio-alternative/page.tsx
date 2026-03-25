@@ -29,7 +29,7 @@ const faqs = [
   },
   {
     question: "Is Macro Maxxing more accurate than YAZIO?",
-    answer: "Yes. Macro Maxxing uses Claude AI cross-referenced with USDA FoodData Central for verified nutrition data. YAZIO users frequently report inaccurate food entries with wildly wrong calorie counts. Accuracy is a core priority for Macro Maxxing.",
+    answer: "Yes. Macro Maxxing uses Claude AI (Haiku and Sonnet models) for accurate nutrition estimates. YAZIO users frequently report inaccurate food entries with wildly wrong calorie counts. Accuracy is a core priority for Macro Maxxing.",
   },
   {
     question: "Does Macro Maxxing have a fasting timer like YAZIO?",
@@ -149,7 +149,7 @@ export default function YazioAlternativePage() {
                 { name: "Voice meal logging", macroMaxxing: true, others: false },
                 { name: "100% free (no upsells)", macroMaxxing: true, others: "Aggressive freemium" },
                 { name: "No ads or pop-ups", macroMaxxing: true, others: false },
-                { name: "Accurate nutrition data", macroMaxxing: "USDA + AI", others: "User-reported issues" },
+                { name: "Accurate nutrition data", macroMaxxing: "Claude AI", others: "User-reported issues" },
                 { name: "Daily streaks", macroMaxxing: true, others: "Streak baiting for Pro" },
                 { name: "Leaderboards & XP", macroMaxxing: true, others: false },
                 { name: "Social community feed", macroMaxxing: true, others: false },
@@ -168,7 +168,7 @@ export default function YazioAlternativePage() {
             <FeatureCard
               icon="🎯"
               title="Accurate AI"
-              description="Claude AI cross-referencing USDA-verified nutrition data. No wildly wrong calorie counts — just accurate macros."
+              description="Claude AI (Haiku and Sonnet) provides accurate nutrition estimates. No wildly wrong calorie counts — just accurate macros."
               color="brand-mint"
             />
             <FeatureCard

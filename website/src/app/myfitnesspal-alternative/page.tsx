@@ -19,7 +19,7 @@ const faqs = [
   },
   {
     question: "Does Macro Maxxing have a food database like MyFitnessPal?",
-    answer: "Macro Maxxing uses a different approach. Instead of a user-submitted database (which often has inaccurate entries), it uses Claude AI (Haiku and Sonnet) to identify food from photos, cross-referenced with USDA FoodData Central for accurate macros.",
+    answer: "Macro Maxxing uses a different approach. Instead of a user-submitted database (which often has inaccurate entries), it uses Claude AI (Haiku and Sonnet) to identify food from photos and estimate accurate macros.",
   },
 ];
 
@@ -92,7 +92,7 @@ export default function MyFitnessPalAlternativePage() {
             <h2 className="text-sm font-semibold text-brand-purple uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
               <strong className="text-white">Macro Maxxing is the best free MyFitnessPal alternative in 2026.</strong>{" "}
-              It replaces manual database searching with AI photo scanning and voice logging, adds gamified streaks and leaderboards for accountability, and includes a social community — all at $0 versus MyFitnessPal Premium at $20/month. The main trade-off: MyFitnessPal has a larger food database and barcode scanning, while Macro Maxxing relies on AI recognition and USDA-verified data.
+              It replaces manual database searching with AI photo scanning and voice logging, adds gamified streaks and leaderboards for accountability, and includes a social community — all at $0 versus MyFitnessPal Premium at $20/month. The main trade-off: MyFitnessPal has a larger food database and barcode scanning, while Macro Maxxing relies on Claude AI recognition for accuracy.
             </p>
           </div>
         </section>
@@ -205,7 +205,7 @@ export default function MyFitnessPalAlternativePage() {
             <FeatureCard
               icon="✅"
               title="Accuracy Over Quantity"
-              description="Instead of a massive user-submitted database with inconsistent data, Macro Maxxing uses 4 verified nutrition databases including USDA FoodData Central."
+              description="Instead of a massive user-submitted database with inconsistent data, Macro Maxxing uses Claude AI (Haiku and Sonnet) for accurate, consistent nutrition estimates."
               color="brand-cyan"
             />
           </div>

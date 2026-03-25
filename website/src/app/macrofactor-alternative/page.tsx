@@ -29,7 +29,7 @@ const faqs = [
   },
   {
     question: "Is Macro Maxxing as accurate as MacroFactor?",
-    answer: "Both apps use verified nutrition databases. Macro Maxxing uses Claude AI cross-referenced with USDA FoodData Central. The main difference is input method — Macro Maxxing uses AI scanning and voice, while MacroFactor uses manual database searching.",
+    answer: "Both apps prioritize accuracy. Macro Maxxing uses Claude AI (Haiku and Sonnet models) for nutrition estimation. The main difference is input method — Macro Maxxing uses AI scanning and voice, while MacroFactor uses manual database searching.",
   },
   {
     question: "Does Macro Maxxing have algorithm-based coaching like MacroFactor?",
@@ -154,7 +154,7 @@ export default function MacroFactorAlternativePage() {
                 { name: "Social community feed", macroMaxxing: true, others: false },
                 { name: "Workout macro adjustments", macroMaxxing: true, others: true },
                 { name: "Algorithm-based coaching", macroMaxxing: false, others: true },
-                { name: "Verified nutrition database", macroMaxxing: "USDA + AI", others: "Nutritionix" },
+                { name: "Verified nutrition database", macroMaxxing: "Claude AI", others: "Nutritionix" },
                 { name: "Intermittent fasting timer", macroMaxxing: true, others: false },
                 { name: "Saved meal templates", macroMaxxing: true, others: true },
               ]}
@@ -176,7 +176,7 @@ export default function MacroFactorAlternativePage() {
             <FeatureCard
               icon="📸"
               title="AI Food Scanning"
-              description="Snap a photo instead of searching databases. Claude AI with USDA-verified nutrition data. MacroFactor has no photo scanning at all."
+              description="Snap a photo instead of searching databases. Claude AI estimates macros instantly. MacroFactor has no photo scanning at all."
               color="brand-purple"
             />
             <FeatureCard
