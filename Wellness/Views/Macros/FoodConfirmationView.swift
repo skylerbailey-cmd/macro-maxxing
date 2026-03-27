@@ -19,6 +19,11 @@ struct FoodConfirmationView: View {
     @State private var editableFoodName: String = ""
     @State private var portionMultiplier: Double = 1.0
     @State private var isEscalating = false
+    @State private var editingMacros = false
+    @State private var calText:     String = ""
+    @State private var proteinText: String = ""
+    @State private var carbsText:   String = ""
+    @State private var fatText:     String = ""
 
     private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
     private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
@@ -145,32 +150,105 @@ struct FoodConfirmationView: View {
 
     private var macroCard: some View {
         VStack(spacing: 12) {
-            // Calories
-            HStack {
-                Text("Calories")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.70))
-                Spacer()
-                Text("\(scaledCalories)")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                Text("kcal")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.45))
+            if editingMacros {
+                // Editable mode
+                editableMacroRow(label: "Calories", unit: "kcal", text: $calText)
+                Divider().background(.white.opacity(0.10))
+                editableMacroRow(label: "Protein", unit: "g", text: $proteinText)
+                editableMacroRow(label: "Carbs", unit: "g", text: $carbsText)
+                editableMacroRow(label: "Fat", unit: "g", text: $fatText)
+            } else {
+                // Display mode
+                HStack {
+                    Text("Calories")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.70))
+                    Spacer()
+                    Text("\(scaledCalories)")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text("kcal")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+
+                Divider().background(.white.opacity(0.10))
+
+                HStack(spacing: 0) {
+                    macroColumn(label: "Protein", value: scaledProtein, color: .blue)
+                    macroColumn(label: "Carbs", value: scaledCarbs, color: .green)
+                    macroColumn(label: "Fat", value: scaledFat, color: .orange)
+                }
             }
 
-            Divider().background(.white.opacity(0.10))
-
-            // Macros row
-            HStack(spacing: 0) {
-                macroColumn(label: "Protein", value: scaledProtein, color: .blue)
-                macroColumn(label: "Carbs", value: scaledCarbs, color: .green)
-                macroColumn(label: "Fat", value: scaledFat, color: .orange)
+            // Toggle edit button
+            Button {
+                if editingMacros {
+                    // Apply edits back
+                    applyManualEdits()
+                } else {
+                    // Populate text fields from current values
+                    calText     = "\(scaledCalories)"
+                    proteinText = String(format: "%.1f", scaledProtein)
+                    carbsText   = String(format: "%.1f", scaledCarbs)
+                    fatText     = String(format: "%.1f", scaledFat)
+                }
+                withAnimation(.spring(duration: 0.2)) { editingMacros.toggle() }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: editingMacros ? "checkmark" : "pencil")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text(editingMacros ? "Apply Changes" : "Edit Macros")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .foregroundStyle(accent)
             }
+            .buttonStyle(.plain)
         }
         .padding(16)
         .background(cardBg)
         .cornerRadius(14)
+    }
+
+    private func editableMacroRow(label: String, unit: String, text: Binding<String>) -> some View {
+        HStack {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.70))
+            Spacer()
+            TextField("0", text: text)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .frame(width: 80)
+            Text(unit)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.45))
+        }
+    }
+
+    private func applyManualEdits() {
+        // Update the recognition result with manually entered values
+        let cal = Double(calText) ?? Double(scaledCalories)
+        let pro = Double(proteinText) ?? scaledProtein
+        let carb = Double(carbsText) ?? scaledCarbs
+        let fat = Double(fatText) ?? scaledFat
+
+        recognitionResult = FoodRecognitionResult(
+            foodName: editableFoodName,
+            calories: Int(cal),
+            protein: pro,
+            carbs: carb,
+            fat: fat,
+            portionGrams: scaledPortion,
+            tier: recognitionResult.tier,
+            source: recognitionResult.source,
+            confidence: recognitionResult.confidence,
+            needsUserConfirmation: false
+        )
+        // Reset multiplier since we've baked in the values
+        portionMultiplier = 1.0
     }
 
     private func macroColumn(label: String, value: Double, color: Color) -> some View {
