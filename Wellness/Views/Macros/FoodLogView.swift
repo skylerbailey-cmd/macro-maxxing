@@ -948,20 +948,40 @@ private struct AnalysisSheet: View {
     private var photoContent: some View {
         Group {
             if viewModel.analysisState == .idle {
-                Button {
-                    Task { await viewModel.analyzeImage() }
-                } label: {
+                VStack(spacing: 12) {
+                    // Optional text hint for the AI
                     HStack(spacing: 8) {
-                        Image(systemName: "sparkles")
-                        Text("Analyze Photo")
+                        Image(systemName: "text.bubble")
+                            .font(.system(size: 13))
+                            .foregroundStyle(accent.opacity(0.60))
+                        TextField("Add details (e.g. \"2 eggs with toast\")", text: $viewModel.voiceNote)
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white)
                     }
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(accent, in: RoundedRectangle(cornerRadius: 12))
+                    .padding(12)
+                    .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+
+                    Button {
+                        Task {
+                            if viewModel.voiceNote.trimmingCharacters(in: .whitespaces).isEmpty {
+                                await viewModel.analyzeImage()
+                            } else {
+                                await viewModel.analyzeImageWithVoice()
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "sparkles")
+                            Text("Analyze Photo")
+                        }
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(accent, in: RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
     }
