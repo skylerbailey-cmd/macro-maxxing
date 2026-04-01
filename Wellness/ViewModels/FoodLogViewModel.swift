@@ -68,6 +68,10 @@ enum AnalysisTier: Equatable {
     var todayEntries: [FoodEntry] = []
     var savedMeals:   [FoodEntry] = []
 
+    /// Entries added locally that haven't been confirmed in Firestore yet.
+    /// Merged into todayEntries on each Firestore fetch to prevent disappearing.
+    private var pendingLocalEntries: [FoodEntry] = []
+
     private let recognitionManager = FoodRecognitionManager.shared
     private(set) var userID: String
 
@@ -89,7 +93,23 @@ enum AnalysisTier: Equatable {
     }
 
     func loadTodayEntries() async {
-        todayEntries = (try? await FoodEntryService.shared.fetch(userID: userID, date: selectedDate)) ?? []
+        let firestoreEntries = (try? await FoodEntryService.shared.fetch(userID: userID, date: selectedDate)) ?? []
+
+        // Remove pending entries that now appear in Firestore (synced successfully)
+        let firestoreIDs = Set(firestoreEntries.map { $0.id })
+        pendingLocalEntries.removeAll { firestoreIDs.contains($0.id) }
+
+        // Merge: Firestore entries + any still-pending local entries
+        if pendingLocalEntries.isEmpty {
+            todayEntries = firestoreEntries
+        } else {
+            // Combine, deduplicate by ID, sort newest first
+            var merged = firestoreEntries
+            for local in pendingLocalEntries where !firestoreIDs.contains(local.id) {
+                merged.insert(local, at: 0)
+            }
+            todayEntries = merged.sorted { $0.loggedAt > $1.loggedAt }
+        }
     }
 
     func loadSavedMeals() async {
@@ -314,6 +334,7 @@ enum AnalysisTier: Equatable {
 
         // Optimistic local insert so UI updates instantly
         todayEntries.insert(entry, at: 0)
+        pendingLocalEntries.append(entry)
         resetFields()
 
         // Persist to Firestore
@@ -322,6 +343,8 @@ enum AnalysisTier: Equatable {
                 entry.firebaseEntryID = result.docID
                 entry.photoURL        = result.photoURL
             }
+            // After Firestore write completes, remove from pending
+            pendingLocalEntries.removeAll { $0.id == entry.id }
         }
 
         return true
@@ -359,6 +382,7 @@ enum AnalysisTier: Equatable {
 
     func deleteEntry(_ entry: FoodEntry) {
         todayEntries.removeAll { $0.id == entry.id }
+        pendingLocalEntries.removeAll { $0.id == entry.id }
         let entryID = entry.firebaseEntryID
         let uid     = entry.userID
         Task { await FoodEntryService.shared.delete(entryID: entryID, userID: uid) }

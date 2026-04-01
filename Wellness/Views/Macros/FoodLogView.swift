@@ -332,13 +332,8 @@ struct FoodLogView: View {
                     viewModel.confirmResult(result)
                     viewModel.saveEntry()
                     activeMealSheet = nil
-                    // Don't reload from Firestore immediately — saveEntry() already
-                    // inserted the entry optimistically. Reload after a short delay
-                    // to pick up the Firestore write (photo URL, entry ID).
-                    Task {
-                        try? await Task.sleep(for: .seconds(2))
-                        await viewModel.loadTodayEntries()
-                    }
+                    // Merge-safe reload — pending local entries won't disappear
+                    Task { await viewModel.loadTodayEntries() }
                 },
                 onEscalate: {
                     Task { await viewModel.escalateAnalysis() }
@@ -373,18 +368,9 @@ struct FoodLogView: View {
     
     private func handleOnAppear() {
         viewModel.selectedDate = selectedDate
-        // Only fetch from Firestore if the list is empty (first load).
-        // If entries already exist (optimistic insert from saveEntry), skip
-        // the immediate reload to avoid overwriting with stale Firestore data.
-        if viewModel.todayEntries.isEmpty {
-            Task { await viewModel.loadTodayEntries() }
-        } else {
-            // Refresh in the background after a delay to sync Firestore state
-            Task {
-                try? await Task.sleep(for: .seconds(2))
-                await viewModel.loadTodayEntries()
-            }
-        }
+        // Fetch from Firestore — merge logic in loadTodayEntries preserves
+        // any pending local entries that haven't synced yet.
+        Task { await viewModel.loadTodayEntries() }
         // Refresh eating window state from UserDefaults
         wStartHour = UserDefaults.standard.integer(forKey: "windowStartHour")
         wStartMin  = UserDefaults.standard.integer(forKey: "windowStartMinute")
