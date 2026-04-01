@@ -19,10 +19,10 @@ export default function PrivacyPolicyPage() {
               1. Introduction
             </h2>
             <p>
-              Macro Maxxing (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or
-              &ldquo;us&rdquo;) operates the Macro Maxxing mobile application
-              (the &ldquo;App&rdquo;) and the website at macromaxxing.app (the
-              &ldquo;Website&rdquo;). This Privacy Policy explains what
+              GRND Labs LLC (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or
+              &ldquo;us&rdquo;), doing business as Macro Maxxing, operates the
+              Macro Maxxing mobile application (the &ldquo;App&rdquo;) and the
+              website at macromaxxing.app (the &ldquo;Website&rdquo;). This Privacy Policy explains what
               information we collect, how we use it, the legal bases for
               processing, and your rights regarding your data. It applies to all
               users of the App and Website worldwide.
@@ -704,6 +704,8 @@ export default function PrivacyPolicyPage() {
               us at:
             </p>
             <p className="mt-2">
+              GRND Labs LLC
+              <br />
               <a
                 href="mailto:privacy@macromaxxing.app"
                 className="text-brand-purple hover:underline"
