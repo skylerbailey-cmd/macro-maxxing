@@ -363,10 +363,10 @@ export default function PrivacyPolicyPage() {
               To exercise any of these rights, use the in-App settings or
               contact us at{" "}
               <a
-                href="mailto:privacy@macromaxxing.app"
+                href="mailto:support@grnd-lab.com"
                 className="text-brand-purple hover:underline"
               >
-                privacy@macromaxxing.app
+                support@grnd-lab.com
               </a>
               . We will respond within 30 days (or sooner if required by
               applicable law). You may also designate an authorized agent to
@@ -454,10 +454,10 @@ export default function PrivacyPolicyPage() {
               threshold, we will delete it promptly. If you believe a child has
               provided us with personal information, please contact us at{" "}
               <a
-                href="mailto:privacy@macromaxxing.app"
+                href="mailto:support@grnd-lab.com"
                 className="text-brand-purple hover:underline"
               >
-                privacy@macromaxxing.app
+                support@grnd-lab.com
               </a>
               .
             </p>
@@ -500,10 +500,10 @@ export default function PrivacyPolicyPage() {
               local privacy laws. Below is a summary of key jurisdictions. If
               your jurisdiction is not listed, contact us at{" "}
               <a
-                href="mailto:privacy@macromaxxing.app"
+                href="mailto:support@grnd-lab.com"
                 className="text-brand-purple hover:underline"
               >
-                privacy@macromaxxing.app
+                support@grnd-lab.com
               </a>{" "}
               to learn about your specific rights.
             </p>
@@ -610,10 +610,10 @@ export default function PrivacyPolicyPage() {
               <li>
                 Appeal a denial of your privacy request by contacting us at{" "}
                 <a
-                  href="mailto:privacy@macromaxxing.app"
+                  href="mailto:support@grnd-lab.com"
                   className="text-brand-purple hover:underline"
                 >
-                  privacy@macromaxxing.app
+                  support@grnd-lab.com
                 </a>
                 .
               </li>
@@ -672,10 +672,10 @@ export default function PrivacyPolicyPage() {
             <p>
               To exercise any of these rights, contact us at{" "}
               <a
-                href="mailto:privacy@macromaxxing.app"
+                href="mailto:support@grnd-lab.com"
                 className="text-brand-purple hover:underline"
               >
-                privacy@macromaxxing.app
+                support@grnd-lab.com
               </a>
               . We will respond within the timeframe required by applicable law.
             </p>
@@ -707,10 +707,10 @@ export default function PrivacyPolicyPage() {
               GRND Labs LLC
               <br />
               <a
-                href="mailto:privacy@macromaxxing.app"
+                href="mailto:support@grnd-lab.com"
                 className="text-brand-purple hover:underline"
               >
-                privacy@macromaxxing.app
+                support@grnd-lab.com
               </a>
             </p>
           </div>
