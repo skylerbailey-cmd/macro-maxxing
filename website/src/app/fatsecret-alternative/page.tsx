@@ -7,7 +7,7 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 export const metadata: Metadata = {
   title: "Best FatSecret Alternative 2026 — Macro Maxxing vs FatSecret",
   description:
-    "Looking for a modern FatSecret alternative? Macro Maxxing offers AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — free like FatSecret but with modern AI features.",
+    "Looking for a modern FatSecret alternative? Macro Maxxing offers AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — like FatSecret but with modern AI features.",
   keywords: [
     "FatSecret alternative",
     "FatSecret replacement",
@@ -28,8 +28,8 @@ const faqs = [
     answer: "Macro Maxxing is the best alternative to FatSecret. Both are free, but Macro Maxxing offers Claude AI photo scanning, voice logging, AI-powered nutrition estimates, gamified streaks and leaderboards, and a modern social community. It's everything FatSecret should have evolved into.",
   },
   {
-    question: "Is Macro Maxxing free like FatSecret?",
-    answer: "Yes. Macro Maxxing is 100% free, just like FatSecret. The difference is that Macro Maxxing includes modern AI features (photo scanning, voice logging), gamification (streaks, XP, leaderboards), and a social community — all at no cost.",
+    question: "How does Macro Maxxing's pricing compare to FatSecret?",
+    answer: "Yes. Macro Maxxing is Available now, just like FatSecret. The difference is that Macro Maxxing includes modern AI features (photo scanning, voice logging), gamification (streaks, XP, leaderboards), and a social community — all included.",
   },
   {
     question: "Is Macro Maxxing more accurate than FatSecret?",
@@ -65,13 +65,13 @@ export default function FatSecretAlternativePage() {
               VS FATSECRET
             </span>
             <h1 className="text-4xl md:text-6xl font-black mb-6">
-              Free Tracking,{" "}
+              Modern Tracking,{" "}
               <span className="text-gradient">Modernized</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              Macro Maxxing is a free, modern FatSecret alternative that adds AI
+              Macro Maxxing is a modern FatSecret alternative that adds AI
               photo scanning, voice logging, and AI-powered nutrition estimates to
-              the free tracking experience. It includes gamified streaks,
+              the tracking experience. It includes gamified streaks,
               leaderboards, and a social community — the evolution FatSecret
               never made.
             </p>
@@ -80,7 +80,7 @@ export default function FatSecretAlternativePage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-purple hover:bg-brand-purple/80 text-white font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Upgrade for Free
+              Upgrade Now
             </a>
           </div>
         </section>
@@ -90,8 +90,8 @@ export default function FatSecretAlternativePage() {
           <div className="bg-brand-purple/5 border border-brand-purple/20 rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-purple uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
-              <strong className="text-white">Macro Maxxing is the best modern alternative to FatSecret — both are free, but Macro Maxxing is a generation ahead.</strong>{" "}
-              It adds AI photo scanning, voice logging, Claude AI-powered nutrition data, gamified streaks, and a social community to the free tracking experience. The trade-off: FatSecret has a larger food database built over 17+ years and supports more platforms (web, Android), while Macro Maxxing is iOS-only with AI-powered accuracy.
+              <strong className="text-white">Macro Maxxing is the best modern alternative to FatSecret — both offer tracking, but Macro Maxxing is a generation ahead.</strong>{" "}
+              It adds AI photo scanning, voice logging, Claude AI-powered nutrition data, gamified streaks, and a social community to the tracking experience. The trade-off: FatSecret has a larger food database built over 17+ years and supports more platforms (web, Android), while Macro Maxxing is iOS-only with AI-powered accuracy.
             </p>
           </div>
         </section>
@@ -148,7 +148,7 @@ export default function FatSecretAlternativePage() {
               features={[
                 { name: "AI photo food scanning", macroMaxxing: true, others: false },
                 { name: "Voice meal logging", macroMaxxing: true, others: false },
-                { name: "100% free", macroMaxxing: true, others: true },
+                { name: "Available now", macroMaxxing: true, others: true },
                 { name: "Modern, polished UI", macroMaxxing: true, others: false },
                 { name: "Verified nutrition data", macroMaxxing: "Claude AI", others: "Unverified" },
                 { name: "Daily streaks", macroMaxxing: true, others: false },
@@ -219,7 +219,7 @@ export default function FatSecretAlternativePage() {
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Are frustrated by FatSecret&apos;s outdated interface and crashes</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want verified nutrition data you can trust</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want gamification and social features for motivation</li>
-                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Use iOS and want a premium tracking experience for free</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Use iOS and want a premium tracking experience</li>
               </ul>
             </div>
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
@@ -241,7 +241,7 @@ export default function FatSecretAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-purple font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. Still free, just modern.</p>
+                <p className="text-gray-400 text-sm">Get Macro Maxxing from the App Store. Modern tracking, same ease.</p>
               </div>
               <div>
                 <p className="text-brand-purple font-bold text-lg mb-1">2. Set Targets</p>
@@ -278,8 +278,8 @@ export default function FatSecretAlternativePage() {
 
         <div id="download">
           <DownloadCTA
-            headline="Free Tracking, Upgraded"
-            subheadline="Everything FatSecret does, plus AI scanning, voice logging, streaks, and community. Still free."
+            headline="Modern Tracking, Upgraded"
+            subheadline="Everything FatSecret does, plus AI scanning, voice logging, streaks, and community. Available now."
           />
         </div>
       </article>

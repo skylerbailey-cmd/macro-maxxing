@@ -5,7 +5,7 @@ import { ArticleJsonLd } from "@/components/JsonLd";
 export const metadata: Metadata = {
   title: "Workout Tracker App with Auto Macro Adjustments",
   description:
-    "Log workouts by voice or manually. Auto-adjust daily macro targets based on workout type using ISSN & ACSM guidelines. Free iOS workout tracker.",
+    "Log workouts by voice or manually. Auto-adjust daily macro targets based on workout type using ISSN & ACSM guidelines. iOS workout tracker.",
   keywords: [
     "workout tracker app",
     "workout logging app",

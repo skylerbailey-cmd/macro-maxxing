@@ -5,7 +5,7 @@ import { ArticleJsonLd } from "@/components/JsonLd";
 export const metadata: Metadata = {
   title: "Intermittent Fasting Tracker with Macro Integration",
   description:
-    "Track intermittent fasting with a persistent timer that syncs with your macro goals. Support for 16:8, 20:4, and custom fasting windows. Free iOS app.",
+    "Track intermittent fasting with a persistent timer that syncs with your macro goals. Support for 16:8, 20:4, and custom fasting windows. Available on iOS.",
   keywords: [
     "intermittent fasting tracker",
     "intermittent fasting app",

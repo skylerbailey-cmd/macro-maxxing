@@ -6,16 +6,16 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 
 const faqs = [
   {
-    question: "What is the best free alternative to MyFitnessPal?",
-    answer: "Macro Maxxing is the best free alternative to MyFitnessPal. It offers AI photo food scanning, voice meal logging, daily streaks, leaderboards, and a social community feed — all completely free with no ads or premium tier. Unlike MyFitnessPal, you don't need to manually search databases or pay for advanced features.",
+    question: "What is the best alternative to MyFitnessPal?",
+    answer: "Macro Maxxing is the best alternative to MyFitnessPal. It offers AI photo food scanning, voice meal logging, daily streaks, leaderboards, and a social community feed — all available to download with no ads or premium tier. Unlike MyFitnessPal, you don't need to manually search databases or pay for advanced features.",
   },
   {
     question: "Is Macro Maxxing better than MyFitnessPal?",
-    answer: "Yes, for most users. Macro Maxxing uses AI to scan food photos and process voice descriptions instead of requiring manual database searches. It's 100% free (MyFitnessPal charges $20/month for premium), has no ads, and includes gamification features (streaks, leaderboards, XP) and a social community that MyFitnessPal lacks.",
+    answer: "Yes, for most users. Macro Maxxing uses AI to scan food photos and process voice descriptions instead of requiring manual database searches. It's Available now (MyFitnessPal charges $20/month for premium), has no ads, and includes gamification features (streaks, leaderboards, XP) and a social community that MyFitnessPal lacks.",
   },
   {
     question: "Can I switch from MyFitnessPal to Macro Maxxing?",
-    answer: "Yes. Download Macro Maxxing for free and start logging immediately with AI photo scanning or voice input. There's no data migration needed — just start tracking with a faster, more modern app and build your streak from day one.",
+    answer: "Yes. Download Macro Maxxing and start logging immediately with AI photo scanning or voice input. There's no data migration needed — just start tracking with a faster, more modern app and build your streak from day one.",
   },
   {
     question: "Does Macro Maxxing have a food database like MyFitnessPal?",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   title:
     "Best MyFitnessPal Alternative 2026 — Macro Maxxing vs MyFitnessPal",
   description:
-    "Looking for a MyFitnessPal alternative? Macro Maxxing is a free AI-powered macro tracker with photo scanning, voice logging, streaks, leaderboards, and a social community. No ads, no paywall.",
+    "Looking for a MyFitnessPal alternative? Macro Maxxing is an AI-powered macro tracker with photo scanning, voice logging, streaks, leaderboards, and a social community. No ads, no paywall.",
   keywords: [
     "MyFitnessPal alternative",
     "MyFitnessPal replacement",
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     "free MyFitnessPal alternative",
     "MyFitnessPal without ads",
     "macro tracker no ads",
-    "MyFitnessPal free alternative",
+    "MyFitnessPal alternative",
     "switch from MyFitnessPal",
   ],
 };
@@ -47,7 +47,7 @@ export default function MyFitnessPalAlternativePage() {
     <>
       <ArticleJsonLd
         title="Best MyFitnessPal Alternative 2026 — Macro Maxxing"
-        description="Macro Maxxing is the best free MyFitnessPal alternative with AI food scanning, no ads, and gamified accountability."
+        description="Macro Maxxing is the best MyFitnessPal alternative with AI food scanning, no ads, and gamified accountability."
         url="https://macromaxxing.app/myfitnesspal-alternative"
       />
       <FAQPageJsonLd faqs={faqs} />
@@ -67,11 +67,11 @@ export default function MyFitnessPalAlternativePage() {
               VS MYFITNESSPAL
             </span>
             <h1 className="text-4xl md:text-6xl font-black mb-6">
-              The <span className="text-gradient">Free</span> MyFitnessPal
+              The <span className="text-gradient">Best</span> MyFitnessPal
               Alternative You&apos;ve Been Waiting For
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              Macro Maxxing is a free MyFitnessPal alternative that uses AI
+              Macro Maxxing is an MyFitnessPal alternative that uses AI
               photo scanning and voice logging to track macros instead of
               manual database searches. It includes daily streaks, leaderboards,
               and a social community — with no ads, no paywall, and no premium tier.
@@ -81,7 +81,7 @@ export default function MyFitnessPalAlternativePage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-purple hover:bg-brand-purple/80 text-white font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Switch to Macro Maxxing — Free
+              Switch to Macro Maxxing 
             </a>
           </div>
         </section>
@@ -91,8 +91,8 @@ export default function MyFitnessPalAlternativePage() {
           <div className="bg-brand-purple/5 border border-brand-purple/20 rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-purple uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
-              <strong className="text-white">Macro Maxxing is the best free MyFitnessPal alternative in 2026.</strong>{" "}
-              It replaces manual database searching with AI photo scanning and voice logging, adds gamified streaks and leaderboards for accountability, and includes a social community — all at $0 versus MyFitnessPal Premium at $20/month. The main trade-off: MyFitnessPal has a larger food database and barcode scanning, while Macro Maxxing relies on Claude AI recognition for accuracy.
+              <strong className="text-white">Macro Maxxing is the best MyFitnessPal alternative in 2026.</strong>{" "}
+              It replaces manual database searching with AI photo scanning and voice logging, adds gamified streaks and leaderboards for accountability, and includes a social community  versus MyFitnessPal Premium at $20/month. The main trade-off: MyFitnessPal has a larger food database and barcode scanning, while Macro Maxxing relies on Claude AI recognition for accuracy.
             </p>
           </div>
         </section>
@@ -152,7 +152,7 @@ export default function MyFitnessPalAlternativePage() {
                 { name: "AI photo food scanning", macroMaxxing: true, others: false },
                 { name: "Voice meal logging", macroMaxxing: true, others: false },
                 { name: "No ads", macroMaxxing: true, others: false },
-                { name: "100% free (all features)", macroMaxxing: true, others: "Freemium ($20/mo)" },
+                { name: "Available now (all features)", macroMaxxing: true, others: "Freemium ($20/mo)" },
                 { name: "Daily streaks", macroMaxxing: true, others: false },
                 { name: "Leaderboards & XP", macroMaxxing: true, others: false },
                 { name: "Social community feed", macroMaxxing: true, others: false },
@@ -198,8 +198,8 @@ export default function MyFitnessPalAlternativePage() {
             />
             <FeatureCard
               icon="💰"
-              title="Free Over Freemium"
-              description="Every feature in Macro Maxxing is free. No premium tier, no ads, no upsells. You get AI scanning, voice logging, streaks, and community — all at no cost."
+              title="More Features, Less Cost"
+              description="Every feature in Macro Maxxing is available to download. No premium tier, no ads, no upsells. You get AI scanning, voice logging, streaks, and community — all included."
               color="brand-orange"
             />
             <FeatureCard
@@ -246,7 +246,7 @@ export default function MyFitnessPalAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-purple font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. Set up takes under 2 minutes.</p>
+                <p className="text-gray-400 text-sm">Get Macro Maxxing from the App Store. Set up takes under 2 minutes.</p>
               </div>
               <div>
                 <p className="text-brand-purple font-bold text-lg mb-1">2. Set Your Macros</p>
@@ -285,7 +285,7 @@ export default function MyFitnessPalAlternativePage() {
         <div id="download">
           <DownloadCTA
             headline="Make the Switch"
-            subheadline="Everything MyFitnessPal charges for — and more — completely free. AI scanning, voice logging, streaks, and community."
+            subheadline="Everything MyFitnessPal charges for — and more — available to download. AI scanning, voice logging, streaks, and community."
           />
         </div>
       </article>

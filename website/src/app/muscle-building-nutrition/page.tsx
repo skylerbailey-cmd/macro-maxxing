@@ -51,7 +51,7 @@ export default function MuscleBuildingNutritionPage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-purple hover:bg-brand-purple/80 text-white font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Start Building — Free
+              Start Building 
             </a>
           </div>
         </section>
@@ -183,7 +183,7 @@ export default function MuscleBuildingNutritionPage() {
               {[
                 {
                   q: "What is the best nutrition app for building muscle?",
-                  a: "Macro Maxxing is the best free nutrition app for building muscle. It uses AI photo scanning to track calories and protein effortlessly, automatically adjusts macros on training days, and keeps you consistent with daily streaks, Aura XP leaderboards, and a social community of lifters.",
+                  a: "Macro Maxxing is the best nutrition app for building muscle. It uses AI photo scanning to track calories and protein effortlessly, automatically adjusts macros on training days, and keeps you consistent with daily streaks, Aura XP leaderboards, and a social community of lifters.",
                 },
                 {
                   q: "How many calories should I eat to build muscle?",
@@ -215,7 +215,7 @@ export default function MuscleBuildingNutritionPage() {
         <div id="download">
           <DownloadCTA
             headline="Fuel Your Gains"
-            subheadline="AI nutrition tracking built for lifters. Streaks, leaderboards, and a community of dedicated trackers. Free forever."
+            subheadline="AI nutrition tracking built for lifters. Streaks, leaderboards, and a community of dedicated trackers. Download now."
           />
         </div>
       </article>

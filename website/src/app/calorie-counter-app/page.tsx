@@ -4,7 +4,7 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 import { ArticleJsonLd } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: "Free Calorie Counter App with AI — No Barcode Needed",
+  title: "Calorie Counter App with AI — No Barcode Needed",
   description:
     "Count calories with AI photo scanning and voice logging. No barcode scanning required. Track calories, protein, carbs, and fat effortlessly with Macro Maxxing.",
   keywords: [
@@ -26,14 +26,14 @@ const comparisonFeatures = [
   { name: "Homemade meal support", macroMaxxing: "AI estimates", others: "Manual recipe entry" },
   { name: "Full macro breakdown", macroMaxxing: true, others: true },
   { name: "Workout calorie adjustments", macroMaxxing: "Automatic", others: "Manual" },
-  { name: "Free", macroMaxxing: true, others: "Freemium" },
+  { name: "Download", macroMaxxing: true, others: "Freemium" },
 ];
 
 export default function CalorieCounterApp() {
   return (
     <>
       <ArticleJsonLd
-        title="Free Calorie Counter App with AI"
+        title="Calorie Counter App with AI"
         description="Count calories with AI photo scanning and voice logging. No barcode scanning required."
         url="https://macromaxxing.app/calorie-counter-app"
       />

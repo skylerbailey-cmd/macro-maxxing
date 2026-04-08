@@ -7,7 +7,7 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 export const metadata: Metadata = {
   title: "Best MacroFactor Alternative 2026 — Macro Maxxing vs MacroFactor",
   description:
-    "Looking for a free MacroFactor alternative? Macro Maxxing offers AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — all free. No $12/month subscription.",
+    "Looking for an MacroFactor alternative? Macro Maxxing offers AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — all included. No $12/month subscription.",
   keywords: [
     "MacroFactor alternative",
     "MacroFactor replacement",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     "better than MacroFactor",
     "apps like MacroFactor",
     "MacroFactor vs",
-    "MacroFactor free alternative",
+    "MacroFactor alternative",
     "cheap macro tracker",
     "macro tracker no subscription",
     "MacroFactor too expensive",
@@ -24,8 +24,8 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    question: "What is the best free alternative to MacroFactor?",
-    answer: "Macro Maxxing is the best free alternative to MacroFactor. It offers AI photo scanning and voice logging (which MacroFactor lacks), gamified streaks and leaderboards, and a social community — all for free. MacroFactor costs $12/month with no free tier.",
+    question: "What is the best alternative to MacroFactor?",
+    answer: "Macro Maxxing is the best alternative to MacroFactor. It offers AI photo scanning and voice logging (which MacroFactor lacks), gamified streaks and leaderboards, and a social community . MacroFactor costs $12/month with no free tier.",
   },
   {
     question: "Is Macro Maxxing as accurate as MacroFactor?",
@@ -33,11 +33,11 @@ const faqs = [
   },
   {
     question: "Does Macro Maxxing have algorithm-based coaching like MacroFactor?",
-    answer: "Macro Maxxing focuses on AI-powered food logging and gamified accountability rather than algorithm-based calorie coaching. If auto-adjusting calorie targets based on weight trends is your top priority, MacroFactor's algorithm is unique. For everything else, Macro Maxxing offers more features at no cost.",
+    answer: "Macro Maxxing focuses on AI-powered food logging and gamified accountability rather than algorithm-based calorie coaching. If auto-adjusting calorie targets based on weight trends is your top priority, MacroFactor's algorithm is unique. For everything else, Macro Maxxing offers more features included.",
   },
   {
     question: "Why switch from MacroFactor to Macro Maxxing?",
-    answer: "Save $144/year, get AI photo scanning and voice logging (faster than manual entry), enjoy gamified streaks and leaderboards for motivation, and join a social community for accountability. The only feature you'd lose is MacroFactor's auto-adjusting calorie algorithm.",
+    answer: "Better Value, get AI photo scanning and voice logging (faster than manual entry), enjoy gamified streaks and leaderboards for motivation, and join a social community for accountability. The only feature you'd lose is MacroFactor's auto-adjusting calorie algorithm.",
   },
 ];
 
@@ -46,7 +46,7 @@ export default function MacroFactorAlternativePage() {
     <>
       <ArticleJsonLd
         title="Best MacroFactor Alternative 2026 — Macro Maxxing"
-        description="Macro Maxxing is the best free MacroFactor alternative with AI scanning and gamified accountability."
+        description="Macro Maxxing is the best MacroFactor alternative with AI scanning and gamified accountability."
         url="https://macromaxxing.app/macrofactor-alternative"
       />
       <FAQPageJsonLd faqs={faqs} />
@@ -69,7 +69,7 @@ export default function MacroFactorAlternativePage() {
               <span className="text-gradient-gold">Zero Cost</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              Macro Maxxing is a free MacroFactor alternative that provides
+              Macro Maxxing is an MacroFactor alternative that provides
               AI-powered macro tracking with photo scanning and voice logging —
               features MacroFactor doesn&apos;t offer at any price. It includes
               gamified streaks, leaderboards, and a social community, all at $0
@@ -80,7 +80,7 @@ export default function MacroFactorAlternativePage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-gold hover:bg-brand-gold/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Track Macros Free
+              Track Macros
             </a>
           </div>
         </section>
@@ -90,8 +90,8 @@ export default function MacroFactorAlternativePage() {
           <div className="bg-brand-gold/5 border border-brand-gold/20 rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-gold uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
-              <strong className="text-white">Macro Maxxing is the best free MacroFactor alternative with AI features MacroFactor doesn&apos;t offer.</strong>{" "}
-              It provides photo scanning, voice logging, gamified streaks, leaderboards, and a social community for $0 versus MacroFactor&apos;s $12/month. The trade-off: MacroFactor has a unique algorithm that auto-adjusts your calorie targets weekly based on weight trends — if fully automated coaching is your priority, MacroFactor&apos;s algorithm is unmatched.
+              <strong className="text-white">Macro Maxxing is the best MacroFactor alternative with AI features MacroFactor doesn&apos;t offer.</strong>{" "}
+              It provides photo scanning, voice logging, gamified streaks, leaderboards, and a social community at a fraction of the cost versus MacroFactor&apos;s $12/month. The trade-off: MacroFactor has a unique algorithm that auto-adjusts your calorie targets weekly based on weight trends — if fully automated coaching is your priority, MacroFactor&apos;s algorithm is unmatched.
             </p>
           </div>
         </section>
@@ -148,7 +148,7 @@ export default function MacroFactorAlternativePage() {
               features={[
                 { name: "AI photo food scanning", macroMaxxing: true, others: false },
                 { name: "Voice meal logging", macroMaxxing: true, others: false },
-                { name: "Price", macroMaxxing: "Free", others: "$12/month" },
+                { name: "Price", macroMaxxing: "Download", others: "$12/month" },
                 { name: "Daily streaks", macroMaxxing: true, others: false },
                 { name: "Leaderboards & XP", macroMaxxing: true, others: false },
                 { name: "Social community feed", macroMaxxing: true, others: false },
@@ -169,8 +169,8 @@ export default function MacroFactorAlternativePage() {
           <div className="grid md:grid-cols-3 gap-6">
             <FeatureCard
               icon="💰"
-              title="$0 vs $144/year"
-              description="Macro Maxxing is completely free. No trial period, no subscription. Save $144/year and get features MacroFactor doesn't even offer."
+              title="Better Value"
+              description="Macro Maxxing is available to download. No trial period, no subscription. Better Value and get features MacroFactor doesn't even offer."
               color="brand-gold"
             />
             <FeatureCard
@@ -243,7 +243,7 @@ export default function MacroFactorAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-gold font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing free. No trial, no credit card, no subscription.</p>
+                <p className="text-gray-400 text-sm">Get Macro Maxxing. No trial, no credit card, no subscription.</p>
               </div>
               <div>
                 <p className="text-brand-gold font-bold text-lg mb-1">2. Set Your Targets</p>
@@ -279,7 +279,7 @@ export default function MacroFactorAlternativePage() {
         <div id="download">
           <DownloadCTA
             headline="Save $144/Year"
-            subheadline="Everything MacroFactor offers (plus AI scanning, voice, streaks, and community) — completely free."
+            subheadline="Everything MacroFactor offers (plus AI scanning, voice, streaks, and community) — available to download."
           />
         </div>
       </article>

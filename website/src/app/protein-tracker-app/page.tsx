@@ -7,7 +7,7 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 export const metadata: Metadata = {
   title: "Best Protein Tracker App — AI-Powered Protein Tracking | Macro Maxxing",
   description:
-    "Track your daily protein intake effortlessly with Macro Maxxing. AI photo scanning and voice logging calculate protein automatically. Free protein tracker with streaks, leaderboards, and a social community.",
+    "Track your daily protein intake effortlessly with Macro Maxxing. AI photo scanning and voice logging calculate protein automatically. Protein tracker with streaks, leaderboards, and a social community.",
   keywords: [
     "protein tracker app",
     "protein intake tracker",
@@ -52,7 +52,7 @@ export default function ProteinTrackerPage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-teal hover:bg-brand-teal/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Track Protein Free
+              Track Protein Now
             </a>
           </div>
         </section>
@@ -143,7 +143,7 @@ export default function ProteinTrackerPage() {
               { name: "Leaderboards & Aura XP", macroMaxxing: true, others: false },
               { name: "Social community feed", macroMaxxing: true, others: false },
               { name: "Workout protein adjustments", macroMaxxing: true, others: "Some" },
-              { name: "100% free", macroMaxxing: true, others: "Freemium" },
+              { name: "Available now", macroMaxxing: true, others: "Freemium" },
             ]}
           />
         </section>
@@ -194,7 +194,7 @@ export default function ProteinTrackerPage() {
             {[
               {
                 q: "What is the best app for tracking protein intake?",
-                a: "Macro Maxxing is the best free protein tracker app. It uses AI photo scanning and voice logging to calculate protein automatically, displays protein prominently on a protein-first dashboard, and includes streaks, leaderboards, and a social community for accountability.",
+                a: "Macro Maxxing is the best protein tracker app. It uses AI photo scanning and voice logging to calculate protein automatically, displays protein prominently on a protein-first dashboard, and includes streaks, leaderboards, and a social community for accountability.",
               },
               {
                 q: "How much protein do I need per day?",
@@ -205,8 +205,8 @@ export default function ProteinTrackerPage() {
                 a: "Yes. Take a photo of any meal and Macro Maxxing's Claude AI identifies the food, estimates portions, and calculates protein (plus all other macros) using Haiku and Sonnet models.",
               },
               {
-                q: "Is Macro Maxxing free for protein tracking?",
-                a: "Yes. Macro Maxxing is 100% free with no premium tier. All features including AI scanning, voice logging, streaks, leaderboards, and the social community are free.",
+                q: "What does Macro Maxxing include for protein tracking?",
+                a: "Yes. Macro Maxxing is Available now with no premium tier. All features including AI scanning, voice logging, streaks, leaderboards, and the social community are included.",
               },
             ].map((faq) => (
               <div
@@ -223,7 +223,7 @@ export default function ProteinTrackerPage() {
         <div id="download">
           <DownloadCTA
             headline="Hit Your Protein Goals Every Day"
-            subheadline="AI-powered protein tracking with streaks, leaderboards, and community accountability. Free forever."
+            subheadline="AI-powered protein tracking with streaks, leaderboards, and community accountability. Download now."
           />
         </div>
       </article>

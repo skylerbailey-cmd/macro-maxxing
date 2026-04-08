@@ -52,7 +52,7 @@ export default function StreaksAndGamificationPage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-gold hover:bg-brand-gold/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Start Playing — Free
+              Start Playing 
             </a>
           </div>
         </section>
@@ -223,7 +223,7 @@ export default function StreaksAndGamificationPage() {
               {[
                 {
                   q: "What is a gamified macro tracker?",
-                  a: "A gamified macro tracker is a nutrition tracking app that uses game mechanics like streaks, points (XP), leaderboards, and social features to make tracking fun and keep you accountable. Macro Maxxing is a free gamified macro tracker with AI-powered food scanning, daily streaks, Aura XP, and competitive leaderboards.",
+                  a: "A gamified macro tracker is a nutrition tracking app that uses game mechanics like streaks, points (XP), leaderboards, and social features to make tracking fun and keep you accountable. Macro Maxxing is an gamified macro tracker with AI-powered food scanning, daily streaks, Aura XP, and competitive leaderboards.",
                 },
                 {
                   q: "Do streaks really help with diet consistency?",
@@ -234,8 +234,8 @@ export default function StreaksAndGamificationPage() {
                   a: "Leaderboards rank users by total Aura XP earned. You earn XP by logging meals, hitting protein and calorie targets, maintaining streaks, and logging workouts. There are weekly and all-time leaderboards so both new and veteran users can compete.",
                 },
                 {
-                  q: "Is Macro Maxxing free?",
-                  a: "Yes, Macro Maxxing is completely free to download and use. All features including AI food scanning, streaks, leaderboards, and the social community are available at no cost.",
+                  q: "What does Macro Maxxing cost?",
+                  a: "Yes, Macro Maxxing is available to download to download and use. All features including AI food scanning, streaks, leaderboards, and the social community are available included.",
                 },
               ].map((faq) => (
                 <div
@@ -255,7 +255,7 @@ export default function StreaksAndGamificationPage() {
         <div id="download">
           <DownloadCTA
             headline="Turn Tracking Into a Game"
-            subheadline="Streaks, leaderboards, Aura XP, and a community that keeps you accountable. Download free."
+            subheadline="Streaks, leaderboards, Aura XP, and a community that keeps you accountable. Download."
           />
         </div>
       </article>

@@ -7,7 +7,7 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 export const metadata: Metadata = {
   title: "Best YAZIO Alternative 2026 — Macro Maxxing vs YAZIO",
   description:
-    "Looking for a free YAZIO alternative without aggressive upsells? Macro Maxxing offers AI photo scanning, voice logging, accurate macros, streaks, leaderboards, and community — 100% free with no ads.",
+    "Looking for an YAZIO alternative without aggressive upsells? Macro Maxxing offers AI photo scanning, voice logging, accurate macros, streaks, leaderboards, and community — Available now with no ads.",
   keywords: [
     "YAZIO alternative",
     "YAZIO replacement",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     "better than YAZIO",
     "apps like YAZIO",
     "YAZIO vs",
-    "YAZIO free alternative",
+    "YAZIO alternative",
     "YAZIO without subscription",
     "calorie tracker no ads",
     "fasting app alternative",
@@ -24,8 +24,8 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    question: "What is the best free alternative to YAZIO?",
-    answer: "Macro Maxxing is the best free alternative to YAZIO. It offers accurate Claude AI photo scanning, voice meal logging, customizable fasting timers, gamified streaks, leaderboards, and a social community — all 100% free with no pop-ups, ads, or subscription upsells.",
+    question: "What is the best alternative to YAZIO?",
+    answer: "Macro Maxxing is the best alternative to YAZIO. It offers accurate Claude AI photo scanning, voice meal logging, customizable fasting timers, gamified streaks, leaderboards, and a social community — all Available now with no pop-ups, ads, or subscription upsells.",
   },
   {
     question: "Is Macro Maxxing more accurate than YAZIO?",
@@ -33,11 +33,11 @@ const faqs = [
   },
   {
     question: "Does Macro Maxxing have a fasting timer like YAZIO?",
-    answer: "Yes. Macro Maxxing includes a fully customizable intermittent fasting timer supporting 16:8, 18:6, 20:4, OMAD, and any custom window. Unlike YAZIO's fasting feature which users report as inflexible, Macro Maxxing lets you set any schedule you want — for free.",
+    answer: "Yes. Macro Maxxing includes a fully customizable intermittent fasting timer supporting 16:8, 18:6, 20:4, OMAD, and any custom window. Unlike YAZIO's fasting feature which users report as inflexible, Macro Maxxing lets you set any schedule you want.",
   },
   {
-    question: "Is Macro Maxxing really free with no upsells?",
-    answer: "Yes. Every feature in Macro Maxxing is free — AI scanning, voice logging, fasting timer, streaks, leaderboards, and social community. There is no premium tier, no ads, and no pop-ups asking you to subscribe. It's the anti-YAZIO experience.",
+    question: "Does Macro Maxxing have upsells?",
+    answer: "Yes. Every feature in Macro Maxxing is available to download — AI scanning, voice logging, fasting timer, streaks, leaderboards, and social community. There is no premium tier, no ads, and no pop-ups asking you to subscribe. It's the anti-YAZIO experience.",
   },
 ];
 
@@ -46,7 +46,7 @@ export default function YazioAlternativePage() {
     <>
       <ArticleJsonLd
         title="Best YAZIO Alternative 2026 — Macro Maxxing"
-        description="Macro Maxxing is the best free YAZIO alternative with accurate AI scanning, no upsells, and gamified accountability."
+        description="Macro Maxxing is the best YAZIO alternative with accurate AI scanning, no upsells, and gamified accountability."
         url="https://macromaxxing.app/yazio-alternative"
       />
       <FAQPageJsonLd faqs={faqs} />
@@ -69,10 +69,10 @@ export default function YazioAlternativePage() {
               <span className="text-gradient">Zero Upsells</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              Macro Maxxing is a free YAZIO alternative that provides accurate
+              Macro Maxxing is an YAZIO alternative that provides accurate
               AI-powered macro tracking without the aggressive upsells, pop-ups,
               or inaccurate food data that YAZIO users report. It includes
-              gamified streaks, leaderboards, and a social community — all free
+              gamified streaks, leaderboards, and a social community — all included
               with zero subscription prompts.
             </p>
             <p className="text-gray-500 text-sm mb-8">Last updated: March 2026</p>
@@ -80,7 +80,7 @@ export default function YazioAlternativePage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-mint hover:bg-brand-mint/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Switch to Macro Maxxing — Free
+              Switch to Macro Maxxing 
             </a>
           </div>
         </section>
@@ -90,8 +90,8 @@ export default function YazioAlternativePage() {
           <div className="bg-brand-mint/5 border border-brand-mint/20 rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-mint uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
-              <strong className="text-white">Macro Maxxing is the best free YAZIO alternative with accurate data and zero upsells.</strong>{" "}
-              It provides Claude AI photo scanning, voice logging, a customizable fasting timer, and gamified accountability — all free with no ads or pop-ups. The trade-off: YAZIO has a larger international food database (especially for European foods) and offers structured meal plans, which some users prefer for guided nutrition.
+              <strong className="text-white">Macro Maxxing is the best YAZIO alternative with accurate data and zero upsells.</strong>{" "}
+              It provides Claude AI photo scanning, voice logging, a customizable fasting timer, and gamified accountability — all included with no ads or pop-ups. The trade-off: YAZIO has a larger international food database (especially for European foods) and offers structured meal plans, which some users prefer for guided nutrition.
             </p>
           </div>
         </section>
@@ -147,7 +147,7 @@ export default function YazioAlternativePage() {
               features={[
                 { name: "Claude AI photo scanning", macroMaxxing: true, others: "Basic AI" },
                 { name: "Voice meal logging", macroMaxxing: true, others: false },
-                { name: "100% free (no upsells)", macroMaxxing: true, others: "Aggressive freemium" },
+                { name: "Available now (no upsells)", macroMaxxing: true, others: "Aggressive freemium" },
                 { name: "No ads or pop-ups", macroMaxxing: true, others: false },
                 { name: "Accurate nutrition data", macroMaxxing: "Claude AI", others: "User-reported issues" },
                 { name: "Daily streaks", macroMaxxing: true, others: "Streak baiting for Pro" },
@@ -174,7 +174,7 @@ export default function YazioAlternativePage() {
             <FeatureCard
               icon="🚫"
               title="Zero Pop-Ups"
-              description="No upsells, no subscription prompts, no animations after every meal. Just clean, fast tracking. Every feature is free."
+              description="No upsells, no subscription prompts, no animations after every meal. Just clean, fast tracking. Every feature is included."
               color="brand-purple"
             />
             <FeatureCard
@@ -239,7 +239,7 @@ export default function YazioAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-mint font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing free. No trial period, no credit card required.</p>
+                <p className="text-gray-400 text-sm">Get Macro Maxxing. No trial period, no credit card required.</p>
               </div>
               <div>
                 <p className="text-brand-mint font-bold text-lg mb-1">2. Set Goals</p>
@@ -277,7 +277,7 @@ export default function YazioAlternativePage() {
         <div id="download">
           <DownloadCTA
             headline="Tracking Without the Annoyance"
-            subheadline="Accurate AI scanning, real gamification, and zero pop-ups. The YAZIO experience you actually wanted. Free."
+            subheadline="Accurate AI scanning, real gamification, and zero pop-ups. The YAZIO experience you actually wanted.."
           />
         </div>
       </article>

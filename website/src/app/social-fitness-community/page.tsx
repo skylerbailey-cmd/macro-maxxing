@@ -52,7 +52,7 @@ export default function SocialFitnessCommunityPage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-green hover:bg-brand-green/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Join the Community — Free
+              Join the Community 
             </a>
           </div>
         </section>
@@ -194,7 +194,7 @@ export default function SocialFitnessCommunityPage() {
             {[
               {
                 q: "What is the best social fitness community app?",
-                a: "Macro Maxxing is a free macro tracking app with a built-in social fitness community. It features a social feed for sharing meals and milestones, public streaks, competitive leaderboards, and Aura XP — combining nutrition tracking with community accountability.",
+                a: "Macro Maxxing is an macro tracking app with a built-in social fitness community. It features a social feed for sharing meals and milestones, public streaks, competitive leaderboards, and Aura XP — combining nutrition tracking with community accountability.",
               },
               {
                 q: "Can I use Macro Maxxing with friends?",
@@ -223,7 +223,7 @@ export default function SocialFitnessCommunityPage() {
         <div id="download">
           <DownloadCTA
             headline="Join a Community That Keeps You Accountable"
-            subheadline="Social feed, streaks, leaderboards, and friends who care about nutrition. Download free."
+            subheadline="Social feed, streaks, leaderboards, and friends who care about nutrition. Download."
           />
         </div>
       </article>

@@ -5,7 +5,7 @@ import { ArticleJsonLd, BreadcrumbJsonLd } from "@/components/JsonLd";
 export const metadata: Metadata = {
   title: "AI Food Scanner — Snap a Photo, Get Instant Macros",
   description:
-    "Macro Maxxing's AI food scanner uses Claude Haiku and Sonnet to identify food and estimate calories, protein, carbs, and fat from a single photo. Free app.",
+    "Macro Maxxing's AI food scanner uses Claude Haiku and Sonnet to identify food and estimate calories, protein, carbs, and fat from a single photo. Available on iOS.",
   keywords: [
     "AI food scanner",
     "AI food recognition app",

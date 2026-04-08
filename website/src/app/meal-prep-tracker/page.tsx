@@ -51,7 +51,7 @@ export default function MealPrepTrackerPage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-cyan hover:bg-brand-cyan/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Start Prepping Smarter — Free
+              Start Prepping Smarter 
             </a>
           </div>
         </section>
@@ -178,7 +178,7 @@ export default function MealPrepTrackerPage() {
               {[
                 {
                   q: "What is the best meal prep tracking app?",
-                  a: "Macro Maxxing is the best free meal prep tracking app. It lets you scan prepped meals with AI, save them as reusable templates, and log them all week with one tap. It also features streaks, leaderboards, and a social community for accountability.",
+                  a: "Macro Maxxing is the best meal prep tracking app. It lets you scan prepped meals with AI, save them as reusable templates, and log them all week with one tap. It also features streaks, leaderboards, and a social community for accountability.",
                 },
                 {
                   q: "Can I save meals in Macro Maxxing and reuse them?",
@@ -210,7 +210,7 @@ export default function MealPrepTrackerPage() {
         <div id="download">
           <DownloadCTA
             headline="Meal Prep Like a Pro"
-            subheadline="Scan once, log all week. AI-powered meal prep tracking with streaks and community. Free forever."
+            subheadline="Scan once, log all week. AI-powered meal prep tracking with streaks and community. Download now."
           />
         </div>
       </article>
