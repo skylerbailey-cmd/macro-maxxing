@@ -158,7 +158,7 @@ export default function CarbonDietCoachAlternativePage() {
                 { name: "Works for all fitness goals", macroMaxxing: true, others: "Bodybuilding focus" },
                 { name: "Intermittent fasting timer", macroMaxxing: true, others: false },
                 { name: "AI meal planner", macroMaxxing: true, others: false },
-                { name: "AI nutrition coach", macroMaxxing: true, others: "Weekly auto-adjust" },
+                { name: "AI nutrition coach", macroMaxxing: true, others: "Weekly algorithmic adjustments" },
                 { name: "Saved meal templates", macroMaxxing: true, others: true },
               ]}
             />

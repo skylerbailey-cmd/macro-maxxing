@@ -161,8 +161,8 @@ export default function MyFitnessPalAlternativePage() {
                 { name: "Saved meal templates", macroMaxxing: true, others: "Premium only" },
                 { name: "Barcode scanning", macroMaxxing: "AI scanning instead", others: "Premium only" },
                 { name: "Intermittent fasting timer", macroMaxxing: true, others: false },
-                { name: "AI meal planner", macroMaxxing: true, others: false },
-                { name: "AI nutrition coach", macroMaxxing: true, others: false },
+                { name: "AI meal planner", macroMaxxing: true, others: "Premium+ ($100/yr)" },
+                { name: "AI nutrition coach", macroMaxxing: true, others: "Via ChatGPT Health" },
               ]}
             />
           </div>
