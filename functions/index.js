@@ -6,10 +6,7 @@ const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestor
 const { getStorage } = require("firebase-admin/storage");
 
 // Secrets (stored via firebase functions:secrets:set, never in source)
-const ANTHROPIC_API_KEY      = defineSecret("ANTHROPIC_API_KEY");
-const USDA_API_KEY           = defineSecret("USDA_API_KEY");
-const FATSECRET_CLIENT_ID    = defineSecret("FATSECRET_CLIENT_ID");
-const FATSECRET_CLIENT_SECRET = defineSecret("FATSECRET_CLIENT_SECRET");
+const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 
 initializeApp();
 
@@ -361,83 +358,4 @@ exports.proxyClaude = onCall(
   }
 );
 
-// ---------------------------------------------------------------------------
-// proxyUSDA  (callable — server-side proxy for USDA FoodData Central)
-// ---------------------------------------------------------------------------
-
-exports.proxyUSDA = onCall(
-  { secrets: [USDA_API_KEY] },
-  async (request) => {
-    if (!request.auth) throw new HttpsError("unauthenticated", "Must be signed in.");
-
-    const { endpoint, query, fdcId, pageSize } = request.data;
-
-    let url;
-    if (endpoint === "search") {
-      const q = encodeURIComponent(query || "");
-      url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${q}&dataType=SR%20Legacy,Foundation&pageSize=${pageSize || 5}&api_key=${USDA_API_KEY.value()}`;
-    } else if (endpoint === "detail" && fdcId) {
-      url = `https://api.nal.usda.gov/fdc/v1/food/${fdcId}?api_key=${USDA_API_KEY.value()}`;
-    } else {
-      throw new HttpsError("invalid-argument", "endpoint must be 'search' or 'detail'.");
-    }
-
-    const resp = await fetch(url);
-    if (!resp.ok) throw new HttpsError("internal", `USDA API error ${resp.status}`);
-    return await resp.json();
-  }
-);
-
-// ---------------------------------------------------------------------------
-// proxyFatSecret  (callable — server-side proxy for FatSecret Platform API)
-// ---------------------------------------------------------------------------
-
-// In-memory token cache (lives as long as the function instance)
-let fatSecretToken = null;
-let fatSecretTokenExpiry = 0;
-
-exports.proxyFatSecret = onCall(
-  { secrets: [FATSECRET_CLIENT_ID, FATSECRET_CLIENT_SECRET] },
-  async (request) => {
-    if (!request.auth) throw new HttpsError("unauthenticated", "Must be signed in.");
-
-    const { query, maxResults } = request.data;
-    if (!query) throw new HttpsError("invalid-argument", "query is required.");
-
-    // Ensure OAuth token
-    if (!fatSecretToken || Date.now() >= fatSecretTokenExpiry) {
-      const creds = Buffer.from(
-        `${FATSECRET_CLIENT_ID.value()}:${FATSECRET_CLIENT_SECRET.value()}`
-      ).toString("base64");
-
-      const tokenResp = await fetch("https://oauth.fatsecret.com/connect/token", {
-        method: "POST",
-        headers: {
-          "Authorization": `Basic ${creds}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: "grant_type=client_credentials&scope=basic",
-      });
-
-      if (!tokenResp.ok) throw new HttpsError("internal", `FatSecret OAuth error ${tokenResp.status}`);
-      const tokenData = await tokenResp.json();
-      fatSecretToken = tokenData.access_token;
-      fatSecretTokenExpiry = Date.now() + (tokenData.expires_in - 60) * 1000;
-    }
-
-    // Search foods
-    const params = new URLSearchParams({
-      method: "foods.search",
-      search_expression: query,
-      format: "json",
-      max_results: String(maxResults || 5),
-    });
-
-    const resp = await fetch(`https://platform.fatsecret.com/rest/server.api?${params}`, {
-      headers: { "Authorization": `Bearer ${fatSecretToken}` },
-    });
-
-    if (!resp.ok) throw new HttpsError("internal", `FatSecret API error ${resp.status}`);
-    return await resp.json();
-  }
-);
+// proxyUSDA and proxyFatSecret removed — no longer used by the app.
