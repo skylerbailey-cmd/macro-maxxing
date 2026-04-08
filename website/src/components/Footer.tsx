@@ -14,8 +14,7 @@ export function Footer() {
               </span>
             </div>
             <p className="text-gray-400 text-sm">
-              log the mog. The AI-powered macro tracker built for serious
-              people.
+              log the mog. The AI-powered macro tracker built for maxxers.
             </p>
           </div>
 
