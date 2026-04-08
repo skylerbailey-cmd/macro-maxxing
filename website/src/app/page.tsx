@@ -1,6 +1,7 @@
 import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
 import { AppJsonLd } from "@/components/JsonLd";
+import Image from "next/image";
 import Link from "next/link";
 
 export default function Home() {
@@ -341,7 +342,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Screenshots placeholder */}
+      {/* Screenshots */}
       <section id="screenshots" className="py-24 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
@@ -356,24 +357,32 @@ export default function Home() {
               {
                 title: "Log Food with AI Photo",
                 desc: "Snap your plate, get instant macro breakdown",
+                src: "/screenshots/photo-log.png",
               },
               {
                 title: "Voice Meal Logging",
                 desc: "Describe your meal, AI generates the macros",
+                src: "/screenshots/voice-log.png",
               },
               {
                 title: "Smart Workout Tracking",
                 desc: "Log workouts with auto macro adjustments",
+                src: "/screenshots/workout-log.png",
               },
             ].map((screen, i) => (
               <div
                 key={i}
                 className="bg-brand-card rounded-2xl border border-white/5 p-6"
               >
-                <div className="bg-brand-bg rounded-xl aspect-[9/16] flex items-center justify-center mb-4">
-                  <p className="text-gray-500 text-sm px-4 text-center">
-                    [App Screenshot: {screen.title}]
-                  </p>
+                <div className="rounded-xl overflow-hidden mb-4">
+                  <Image
+                    src={screen.src}
+                    alt={screen.title}
+                    width={390}
+                    height={844}
+                    className="w-full h-auto"
+                    priority={i === 0}
+                  />
                 </div>
                 <h3 className="text-white font-semibold text-sm">
                   {screen.title}
