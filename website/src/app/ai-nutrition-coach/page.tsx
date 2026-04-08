@@ -6,7 +6,7 @@ import { ArticleJsonLd, BreadcrumbJsonLd, FAQPageJsonLd } from "@/components/Jso
 export const metadata: Metadata = {
   title: "AI Nutrition Coach — Personalized Daily Macro Reviews",
   description:
-    "Macro Maxxing's AI Nutrition Coach reviews your entire day of eating and training, then gives you a personalized debrief with specific advice on what to change tomorrow. Powered by Claude Sonnet AI.",
+    "Macro Maxxing's AI Nutrition Coach reviews your entire day of eating and training, then gives you a personalized debrief with specific advice on what to change tomorrow. Powered by Claude Haiku AI.",
   keywords: [
     "AI nutrition coach",
     "AI diet coach",
@@ -78,7 +78,7 @@ export default function AINutritionCoachPage() {
               The AI Nutrition Coach in Macro Maxxing reviews your entire day of
               eating and training, then delivers a personalized debrief with
               specific advice on macro accuracy, meal timing, food quality, and
-              what to change tomorrow. Powered by Claude Sonnet AI.
+              what to change tomorrow. Powered by Claude Haiku AI.
             </p>
             <p className="text-gray-500 text-sm mb-8">
               Last updated: March 2026
@@ -265,7 +265,7 @@ export default function AINutritionCoachPage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-brand-green mt-0.5">✓</span>Powered by
-                    Claude Sonnet AI
+                    Claude Haiku AI
                   </li>
                 </ul>
               </div>

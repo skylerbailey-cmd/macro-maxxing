@@ -25,7 +25,7 @@ const faqs = [
   {
     question: "What is the AI Meal Planner in Macro Maxxing?",
     answer:
-      "The AI Meal Planner analyzes your remaining calorie, protein, carb, and fat targets for the day and suggests 2 specific meals or snacks — with exact portion sizes in grams — that fill your macro gaps without exceeding any macro you've already hit. It's powered by Claude Sonnet AI and respects your dietary restrictions (dairy-free, gluten-free).",
+      "The AI Meal Planner analyzes your remaining calorie, protein, carb, and fat targets for the day and suggests 2 specific meals or snacks — with exact portion sizes in grams — that fill your macro gaps without exceeding any macro you've already hit. It's powered by Claude Haiku AI and respects your dietary restrictions (dairy-free, gluten-free).",
   },
   {
     question: "How does the AI Meal Planner know what to suggest?",
@@ -80,7 +80,7 @@ export default function AIMealPlannerPage() {
               The AI Meal Planner in Macro Maxxing analyzes your remaining macro
               gaps for the day and suggests specific meals with exact portion
               sizes — so you always know what to eat next to hit your targets.
-              Powered by Claude Sonnet AI.
+              Powered by Claude Haiku AI.
             </p>
             <p className="text-gray-500 text-sm mb-8">
               Last updated: March 2026
@@ -135,7 +135,7 @@ export default function AIMealPlannerPage() {
               {
                 step: "2",
                 title: "It Generates 2 Smart Suggestions",
-                desc: "Claude Sonnet AI suggests 2 specific meals or snacks — each with different protein sources, exact portion sizes in grams, and estimated macros. No generic advice like 'eat more protein.'",
+                desc: "Claude Haiku AI suggests 2 specific meals or snacks — each with different protein sources, exact portion sizes in grams, and estimated macros. No generic advice like 'eat more protein.'",
                 color: "brand-purple",
               },
               {

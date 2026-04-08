@@ -451,6 +451,7 @@ export default function Home() {
                   { href: "/carbon-diet-coach-alternative", title: "Carbon Diet Coach Alternative" },
                   { href: "/yazio-alternative", title: "YAZIO Alternative" },
                   { href: "/fatsecret-alternative", title: "FatSecret Alternative" },
+                  { href: "/cal-ai-alternative", title: "Cal AI Alternative" },
                 ],
               },
             ].map((group) => (
