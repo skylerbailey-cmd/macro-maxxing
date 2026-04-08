@@ -362,7 +362,7 @@ export default function Home() {
             A dark-mode interface designed for real people. Every screen built for
             speed and clarity.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-6 max-w-6xl mx-auto">
             {[
               {
                 title: "Log Food with AI Photo",
@@ -378,6 +378,16 @@ export default function Home() {
                 title: "Smart Workout Tracking",
                 desc: "Log workouts with auto macro adjustments",
                 src: "/screenshots/workout-log.png",
+              },
+              {
+                title: "AI Meal Planner",
+                desc: "AI suggests meals to fill your remaining macro gaps",
+                src: "/screenshots/ai-meal-planner.png",
+              },
+              {
+                title: "AI Nutrition Coach",
+                desc: "Daily debrief on your meals, timing, and food quality",
+                src: "/screenshots/ai-nutrition-coach.png",
               },
             ].map((screen, i) => (
               <div
