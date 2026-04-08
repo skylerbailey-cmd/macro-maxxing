@@ -7,7 +7,7 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 export const metadata: Metadata = {
   title: "Best Carbon Diet Coach Alternative 2026 — Macro Maxxing vs Carbon",
   description:
-    "Looking for a free Carbon Diet Coach alternative? Macro Maxxing offers AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — without the $10/month subscription.",
+    "Looking for an Carbon Diet Coach alternative? Macro Maxxing offers AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — without the $10/month subscription.",
   keywords: [
     "Carbon Diet Coach alternative",
     "Carbon Diet Coach replacement",
@@ -24,8 +24,8 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    question: "What is the best free alternative to Carbon Diet Coach?",
-    answer: "Macro Maxxing is the best free alternative to Carbon Diet Coach. It offers AI photo scanning and voice logging (which Carbon lacks), gamified streaks and leaderboards, and a social community — all for free. Carbon costs $10/month with no free tier.",
+    question: "What is the best alternative to Carbon Diet Coach?",
+    answer: "Macro Maxxing is the best alternative to Carbon Diet Coach. It offers AI photo scanning and voice logging (which Carbon lacks), gamified streaks and leaderboards, and a social community . Carbon costs $10/month with no free tier.",
   },
   {
     question: "Is Macro Maxxing good for bodybuilding like Carbon?",
@@ -46,7 +46,7 @@ export default function CarbonDietCoachAlternativePage() {
     <>
       <ArticleJsonLd
         title="Best Carbon Diet Coach Alternative 2026 — Macro Maxxing"
-        description="Macro Maxxing is the best free Carbon Diet Coach alternative with AI scanning and gamified tracking."
+        description="Macro Maxxing is the best Carbon Diet Coach alternative with AI scanning and gamified tracking."
         url="https://macromaxxing.app/carbon-diet-coach-alternative"
       />
       <FAQPageJsonLd faqs={faqs} />
@@ -69,7 +69,7 @@ export default function CarbonDietCoachAlternativePage() {
               <span className="text-gradient">Serious Trackers</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              Macro Maxxing is a free Carbon Diet Coach alternative that provides
+              Macro Maxxing is an Carbon Diet Coach alternative that provides
               AI photo scanning and voice logging — features Carbon doesn&apos;t offer
               despite its $10/month price tag. It includes gamified streaks,
               leaderboards, and a social community, and works for any fitness
@@ -80,7 +80,7 @@ export default function CarbonDietCoachAlternativePage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-rose hover:bg-brand-rose/80 text-white font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Level Up Your Tracking — Free
+              Level Up Your Tracking 
             </a>
           </div>
         </section>
@@ -90,8 +90,8 @@ export default function CarbonDietCoachAlternativePage() {
           <div className="bg-brand-rose/5 border border-brand-rose/20 rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-rose uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
-              <strong className="text-white">Macro Maxxing is the best free Carbon Diet Coach alternative for serious trackers who want AI-powered logging.</strong>{" "}
-              It offers photo scanning, voice input, gamified streaks, and a competitive community for $0 versus Carbon&apos;s $10/month. The trade-off: Carbon has Layne Norton&apos;s auto-adjusting coaching algorithm that adapts your calories weekly based on weight data — if fully automated contest prep coaching is your priority, Carbon is purpose-built for that.
+              <strong className="text-white">Macro Maxxing is the best Carbon Diet Coach alternative for serious trackers who want AI-powered logging.</strong>{" "}
+              It offers photo scanning, voice input, gamified streaks, and a competitive community at a fraction of the cost versus Carbon&apos;s $10/month. The trade-off: Carbon has Layne Norton&apos;s auto-adjusting coaching algorithm that adapts your calories weekly based on weight data — if fully automated contest prep coaching is your priority, Carbon is purpose-built for that.
             </p>
           </div>
         </section>
@@ -149,7 +149,7 @@ export default function CarbonDietCoachAlternativePage() {
               features={[
                 { name: "AI photo food scanning", macroMaxxing: true, others: false },
                 { name: "Voice meal logging", macroMaxxing: true, others: false },
-                { name: "Price", macroMaxxing: "Free", others: "$10/month" },
+                { name: "Price", macroMaxxing: "Download", others: "$10/month" },
                 { name: "Daily streaks", macroMaxxing: true, others: false },
                 { name: "Leaderboards & XP", macroMaxxing: true, others: false },
                 { name: "Social community feed", macroMaxxing: true, others: false },
@@ -176,8 +176,8 @@ export default function CarbonDietCoachAlternativePage() {
             />
             <FeatureCard
               icon="💰"
-              title="Save $120/Year"
-              description="Macro Maxxing is 100% free. Carbon charges $10/month with no free tier at all."
+              title="Better Value"
+              description="Macro Maxxing is Available now. Carbon charges $10/month with no free tier at all."
               color="brand-gold"
             />
             <FeatureCard
@@ -242,14 +242,14 @@ export default function CarbonDietCoachAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-rose font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. No subscription needed.</p>
+                <p className="text-gray-400 text-sm">Get Macro Maxxing from the App Store. No subscription needed.</p>
               </div>
               <div>
                 <p className="text-brand-rose font-bold text-lg mb-1">2. Transfer Targets</p>
                 <p className="text-gray-400 text-sm">Enter your current calorie and macro targets from Carbon.</p>
               </div>
               <div>
-                <p className="text-brand-rose font-bold text-lg mb-1">3. Save $120/Year</p>
+                <p className="text-brand-rose font-bold text-lg mb-1">3. Better Value</p>
                 <p className="text-gray-400 text-sm">Cancel Carbon, start logging with AI, and build your streak.</p>
               </div>
             </div>
@@ -280,7 +280,7 @@ export default function CarbonDietCoachAlternativePage() {
         <div id="download">
           <DownloadCTA
             headline="Built for Serious Trackers"
-            subheadline="AI scanning, voice logging, streaks, leaderboards, and community. All the tools you need — free."
+            subheadline="AI scanning, voice logging, streaks, leaderboards, and community. All the tools you need ."
           />
         </div>
       </article>

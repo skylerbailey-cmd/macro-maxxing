@@ -21,7 +21,7 @@ export default function Home() {
             <span className="text-gradient">AI Precision</span>
           </h1>
           <p className="text-gray-300 text-lg sm:text-xl max-w-2xl mx-auto mb-4">
-            Macro Maxxing is a free AI-powered macro tracking app for iOS that
+            Macro Maxxing is an AI-powered macro tracking app for iOS that
             lets you log food by snapping a photo or describing your meal with
             your voice. It estimates calories, protein, carbs, and fat using
             Claude AI models (Haiku and Sonnet).
@@ -29,14 +29,14 @@ export default function Home() {
           <p className="text-gray-400 text-base max-w-2xl mx-auto mb-10">
             Includes workout tracking with automatic macro adjustments, an
             intermittent fasting timer, daily streaks, leaderboards, and a
-            social community — all completely free with no ads.
+            social community.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
               href="#download"
               className="bg-brand-purple hover:bg-brand-purple/80 text-white px-8 py-4 rounded-full font-bold text-lg transition"
             >
-              Download Free
+              Download Now
             </a>
             <a
               href="#ai-powered"
@@ -64,8 +64,8 @@ export default function Home() {
             <p className="text-gray-500 text-sm">Dual-Model AI Pipeline</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-brand-green">100% Free</p>
-            <p className="text-gray-500 text-sm">No Paywall</p>
+            <p className="text-2xl font-bold text-brand-green">iOS App</p>
+            <p className="text-gray-500 text-sm">Download Now</p>
           </div>
         </div>
       </section>
@@ -405,7 +405,7 @@ export default function Home() {
                 links: [
                   { href: "/best-macro-tracking-app", title: "Best Macro Tracking App in 2026" },
                   { href: "/ai-food-scanner", title: "AI Food Scanner" },
-                  { href: "/calorie-counter-app", title: "Free Calorie Counter" },
+                  { href: "/calorie-counter-app", title: "Calorie Counter" },
                   { href: "/intermittent-fasting-tracker", title: "Intermittent Fasting Tracker" },
                   { href: "/workout-tracker-app", title: "Workout Tracker with Macros" },
                   { href: "/voice-food-logging", title: "Voice Food Logging" },

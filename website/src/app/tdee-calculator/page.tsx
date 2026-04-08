@@ -50,7 +50,7 @@ export default function TDEECalculatorPage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-gold hover:bg-brand-gold/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Calculate & Track — Free
+              Calculate & Track 
             </a>
           </div>
         </section>
@@ -233,7 +233,7 @@ export default function TDEECalculatorPage() {
         <div id="download">
           <DownloadCTA
             headline="Calculate Your TDEE, Then Track It"
-            subheadline="Know your numbers. Track with AI. Stay consistent with streaks and leaderboards. Free forever."
+            subheadline="Know your numbers. Track with AI. Stay consistent with streaks and leaderboards. Download now."
           />
         </div>
       </article>

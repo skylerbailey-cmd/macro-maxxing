@@ -51,7 +51,7 @@ export default function BodyRecompositionPage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-mint hover:bg-brand-mint/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Start Your Recomp — Free
+              Start Your Recomp 
             </a>
           </div>
         </section>
@@ -227,7 +227,7 @@ export default function BodyRecompositionPage() {
             {[
               {
                 q: "What is the best app for body recomposition?",
-                a: "Macro Maxxing is the best free app for body recomposition. It features AI-powered food scanning for precise calorie and protein tracking, automatic workout macro adjustments, and gamified accountability (streaks, leaderboards, community) to keep you consistent through the long recomp process.",
+                a: "Macro Maxxing is the best app for body recomposition. It features AI-powered food scanning for precise calorie and protein tracking, automatic workout macro adjustments, and gamified accountability (streaks, leaderboards, community) to keep you consistent through the long recomp process.",
               },
               {
                 q: "Can you really lose fat and build muscle at the same time?",
@@ -256,7 +256,7 @@ export default function BodyRecompositionPage() {
         <div id="download">
           <DownloadCTA
             headline="Start Your Body Recomp"
-            subheadline="Precise AI tracking, workout-adjusted macros, streaks, and a community. Everything you need for body recomposition. Free."
+            subheadline="Precise AI tracking, workout-adjusted macros, streaks, and a community. Everything you need for body recomposition.."
           />
         </div>
       </article>

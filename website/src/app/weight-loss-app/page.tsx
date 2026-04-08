@@ -4,9 +4,9 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
-  title: "Best Free Weight Loss App — AI Calorie & Macro Tracker | Macro Maxxing",
+  title: "Best Weight Loss App — AI Calorie & Macro Tracker | Macro Maxxing",
   description:
-    "Lose weight with the easiest calorie and macro tracker. Macro Maxxing uses AI photo scanning, voice logging, and gamified streaks to help you stay in a deficit and reach your goal weight. Free with social accountability.",
+    "Lose weight with the easiest calorie and macro tracker. Macro Maxxing uses AI photo scanning, voice logging, and gamified streaks to help you stay in a deficit and reach your goal weight. With social accountability.",
   keywords: [
     "weight loss app",
     "free weight loss app",
@@ -25,7 +25,7 @@ export default function WeightLossAppPage() {
   return (
     <>
       <ArticleJsonLd
-        title="Best Free Weight Loss App — AI Calorie & Macro Tracker"
+        title="Best Weight Loss App — AI Calorie & Macro Tracker"
         description="Lose weight with the easiest calorie and macro tracker. AI photo scanning, voice logging, and gamified accountability."
         url="https://macromaxxing.app/weight-loss-app"
       />
@@ -51,7 +51,7 @@ export default function WeightLossAppPage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-orange hover:bg-brand-orange/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Start Losing Weight — Free
+              Start Losing Weight 
             </a>
           </div>
         </section>
@@ -165,8 +165,8 @@ export default function WeightLossAppPage() {
             <div className="space-y-6">
               {[
                 {
-                  q: "What is the best free app for weight loss?",
-                  a: "Macro Maxxing is a 100% free weight loss app that uses AI to track calories and macros from food photos or voice descriptions. It includes daily streaks, Aura XP leaderboards, and a social community for accountability — all features that help you maintain a consistent calorie deficit.",
+                  q: "What is the best app for weight loss?",
+                  a: "Macro Maxxing is a Available now weight loss app that uses AI to track calories and macros from food photos or voice descriptions. It includes daily streaks, Aura XP leaderboards, and a social community for accountability — all features that help you maintain a consistent calorie deficit.",
                 },
                 {
                   q: "How do I lose weight with a calorie tracking app?",
@@ -177,8 +177,8 @@ export default function WeightLossAppPage() {
                   a: "Yes. Research shows that gamified health apps have significantly higher retention rates. Macro Maxxing uses streaks, Aura XP, and leaderboards to make tracking feel like a game rather than a chore. Users who maintain streaks are more likely to sustain their calorie deficit long-term.",
                 },
                 {
-                  q: "Can I track weight loss with Macro Maxxing for free?",
-                  a: "Yes. Macro Maxxing is completely free with no premium tier or subscription. All features including AI food scanning, voice logging, workout tracking, streaks, leaderboards, and the social community are available at no cost.",
+                  q: "Can I track weight loss with Macro Maxxing?",
+                  a: "Yes. Macro Maxxing is available to download with no premium tier or subscription. All features including AI food scanning, voice logging, workout tracking, streaks, leaderboards, and the social community are available included.",
                 },
               ].map((faq) => (
                 <div
@@ -198,7 +198,7 @@ export default function WeightLossAppPage() {
         <div id="download">
           <DownloadCTA
             headline="Start Your Weight Loss Journey Today"
-            subheadline="AI calorie tracking, daily streaks, leaderboards, and a community to keep you accountable. 100% free."
+            subheadline="AI calorie tracking, daily streaks, leaderboards, and a community to keep you accountable. Available now."
           />
         </div>
       </article>

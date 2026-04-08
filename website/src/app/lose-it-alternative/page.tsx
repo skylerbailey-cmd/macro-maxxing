@@ -7,7 +7,7 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 export const metadata: Metadata = {
   title: "Best Lose It! Alternative 2026 — Macro Maxxing vs Lose It",
   description:
-    "Looking for a Lose It! alternative with better macro tracking? Macro Maxxing offers AI photo scanning, voice logging, detailed macros, streaks, leaderboards, and community — all free.",
+    "Looking for a Lose It! alternative with better macro tracking? Macro Maxxing offers AI photo scanning, voice logging, detailed macros, streaks, leaderboards, and community — all included.",
   keywords: [
     "Lose It alternative",
     "Lose It app alternative",
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "What is the best alternative to Lose It?",
-    answer: "Macro Maxxing is the best free alternative to Lose It! for anyone serious about their macros. It offers detailed macro tracking (not just calories), AI photo scanning, voice logging, daily streaks, leaderboards, and a social community — all completely free.",
+    answer: "Macro Maxxing is the best alternative to Lose It! for anyone serious about their macros. It offers detailed macro tracking (not just calories), AI photo scanning, voice logging, daily streaks, leaderboards, and a social community — all available to download.",
   },
   {
     question: "Is Macro Maxxing better than Lose It for weight loss?",
@@ -36,8 +36,8 @@ const faqs = [
     answer: "Yes. Macro Maxxing is built as a macro tracker first. Protein, carbs, and fat are displayed prominently alongside calories. Claude AI photo scanning provides accurate macro breakdowns powered by Haiku and Sonnet models. In Lose It!, detailed macros require the Premium subscription.",
   },
   {
-    question: "Is Macro Maxxing completely free?",
-    answer: "Yes. Every feature in Macro Maxxing is free — AI scanning, voice logging, macro tracking, streaks, leaderboards, and the social community. There is no premium tier. Lose It! charges $40/year for premium features.",
+    question: "Is Macro Maxxing available to download?",
+    answer: "Yes. Every feature in Macro Maxxing is available to download — AI scanning, voice logging, macro tracking, streaks, leaderboards, and the social community. There is no premium tier. Lose It! charges $40/year for premium features.",
   },
 ];
 
@@ -46,7 +46,7 @@ export default function LoseItAlternativePage() {
     <>
       <ArticleJsonLd
         title="Best Lose It! Alternative 2026 — Macro Maxxing"
-        description="Macro Maxxing is the best free Lose It! alternative with AI scanning, detailed macros, and gamified accountability."
+        description="Macro Maxxing is the best Lose It! alternative with AI scanning, detailed macros, and gamified accountability."
         url="https://macromaxxing.app/lose-it-alternative"
       />
       <FAQPageJsonLd faqs={faqs} />
@@ -69,18 +69,18 @@ export default function LoseItAlternativePage() {
               <span className="text-gradient-gold">Counting Calories</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              Macro Maxxing is a free Lose It! alternative that goes beyond
+              Macro Maxxing is an Lose It! alternative that goes beyond
               calorie counting with detailed macro tracking (protein, carbs,
               fat), AI photo scanning, and voice logging. It includes gamified
               streaks, leaderboards, and a social community for accountability —
-              all free versus Lose It! Premium at $40/year.
+              all included versus Lose It! Premium at $40/year.
             </p>
             <p className="text-gray-500 text-sm mb-8">Last updated: March 2026</p>
             <a
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-orange hover:bg-brand-orange/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Upgrade Your Tracking — Free
+              Upgrade Your Tracking 
             </a>
           </div>
         </section>
@@ -90,8 +90,8 @@ export default function LoseItAlternativePage() {
           <div className="bg-brand-orange/5 border border-brand-orange/20 rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-orange uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
-              <strong className="text-white">Macro Maxxing is the best free Lose It! alternative for anyone who wants detailed macro tracking, not just calorie counting.</strong>{" "}
-              It offers AI photo scanning, voice logging, gamified streaks, and a social community — all free versus Lose It! Premium at $40/year. The trade-off: Lose It! has a clean calorie-focused design and basic challenges that some users prefer for simple weight loss tracking.
+              <strong className="text-white">Macro Maxxing is the best Lose It! alternative for anyone who wants detailed macro tracking, not just calorie counting.</strong>{" "}
+              It offers AI photo scanning, voice logging, gamified streaks, and a social community — all included versus Lose It! Premium at $40/year. The trade-off: Lose It! has a clean calorie-focused design and basic challenges that some users prefer for simple weight loss tracking.
             </p>
           </div>
         </section>
@@ -149,7 +149,7 @@ export default function LoseItAlternativePage() {
                 { name: "AI photo food scanning", macroMaxxing: true, others: "Basic" },
                 { name: "Voice meal logging", macroMaxxing: true, others: false },
                 { name: "Full macro tracking (P/C/F)", macroMaxxing: true, others: "Premium only" },
-                { name: "100% free", macroMaxxing: true, others: "Freemium ($40/yr)" },
+                { name: "Available now", macroMaxxing: true, others: "Freemium ($40/yr)" },
                 { name: "Daily streaks", macroMaxxing: true, others: false },
                 { name: "Leaderboards & XP", macroMaxxing: true, others: false },
                 { name: "Social community feed", macroMaxxing: true, others: false },
@@ -240,7 +240,7 @@ export default function LoseItAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-orange font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. Ready to track in under 2 minutes.</p>
+                <p className="text-gray-400 text-sm">Get Macro Maxxing from the App Store. Ready to track in under 2 minutes.</p>
               </div>
               <div>
                 <p className="text-brand-orange font-bold text-lg mb-1">2. Set Macro Goals</p>
@@ -278,7 +278,7 @@ export default function LoseItAlternativePage() {
         <div id="download">
           <DownloadCTA
             headline="Go Beyond Calorie Counting"
-            subheadline="Full macro tracking, AI scanning, voice logging, and gamified accountability. Free forever."
+            subheadline="Full macro tracking, AI scanning, voice logging, and gamified accountability. Download now."
           />
         </div>
       </article>

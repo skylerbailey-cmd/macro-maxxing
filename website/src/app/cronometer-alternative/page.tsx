@@ -7,7 +7,7 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 export const metadata: Metadata = {
   title: "Best Cronometer Alternative 2026 — Macro Maxxing vs Cronometer",
   description:
-    "Looking for a Cronometer alternative? Macro Maxxing offers AI photo scanning, voice logging, gamified streaks, and a social community — all free. No complex UI, no subscription required.",
+    "Looking for a Cronometer alternative? Macro Maxxing offers AI photo scanning, voice logging, gamified streaks, and a social community — all included. No complex UI, no subscription required.",
   keywords: [
     "Cronometer alternative",
     "Cronometer replacement",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     "free Cronometer alternative",
     "simpler than Cronometer",
     "macro tracker like Cronometer",
-    "Cronometer free alternative",
+    "Cronometer alternative",
     "nutrition tracker alternative",
   ],
 };
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "What is the best alternative to Cronometer?",
-    answer: "Macro Maxxing is the best free alternative to Cronometer for macro tracking. It uses AI photo scanning and voice logging instead of manual entry, includes gamification (streaks, leaderboards, XP) for accountability, and has a social community — all at no cost.",
+    answer: "Macro Maxxing is the best alternative to Cronometer for macro tracking. It uses AI photo scanning and voice logging instead of manual entry, includes gamification (streaks, leaderboards, XP) for accountability, and has a social community — all included.",
   },
   {
     question: "Is Macro Maxxing as accurate as Cronometer?",
@@ -36,8 +36,8 @@ const faqs = [
     answer: "Macro Maxxing is focused on macronutrient tracking — calories, protein, carbs, and fat. If you need detailed micronutrient analysis (vitamins, minerals), Cronometer may be more suitable. But for most people focused on macros and body composition, Macro Maxxing is faster and easier to use.",
   },
   {
-    question: "Is Macro Maxxing free?",
-    answer: "Yes. Macro Maxxing is 100% free with no premium tier or subscription. All features including AI scanning, voice logging, streaks, leaderboards, and the social community are completely free. Cronometer charges $50/year for Gold features.",
+    question: "What does Macro Maxxing cost?",
+    answer: "Yes. Macro Maxxing is Available now with no premium tier or subscription. All features including AI scanning, voice logging, streaks, leaderboards, and the social community are available to download. Cronometer charges $50/year for Gold features.",
   },
 ];
 
@@ -46,7 +46,7 @@ export default function CronometerAlternativePage() {
     <>
       <ArticleJsonLd
         title="Best Cronometer Alternative 2026 — Macro Maxxing"
-        description="Macro Maxxing is the best free Cronometer alternative with AI scanning and simpler tracking."
+        description="Macro Maxxing is the best Cronometer alternative with AI scanning and simpler tracking."
         url="https://macromaxxing.app/cronometer-alternative"
       />
       <FAQPageJsonLd faqs={faqs} />
@@ -69,7 +69,7 @@ export default function CronometerAlternativePage() {
               <span className="text-gradient">None of the Complexity</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              Macro Maxxing is a free Cronometer alternative that provides
+              Macro Maxxing is an Cronometer alternative that provides
               accurate macro tracking with AI photo scanning and voice logging,
               without Cronometer's complex interface or $50/year Gold
               subscription. It adds gamified streaks, leaderboards, and a
@@ -80,7 +80,7 @@ export default function CronometerAlternativePage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-teal hover:bg-brand-teal/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Try Macro Maxxing — Free
+              Try Macro Maxxing 
             </a>
           </div>
         </section>
@@ -90,8 +90,8 @@ export default function CronometerAlternativePage() {
           <div className="bg-brand-teal/5 border border-brand-teal/20 rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-teal uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
-              <strong className="text-white">Macro Maxxing is the best free Cronometer alternative for users who want accurate macro tracking without the complexity.</strong>{" "}
-              It replaces manual entry with AI photo scanning and voice logging, adds gamified streaks and a social community, and costs $0 versus Cronometer Gold at $50/year. The trade-off: Cronometer has detailed micronutrient tracking that Macro Maxxing doesn&apos;t offer — if you need vitamin and mineral data, Cronometer is still the better choice.
+              <strong className="text-white">Macro Maxxing is the best Cronometer alternative for users who want accurate macro tracking without the complexity.</strong>{" "}
+              It replaces manual entry with AI photo scanning and voice logging, adds gamified streaks and a social community, and costs a fraction of Cronometer Gold at $50/year. The trade-off: Cronometer has detailed micronutrient tracking that Macro Maxxing doesn&apos;t offer — if you need vitamin and mineral data, Cronometer is still the better choice.
             </p>
           </div>
         </section>
@@ -149,7 +149,7 @@ export default function CronometerAlternativePage() {
                 { name: "AI photo food scanning", macroMaxxing: true, others: false },
                 { name: "Voice meal logging", macroMaxxing: true, others: false },
                 { name: "Simple, focused interface", macroMaxxing: true, others: false },
-                { name: "100% free", macroMaxxing: true, others: "Freemium ($50/yr)" },
+                { name: "Available now", macroMaxxing: true, others: "Freemium ($50/yr)" },
                 { name: "Daily streaks", macroMaxxing: true, others: false },
                 { name: "Leaderboards & XP", macroMaxxing: true, others: false },
                 { name: "Social community feed", macroMaxxing: true, others: false },
@@ -192,8 +192,8 @@ export default function CronometerAlternativePage() {
             />
             <FeatureCard
               icon="💰"
-              title="Completely Free"
-              description="No Gold subscription needed. Every feature including AI scanning, streaks, and community is free."
+              title="No Subscription Required"
+              description="No Gold subscription needed. Every feature including AI scanning, streaks, and community is included."
               color="brand-orange"
             />
             <FeatureCard
@@ -240,7 +240,7 @@ export default function CronometerAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-teal font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. No account migration needed.</p>
+                <p className="text-gray-400 text-sm">Get Macro Maxxing from the App Store. No account migration needed.</p>
               </div>
               <div>
                 <p className="text-brand-teal font-bold text-lg mb-1">2. Set Macro Targets</p>
@@ -277,7 +277,7 @@ export default function CronometerAlternativePage() {
 
         <div id="download">
           <DownloadCTA
-            headline="Simpler, Faster, Free"
+            headline="Simpler, Faster, Better"
             subheadline="All the macro accuracy you need without the complexity. AI scanning, streaks, and community included."
           />
         </div>

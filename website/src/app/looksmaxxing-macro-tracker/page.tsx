@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title:
     "Looksmaxxing Macro Tracker — Track Nutrition for Your Glow Up | Macro Maxxing",
   description:
-    "The best macro tracker for looksmaxxing. Track protein, calories, and nutrition to optimize your physique, skin, jawline, and overall appearance. Free AI-powered food scanner with streaks, leaderboards, and a community of people on the same journey.",
+    "The best macro tracker for looksmaxxing. Track protein, calories, and nutrition to optimize your physique, skin, jawline, and overall appearance. AI-powered food scanner with streaks, leaderboards, and a community of people on the same journey.",
   keywords: [
     "looksmaxxing macro tracker",
     "looksmaxxing diet",
@@ -58,7 +58,7 @@ export default function LooksmaxxingMacroTrackerPage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-purple hover:bg-brand-purple/80 text-white font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Start Your Glow Up — Free
+              Start Your Glow Up 
             </a>
           </div>
         </section>
@@ -285,7 +285,7 @@ export default function LooksmaxxingMacroTrackerPage() {
             {[
               {
                 q: "What is the best macro tracker for looksmaxxing?",
-                a: "Macro Maxxing is the best macro tracker for looksmaxxing because it combines AI-powered food scanning (photo and voice), protein-first tracking, and gamified accountability with streaks and leaderboards. It's free, requires no barcode scanning, and has a built-in social community for motivation.",
+                a: "Macro Maxxing is the best macro tracker for looksmaxxing because it combines AI-powered food scanning (photo and voice), protein-first tracking, and gamified accountability with streaks and leaderboards. It requires no barcode scanning, and has a built-in social community for motivation.",
               },
               {
                 q: "How many grams of protein do I need for looksmaxxing?",
@@ -319,7 +319,7 @@ export default function LooksmaxxingMacroTrackerPage() {
         <div id="download">
           <DownloadCTA
             headline="Start Your Looksmaxxing Journey Today"
-            subheadline="Track macros, build streaks, compete on leaderboards, and join a community of people optimizing their appearance. 100% free."
+            subheadline="Track macros, build streaks, compete on leaderboards, and join a community of people optimizing their appearance. Available now."
           />
         </div>
       </article>

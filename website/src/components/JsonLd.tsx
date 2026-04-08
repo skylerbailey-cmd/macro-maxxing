@@ -6,12 +6,13 @@ export function AppJsonLd() {
     operatingSystem: "iOS",
     applicationCategory: "HealthApplication",
     description:
-      "Macro Maxxing is a free AI-powered macro tracking app for iOS that uses photo scanning and voice logging to estimate calories, protein, carbs, and fat. It includes workout tracking with automatic macro adjustments, an intermittent fasting timer, daily streaks, leaderboards, and a social community feed.",
+      "Macro Maxxing is an AI-powered macro tracking app for iOS that uses photo scanning and voice logging to estimate calories, protein, carbs, and fat. It includes workout tracking with automatic macro adjustments, an intermittent fasting timer, daily streaks, leaderboards, and a social community feed.",
     url: "https://macromaxxing.app",
     offers: {
       "@type": "Offer",
       price: "0",
       priceCurrency: "USD",
+      description: "Available to download with in-app purchases",
     },
     aggregateRating: {
       "@type": "AggregateRating",

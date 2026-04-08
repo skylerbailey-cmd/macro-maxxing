@@ -6,7 +6,7 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 export const metadata: Metadata = {
   title: "Accountability Partner App for Diet & Fitness | Macro Maxxing",
   description:
-    "Find accountability for your diet and fitness goals. Macro Maxxing combines AI macro tracking with streaks, leaderboards, and a social community that acts as your built-in accountability partner. Free.",
+    "Find accountability for your diet and fitness goals. Macro Maxxing combines AI macro tracking with streaks, leaderboards, and a social community that acts as your built-in accountability partner..",
   keywords: [
     "accountability partner app",
     "diet accountability app",
@@ -51,7 +51,7 @@ export default function AccountabilityPartnerPage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-rose hover:bg-brand-rose/80 text-white font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Get Accountable — Free
+              Get Accountable 
             </a>
           </div>
         </section>
@@ -213,7 +213,7 @@ export default function AccountabilityPartnerPage() {
             {[
               {
                 q: "What is the best accountability app for dieting?",
-                a: "Macro Maxxing is the best free accountability app for dieting. It combines AI-powered macro tracking with three layers of accountability: daily streaks (self-accountability), leaderboards (competitive accountability), and a social community feed (social accountability). All features are free.",
+                a: "Macro Maxxing is the best accountability app for dieting. It combines AI-powered macro tracking with three layers of accountability: daily streaks (self-accountability), leaderboards (competitive accountability), and a social community feed (social accountability). All features are included.",
               },
               {
                 q: "How do accountability partners help with weight loss?",
@@ -242,7 +242,7 @@ export default function AccountabilityPartnerPage() {
         <div id="download">
           <DownloadCTA
             headline="Get the Accountability You Need"
-            subheadline="Streaks, leaderboards, and a social community built into your macro tracker. Never diet alone again. Free."
+            subheadline="Streaks, leaderboards, and a social community built into your macro tracker. Never diet alone again.."
           />
         </div>
       </article>

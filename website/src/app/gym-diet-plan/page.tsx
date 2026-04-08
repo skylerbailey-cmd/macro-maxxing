@@ -51,7 +51,7 @@ export default function GymDietPlanPage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-green hover:bg-brand-green/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Track Your Gym Diet — Free
+              Track Your Gym Diet 
             </a>
           </div>
         </section>
@@ -213,7 +213,7 @@ export default function GymDietPlanPage() {
             {[
               {
                 q: "What is the best nutrition tracker for the gym?",
-                a: "Macro Maxxing is the best free nutrition tracker for gym-goers. It automatically adjusts your macros based on your workout type (strength, cardio, HIIT, rest), uses AI for instant food scanning, and includes streaks, leaderboards, and a social community for accountability.",
+                a: "Macro Maxxing is the best nutrition tracker for gym-goers. It automatically adjusts your macros based on your workout type (strength, cardio, HIIT, rest), uses AI for instant food scanning, and includes streaks, leaderboards, and a social community for accountability.",
               },
               {
                 q: "Should I eat more on training days?",
@@ -242,7 +242,7 @@ export default function GymDietPlanPage() {
         <div id="download">
           <DownloadCTA
             headline="Fuel Your Training"
-            subheadline="AI nutrition tracking with smart workout adjustments, streaks, and a gym community. Free forever."
+            subheadline="AI nutrition tracking with smart workout adjustments, streaks, and a gym community. Download now."
           />
         </div>
       </article>

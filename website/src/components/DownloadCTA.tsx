@@ -1,6 +1,6 @@
 export function DownloadCTA({
   headline = "Ready to start maxxing your macros?",
-  subheadline = "Download Macro Maxxing for free and start tracking with AI today.",
+  subheadline = "Download Macro Maxxing and start tracking with AI today.",
 }: {
   headline?: string;
   subheadline?: string;
@@ -21,7 +21,7 @@ export function DownloadCTA({
           </svg>
           Download on the App Store
         </a>
-        <p className="text-gray-500 text-sm mt-4">Free to download. iOS 17+ required.</p>
+        <p className="text-gray-500 text-sm mt-4">Available on iOS 17+.</p>
       </div>
     </section>
   );
