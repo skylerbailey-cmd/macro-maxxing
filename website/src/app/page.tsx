@@ -106,6 +106,16 @@ export default function Home() {
               description="Built-in fasting timer that persists across app restarts. Track your 16:8, 20:4, or custom fasting window with real-time countdowns."
             />
             <FeatureCard
+              icon="🍽️"
+              title="AI Meal Planner"
+              description="Not sure what to eat next? AI analyzes your remaining macro gaps and suggests specific meals with exact portions to hit your targets."
+            />
+            <FeatureCard
+              icon="🧠"
+              title="AI Nutrition Coach"
+              description="Get a personalized daily debrief on your eating. AI reviews your meals, macros, workouts, and timing — then tells you what to change tomorrow."
+            />
+            <FeatureCard
               icon="🏆"
               title="Streaks & Leaderboards"
               description="Build streaks by hitting your macro goals daily. Compete on Team, Local, and Arena leaderboards. Earn Aura XP and level up."
@@ -409,6 +419,8 @@ export default function Home() {
                   { href: "/intermittent-fasting-tracker", title: "Intermittent Fasting Tracker" },
                   { href: "/workout-tracker-app", title: "Workout Tracker with Macros" },
                   { href: "/voice-food-logging", title: "Voice Food Logging" },
+                  { href: "/ai-meal-planner", title: "AI Meal Planner" },
+                  { href: "/ai-nutrition-coach", title: "AI Nutrition Coach" },
                   { href: "/streaks-and-gamification", title: "Streaks & Gamification" },
                   { href: "/social-fitness-community", title: "Social Community" },
                 ],
