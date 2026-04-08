@@ -25,6 +25,7 @@ struct FoodLogView: View {
 
     // Single active-sheet enum for the meal-logging flow
     @State private var activeMealSheet: MealSheet? = nil
+    @State private var showingAIConsent = false
 
     enum MealSheet: Identifiable {
         case camera
@@ -94,7 +95,12 @@ struct FoodLogView: View {
             }
             .onChange(of: selectedDate, handleDateChange)
             .onChange(of: viewModel.selectedImage) { _, newValue in
-                if newValue != nil { activeMealSheet = .analysis }
+                guard newValue != nil else { return }
+                if userSettings.aiConsentGiven {
+                    activeMealSheet = .analysis
+                } else {
+                    showingAIConsent = true
+                }
             }
             .onChange(of: viewModel.analysisState) { _, newState in
                 if case .confirmed = newState {
@@ -131,6 +137,18 @@ struct FoodLogView: View {
             }
             .sheet(isPresented: $showingWindowPicker) {
                 windowPickerSheet
+            }
+            .sheet(isPresented: $showingAIConsent) {
+                AIConsentSheet(
+                    onAgree: {
+                        userSettings.aiConsentGiven = true
+                        activeMealSheet = .analysis
+                    },
+                    onDecline: {
+                        // Switch to manual entry mode — user can still log food without AI
+                        viewModel.analysisState = .result
+                    }
+                )
             }
             .onChange(of: wDuration) { _, newVal in
                 UserDefaults.standard.set(newVal, forKey: "windowDurationHours")
@@ -402,8 +420,8 @@ struct FoodLogView: View {
         guard let img = image else { return }
         viewModel.selectedImage = img
         externalImage = nil
-        // Open the analysis sheet so the image gets processed by AI
-        activeMealSheet = .analysis
+        // The onChange(of: viewModel.selectedImage) handler checks consent
+        // and opens either the consent sheet or the analysis sheet.
     }
 
     private var profileAvatarIcon: some View {
@@ -523,7 +541,11 @@ struct FoodLogView: View {
 
             // Button
             Button {
-                showLogMealsConfirm = true
+                if !userSettings.aiConsentGiven {
+                    showingAIConsent = true
+                } else {
+                    showLogMealsConfirm = true
+                }
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: analyzeVM.hasRunToday ? "checkmark.circle.fill" : "wand.and.stars")

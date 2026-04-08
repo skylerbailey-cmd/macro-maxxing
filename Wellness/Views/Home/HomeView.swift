@@ -21,6 +21,7 @@ struct HomeView: View {
     @State private var tutorialAnchors:   [String: Anchor<CGRect>] = [:]
     @State private var showingProfile     = false
     @State private var showingGoalPost    = false
+    @State private var showingAIConsent   = false
     @State private var goalPostMeme       = GymMeme.random()
     @State private var brainstormAlert: BrainstormAlert? = nil
     @State private var showingNotifications = false
@@ -137,6 +138,12 @@ struct HomeView: View {
         return contentWithOverlays
             .sheet(item: $selectedMacro) { macro in macroHistorySheet(macro: macro) }
             .sheet(isPresented: $showingGoalPost) { goalPostSheet() }
+            .sheet(isPresented: $showingAIConsent) {
+                AIConsentSheet(
+                    onAgree: { viewModel.userSettings.aiConsentGiven = true },
+                    onDecline: { }
+                )
+            }
     }
     
     // MARK: - Body Helpers
@@ -622,7 +629,9 @@ struct HomeView: View {
             }
 
             Button {
-                if viewModel.userSettings.brainstormLimitReached {
+                if !viewModel.userSettings.aiConsentGiven {
+                    showingAIConsent = true
+                } else if viewModel.userSettings.brainstormLimitReached {
                     brainstormAlert = .limitReached
                 } else {
                     brainstormAlert = .confirm

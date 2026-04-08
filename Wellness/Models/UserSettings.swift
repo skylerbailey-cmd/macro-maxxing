@@ -31,6 +31,12 @@ struct AuraGain: Identifiable, Equatable {
     /// has been restored. Guards against streak milestones re-firing before data is ready.
     var profileLoaded: Bool = false
 
+    /// True once the user has consented to sending food photos to Anthropic's Claude AI.
+    /// No AI features are available until this is true. Persisted to UserDefaults.
+    var aiConsentGiven: Bool = false {
+        didSet { UserDefaults.standard.set(aiConsentGiven, forKey: "aiConsentGiven") }
+    }
+
     var userID:           String = ""
     var username:         String = ""
     var name:             String = ""
@@ -691,6 +697,7 @@ struct AuraGain: Identifiable, Equatable {
             // Tutorial flags — reset so a new account gets all tutorials
             "hasSeenAppTour",
             "hasSeenProfileTutorial",
+            "aiConsentGiven",
         ] { ud.removeObject(forKey: key) }
 
         // Clear Keychain
@@ -714,6 +721,7 @@ struct AuraGain: Identifiable, Equatable {
             ? Date(timeIntervalSince1970: storedWeekStart) : .distantPast
         self.useGPSLocation = UserDefaults.standard.object(forKey: "useGPSLocation") == nil
             ? true : UserDefaults.standard.bool(forKey: "useGPSLocation")
+        self.aiConsentGiven = UserDefaults.standard.bool(forKey: "aiConsentGiven")
         self.mealReminderEnabled = UserDefaults.standard.bool(forKey: "mealReminderEnabled")
         let storedReminderHour = UserDefaults.standard.object(forKey: "mealReminderHour")
         self.mealReminderHour = storedReminderHour != nil
