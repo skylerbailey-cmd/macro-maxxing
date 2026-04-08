@@ -7,7 +7,7 @@ import Foundation
 import FirebaseFunctions
 
 final class ClaudeAnalysisService {
-    private let model = "claude-sonnet-4-6"
+    private let model = "claude-haiku-4-5-20251001"
 
     /// Reads dietary exclusion toggles from UserDefaults and returns a prompt
     /// fragment to inject into both the nutrition coach and meal planner prompts.
