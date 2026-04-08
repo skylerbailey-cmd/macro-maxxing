@@ -156,6 +156,8 @@ export default function MacroFactorAlternativePage() {
                 { name: "Algorithm-based coaching", macroMaxxing: false, others: true },
                 { name: "Verified nutrition database", macroMaxxing: "Claude AI", others: "Nutritionix" },
                 { name: "Intermittent fasting timer", macroMaxxing: true, others: false },
+                { name: "AI meal planner", macroMaxxing: true, others: false },
+                { name: "AI nutrition coach", macroMaxxing: true, others: "Algorithmic adjustments" },
                 { name: "Saved meal templates", macroMaxxing: true, others: true },
               ]}
             />

@@ -23,6 +23,8 @@ const comparisonFeatures = [
   { name: "Voice meal logging", macroMaxxing: true, others: false },
   { name: "Auto macro adjustments for workouts", macroMaxxing: true, others: false },
   { name: "Intermittent fasting timer", macroMaxxing: true, others: "Some" },
+  { name: "AI meal planner", macroMaxxing: true, others: false },
+  { name: "AI nutrition coach", macroMaxxing: true, others: false },
   { name: "Verified nutrition database", macroMaxxing: "Claude AI", others: "1-2" },
   { name: "Social leaderboards & streaks", macroMaxxing: true, others: "Limited" },
   { name: "Saved meal templates", macroMaxxing: true, others: true },

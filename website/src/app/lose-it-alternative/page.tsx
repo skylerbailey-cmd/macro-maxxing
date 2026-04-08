@@ -155,6 +155,8 @@ export default function LoseItAlternativePage() {
                 { name: "Social community feed", macroMaxxing: true, others: false },
                 { name: "Workout macro adjustments", macroMaxxing: true, others: false },
                 { name: "Intermittent fasting timer", macroMaxxing: true, others: false },
+                { name: "AI meal planner", macroMaxxing: true, others: false },
+                { name: "AI nutrition coach", macroMaxxing: true, others: false },
                 { name: "Saved meal templates", macroMaxxing: true, others: "Premium only" },
               ]}
             />

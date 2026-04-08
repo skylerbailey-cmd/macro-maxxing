@@ -156,6 +156,8 @@ export default function CronometerAlternativePage() {
                 { name: "Workout macro adjustments", macroMaxxing: true, others: false },
                 { name: "Detailed micronutrients", macroMaxxing: "Macro-focused", others: true },
                 { name: "Verified nutrition data", macroMaxxing: true, others: true },
+                { name: "AI meal planner", macroMaxxing: true, others: false },
+                { name: "AI nutrition coach", macroMaxxing: true, others: false },
               ]}
             />
           </div>
