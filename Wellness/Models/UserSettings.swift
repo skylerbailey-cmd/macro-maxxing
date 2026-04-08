@@ -697,7 +697,7 @@ struct AuraGain: Identifiable, Equatable {
             // Tutorial flags — reset so a new account gets all tutorials
             "hasSeenAppTour",
             "hasSeenProfileTutorial",
-            "aiConsentGiven",
+            // aiConsentGiven intentionally NOT cleared — consent is per-device, not per-account
         ] { ud.removeObject(forKey: key) }
 
         // Clear Keychain
