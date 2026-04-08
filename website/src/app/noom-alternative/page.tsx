@@ -156,6 +156,8 @@ export default function NoomAlternativePage() {
                 { name: "Workout macro adjustments", macroMaxxing: true, others: false },
                 { name: "Works for all goals", macroMaxxing: true, others: "Weight loss only" },
                 { name: "Psychology lessons", macroMaxxing: false, others: true },
+                { name: "AI meal planner", macroMaxxing: true, others: "Welli (calorie-based)" },
+                { name: "AI nutrition coach", macroMaxxing: true, others: "Welli AI + human coaching" },
               ]}
             />
           </div>

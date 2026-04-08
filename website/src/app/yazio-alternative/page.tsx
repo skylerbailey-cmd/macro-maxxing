@@ -155,6 +155,8 @@ export default function YazioAlternativePage() {
                 { name: "Social community feed", macroMaxxing: true, others: false },
                 { name: "Workout macro adjustments", macroMaxxing: true, others: false },
                 { name: "Customizable fasting timer", macroMaxxing: true, others: "Limited" },
+                { name: "AI meal planner", macroMaxxing: true, others: "Recipe suggestions (PRO)" },
+                { name: "AI nutrition coach", macroMaxxing: true, others: false },
               ]}
             />
           </div>

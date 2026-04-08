@@ -155,6 +155,8 @@ export default function LifesumAlternativePage() {
                 { name: "Workout macro adjustments", macroMaxxing: true, others: false },
                 { name: "Diet plan variety", macroMaxxing: "Custom macro targets", others: "Multiple plans (Premium)" },
                 { name: "Intermittent fasting timer", macroMaxxing: true, others: "Premium only" },
+                { name: "AI meal planner", macroMaxxing: true, others: "Recipe library" },
+                { name: "AI nutrition coach", macroMaxxing: true, others: "Life Score insights" },
               ]}
             />
           </div>

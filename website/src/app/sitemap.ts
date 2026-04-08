@@ -43,6 +43,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
+      url: `${baseUrl}/ai-meal-planner`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/ai-nutrition-coach`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.9,
+    },
+    {
       url: `${baseUrl}/looksmaxxing-macro-tracker`,
       lastModified,
       changeFrequency: "monthly",
@@ -158,6 +170,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: `${baseUrl}/fatsecret-alternative`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/cal-ai-alternative`,
       lastModified,
       changeFrequency: "monthly",
       priority: 0.8,

@@ -156,6 +156,8 @@ export default function FatSecretAlternativePage() {
                 { name: "Social community feed", macroMaxxing: true, others: "Basic forums" },
                 { name: "Workout macro adjustments", macroMaxxing: true, others: false },
                 { name: "Intermittent fasting timer", macroMaxxing: true, others: false },
+                { name: "AI meal planner", macroMaxxing: true, others: false },
+                { name: "AI nutrition coach", macroMaxxing: true, others: false },
                 { name: "App reliability", macroMaxxing: true, others: "Frequent freezes" },
               ]}
             />
