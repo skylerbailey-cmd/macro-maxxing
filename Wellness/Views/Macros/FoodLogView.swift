@@ -2051,19 +2051,6 @@ private struct FuelLogPostSheet: View {
             memeType:            "",
             isPublic:            !userSettings.isPrivateAccount
         )
-        // Collect food-item photos (up to 4) to upload alongside the post.
-        // Try local imageData first; fall back to downloading from photoURL.
-        var entryPhotos: [UIImage] = []
-        for entry in entries.prefix(4) {
-            if let data = entry.imageData, let img = UIImage(data: data) {
-                entryPhotos.append(img)
-            } else if !entry.photoURL.isEmpty, let url = URL(string: entry.photoURL),
-                      let (data, _) = try? await URLSession.shared.data(from: url),
-                      let img = UIImage(data: data) {
-                entryPhotos.append(img)
-            }
-        }
-
         let firestoreFuelItems = entries.enumerated().map { i, e in
             FeedFuelLogItem(
                 foodName:  e.foodName,
@@ -2077,6 +2064,18 @@ private struct FuelLogPostSheet: View {
         }
 
         Task {
+            // Collect food-item photos (up to 4) to upload alongside the post.
+            // Try local imageData first; fall back to downloading from photoURL.
+            var entryPhotos: [UIImage] = []
+            for entry in entries.prefix(4) {
+                if let data = entry.imageData, let img = UIImage(data: data) {
+                    entryPhotos.append(img)
+                } else if !entry.photoURL.isEmpty, let url = URL(string: entry.photoURL),
+                          let (data, _) = try? await URLSession.shared.data(from: url),
+                          let img = UIImage(data: data) {
+                    entryPhotos.append(img)
+                }
+            }
             do {
                 try await PostService.shared.createCustomPost(
                     photos:       entryPhotos,

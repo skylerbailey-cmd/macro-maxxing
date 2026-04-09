@@ -87,6 +87,13 @@ import AVFoundation
 
         let inputNode = audioEngine.inputNode
         let format    = inputNode.outputFormat(forBus: 0)
+
+        // Guard against invalid format (0 sample rate / 0 channels) which crashes installTap
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            status = .error("Microphone unavailable.")
+            return
+        }
+
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
             self?.request?.append(buffer)
         }
