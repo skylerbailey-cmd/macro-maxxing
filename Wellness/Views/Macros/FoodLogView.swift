@@ -589,8 +589,14 @@ struct FoodLogView: View {
 
     @ViewBuilder
     private func resultText(_ text: String) -> some View {
+        // Ensure paragraphs are separated by double newlines for visual spacing
+        let spaced = text
+            .replacingOccurrences(of: "\n\n", with: "\u{00AD}\u{00AD}")  // preserve existing double newlines
+            .replacingOccurrences(of: "\n", with: "\n\n")                 // single → double
+            .replacingOccurrences(of: "\u{00AD}\u{00AD}", with: "\n\n")  // restore originals
+
         if let attr = try? AttributedString(
-            markdown: text,
+            markdown: spaced,
             options: AttributedString.MarkdownParsingOptions(
                 interpretedSyntax: .full
             )
@@ -598,13 +604,13 @@ struct FoodLogView: View {
             Text(attr)
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.80))
-                .lineSpacing(3)
+                .lineSpacing(4)
                 .frame(maxWidth: .infinity, alignment: .leading)
         } else {
-            Text(text)
+            Text(spaced)
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.80))
-                .lineSpacing(3)
+                .lineSpacing(4)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }

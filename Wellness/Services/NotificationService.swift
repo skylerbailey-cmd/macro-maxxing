@@ -140,6 +140,36 @@ final class NotificationService {
         )
     }
 
+    // MARK: - Streak Extension Expiry Notification
+
+    private let streakExtensionExpiryID = "com.sbailey.Wellness.streakExtensionExpiry"
+
+    /// Schedules a notification for the day a streak extension expires,
+    /// reminding the user to start logging again.
+    func scheduleStreakExtensionExpiry(daysFromNow: Int) {
+        let content = UNMutableNotificationContent()
+        content.title = "Streak Extension Expiring"
+        content.body  = "Your 7-day streak extension expires today. Start logging your meals to keep your streak alive!"
+        content.sound = .default
+
+        // Fire at 9 AM on the expiry day
+        guard let fireDate = Calendar.current.date(byAdding: .day, value: daysFromNow, to: Date()) else { return }
+        var components = Calendar.current.dateComponents([.year, .month, .day], from: fireDate)
+        components.hour = 9
+        components.minute = 0
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: streakExtensionExpiryID,
+            content: content,
+            trigger: trigger
+        )
+
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [streakExtensionExpiryID])
+        center.add(request)
+    }
+
     // MARK: - New Post Local Notification
 
     /// Fires an immediate local notification when a subscribed user posts.

@@ -282,6 +282,83 @@ struct AuraGain: Identifiable, Equatable {
         }
     }
 
+    // MARK: - Streak Extension (7-day)
+
+    /// The date the current streak extension expires (stored as "yyyy-MM-dd").
+    var streakExtensionExpiry: String {
+        get { UserDefaults.standard.string(forKey: "streakExtensionExpiry") ?? "" }
+        set { UserDefaults.standard.set(newValue, forKey: "streakExtensionExpiry") }
+    }
+
+    /// Whether a streak extension is currently active.
+    var isStreakExtensionActive: Bool {
+        guard !streakExtensionExpiry.isEmpty else { return false }
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        guard let expiry = fmt.date(from: streakExtensionExpiry) else { return false }
+        return Calendar.current.startOfDay(for: Date()) <= expiry
+    }
+
+    /// Applies a 7-day streak extension after a successful purchase.
+    /// Shields the next 7 days so the streak continues without logging.
+    func applyStreakExtension(userID: String) {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+
+        // Shield the next 7 days (today + 6 more)
+        var shielded = shieldedDates
+        for dayOffset in 0..<7 {
+            guard let date = cal.date(byAdding: .day, value: dayOffset, to: today) else { continue }
+            let key = fmt.string(from: date)
+            if !shielded.contains(key) { shielded.append(key) }
+        }
+        shieldedDates = shielded
+
+        // Set the expiry date (6 days from today = 7th day inclusive)
+        let expiryDate = cal.date(byAdding: .day, value: 6, to: today) ?? today
+        streakExtensionExpiry = fmt.string(from: expiryDate)
+
+        // Mark today as goals met
+        let todayKey = fmt.string(from: today)
+        if lastGoalsMetDate < todayKey {
+            lastGoalsMetDate = todayKey
+        }
+
+        // Increment streak for today if not already counted
+        let newStreak = macroStreak + 1
+        macroStreak = newStreak
+        if newStreak > longestStreak {
+            longestStreak = newStreak
+        }
+        setGoalsMet(true, for: Date())
+
+        // Schedule expiration notification
+        NotificationService.shared.scheduleStreakExtensionExpiry(daysFromNow: 6)
+
+        // Sync to Firestore
+        guard !userID.isEmpty else { return }
+        let streak  = newStreak
+        let longest = longestStreak
+        let allShielded = shielded
+        let goalDate = todayKey
+        Task {
+            try? await UserProfileService.shared.updateProfile(
+                userID: userID,
+                fields: [
+                    "streakDays":       streak,
+                    "longestStreak":    longest,
+                    "lastGoalsMetDate": goalDate,
+                    "shieldedDates":    allShielded,
+                ]
+            )
+            print("[UserSettings] Streak extension applied — 7 days shielded, streak now \(streak)")
+        }
+    }
+
     // MARK: - Brainstorm result persistence (device-local)
 
     /// The AI meal-planner result text from the most recent brainstorm run.

@@ -25,7 +25,8 @@ struct HomeView: View {
     @State private var goalPostMeme       = GymMeme.random()
     @State private var brainstormAlert: BrainstormAlert? = nil
     @State private var showingNotifications = false
-    @State private var showingCheatDay     = false
+    @State private var showingCheatDay       = false
+    @State private var showingStreakExtension = false
 
     private enum BrainstormAlert: Identifiable {
         case confirm, limitReached
@@ -158,6 +159,19 @@ struct HomeView: View {
                     }
                 )
             }
+            .sheet(isPresented: $showingStreakExtension) {
+                StreakExtensionView(
+                    currentStreak: viewModel.macroStreak,
+                    onPurchased: {
+                        viewModel.userSettings.applyStreakExtension(userID: viewModel.userSettings.userID)
+                        viewModel.macroStreak = viewModel.userSettings.macroStreak
+                        showingStreakExtension = false
+                    },
+                    onDismiss: {
+                        showingStreakExtension = false
+                    }
+                )
+            }
     }
     
     // MARK: - Body Helpers
@@ -270,30 +284,59 @@ struct HomeView: View {
                 if viewModel.macroStreak > 0
                     && !viewModel.userSettings.isTodayCheatDay
                     && viewModel.macrosMetToday < 4 {
-                    Button { showingCheatDay = true } label: {
-                        HStack(spacing: 6) {
-                            Text("\u{1F3D6}\u{FE0F}")
-                                .font(.system(size: 14))
-                            Text("Cheat Day")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(.white)
+                    HStack(spacing: 8) {
+                        Button { showingCheatDay = true } label: {
+                            HStack(spacing: 6) {
+                                Text("\u{1F3D6}\u{FE0F}")
+                                    .font(.system(size: 14))
+                                Text("Cheat Day")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(.white)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color(red: 0.20, green: 0.85, blue: 0.75),
+                                             Color(red: 0.10, green: 0.65, blue: 0.90)],
+                                    startPoint: .leading, endPoint: .trailing
+                                ).opacity(0.25),
+                                in: Capsule()
+                            )
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color(red: 0.20, green: 0.85, blue: 0.75).opacity(0.40), lineWidth: 1)
+                            )
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(
-                            LinearGradient(
-                                colors: [Color(red: 0.20, green: 0.85, blue: 0.75),
-                                         Color(red: 0.10, green: 0.65, blue: 0.90)],
-                                startPoint: .leading, endPoint: .trailing
-                            ).opacity(0.25),
-                            in: Capsule()
-                        )
-                        .overlay(
-                            Capsule()
-                                .stroke(Color(red: 0.20, green: 0.85, blue: 0.75).opacity(0.40), lineWidth: 1)
-                        )
+                        .buttonStyle(.plain)
+
+                        if !viewModel.userSettings.isStreakExtensionActive {
+                            Button { showingStreakExtension = true } label: {
+                                HStack(spacing: 6) {
+                                    Text("\u{1F525}")
+                                        .font(.system(size: 14))
+                                    Text("7-Day Extension")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundStyle(.white)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 7)
+                                .background(
+                                    LinearGradient(
+                                        colors: [Color(red: 1.00, green: 0.65, blue: 0.10),
+                                                 Color(red: 1.00, green: 0.45, blue: 0.05)],
+                                        startPoint: .leading, endPoint: .trailing
+                                    ).opacity(0.25),
+                                    in: Capsule()
+                                )
+                                .overlay(
+                                    Capsule()
+                                        .stroke(Color(red: 1.00, green: 0.65, blue: 0.10).opacity(0.40), lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(20)
