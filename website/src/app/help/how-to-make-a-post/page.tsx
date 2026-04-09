@@ -1,30 +1,127 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArticleJsonLd, BreadcrumbJsonLd } from "@/components/JsonLd";
+import {
+  ArticleJsonLd,
+  BreadcrumbJsonLd,
+  FAQPageJsonLd,
+} from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: "How to Make a Post — Macro Maxxing Help",
+  title: "How to Make a Post in Macro Maxxing — Step-by-Step Guide",
   description:
-    "Step-by-step guide on how to create posts in Macro Maxxing. Learn about post labels like Fuel Log, Goal, Workout, Mog Board, and more.",
+    "Learn how to create posts in Macro Maxxing. Share your fuel log, goal progress, workouts, transformations, and more with the community. Earn aura points for Fuel Log and Workout posts.",
   keywords: [
-    "macro maxxing post",
     "how to post macro maxxing",
+    "macro maxxing post",
     "macro maxxing feed",
     "macro maxxing community",
     "fitness social post",
     "share meal log",
-    "share workout",
+    "share workout post",
+    "macro maxxing help",
+    "macro maxxing labels",
+    "macro maxxing aura points",
   ],
+  openGraph: {
+    title: "How to Make a Post in Macro Maxxing — Step-by-Step Guide",
+    description:
+      "Share your fuel log, goal progress, workouts, and wins with the community. Full step-by-step guide with screenshots.",
+    url: "https://macromaxxing.app/help/how-to-make-a-post",
+    type: "article",
+  },
+  alternates: {
+    canonical: "https://macromaxxing.app/help/how-to-make-a-post",
+  },
 };
+
+const faqs = [
+  {
+    question: "How do I make a post in Macro Maxxing?",
+    answer:
+      "Open Macro Maxxing, tap the yellow + button on the Hub screen, then select 'Make a Post.' Choose an optional label (Fuel Log, Goal, Workout, Mog Board, Transformation, Meal Inspo, or Advice), set your audience visibility, write a title and body, optionally attach a photo, and tap Post.",
+  },
+  {
+    question: "What are post labels in Macro Maxxing?",
+    answer:
+      "Post labels categorize your posts and some automatically attach content. Fuel Log attaches your daily food entries with calorie counts. Goal shows your macro discipline percentage and progress bars. Workout attaches your logged exercises with duration and calories burned. Mog Board, Transformation, Meal Inspo, and Advice are purely for categorization.",
+  },
+  {
+    question: "Do I earn points for posting in Macro Maxxing?",
+    answer:
+      "Yes. Posts with the Fuel Log or Workout labels earn you aura points, which contribute to your XP, level, and daily streak displayed on the Hub screen.",
+  },
+  {
+    question: "Who can see my posts in Macro Maxxing?",
+    answer:
+      "You control visibility with the 'Visible to' picker when creating a post. Options include Arena (the broader community), and other audience scopes depending on the label. The Mog Board label also offers Team, Local, and Arena visibility options.",
+  },
+  {
+    question: "Can I attach photos to posts in Macro Maxxing?",
+    answer:
+      "Yes. When creating a post, tap 'Take Photo' to use your camera or 'Library' to pick from your photo library. Photos are optional but make your posts more engaging on the feed.",
+  },
+];
+
+function HowToJsonLd() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: "How to Make a Post in Macro Maxxing",
+    description:
+      "Step-by-step guide to creating posts in the Macro Maxxing iOS app, including choosing labels, setting visibility, and sharing fuel logs, goals, and workouts.",
+    totalTime: "PT1M",
+    tool: [
+      {
+        "@type": "HowToTool",
+        name: "Macro Maxxing iOS app",
+      },
+    ],
+    step: [
+      {
+        "@type": "HowToStep",
+        name: "Open the quick-action menu",
+        text: "From the Hub tab, tap the yellow + button in the bottom-right corner of the screen.",
+        image: "https://macromaxxing.app/help/Home%20Screen.png",
+      },
+      {
+        "@type": "HowToStep",
+        name: "Select Make a Post",
+        text: "From the action menu, tap 'Make a Post' to open the New Post screen.",
+        image: "https://macromaxxing.app/help/step1.png",
+      },
+      {
+        "@type": "HowToStep",
+        name: "Compose your post",
+        text: "Choose an optional label (Fuel Log, Goal, Workout, Mog Board, Transformation, Meal Inspo, or Advice), set your audience visibility, write a title (up to 80 characters) and body (up to 300 characters), and optionally attach a photo.",
+        image: "https://macromaxxing.app/help/makePost1.png",
+      },
+      {
+        "@type": "HowToStep",
+        name: "Publish",
+        text: "Tap the Post button in the top-right corner to publish your post to the feed.",
+      },
+    ],
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  );
+}
 
 export default function HowToMakeAPost() {
   return (
     <>
+      <HowToJsonLd />
       <ArticleJsonLd
-        title="How to Make a Post — Macro Maxxing Help"
+        title="How to Make a Post in Macro Maxxing"
         description="Step-by-step guide on how to create posts in Macro Maxxing with labels like Fuel Log, Goal, Workout, and more."
         url="https://macromaxxing.app/help/how-to-make-a-post"
+        datePublished="2026-04-09"
+        dateModified="2026-04-09"
       />
       <BreadcrumbJsonLd
         items={[
@@ -36,6 +133,7 @@ export default function HowToMakeAPost() {
           },
         ]}
       />
+      <FAQPageJsonLd faqs={faqs} />
 
       <article className="pt-32 pb-20 px-4 sm:px-6">
         <div className="max-w-3xl mx-auto">
@@ -465,6 +563,31 @@ export default function HowToMakeAPost() {
                   your meal, your pump, or your progress.
                 </p>
               </div>
+            </div>
+          </section>
+
+          {/* FAQ */}
+          <section className="mb-16">
+            <h2 className="text-2xl font-bold mb-6">
+              Frequently Asked Questions
+            </h2>
+            <div className="space-y-4">
+              {faqs.map((faq) => (
+                <details
+                  key={faq.question}
+                  className="bg-brand-card rounded-xl border border-white/5 group"
+                >
+                  <summary className="p-5 cursor-pointer text-white font-semibold text-sm list-none flex items-center justify-between">
+                    {faq.question}
+                    <span className="text-gray-500 group-open:rotate-180 transition-transform ml-4 shrink-0">
+                      &#9662;
+                    </span>
+                  </summary>
+                  <div className="px-5 pb-5 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4">
+                    {faq.answer}
+                  </div>
+                </details>
+              ))}
             </div>
           </section>
 
