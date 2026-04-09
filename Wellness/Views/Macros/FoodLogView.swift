@@ -589,29 +589,39 @@ struct FoodLogView: View {
 
     @ViewBuilder
     private func resultText(_ text: String) -> some View {
-        // Ensure paragraphs are separated by double newlines for visual spacing
-        let spaced = text
-            .replacingOccurrences(of: "\n\n", with: "\u{00AD}\u{00AD}")  // preserve existing double newlines
-            .replacingOccurrences(of: "\n", with: "\n\n")                 // single → double
-            .replacingOccurrences(of: "\u{00AD}\u{00AD}", with: "\n\n")  // restore originals
+        // Insert paragraph breaks before bold section headers that run together
+        let processed = text.replacingOccurrences(
+            of: #"([.!?;—])\s*(\d*\.?\s*\*\*[A-Z])"#,
+            with: "$1\n\n$2",
+            options: .regularExpression
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if let attr = try? AttributedString(
-            markdown: spaced,
-            options: AttributedString.MarkdownParsingOptions(
-                interpretedSyntax: .full
-            )
-        ) {
-            Text(attr)
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.80))
-                .lineSpacing(4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        } else {
-            Text(spaced)
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.80))
-                .lineSpacing(4)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        let paragraphs = processed
+            .components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
+                if let attr = try? AttributedString(
+                    markdown: paragraph,
+                    options: AttributedString.MarkdownParsingOptions(
+                        interpretedSyntax: .full
+                    )
+                ) {
+                    Text(attr)
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.80))
+                        .lineSpacing(3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Text(paragraph)
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.80))
+                        .lineSpacing(3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
         }
     }
 
