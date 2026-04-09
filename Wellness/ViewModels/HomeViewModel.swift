@@ -132,6 +132,10 @@ import FirebaseFirestore
     /// Non-nil when a past date is selected and a saved snapshot was found.
     private var historicalGoals: (calories: Double, protein: Double, carbs: Double, fat: Double)? = nil
 
+    // MARK: - Debounce for loadTodayTotals
+    /// Coalesces rapid calls (notification + onAppear + scenePhase) into a single load.
+    private var loadTotalsTask: Task<Void, Never>?
+
     // MARK: - Today's macro totals (for selectedDate)
     var totalCalories: Double = 0
     var totalProtein:  Double = 0
@@ -239,7 +243,16 @@ import FirebaseFirestore
     }
 
     func loadTodayTotals() {
-        Task { await loadTodayTotalsAsync() }
+        // Cancel any pending debounced call so rapid-fire triggers
+        // (notification + onAppear + scenePhase) collapse into one load.
+        loadTotalsTask?.cancel()
+        loadTotalsTask = Task {
+            // 300 ms debounce — short enough to feel instant,
+            // long enough to coalesce back-to-back calls.
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
+            await loadTodayTotalsAsync()
+        }
     }
 
     /// Reloads macro goals from UserDefaults (called after a workout macro adjustment is applied).
@@ -405,18 +418,18 @@ import FirebaseFirestore
             }
         }
 
-        // Persist today's macro snapshot and fasting window to Firestore (today only)
+        // Persist today's macro snapshot and fasting window to Firestore (today only).
+        // Both writes target the same macroHistory document, so they must be serialized
+        // to avoid concurrent setData / setData(merge:) races that crash LevelDB.
         if isSelectedDateToday {
-            Task {
-                await FastingWindowService.shared.logTodaysWindow(
-                    userID:         userSettings.userID,
-                    startHour:      windowStartHour,
-                    startMinute:    windowStartMinute,
-                    durationHours:  windowDurationHours,
-                    fastingEnabled: userSettings.fastingEnabled
-                )
-            }
-            MacroHistoryService.shared.updateTodaysMacros(
+            await FastingWindowService.shared.logTodaysWindow(
+                userID:         userSettings.userID,
+                startHour:      windowStartHour,
+                startMinute:    windowStartMinute,
+                durationHours:  windowDurationHours,
+                fastingEnabled: userSettings.fastingEnabled
+            )
+            await MacroHistoryService.shared.updateTodaysMacros(
                 userID:        userSettings.userID,
                 totalCalories: totalCalories,
                 totalProtein:  totalProtein,

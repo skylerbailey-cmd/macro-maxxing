@@ -90,6 +90,12 @@ struct ContentView: View {
             .environment(notificationState)
             .onPreferenceChange(TutorialAnchorKey.self) { tutorialAnchors = $0 }
             .task { await notificationState.refresh(userID: userSettings.userID) }
+            .task {
+                // Lock past fasting windows once at app launch (not every HomeView appear)
+                // to avoid expensive batch writes on each tab switch.
+                guard !userSettings.userID.isEmpty else { return }
+                await FastingWindowService.shared.lockPastWindows(userID: userSettings.userID)
+            }
             .task(id: userSettings.userID) {
                 guard !userSettings.userID.isEmpty else { return }
                 InAppNotificationService.shared.startNewPostListener(userID: userSettings.userID)

@@ -123,11 +123,8 @@ final class FuelLogService {
         try await docRef.setData(data)
         print("[FuelLogService] Added meal '\(foodName)' to \(dateKey) (\(log.meals.count) meals total)")
 
-        // 5. Keep macro history in sync
-        syncMacroHistory(log: log, userID: userID,
-                         goalCalories: goalCalories, goalProtein: goalProtein,
-                         goalCarbs: goalCarbs, goalFat: goalFat, streakDay: streakDay)
-
+        // Notify HomeView so it recalculates totals and syncs macro history in one place.
+        // (No direct syncMacroHistory call here — HomeView.loadTodayTotals handles it.)
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: Self.mealChangedNotification, object: nil)
         }
@@ -174,12 +171,9 @@ final class FuelLogService {
         try await docRef.setData(data)
         print("[FuelLogService] Deleted meal \(mealID) from \(dateKey) (\(log.meals.count) meals remaining)")
 
-        // 5. Sync macro history (only meaningful for today)
+        // Notify HomeView so it recalculates totals and syncs macro history in one place.
         let isToday = Calendar.current.isDateInToday(date)
         if isToday {
-            syncMacroHistory(log: log, userID: userID,
-                             goalCalories: goalCalories, goalProtein: goalProtein,
-                             goalCarbs: goalCarbs, goalFat: goalFat, streakDay: streakDay)
             DispatchQueue.main.async {
                 NotificationCenter.default.post(name: Self.mealChangedNotification, object: nil)
             }
@@ -203,34 +197,6 @@ final class FuelLogService {
         let dateKey  = Self.dateString(for: date)
         let snapshot = try await logDocument(userID: userID, dateString: dateKey).getDocument()
         return FuelLog(document: snapshot)
-    }
-
-    // MARK: - Private: Macro History Sync
-
-    /// Calls MacroHistoryService.updateTodaysMacros with the log's current totals.
-    /// Fire-and-forget — runs in a detached Task so it never blocks the caller.
-    private func syncMacroHistory(
-        log:          FuelLog,
-        userID:       String,
-        goalCalories: Double,
-        goalProtein:  Double,
-        goalCarbs:    Double,
-        goalFat:      Double,
-        streakDay:    Int
-    ) {
-        MacroHistoryService.shared.updateTodaysMacros(
-            userID:        userID,
-            totalCalories: Double(log.totalCalories),
-            totalProtein:  log.totalProtein,
-            totalCarbs:    log.totalCarbs,
-            totalFat:      log.totalFat,
-            goalCalories:  goalCalories,
-            goalProtein:   goalProtein,
-            goalCarbs:     goalCarbs,
-            goalFat:       goalFat,
-            mealCount:     log.meals.count,
-            streakDay:     streakDay
-        )
     }
 
     // MARK: - Private: Photo Upload
