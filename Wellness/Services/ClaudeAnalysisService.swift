@@ -327,12 +327,15 @@ final class ClaudeAnalysisService {
         let callResult = try await Functions.functions().httpsCallable("proxyClaude").call(payload)
         guard let responseDict = callResult.data as? [String: Any],
               let contentArr = responseDict["content"] as? [[String: Any]],
-              let text = contentArr.first(where: { $0["type"] as? String == "text" })?["text"] as? String,
-              let jsonData = text.data(using: .utf8),
+              let text = contentArr.first(where: { $0["type"] as? String == "text" })?["text"] as? String
+        else { throw ClaudeServiceError.noContent }
+
+        let jsonString = stripMarkdownFences(text)
+        guard let jsonData = jsonString.data(using: .utf8),
               let json     = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
               let name     = json["name"]            as? String,
-              let duration = json["durationMinutes"] as? Int,
-              let calories = json["caloriesBurned"]  as? Int
+              let duration = (json["durationMinutes"] as? Int) ?? (json["durationMinutes"] as? Double).map({ Int($0) }),
+              let calories = (json["caloriesBurned"] as? Int) ?? (json["caloriesBurned"] as? Double).map({ Int($0) })
         else { throw ClaudeServiceError.noContent }
 
         let typeRaw    = json["workoutType"] as? String ?? ""
@@ -341,4 +344,12 @@ final class ClaudeAnalysisService {
                                   durationMinutes: duration, caloriesBurned: calories)
     }
 
+    private nonisolated func stripMarkdownFences(_ text: String) -> String {
+        var result = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if result.hasPrefix("```") {
+            result = result.components(separatedBy: "\n").dropFirst().joined(separator: "\n")
+            if result.hasSuffix("```") { result = String(result.dropLast(3)) }
+        }
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 }
