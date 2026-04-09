@@ -32,6 +32,7 @@ struct TutorialStep {
 
 enum TutorialIcon {
     case goldPlus
+    case mealScore
 }
 
 // MARK: - Step Collections
@@ -41,6 +42,11 @@ enum TutorialSteps {
     // MARK: Full App Tour (combines per-tab steps with tab switching + highlighting)
     static let appTour: [TutorialStep] = {
         var steps: [TutorialStep] = []
+        steps.append(.init(
+            title: "Welcome to Macro Maxxing",
+            body: "Let's walk you through the app. This quick tour covers each tab so you know where everything is.\n\nYou can revisit this tutorial anytime — just tap the ? icon at the top of any tab.",
+            anchorID: nil
+        ))
         for s in hub {
             steps.append(.init(title: s.title, body: s.body, tabIndex: 0, anchorID: s.anchorID))
         }
@@ -124,8 +130,9 @@ enum TutorialSteps {
         ),
         .init(
             title: "Meal Score Circle",
-            body: "Each logged entry shows a small circle score (0–100) based on how well that meal's macro ratio aligns with your personal goals.",
-            anchorID: nil
+            body: "Each logged entry shows a small circle score (0–100) based on how well that meal's macro ratio aligns with your personal goals. Tap it to see the full breakdown.",
+            anchorID: nil,
+            icon: .mealScore
         ),
         .init(
             title: "AI Nutrition Coach",
@@ -401,6 +408,80 @@ private struct TutorialIconView: View {
                     pulsing = true
                 }
             }
+
+        case .mealScore:
+            let scoreGreen = Color(red: 0.25, green: 0.85, blue: 0.50)
+            let cardBg     = Color(red: 0.13, green: 0.10, blue: 0.22)
+            let proClr     = Color(red: 0.35, green: 0.75, blue: 1.00)
+            let carbClr    = Color(red: 0.40, green: 0.90, blue: 0.72)
+            let fatClr     = Color(red: 1.00, green: 0.50, blue: 0.72)
+
+            HStack(spacing: 16) {
+                // Score circle
+                ZStack {
+                    Circle()
+                        .stroke(scoreGreen.opacity(0.35), lineWidth: 3)
+                        .frame(width: 60, height: 60)
+                    Text("85")
+                        .font(.system(size: 24, weight: .black, design: .rounded))
+                        .foregroundStyle(scoreGreen)
+                }
+
+                // Macro breakdown table
+                VStack(spacing: 0) {
+                    // Header
+                    HStack {
+                        Text("Macro")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("This Meal")
+                            .frame(width: 65, alignment: .center)
+                        Text("Your Goal")
+                            .frame(width: 65, alignment: .center)
+                    }
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.40))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+
+                    Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
+
+                    // Protein row
+                    mealScoreRow(label: "Protein", meal: "32%", goal: "30%", color: proClr, arrow: nil)
+                    Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
+                    // Carbs row
+                    mealScoreRow(label: "Carbs", meal: "43%", goal: "45%", color: carbClr, arrow: nil)
+                    Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
+                    // Fat row
+                    mealScoreRow(label: "Fat", meal: "25%", goal: "25%", color: fatClr, arrow: nil)
+                }
+                .background(cardBg)
+                .cornerRadius(10)
+            }
+            .padding(.vertical, 4)
         }
+    }
+
+    private func mealScoreRow(label: String, meal: String, goal: String, color: Color, arrow: String?) -> some View {
+        HStack {
+            HStack(spacing: 4) {
+                Circle().fill(color).frame(width: 5, height: 5)
+                Text(label)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(meal)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 65, alignment: .center)
+
+            Text(goal)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.55))
+                .frame(width: 65, alignment: .center)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
     }
 }
