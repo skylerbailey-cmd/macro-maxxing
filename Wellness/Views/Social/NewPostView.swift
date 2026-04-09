@@ -211,7 +211,12 @@ struct NewPostView: View {
             .navigationTitle("New Post")
             .navigationBarTitleDisplayMode(.inline)
             .task { await loadTodayFoodEntries() }
-            .onChange(of: selectedLabel) { _, label in
+            .onChange(of: selectedLabel) { old, label in
+                // Clear auto-filled title/body when switching away from a label that pre-fills
+                if old == .workout {
+                    titleText = ""
+                    bodyText  = ""
+                }
                 if label == .workout    { Task { await loadTodayWorkouts() } }
                 if label == .fuelLog    { Task { await loadTodayFoodEntries() } }
                 if label == .goalPost   { Task { await loadTodayFoodEntries() } }
@@ -224,7 +229,7 @@ struct NewPostView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Post") { Task { await submit() } }
                         .fontWeight(.bold)
-                        .disabled(titleText.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .disabled(titleText.trimmingCharacters(in: .whitespaces).isEmpty && selectedLabel == nil)
                 }
             }
         }
