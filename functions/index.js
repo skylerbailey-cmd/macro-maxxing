@@ -280,20 +280,25 @@ exports.deleteAccount = onCall(async (request) => {
 
   // 4. Delete comments authored by this user on other people's posts
   // (Query all posts' comments subcollections — use collectionGroup)
-  const commentsSnap = await db.collectionGroup("comments")
-    .where("authorID", "==", uid).get();
-  let commentCount = 0;
-  let commentBatch = db.batch();
-  for (const doc of commentsSnap.docs) {
-    commentBatch.delete(doc.ref);
-    commentCount++;
-    if (commentCount % 499 === 0) {
-      await commentBatch.commit();
-      commentBatch = db.batch();
+  try {
+    const commentsSnap = await db.collectionGroup("comments")
+      .where("authorID", "==", uid).get();
+    let commentCount = 0;
+    let commentBatch = db.batch();
+    for (const doc of commentsSnap.docs) {
+      commentBatch.delete(doc.ref);
+      commentCount++;
+      if (commentCount % 499 === 0) {
+        await commentBatch.commit();
+        commentBatch = db.batch();
+      }
     }
+    if (commentCount % 499 !== 0) await commentBatch.commit();
+    console.log(`[deleteAccount] Deleted ${commentCount} comments on other posts`);
+  } catch (e) {
+    // Collection group index may not exist yet — log but continue with deletion
+    console.warn(`[deleteAccount] Could not clean up comments: ${e.message}`);
   }
-  if (commentCount % 499 !== 0) await commentBatch.commit();
-  console.log(`[deleteAccount] Deleted ${commentCount} comments on other posts`);
 
   // 5. Remove user from reppedBy arrays on other posts
   // (Too expensive to scan all posts; reps are cosmetic — skip for now)
