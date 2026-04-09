@@ -27,6 +27,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     },
     {
+      url: `${baseUrl}/help/how-to-log-a-meal`,
+      lastModified: helpLastModified,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/help/how-to-find-people`,
+      lastModified: helpLastModified,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/help/settings`,
+      lastModified: helpLastModified,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
       url: `${baseUrl}/best-macro-tracking-app`,
       lastModified,
       changeFrequency: "monthly",
