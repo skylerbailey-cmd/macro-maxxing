@@ -40,6 +40,22 @@ const guides = [
     tag: "FOOD LOGGING",
     tagColor: "text-brand-orange",
   },
+  {
+    href: "/help/how-to-find-people",
+    title: "How to Find People",
+    description:
+      "Search for users by name or username, follow their progress, and build your fitness community.",
+    tag: "COMMUNITY",
+    tagColor: "text-brand-green",
+  },
+  {
+    href: "/help/settings",
+    title: "Settings & Account",
+    description:
+      "Configure your profile, nutrition goals, privacy, fasting tracker, notifications, and manage your data.",
+    tag: "ACCOUNT",
+    tagColor: "text-brand-cyan",
+  },
 ];
 
 export default function HelpPage() {
