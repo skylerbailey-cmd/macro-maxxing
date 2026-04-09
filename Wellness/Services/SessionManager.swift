@@ -93,6 +93,10 @@ final class SessionManager {
             Task { @MainActor in
                 if let user {
                     self.authState = .authenticated(uid: user.uid)
+                    // Enable Firestore network now that we have a valid auth session,
+                    // then fetch the profile. This avoids blocking auth state resolution
+                    // on a slow network — the UI can render while the profile loads.
+                    await FirebaseManager.shared.enableNetwork()
                     await self.fetchAndApplyProfile(uid: user.uid)
                 } else {
                     self.authState = .unauthenticated

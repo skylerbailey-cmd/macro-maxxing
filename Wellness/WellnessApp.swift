@@ -179,7 +179,15 @@ struct WellnessApp: App {
             }
             .task { await userSettings.loadCachedImage() }
             .task {
-                // Initialize ads + remote config (dormant until enabled in Firebase Console)
+                // Defer ads + remote config until the splash is dismissed and auth resolves.
+                // Running these during launch competes for network and main thread,
+                // causing 9-21s process stalls when connectivity is poor.
+                while showSplash || session.authState == .unknown {
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                }
+                // Small extra delay so the first meaningful frame renders before
+                // the ads SDK and remote config hit the network.
+                try? await Task.sleep(nanoseconds: 500_000_000)
                 AdManager.shared.initialize()
                 await RemoteConfigService.shared.fetchAndActivate()
             }
