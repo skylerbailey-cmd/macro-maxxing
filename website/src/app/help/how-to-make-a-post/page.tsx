@@ -73,11 +73,11 @@ export default function HowToMakeAPost() {
               home screen), look for the yellow{" "}
               <strong className="text-brand-gold">+</strong> button in the
               bottom-right corner of the screen. This is your quick-action
-              button for creating new posts. Tap it to open the New Post screen.
+              button. Tap it to reveal the action menu.
             </p>
             <div className="bg-brand-card rounded-xl p-4 border border-white/5 flex justify-center">
               <Image
-                src="/help/home-screen.png"
+                src="/help/Home Screen.png"
                 alt="Macro Maxxing Hub screen showing the yellow plus button in the bottom-right corner"
                 width={300}
                 height={650}
@@ -86,20 +86,44 @@ export default function HowToMakeAPost() {
             </div>
           </section>
 
-          {/* Step 2: New Post Screen */}
+          {/* Step 2: Select Make a Post */}
           <section className="mb-16">
             <h2 className="text-2xl font-bold mb-4">
-              Step 2: The New Post Screen
+              Step 2: Select &ldquo;Make a Post&rdquo;
             </h2>
             <p className="text-gray-400 leading-relaxed mb-6">
-              After tapping the + button, the{" "}
-              <strong className="text-white">New Post</strong> screen appears.
-              Here you can compose your post with the following options:
+              After tapping the + button, a menu appears with four
+              options: <strong className="text-white">Log a Meal</strong>,{" "}
+              <strong className="text-white">Log a Workout</strong>,{" "}
+              <strong className="text-white">Make a Post</strong>, and{" "}
+              <strong className="text-white">Find People</strong>. Tap{" "}
+              <strong className="text-brand-purple">Make a Post</strong> to open
+              the New Post screen.
+            </p>
+            <div className="bg-brand-card rounded-xl p-4 border border-white/5 flex justify-center">
+              <Image
+                src="/help/step1.png"
+                alt="Expanded quick-action menu showing Log a Meal, Log a Workout, Make a Post, and Find People options"
+                width={300}
+                height={650}
+                className="rounded-lg"
+              />
+            </div>
+          </section>
+
+          {/* Step 3: New Post Screen */}
+          <section className="mb-16">
+            <h2 className="text-2xl font-bold mb-4">
+              Step 3: Compose Your Post
+            </h2>
+            <p className="text-gray-400 leading-relaxed mb-6">
+              The <strong className="text-white">New Post</strong> screen is
+              where you put your post together. Here&apos;s what each part does:
             </p>
 
             <div className="bg-brand-card rounded-xl p-4 border border-white/5 flex justify-center mb-8">
               <Image
-                src="/help/new-post-step1.png"
+                src="/help/makePost1.png"
                 alt="New Post screen showing label options, visibility picker, title field, body field, and photo buttons"
                 width={300}
                 height={650}
@@ -207,7 +231,7 @@ export default function HowToMakeAPost() {
               </p>
               <div className="bg-brand-card rounded-xl p-4 border border-white/5 flex justify-center mb-4">
                 <Image
-                  src="/help/make-post-fuel-log.png"
+                  src="/help/makePost2fuelLog.png"
                   alt="New Post screen with Fuel Log label selected, showing attached food items and calories"
                   width={300}
                   height={650}
@@ -242,7 +266,7 @@ export default function HowToMakeAPost() {
               </p>
               <div className="bg-brand-card rounded-xl p-4 border border-white/5 flex justify-center">
                 <Image
-                  src="/help/make-post-goal.png"
+                  src="/help/makePost2goal.png"
                   alt="New Post screen with Goal label selected, showing discipline percentage and macro progress bars"
                   width={300}
                   height={650}
@@ -257,11 +281,24 @@ export default function HowToMakeAPost() {
                 <span className="text-brand-teal">Workout</span>
               </h3>
               <p className="text-gray-400 leading-relaxed mb-4">
-                Use the{" "}
+                The{" "}
                 <span className="text-brand-teal font-semibold">Workout</span>{" "}
-                label to share your training sessions with the community. Let
-                everyone know what you crushed at the gym today.
+                label automatically attaches today&apos;s workout summary to
+                your post. The preview card shows the number of workouts logged,
+                each exercise with its duration, type, and calories burned, plus
+                the total time and calories. The body field is pre-filled with a
+                summary of your session &mdash; share what you crushed at the
+                gym today.
               </p>
+              <div className="bg-brand-card rounded-xl p-4 border border-white/5 flex justify-center mb-4">
+                <Image
+                  src="/help/makePost2workout.png"
+                  alt="New Post screen with Workout label selected, showing attached workout summary with exercises, duration, and calories burned"
+                  width={300}
+                  height={650}
+                  className="rounded-lg"
+                />
+              </div>
               <div className="bg-brand-teal/10 border border-brand-teal/20 rounded-lg p-4">
                 <p className="text-brand-teal text-sm font-semibold">
                   Earns Aura Points!
@@ -284,9 +321,23 @@ export default function HowToMakeAPost() {
                 <span className="text-brand-gold font-semibold">
                   Mog Board
                 </span>{" "}
-                label is for sharing your biggest wins and achievements. Hit a
-                new PR? Reached a milestone? Mog on the timeline.
+                label is for sharing your biggest wins and achievements. When
+                selected, a{" "}
+                <strong className="text-white">Mog Board Options</strong> panel
+                appears letting you choose your Feed visibility &mdash;{" "}
+                <strong>Team</strong>, <strong>Local</strong>, or{" "}
+                <strong>Arena</strong>. Hit a new PR? Reached a milestone? Mog
+                on the timeline.
               </p>
+              <div className="bg-brand-card rounded-xl p-4 border border-white/5 flex justify-center">
+                <Image
+                  src="/help/makePost2mogBoard.png"
+                  alt="New Post screen with Mog Board label selected, showing Mog Board Options with Team, Local, and Arena visibility choices"
+                  width={300}
+                  height={650}
+                  className="rounded-lg"
+                />
+              </div>
             </div>
 
             {/* Transformation */}
@@ -299,10 +350,20 @@ export default function HowToMakeAPost() {
                 <span className="text-brand-cyan font-semibold">
                   Transformation
                 </span>{" "}
-                label to document your physical progress over time. Before and
-                after shots, physique updates, and glow-up posts all belong
-                here.
+                label to document your physical progress over time. Attach
+                before-and-after photos to show your glow-up, then add a title
+                and description to tell your story. Physique updates, progress
+                pics, and transformation posts all belong here.
               </p>
+              <div className="bg-brand-card rounded-xl p-4 border border-white/5 flex justify-center">
+                <Image
+                  src="/help/makePost2transformation.png"
+                  alt="New Post screen with Transformation label selected, showing a before and after photo with progress details"
+                  width={300}
+                  height={650}
+                  className="rounded-lg"
+                />
+              </div>
             </div>
 
             {/* Meal Inspo */}
@@ -315,9 +376,20 @@ export default function HowToMakeAPost() {
                 <span className="text-brand-mint font-semibold">
                   Meal Inspo
                 </span>{" "}
-                label. Found a high-protein meal that actually tastes good? Post
+                label. Attach a photo of your meal to show it off, and use the
+                title and body to share the recipe or why it works for your
+                macros. Found a high-protein meal that actually tastes good? Post
                 it here so others can benefit.
               </p>
+              <div className="bg-brand-card rounded-xl p-4 border border-white/5 flex justify-center">
+                <Image
+                  src="/help/mealPost2mealInspo.png"
+                  alt="New Post screen with Meal Inspo label selected, showing a meal photo with macro breakdown"
+                  width={300}
+                  height={650}
+                  className="rounded-lg"
+                />
+              </div>
             </div>
 
             {/* Advice */}
@@ -334,7 +406,7 @@ export default function HowToMakeAPost() {
               </p>
               <div className="bg-brand-card rounded-xl p-4 border border-white/5 flex justify-center">
                 <Image
-                  src="/help/make-post-advice.png"
+                  src="/help/makePost2advice.png"
                   alt="New Post screen with Advice label selected, showing a question about hitting fat goals"
                   width={300}
                   height={650}
