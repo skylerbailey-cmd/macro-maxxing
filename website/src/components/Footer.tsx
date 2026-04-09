@@ -148,6 +148,14 @@ export function Footer() {
                   Looksmaxxing
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/help"
+                  className="hover:text-white transition"
+                >
+                  Help & Guides
+                </Link>
+              </li>
             </ul>
           </div>
 

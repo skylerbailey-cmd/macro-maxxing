@@ -464,6 +464,12 @@ export default function Home() {
                   { href: "/cal-ai-alternative", title: "Cal AI Alternative" },
                 ],
               },
+              {
+                category: "Help",
+                links: [
+                  { href: "/help/how-to-make-a-post", title: "How to Make a Post" },
+                ],
+              },
             ].map((group) => (
               <div key={group.category}>
                 <h3 className="text-sm font-semibold text-brand-purple uppercase tracking-wider mb-3">
