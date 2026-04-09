@@ -212,6 +212,76 @@ struct AuraGain: Identifiable, Equatable {
         }
     }
 
+    // MARK: - Cheat Day
+
+    /// Dates where a cheat day was purchased. Treated as "goals met" for streak purposes.
+    var cheatDayDates: [String] {
+        get { UserDefaults.standard.stringArray(forKey: "cheatDayDates") ?? [] }
+        set { UserDefaults.standard.set(newValue, forKey: "cheatDayDates") }
+    }
+
+    /// Whether today has already been marked as a cheat day.
+    var isTodayCheatDay: Bool {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        let todayKey = fmt.string(from: Date())
+        return cheatDayDates.contains(todayKey)
+    }
+
+    /// Applies a cheat day after a successful purchase.
+    /// Marks today as "goals met" so the streak continues without logging food.
+    func applyCheatDay(userID: String) {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        let todayKey = fmt.string(from: Date())
+
+        // Add today to cheat day dates
+        var dates = cheatDayDates
+        guard !dates.contains(todayKey) else { return }
+        dates.append(todayKey)
+        cheatDayDates = dates
+
+        // Also add to shieldedDates so the streak engine counts today as met
+        var shielded = shieldedDates
+        if !shielded.contains(todayKey) { shielded.append(todayKey) }
+        shieldedDates = shielded
+
+        // Mark today as goals met so the streak chain isn't broken
+        if lastGoalsMetDate < todayKey {
+            lastGoalsMetDate = todayKey
+        }
+
+        // Increment streak if today hasn't already been counted
+        let newStreak = macroStreak + 1
+        macroStreak = newStreak
+        if newStreak > longestStreak {
+            longestStreak = newStreak
+        }
+
+        // Also record in the local goals-met cache
+        setGoalsMet(true, for: Date())
+
+        guard !userID.isEmpty else { return }
+        let streak     = newStreak
+        let longest    = longestStreak
+        let allShielded = shielded
+        let goalDate   = todayKey
+        Task {
+            try? await UserProfileService.shared.updateProfile(
+                userID: userID,
+                fields: [
+                    "streakDays":       streak,
+                    "longestStreak":    longest,
+                    "lastGoalsMetDate": goalDate,
+                    "shieldedDates":    allShielded,
+                ]
+            )
+            print("[UserSettings] Cheat day applied for \(todayKey) — streak now \(streak)")
+        }
+    }
+
     // MARK: - Brainstorm result persistence (device-local)
 
     /// The AI meal-planner result text from the most recent brainstorm run.
@@ -662,6 +732,7 @@ struct AuraGain: Identifiable, Equatable {
         lastStreakBeforeBreak = 0
         streakBreakDate       = ""
         shieldedDates         = []
+        cheatDayDates         = []
         goalsMetDatesRaw      = ""
         achievedMilestonesRaw = ""
         lastCelebrationDate   = .distantPast
