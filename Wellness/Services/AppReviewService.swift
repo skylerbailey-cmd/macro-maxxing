@@ -33,7 +33,8 @@ enum AppReviewService {
         }
 
         // Delay so the streak aura popup shows first
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_500_000_000)
             if let scene = UIApplication.shared.connectedScenes
                 .compactMap({ $0 as? UIWindowScene })
                 .first {

@@ -105,7 +105,8 @@ struct FoodLogView: View {
             .onChange(of: viewModel.analysisState) { _, newState in
                 if case .confirmed = newState {
                     activeMealSheet = nil
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    Task {
+                        try? await Task.sleep(nanoseconds: 450_000_000)
                         activeMealSheet = .confirmation
                     }
                 }
