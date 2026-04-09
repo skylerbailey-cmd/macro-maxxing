@@ -193,6 +193,11 @@ final class SessionManager {
                 joinDate: Int(Date().timeIntervalSince1970)
             ))
 
+            // Pre-populate UserSettings so onboarding can skip name/username pages
+            userSettings?.userID   = uid
+            userSettings?.username = username
+            userSettings?.name     = name
+
             needsOnboarding = true
             successMessage = "Account created! A verification email was sent from noreply@macromaxxing.firebaseapp.com — check your spam folder if you don't see it."
         } catch {

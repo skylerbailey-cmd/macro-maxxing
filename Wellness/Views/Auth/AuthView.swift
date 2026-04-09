@@ -162,7 +162,7 @@ struct AuthView: View {
     private var fields: some View {
         VStack(spacing: 14) {
             if mode == .signUp {
-                inputField("Full Name", text: $name, icon: "person.fill")
+                inputField("Name", text: $name, icon: "person.fill")
                 usernameField
             }
 
