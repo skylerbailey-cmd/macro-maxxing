@@ -32,6 +32,7 @@ struct LogWorkoutSheet: View {
     // Voice / AI
     @State private var speechRecognizer = SpeechRecognizer()
     @State private var aiState: AIState = .idle
+    @State private var editableTranscript = ""
 
     // Saved templates
     @State private var savedWorkouts: [SavedWorkout] = []
@@ -311,18 +312,18 @@ struct LogWorkoutSheet: View {
                 .foregroundStyle(.white.opacity(0.45))
                 .multilineTextAlignment(.center)
 
-            if !speechRecognizer.transcript.isEmpty {
-                Text(speechRecognizer.transcript)
+            if !editableTranscript.isEmpty || !speechRecognizer.transcript.isEmpty {
+                TextEditor(text: $editableTranscript)
                     .font(.system(size: 14))
                     .foregroundStyle(.white.opacity(0.80))
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .scrollContentBackground(.hidden)
+                    .frame(minHeight: 80, maxHeight: 160)
                     .padding(14)
                     .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(accent.opacity(0.20), lineWidth: 1))
             }
 
-            if speechRecognizer.status == .done && !speechRecognizer.transcript.isEmpty {
+            if speechRecognizer.status == .done && !editableTranscript.isEmpty {
                 analyzeButton
             }
 
@@ -337,6 +338,9 @@ struct LogWorkoutSheet: View {
             if !workoutName.isEmpty && mode == .voice {
                 parsedSummary
             }
+        }
+        .onChange(of: speechRecognizer.transcript) { _, newValue in
+            editableTranscript = newValue
         }
     }
 
@@ -586,10 +590,10 @@ struct LogWorkoutSheet: View {
     // MARK: - Actions
 
     private func analyzeTranscript() async {
-        guard !speechRecognizer.transcript.isEmpty else { return }
+        guard !editableTranscript.isEmpty else { return }
         aiState = .analyzing
         do {
-            let result = try await ClaudeAnalysisService().parseWorkout(transcript: speechRecognizer.transcript)
+            let result = try await ClaudeAnalysisService().parseWorkout(transcript: editableTranscript)
             workoutName  = result.name
             workoutType  = result.workoutType
             durationText = "\(result.durationMinutes)"
