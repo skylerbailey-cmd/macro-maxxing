@@ -25,6 +25,7 @@ struct HomeView: View {
     @State private var goalPostMeme       = GymMeme.random()
     @State private var brainstormAlert: BrainstormAlert? = nil
     @State private var showingNotifications = false
+    @State private var showingCheatDay     = false
 
     private enum BrainstormAlert: Identifiable {
         case confirm, limitReached
@@ -144,6 +145,19 @@ struct HomeView: View {
                     onDecline: { }
                 )
             }
+            .sheet(isPresented: $showingCheatDay) {
+                CheatDayView(
+                    currentStreak: viewModel.macroStreak,
+                    onPurchased: {
+                        viewModel.userSettings.applyCheatDay(userID: viewModel.userSettings.userID)
+                        viewModel.macroStreak = viewModel.userSettings.macroStreak
+                        showingCheatDay = false
+                    },
+                    onDismiss: {
+                        showingCheatDay = false
+                    }
+                )
+            }
     }
     
     // MARK: - Body Helpers
@@ -249,6 +263,37 @@ struct HomeView: View {
                 if viewModel.userSettings.auraPoints > 0 {
                     auraXPBar
                         .tutorialAnchor("hub.stats")
+                }
+
+                // Cheat Day button — only show if streak > 0, today isn't already a cheat day,
+                // and today's macros haven't already been met.
+                if viewModel.macroStreak > 0
+                    && !viewModel.userSettings.isTodayCheatDay
+                    && viewModel.macrosMetToday < 4 {
+                    Button { showingCheatDay = true } label: {
+                        HStack(spacing: 6) {
+                            Text("\u{1F3D6}\u{FE0F}")
+                                .font(.system(size: 14))
+                            Text("Cheat Day")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(
+                            LinearGradient(
+                                colors: [Color(red: 0.20, green: 0.85, blue: 0.75),
+                                         Color(red: 0.10, green: 0.65, blue: 0.90)],
+                                startPoint: .leading, endPoint: .trailing
+                            ).opacity(0.25),
+                            in: Capsule()
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(Color(red: 0.20, green: 0.85, blue: 0.75).opacity(0.40), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(20)
