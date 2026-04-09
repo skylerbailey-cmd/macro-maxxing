@@ -13,6 +13,8 @@ struct FeedView: View {
     let userSettings: UserSettings
 
     @State private var viewModel        = FeedViewModel()
+    @State private var followingIDs:    Set<String> = []
+    @State private var blockedUserIDs:  Set<String> = []
 
     /// Single presentation state to avoid multiple .sheet/.fullScreenCover conflicts.
     private enum PostPresentation: Identifiable {
@@ -37,7 +39,7 @@ struct FeedView: View {
             Group {
                 if viewModel.isLoading && viewModel.posts.isEmpty {
                     skeletonFeed
-                } else if viewModel.posts.isEmpty {
+                } else if displayedPosts.isEmpty {
                     emptyState
                 } else {
                     feedList
@@ -59,6 +61,12 @@ struct FeedView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             if viewModel.posts.isEmpty { await viewModel.loadInitialFeed() }
+            if let ids = try? await BlockService.shared.fetchBlockedUserIDs(userID: userSettings.userID) {
+                blockedUserIDs = ids
+            }
+            if let entries = try? await FollowService.shared.fetchFollowing(userID: userSettings.userID) {
+                followingIDs = Set(entries.map { $0.userID })
+            }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.errorMessage)
         .fullScreenCover(item: $activePresentation) { presentation in
@@ -93,20 +101,29 @@ struct FeedView: View {
             ? { Task { await viewModel.deletePost(post) } }
             : nil
         return FeedPostCard(
-            post:          post,
-            currentUserID: userSettings.userID,
-            onRep:         { Task { await viewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
-            onDelete:      deleteAction,
-            onTap:         { activePresentation = .detail(post) },
-            onAvatarTap:   { activePresentation = .profile(post) },
-            onCommentTap:  { activePresentation = .comment(post) }
+            post:              post,
+            currentUserID:     userSettings.userID,
+            onRep:             { Task { await viewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
+            onDelete:          deleteAction,
+            onTap:             { activePresentation = .detail(post) },
+            onAvatarTap:       { activePresentation = .profile(post) },
+            onCommentTap:      { activePresentation = .comment(post) },
+            isFollowingAuthor: followingIDs.contains(post.userID),
+            onFollowToggle:    { Task { await toggleFollowFromPost(post: post) } },
+            onBlockUser:       { Task { await blockUserFromPost(post: post) } },
+            onReportUser:      { Task { await reportUserFromPost(post: post) } },
+            onReportPost:      { Task { await reportPostFromPost(post: post) } }
         )
+    }
+
+    private var displayedPosts: [FeedPost] {
+        viewModel.posts.filter { !blockedUserIDs.contains($0.userID) }
     }
 
     private var feedList: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
-                ForEach(viewModel.posts) { post in
+                ForEach(displayedPosts) { post in
                     postCard(for: post)
                         .onAppear {
                             Task { await viewModel.loadMoreIfNeeded(currentPost: post) }
@@ -135,6 +152,48 @@ struct FeedView: View {
         .refreshable {
             await viewModel.refresh()
         }
+    }
+
+    // MARK: - Post menu actions
+
+    private func toggleFollowFromPost(post: FeedPost) async {
+        if followingIDs.contains(post.userID) {
+            try? await FollowService.shared.unfollowUser(
+                currentUserID: userSettings.userID, targetUserID: post.userID)
+            followingIDs.remove(post.userID)
+        } else {
+            try? await FollowService.shared.followUser(
+                currentUserID:          userSettings.userID,
+                currentUsername:        userSettings.username,
+                currentDisplayName:     userSettings.name,
+                currentProfilePhotoURL: userSettings.profilePhotoURL,
+                targetUserID:           post.userID,
+                targetUsername:         post.username,
+                targetDisplayName:      post.whoName,
+                targetProfilePhotoURL:  post.userProfilePhotoURL)
+            followingIDs.insert(post.userID)
+        }
+    }
+
+    private func blockUserFromPost(post: FeedPost) async {
+        try? await BlockService.shared.blockUser(
+            currentUserID:         userSettings.userID,
+            targetUserID:          post.userID,
+            targetUsername:         post.username,
+            targetDisplayName:     post.whoName,
+            targetProfilePhotoURL: post.userProfilePhotoURL)
+        blockedUserIDs.insert(post.userID)
+        followingIDs.remove(post.userID)
+    }
+
+    private func reportUserFromPost(post: FeedPost) async {
+        try? await BlockService.shared.reportUser(
+            reporterID: userSettings.userID, reportedUserID: post.userID)
+    }
+
+    private func reportPostFromPost(post: FeedPost) async {
+        try? await BlockService.shared.reportPost(
+            postID: post.id, reporterID: userSettings.userID)
     }
 
     // MARK: - Empty state
@@ -218,9 +277,16 @@ struct FeedPostCard: View {
     var onTap:         (() -> Void)? = nil
     var onAvatarTap:   (() -> Void)? = nil
     var onCommentTap:  (() -> Void)? = nil
-    var showStreak:    Bool          = true
+    var showStreak:         Bool          = true
+    var isFollowingAuthor: Bool          = false
+    var onFollowToggle:    (() -> Void)? = nil
+    var onBlockUser:       (() -> Void)? = nil
+    var onReportUser:      (() -> Void)? = nil
+    var onReportPost:      (() -> Void)? = nil
 
-
+    @State private var showBlockConfirm      = false
+    @State private var showReportUserConfirm = false
+    @State private var showReportPostConfirm = false
 
     private let cardBg   = Color(red: 0.13, green: 0.10, blue: 0.22)
     private let purpleHi = Color(red: 0.65, green: 0.45, blue: 1.00)
@@ -262,21 +328,28 @@ struct FeedPostCard: View {
         .background(cardBg)
         .cornerRadius(16)
         .overlay(alignment: .topTrailing) {
-            if onDelete != nil {
-                Menu {
-                    Button("Delete", role: .destructive) { onDelete?() }
-                } label: {
-                    Image(systemName: "trash")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.35))
-                        .padding(7)
-                        .background(Color.white.opacity(0.07), in: Circle())
-                }
-                .padding(8)
-            }
+            postMenu
         }
         .contentShape(Rectangle())
         .onTapGesture { onTap?() }
+        .alert("Block @\(post.username)?", isPresented: $showBlockConfirm) {
+            Button("Block", role: .destructive) { onBlockUser?() }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("They won't be able to see your posts and you won't see theirs.")
+        }
+        .alert("Report @\(post.username)?", isPresented: $showReportUserConfirm) {
+            Button("Report", role: .destructive) { onReportUser?() }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This user will be flagged for review.")
+        }
+        .alert("Report this post?", isPresented: $showReportPostConfirm) {
+            Button("Report", role: .destructive) { onReportPost?() }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This post will be flagged for review.")
+        }
     }
 
     // MARK: Author header
@@ -727,6 +800,51 @@ struct FeedPostCard: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    // MARK: Post menu (three-dot)
+
+    @ViewBuilder
+    private var postMenu: some View {
+        Menu {
+            if post.userID == currentUserID {
+                if onDelete != nil {
+                    Button("Delete Post", role: .destructive) { onDelete?() }
+                }
+            } else {
+                Button {
+                    onFollowToggle?()
+                } label: {
+                    Label(
+                        isFollowingAuthor ? "Unfollow @\(post.username)" : "Follow @\(post.username)",
+                        systemImage: isFollowingAuthor ? "person.badge.minus" : "person.badge.plus"
+                    )
+                }
+                Divider()
+                Button(role: .destructive) {
+                    showReportPostConfirm = true
+                } label: {
+                    Label("Report Post", systemImage: "flag")
+                }
+                Button(role: .destructive) {
+                    showReportUserConfirm = true
+                } label: {
+                    Label("Report @\(post.username)", systemImage: "exclamationmark.bubble")
+                }
+                Button(role: .destructive) {
+                    showBlockConfirm = true
+                } label: {
+                    Label("Block @\(post.username)", systemImage: "hand.raised")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.white.opacity(0.45))
+                .frame(width: 30, height: 30)
+                .background(Color.white.opacity(0.07), in: Circle())
+        }
+        .padding(8)
     }
 
     // MARK: Helpers

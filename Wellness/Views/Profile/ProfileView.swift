@@ -1007,13 +1007,18 @@ struct ProfileView: View {
                     ForEach(filteredPosts) { post in
                         let currentUserID = ownUserSettings?.userID ?? currentUserSettings?.userID ?? ""
                         FeedPostCard(
-                            post:          post,
-                            currentUserID: currentUserID,
-                            onRep: { Task { await repPost(post) } },
-                            onDelete: post.userID == currentUserID
+                            post:              post,
+                            currentUserID:     currentUserID,
+                            onRep:             { Task { await repPost(post) } },
+                            onDelete:          post.userID == currentUserID
                                 ? { Task { await deletePost(post) } }
                                 : nil,
-                            showStreak: false
+                            showStreak:        false,
+                            isFollowingAuthor: !isOwnProfile && isFollowing,
+                            onFollowToggle:    { Task { await toggleFollowFromPostMenu() } },
+                            onBlockUser:       { Task { await blockUserFromPostMenu() } },
+                            onReportUser:      { Task { await reportUserFromPostMenu() } },
+                            onReportPost:      { Task { await reportPostFromPostMenu(post: post) } }
                         )
                     }
                 }
@@ -1277,6 +1282,53 @@ struct ProfileView: View {
     private func deletePost(_ post: FeedPost) async {
         try? await PostService.shared.deletePost(post)
         firestorePosts.removeAll { $0.postID == post.postID }
+    }
+
+    private func toggleFollowFromPostMenu() async {
+        guard let settings = currentUserSettings else { return }
+        if isFollowing {
+            try? await FollowService.shared.unfollowUser(
+                currentUserID: settings.userID, targetUserID: profileUserID)
+            isFollowing = false
+            followerCount = max(0, followerCount - 1)
+        } else {
+            let viewerPhotoURL = (try? await UserProfileService.shared.fetchProfile(
+                userID: settings.userID))?.profilePhotoURL ?? ""
+            try? await FollowService.shared.followUser(
+                currentUserID:          settings.userID,
+                currentUsername:        settings.username,
+                currentDisplayName:     settings.name,
+                currentProfilePhotoURL: viewerPhotoURL,
+                targetUserID:           profileUserID,
+                targetUsername:         profileUsername,
+                targetDisplayName:      profileDisplayName,
+                targetProfilePhotoURL:  targetProfilePhotoURL)
+            isFollowing = true
+            followerCount += 1
+        }
+    }
+
+    private func blockUserFromPostMenu() async {
+        guard let settings = currentUserSettings else { return }
+        try? await BlockService.shared.blockUser(
+            currentUserID:         settings.userID,
+            targetUserID:          profileUserID,
+            targetUsername:         profileUsername,
+            targetDisplayName:     profileDisplayName,
+            targetProfilePhotoURL: targetProfilePhotoURL)
+        dismiss()
+    }
+
+    private func reportUserFromPostMenu() async {
+        guard let settings = currentUserSettings else { return }
+        try? await BlockService.shared.reportUser(
+            reporterID: settings.userID, reportedUserID: profileUserID)
+    }
+
+    private func reportPostFromPostMenu(post: FeedPost) async {
+        guard let settings = currentUserSettings else { return }
+        try? await BlockService.shared.reportPost(
+            postID: post.id, reporterID: settings.userID)
     }
 
     private func loadPosts() async {

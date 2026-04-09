@@ -40,6 +40,10 @@ struct FeedPostDetailView: View {
     @State private var commentText:        String        = ""
     @State private var isSubmitting:       Bool          = false
     @State private var showingAuthorProfile = false
+    @State private var isFollowingAuthor    = false
+    @State private var showBlockConfirm     = false
+    @State private var showReportUserConfirm = false
+    @State private var showReportPostConfirm = false
     @FocusState private var commentFocused: Bool
 
     private let pageBg  = Color(red: 0.07, green: 0.05, blue: 0.12)
@@ -86,8 +90,78 @@ struct FeedPostDetailView: View {
                         .foregroundStyle(.white.opacity(0.70))
                 }
             }
+            if post.userID != currentUserSettings?.userID {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button {
+                            Task { await toggleFollow() }
+                        } label: {
+                            Label(
+                                isFollowingAuthor ? "Unfollow @\(post.username)" : "Follow @\(post.username)",
+                                systemImage: isFollowingAuthor ? "person.badge.minus" : "person.badge.plus"
+                            )
+                        }
+                        Divider()
+                        Button(role: .destructive) { showReportPostConfirm = true } label: {
+                            Label("Report Post", systemImage: "flag")
+                        }
+                        Button(role: .destructive) { showReportUserConfirm = true } label: {
+                            Label("Report @\(post.username)", systemImage: "exclamationmark.bubble")
+                        }
+                        Button(role: .destructive) { showBlockConfirm = true } label: {
+                            Label("Block @\(post.username)", systemImage: "hand.raised")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.70))
+                    }
+                }
+            }
+        }
+        .alert("Block @\(post.username)?", isPresented: $showBlockConfirm) {
+            Button("Block", role: .destructive) {
+                Task {
+                    guard let uid = currentUserSettings?.userID else { return }
+                    try? await BlockService.shared.blockUser(
+                        currentUserID: uid, targetUserID: post.userID,
+                        targetUsername: post.username, targetDisplayName: post.whoName,
+                        targetProfilePhotoURL: post.userProfilePhotoURL)
+                    dismiss()
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("They won't be able to see your posts and you won't see theirs.")
+        }
+        .alert("Report @\(post.username)?", isPresented: $showReportUserConfirm) {
+            Button("Report", role: .destructive) {
+                Task {
+                    guard let uid = currentUserSettings?.userID else { return }
+                    try? await BlockService.shared.reportUser(reporterID: uid, reportedUserID: post.userID)
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This user will be flagged for review.")
+        }
+        .alert("Report this post?", isPresented: $showReportPostConfirm) {
+            Button("Report", role: .destructive) {
+                Task {
+                    guard let uid = currentUserSettings?.userID else { return }
+                    try? await BlockService.shared.reportPost(postID: post.id, reporterID: uid)
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This post will be flagged for review.")
         }
         .task {
+            // Load follow state for the menu
+            if let uid = currentUserSettings?.userID, uid != post.userID {
+                isFollowingAuthor = (try? await FollowService.shared.isFollowing(
+                    currentUserID: uid, targetUserID: post.userID)) ?? false
+            }
             await loadComments()
             guard !Task.isCancelled else { return }
             if focusComment {
@@ -410,6 +484,28 @@ struct FeedPostDetailView: View {
         .padding(.horizontal, 16).padding(.vertical, 10)
         .background(.ultraThinMaterial.opacity(0.8))
         .background(pageBg)
+    }
+
+    // MARK: - Follow toggle
+
+    private func toggleFollow() async {
+        guard let settings = currentUserSettings else { return }
+        if isFollowingAuthor {
+            try? await FollowService.shared.unfollowUser(
+                currentUserID: settings.userID, targetUserID: post.userID)
+            isFollowingAuthor = false
+        } else {
+            try? await FollowService.shared.followUser(
+                currentUserID:          settings.userID,
+                currentUsername:        settings.username,
+                currentDisplayName:     settings.name,
+                currentProfilePhotoURL: settings.profilePhotoURL,
+                targetUserID:           post.userID,
+                targetUsername:         post.username,
+                targetDisplayName:      post.whoName,
+                targetProfilePhotoURL:  post.userProfilePhotoURL)
+            isFollowingAuthor = true
+        }
     }
 
     // MARK: - Data

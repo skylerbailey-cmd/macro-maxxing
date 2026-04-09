@@ -63,6 +63,12 @@ struct FeedPost: Codable, Identifiable, Hashable {
 
     var commentsCount: Int
 
+    /// Number of times this post has been reported.
+    var reportCount: Int = 0
+
+    /// UserIDs of everyone who reported this post (prevents duplicate reports).
+    var reportedBy: [String] = []
+
     // MARK: - Author snapshot
 
     /// Aura level at time of posting — displayed as a badge without a live lookup.
@@ -299,6 +305,8 @@ extension FeedPost {
             data[key] = value
         }
         if data["reppedBy"]            == nil { data["reppedBy"]            = [String]() }
+        if data["reportCount"]         == nil { data["reportCount"]         = 0 }
+        if data["reportedBy"]          == nil { data["reportedBy"]          = [String]() }
         if data["additionalPhotoURLs"] == nil { data["additionalPhotoURLs"] = [String]() }
         if data["fuelLogItems"]        == nil { data["fuelLogItems"]        = [[String: Any]]() }
         if data["workoutItems"]        == nil { data["workoutItems"]        = [[String: Any]]() }

@@ -18,13 +18,14 @@ struct UserSearchView: View {
 
     // MARK: State
 
-    @State private var searchText    = ""
-    @State private var results:      [UserProfile] = []
-    @State private var suggestions:  [UserProfile] = []
-    @State private var followingIDs: Set<String>   = []
-    @State private var loadingIDs:   Set<String>   = []
-    @State private var isSearching   = false
-    @State private var searchTask:   Task<Void, Never>?
+    @State private var searchText      = ""
+    @State private var results:        [UserProfile] = []
+    @State private var suggestions:    [UserProfile] = []
+    @State private var followingIDs:   Set<String>   = []
+    @State private var blockedUserIDs: Set<String>   = []
+    @State private var loadingIDs:     Set<String>   = []
+    @State private var isSearching     = false
+    @State private var searchTask:     Task<Void, Never>?
 
     // MARK: Palette
 
@@ -326,18 +327,22 @@ struct UserSearchView: View {
     // MARK: - Data Loading
 
     private func loadInitialData() async {
-        // Load current user's following list
-        if let ids = try? await FollowService.shared.fetchFollowing(userID: currentUserSettings.userID) {
+        // Load current user's following list and blocked users
+        async let followingFetch = FollowService.shared.fetchFollowing(userID: currentUserSettings.userID)
+        async let blockedFetch   = BlockService.shared.fetchBlockedUserIDs(userID: currentUserSettings.userID)
+
+        if let ids = try? await followingFetch {
             followingIDs = Set(ids.map { $0.userID })
         }
+        blockedUserIDs = (try? await blockedFetch) ?? []
 
-        // Load location-based suggestions
+        // Load location-based suggestions (filter blocked)
         if let suggested = try? await UserSearchService.shared.fetchSuggestedUsers(
             currentUserID: currentUserSettings.userID,
             location:      currentUserSettings.location,
             followingIDs:  followingIDs
         ) {
-            suggestions = suggested
+            suggestions = suggested.filter { !blockedUserIDs.contains($0.id) }
         }
     }
 
@@ -365,8 +370,9 @@ struct UserSearchView: View {
             )) ?? []
 
             guard !Task.isCancelled else { return }
+            let filtered = found.filter { !blockedUserIDs.contains($0.id) }
             await MainActor.run {
-                results     = found
+                results     = filtered
                 isSearching = false
             }
         }

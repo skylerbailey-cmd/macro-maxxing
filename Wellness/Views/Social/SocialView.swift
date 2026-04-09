@@ -15,9 +15,11 @@ struct SocialView: View {
     @Environment(LocationManager.self) private var locationManager
     @Environment(NotificationState.self) private var notificationState
     /// Firestore-loaded set of userIDs the current user follows.
-    @State private var followingIDs: Set<String> = []
+    @State private var followingIDs:   Set<String> = []
     /// Intersection of followingIDs and followerIDs — mutual friends.
-    @State private var friendIDs: Set<String> = []
+    @State private var friendIDs:      Set<String> = []
+    /// UserIDs the current user has blocked — hidden from all feeds and search.
+    @State private var blockedUserIDs: Set<String> = []
 
     @State private var showingTutorial   = false
     @State private var tutorialAnchors:  [String: Anchor<CGRect>] = [:]
@@ -71,7 +73,7 @@ struct SocialView: View {
     /// Label-filtered view of the Firestore Team feed.
     /// Team sees all scopes (arena + local + team).
     private var teamDisplayed: [FeedPost] {
-        let posts = teamFirestorePosts
+        let posts = teamFirestorePosts.filter { !blockedUserIDs.contains($0.userID) }
         guard let filter = labelFilter else { return posts }
         return posts.filter { $0.postLabel == filter.rawValue }
     }
@@ -79,7 +81,7 @@ struct SocialView: View {
     /// Label-filtered view of the Firestore Following feed.
     /// Following sees all scopes (you explicitly follow these people).
     private var followingDisplayed: [FeedPost] {
-        let posts = followingFirestorePosts
+        let posts = followingFirestorePosts.filter { !blockedUserIDs.contains($0.userID) }
         guard let filter = labelFilter else { return posts }
         return posts.filter { $0.postLabel == filter.rawValue }
     }
@@ -87,7 +89,9 @@ struct SocialView: View {
     /// Label-filtered view of the Firestore Arena feed.
     /// Arena only shows posts scoped to "arena" (the broadest audience).
     private var arenaDisplayed: [FeedPost] {
-        let posts = arenaViewModel.posts.filter { $0.postScope.isEmpty || $0.postScope == "arena" }
+        let posts = arenaViewModel.posts
+            .filter { $0.postScope.isEmpty || $0.postScope == "arena" }
+            .filter { !blockedUserIDs.contains($0.userID) }
         guard let filter = labelFilter else { return posts }
         return posts.filter { $0.postLabel == filter.rawValue }
     }
@@ -117,7 +121,7 @@ struct SocialView: View {
                 CLLocation(latitude: post.latitude, longitude: post.longitude).distance(from: userLoc)
         }
         let top500 = Set(authorDist.sorted { $0.value < $1.value }.prefix(500).map(\.key))
-        let filtered = nearby.filter { top500.contains($0.userID) }
+        let filtered = nearby.filter { top500.contains($0.userID) && !blockedUserIDs.contains($0.userID) }
 
         guard let filter = labelFilter else { return filtered }
         return filtered.filter { $0.postLabel == filter.rawValue }
@@ -224,15 +228,7 @@ struct SocialView: View {
                                     if index > 0 && index % RemoteConfigService.shared.feedAdFrequency == 0 {
                                         ConditionalBannerAd(isEnabled: RemoteConfigService.shared.feedBannerAdsEnabled)
                                     }
-                                    FeedPostCard(
-                                        post:          post,
-                                        currentUserID: userSettings.userID,
-                                        onRep:        { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
-                                        onDelete:     post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
-                                        onTap:        { activeFeedPresentation = .detail(post) },
-                                        onAvatarTap:  { activeFeedPresentation = .profile(post) },
-                                        onCommentTap: { activeFeedPresentation = .comment(post) }
-                                    )
+                                    socialFeedCard(for: post)
                                     .onAppear { Task { await arenaViewModel.loadMoreIfNeeded(currentPost: post) } }
                                 }
                                 if arenaViewModel.isLoading && !arenaViewModel.posts.isEmpty {
@@ -269,15 +265,7 @@ struct SocialView: View {
                         ScrollView {
                             LazyVStack(spacing: 12) {
                                 ForEach(localDisplayed) { post in
-                                    FeedPostCard(
-                                        post:          post,
-                                        currentUserID: userSettings.userID,
-                                        onRep:        { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
-                                        onDelete:     post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
-                                        onTap:        { activeFeedPresentation = .detail(post) },
-                                        onAvatarTap:  { activeFeedPresentation = .profile(post) },
-                                        onCommentTap: { activeFeedPresentation = .comment(post) }
-                                    )
+                                    socialFeedCard(for: post)
                                 }
                             }
                             .padding(.horizontal, 16)
@@ -301,15 +289,7 @@ struct SocialView: View {
                         ScrollView {
                             LazyVStack(spacing: 12) {
                                 ForEach(teamDisplayed) { post in
-                                    FeedPostCard(
-                                        post:          post,
-                                        currentUserID: userSettings.userID,
-                                        onRep:        { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
-                                        onDelete:     post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
-                                        onTap:        { activeFeedPresentation = .detail(post) },
-                                        onAvatarTap:  { activeFeedPresentation = .profile(post) },
-                                        onCommentTap: { activeFeedPresentation = .comment(post) }
-                                    )
+                                    socialFeedCard(for: post)
                                 }
                             }
                             .padding(.horizontal, 16)
@@ -334,15 +314,7 @@ struct SocialView: View {
                         ScrollView {
                             LazyVStack(spacing: 12) {
                                 ForEach(followingDisplayed) { post in
-                                    FeedPostCard(
-                                        post:          post,
-                                        currentUserID: userSettings.userID,
-                                        onRep:        { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
-                                        onDelete:     post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
-                                        onTap:        { activeFeedPresentation = .detail(post) },
-                                        onAvatarTap:  { activeFeedPresentation = .profile(post) },
-                                        onCommentTap: { activeFeedPresentation = .comment(post) }
-                                    )
+                                    socialFeedCard(for: post)
                                 }
                             }
                             .padding(.horizontal, 16)
@@ -369,10 +341,11 @@ struct SocialView: View {
         .preferredColorScheme(.dark)
         .navigationBarHidden(true)
         .task {
-            // Run both in parallel — they're independent
+            // Run all in parallel — they're independent
             async let followingLoad: Void = loadFollowingIDs()
             async let arenaLoad: Void = arenaViewModel.loadInitialFeed()
-            _ = await (followingLoad, arenaLoad)
+            async let blockedLoad: Void = loadBlockedUserIDs()
+            _ = await (followingLoad, arenaLoad, blockedLoad)
         }
         .sheet(isPresented: $showingNewPost) {
             NewPostView(userSettings: userSettings, onPostCompleted: {
@@ -531,6 +504,71 @@ struct SocialView: View {
         .allowsHitTesting(false)
     }
 
+    // MARK: - Feed card helper
+
+    private func socialFeedCard(for post: FeedPost) -> some View {
+        FeedPostCard(
+            post:              post,
+            currentUserID:     userSettings.userID,
+            onRep:             { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
+            onDelete:          post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
+            onTap:             { activeFeedPresentation = .detail(post) },
+            onAvatarTap:       { activeFeedPresentation = .profile(post) },
+            onCommentTap:      { activeFeedPresentation = .comment(post) },
+            isFollowingAuthor: followingIDs.contains(post.userID),
+            onFollowToggle:    { Task { await toggleFollowFromPost(post: post) } },
+            onBlockUser:       { Task { await blockUserFromPost(post: post) } },
+            onReportUser:      { Task { await reportUserFromPost(post: post) } },
+            onReportPost:      { Task { await reportPostFromPost(post: post) } }
+        )
+    }
+
+    // MARK: - Post menu actions
+
+    private func toggleFollowFromPost(post: FeedPost) async {
+        if followingIDs.contains(post.userID) {
+            try? await FollowService.shared.unfollowUser(
+                currentUserID: userSettings.userID, targetUserID: post.userID)
+            followingIDs.remove(post.userID)
+        } else {
+            try? await FollowService.shared.followUser(
+                currentUserID:          userSettings.userID,
+                currentUsername:        userSettings.username,
+                currentDisplayName:     userSettings.name,
+                currentProfilePhotoURL: userSettings.profilePhotoURL,
+                targetUserID:           post.userID,
+                targetUsername:         post.username,
+                targetDisplayName:      post.whoName,
+                targetProfilePhotoURL:  post.userProfilePhotoURL)
+            followingIDs.insert(post.userID)
+        }
+    }
+
+    private func blockUserFromPost(post: FeedPost) async {
+        try? await BlockService.shared.blockUser(
+            currentUserID:         userSettings.userID,
+            targetUserID:          post.userID,
+            targetUsername:         post.username,
+            targetDisplayName:     post.whoName,
+            targetProfilePhotoURL: post.userProfilePhotoURL)
+        blockedUserIDs.insert(post.userID)
+        followingIDs.remove(post.userID)
+        arenaViewModel.posts.removeAll { $0.userID == post.userID }
+        teamFirestorePosts.removeAll { $0.userID == post.userID }
+        followingFirestorePosts.removeAll { $0.userID == post.userID }
+        localFirestorePosts.removeAll { $0.userID == post.userID }
+    }
+
+    private func reportUserFromPost(post: FeedPost) async {
+        try? await BlockService.shared.reportUser(
+            reporterID: userSettings.userID, reportedUserID: post.userID)
+    }
+
+    private func reportPostFromPost(post: FeedPost) async {
+        try? await BlockService.shared.reportPost(
+            postID: post.id, reporterID: userSettings.userID)
+    }
+
     // MARK: - Local feed
 
     private func loadLocalFeed() async {
@@ -596,6 +634,12 @@ struct SocialView: View {
         followingIDs = Set(following.map { $0.userID })
         let followerIDs = Set(followers.map { $0.userID })
         friendIDs = followingIDs.intersection(followerIDs)
+    }
+
+    private func loadBlockedUserIDs() async {
+        guard !userSettings.userID.isEmpty else { return }
+        blockedUserIDs = (try? await BlockService.shared.fetchBlockedUserIDs(
+            userID: userSettings.userID)) ?? []
     }
 
     @ViewBuilder

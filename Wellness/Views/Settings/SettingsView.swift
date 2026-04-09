@@ -340,6 +340,15 @@ struct SettingsView: View {
                 Text("Grams of protein per pound of goal body weight. General fitness: 0.7–0.8 g/lb. Strength training: 0.8–1.0 g/lb.\n\nWhen auto-adjust is on, the \"Apply macro adjustments\" toggle in the workout log sheet will default to ON, automatically updating your daily macro targets based on the type of workout logged.\n\nDietary exclusions are used by the AI meal planner to avoid suggesting meals with dairy or gluten.")
             }
 
+            // MARK: Blocked Users
+            Section {
+                NavigationLink {
+                    BlockedUsersView(currentUserID: userSettings.userID)
+                } label: {
+                    Label("Blocked Users", systemImage: "hand.raised.fill")
+                }
+            }
+
             // MARK: FAQ
             Section("FAQ") {
                 ForEach(faqItems) { item in
@@ -400,6 +409,15 @@ struct SettingsView: View {
                      : "Enable to receive a daily push notification reminding you to log your meals.")
             }
 
+            // MARK: Health Disclaimer
+            Section {
+                NavigationLink {
+                    HealthDisclaimerSettingsView()
+                } label: {
+                    Label("Health Disclaimer", systemImage: "heart.text.clipboard")
+                }
+            }
+
             // MARK: Privacy & Data
             Section {
                 Button {
@@ -409,6 +427,22 @@ struct SettingsView: View {
                 } label: {
                     HStack {
                         Label("Privacy Policy", systemImage: "hand.raised.fill")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    if let url = URL(string: "https://www.macromaxxing.app/terms") {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    HStack {
+                        Label("Terms of Service", systemImage: "doc.text.fill")
                             .foregroundStyle(.primary)
                         Spacer()
                         Image(systemName: "arrow.up.right")

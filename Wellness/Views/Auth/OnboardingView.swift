@@ -48,11 +48,14 @@ struct OnboardingView: View {
     @State private var ageCheckInProgress = false
     @State private var ageCheckDeclined = false
 
+    // Health disclaimer
+    @State private var healthDisclaimerAgreed = false
+
     // Saving state
     @State private var isSaving = false
     @State private var saveError: String? = nil
 
-    private let totalPages = 6
+    private let totalPages = 7
     private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
     private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
 
@@ -73,7 +76,8 @@ struct OnboardingView: View {
                     usernamePage.tag(2)
                     dobPage.tag(3)
                     weightPage.tag(4)
-                    privacyPage.tag(5)
+                    healthDisclaimerPage.tag(5)
+                    privacyPage.tag(6)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut, value: page)
@@ -153,7 +157,8 @@ struct OnboardingView: View {
         case 2: return (usernameAvailable == true) && username.count >= 4
         case 3: return true   // DOB always valid
         case 4: return currentWeight > 0 && goalWeight > 0
-        case 5: return true
+        case 5: return healthDisclaimerAgreed
+        case 6: return true
         default: return true
         }
     }
@@ -530,6 +535,80 @@ struct OnboardingView: View {
     }
 
     // Page 5: Privacy
+    // Page 5: Health Disclaimer
+    private var healthDisclaimerPage: some View {
+        OnboardingPageShell(
+            emoji: "⚕️",
+            title: "Health Disclaimer",
+            subtitle: "Please read and acknowledge before continuing."
+        ) {
+            VStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 14) {
+                    disclaimerRow(
+                        icon: "heart.text.clipboard",
+                        text: "This app is for fitness tracking only and does not provide medical advice."
+                    )
+                    disclaimerRow(
+                        icon: "sparkles",
+                        text: "AI-estimated nutritional values are approximations and may not be fully accurate."
+                    )
+                    disclaimerRow(
+                        icon: "stethoscope",
+                        text: "Consult a healthcare professional before making significant changes to your diet or exercise routine."
+                    )
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(Color.white.opacity(0.05))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                )
+
+                Button {
+                    healthDisclaimerAgreed.toggle()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: healthDisclaimerAgreed ? "checkmark.square.fill" : "square")
+                            .font(.system(size: 22))
+                            .foregroundStyle(healthDisclaimerAgreed ? purpl : .white.opacity(0.35))
+                        Text("I understand and acknowledge this disclaimer")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.85))
+                            .multilineTextAlignment(.leading)
+                        Spacer()
+                    }
+                    .padding(16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(Color.white.opacity(healthDisclaimerAgreed ? 0.09 : 0.04))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(healthDisclaimerAgreed ? purpl.opacity(0.50) : Color.clear, lineWidth: 1.5)
+                            )
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func disclaimerRow(icon: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(purpl)
+                .frame(width: 28)
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.75))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // Page 6: Privacy
     private var privacyPage: some View {
         OnboardingPageShell(
             emoji: "🔒",
