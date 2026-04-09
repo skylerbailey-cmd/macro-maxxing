@@ -282,13 +282,14 @@ exports.deleteAccount = onCall(async (request) => {
   // (Query all posts' comments subcollections — use collectionGroup)
   const commentsSnap = await db.collectionGroup("comments")
     .where("authorID", "==", uid).get();
-  const commentBatch = db.batch();
   let commentCount = 0;
+  let commentBatch = db.batch();
   for (const doc of commentsSnap.docs) {
     commentBatch.delete(doc.ref);
     commentCount++;
     if (commentCount % 499 === 0) {
       await commentBatch.commit();
+      commentBatch = db.batch();
     }
   }
   if (commentCount % 499 !== 0) await commentBatch.commit();
