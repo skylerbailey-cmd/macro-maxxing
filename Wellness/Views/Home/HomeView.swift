@@ -453,8 +453,8 @@ struct HomeView: View {
         viewModel.macroStreak = viewModel.userSettings.macroStreak
         // Defer the DB fetch to after the first frame so the UI renders immediately
         Task { viewModel.loadTodayTotals() }
-        // Lock any past fasting windows that haven't been locked yet
-        Task { await FastingWindowService.shared.lockPastWindows(userID: viewModel.userSettings.userID) }
+        // lockPastWindows is now called once at app launch (ContentView.onAppear)
+        // instead of every time this view appears, to avoid expensive batch writes.
     }
     
     private func handleDateChange(_ newDate: Date) {

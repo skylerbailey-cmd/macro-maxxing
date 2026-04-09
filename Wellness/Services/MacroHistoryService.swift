@@ -90,7 +90,8 @@ final class MacroHistoryService {
     // MARK: - 2. Update Today's Macros
 
     /// Called automatically whenever a meal is logged or totals change.
-    /// Recalculates completion and saves today's snapshot. Fire-and-forget.
+    /// Recalculates completion and saves today's snapshot.
+    /// Now properly async — callers must await to ensure writes are serialized.
     func updateTodaysMacros(
         userID:        String,
         totalCalories: Double,
@@ -103,7 +104,7 @@ final class MacroHistoryService {
         goalFat:       Double,
         mealCount:     Int,
         streakDay:     Int
-    ) {
+    ) async {
         print("[MacroHistoryService] updateTodaysMacros called — userID=\(userID.prefix(8)) totalCalories=\(totalCalories) goalCalories=\(goalCalories)")
         guard !userID.isEmpty else {
             print("[MacroHistoryService] updateTodaysMacros skipped — userID is empty")
@@ -114,26 +115,24 @@ final class MacroHistoryService {
             return
         }
 
-        Task {
-            do {
-                try await saveDailyMacros(
-                    userID:        userID,
-                    date:          Date(),
-                    totalCalories: Int(totalCalories.rounded()),
-                    totalProtein:  totalProtein,
-                    totalCarbs:    totalCarbs,
-                    totalFat:      totalFat,
-                    goalCalories:  Int(goalCalories.rounded()),
-                    goalProtein:   goalProtein,
-                    goalCarbs:     goalCarbs,
-                    goalFat:       goalFat,
-                    mealCount:     mealCount,
-                    streakDay:     streakDay
-                )
-                print("[MacroHistoryService] updateTodaysMacros succeeded — wrote \(Int(totalCalories)) cal to macroHistory")
-            } catch {
-                print("[MacroHistoryService] updateTodaysMacros FAILED: \(error)")
-            }
+        do {
+            try await saveDailyMacros(
+                userID:        userID,
+                date:          Date(),
+                totalCalories: Int(totalCalories.rounded()),
+                totalProtein:  totalProtein,
+                totalCarbs:    totalCarbs,
+                totalFat:      totalFat,
+                goalCalories:  Int(goalCalories.rounded()),
+                goalProtein:   goalProtein,
+                goalCarbs:     goalCarbs,
+                goalFat:       goalFat,
+                mealCount:     mealCount,
+                streakDay:     streakDay
+            )
+            print("[MacroHistoryService] updateTodaysMacros succeeded — wrote \(Int(totalCalories)) cal to macroHistory")
+        } catch {
+            print("[MacroHistoryService] updateTodaysMacros FAILED: \(error)")
         }
     }
 
