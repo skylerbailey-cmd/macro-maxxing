@@ -337,6 +337,9 @@ enum AnalysisTier: Equatable {
         pendingLocalEntries.append(entry)
         resetFields()
 
+        // Notify the Hub tab so macro KPIs refresh immediately
+        NotificationCenter.default.post(name: FuelLogService.mealChangedNotification, object: nil)
+
         // Persist to Firestore
         Task {
             if let result = try? await FoodEntryService.shared.save(entry: entry, image: image) {
@@ -372,6 +375,8 @@ enum AnalysisTier: Equatable {
 
         todayEntries.insert(entry, at: 0)
 
+        NotificationCenter.default.post(name: FuelLogService.mealChangedNotification, object: nil)
+
         Task {
             if let result = try? await FoodEntryService.shared.save(entry: entry, image: nil) {
                 entry.firebaseEntryID = result.docID
@@ -383,6 +388,9 @@ enum AnalysisTier: Equatable {
     func deleteEntry(_ entry: FoodEntry) {
         todayEntries.removeAll { $0.id == entry.id }
         pendingLocalEntries.removeAll { $0.id == entry.id }
+
+        NotificationCenter.default.post(name: FuelLogService.mealChangedNotification, object: nil)
+
         let entryID = entry.firebaseEntryID
         let uid     = entry.userID
         Task { await FoodEntryService.shared.delete(entryID: entryID, userID: uid) }
@@ -408,6 +416,8 @@ enum AnalysisTier: Equatable {
         entry.carbs    = carbs
         entry.fat      = fat
         if let loggedAt { entry.loggedAt = loggedAt }
+
+        NotificationCenter.default.post(name: FuelLogService.mealChangedNotification, object: nil)
 
         let entryID = entry.firebaseEntryID
         let uid     = entry.userID
