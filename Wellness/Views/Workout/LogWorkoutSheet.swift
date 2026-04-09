@@ -330,6 +330,10 @@ struct LogWorkoutSheet: View {
                 Text(msg).font(.caption).foregroundStyle(.red).multilineTextAlignment(.center)
             }
 
+            if case .error(let msg) = aiState {
+                Text(msg).font(.caption).foregroundStyle(.red).multilineTextAlignment(.center)
+            }
+
             if !workoutName.isEmpty && mode == .voice {
                 parsedSummary
             }
