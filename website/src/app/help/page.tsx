@@ -24,6 +24,14 @@ const guides = [
     tag: "COMMUNITY",
     tagColor: "text-brand-purple",
   },
+  {
+    href: "/help/how-to-log-a-workout",
+    title: "How to Log a Workout",
+    description:
+      "Log workouts manually or with your voice using AI. Get automatic macro goal adjustments and earn aura points.",
+    tag: "WORKOUT TRACKING",
+    tagColor: "text-brand-teal",
+  },
 ];
 
 export default function HelpPage() {

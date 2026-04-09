@@ -468,6 +468,7 @@ export default function Home() {
                 category: "Help",
                 links: [
                   { href: "/help/how-to-make-a-post", title: "How to Make a Post" },
+                  { href: "/help/how-to-log-a-workout", title: "How to Log a Workout" },
                 ],
               },
             ].map((group) => (

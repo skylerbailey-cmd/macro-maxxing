@@ -4,8 +4,28 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = "https://macromaxxing.app";
   const lastModified = new Date("2026-03-22");
 
+  const helpLastModified = new Date("2026-04-09");
+
   return [
     { url: baseUrl, lastModified, changeFrequency: "weekly", priority: 1 },
+    {
+      url: `${baseUrl}/help`,
+      lastModified: helpLastModified,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/help/how-to-make-a-post`,
+      lastModified: helpLastModified,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/help/how-to-log-a-workout`,
+      lastModified: helpLastModified,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
     {
       url: `${baseUrl}/best-macro-tracking-app`,
       lastModified,
