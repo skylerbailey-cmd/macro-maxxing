@@ -155,6 +155,11 @@ struct NewPostView: View {
                             mogBoardOptions
                         }
 
+                        // Photo preview (full-width, like the feed)
+                        if !photos.isEmpty {
+                            photoPreview
+                        }
+
                         // Status
                         VStack(alignment: .trailing, spacing: 4) {
                             TextField(statusPrompt, text: $titleText)
@@ -199,8 +204,8 @@ struct NewPostView: View {
                                 .foregroundStyle(bodyText.count >= 300 ? .red : bodyText.count >= 240 ? Color.orange : .white.opacity(0.25))
                         }
 
-                        // Photos
-                        MultiPhotoSection(photos: $photos)
+                        // Photos (buttons only — preview shown above)
+                        MultiPhotoSection(photos: $photos, hideThumbnails: true)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 10)
@@ -665,6 +670,34 @@ struct NewPostView: View {
         case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
         case .goalPost:       return Color(red: 0.65, green: 0.45, blue: 1.00)
         }
+    }
+
+    // MARK: - Photo preview (feed-style)
+
+    private var photoPreview: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
+                ZStack(alignment: .topTrailing) {
+                    Image(uiImage: photo.image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity)
+                        .clipped()
+
+                    // Delete button
+                    Button {
+                        photos.removeAll { $0.id == photo.id }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.6), radius: 3)
+                            .padding(8)
+                    }
+                }
+            }
+        }
+        .cornerRadius(12)
     }
 
     private func prefillForLabel(_ label: PostLabel) {

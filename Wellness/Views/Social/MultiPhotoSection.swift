@@ -17,6 +17,8 @@ struct PostPhoto: Identifiable {
 /// Reusable photo-picker section for post editors. Up to 4 photos per post.
 struct MultiPhotoSection: View {
     @Binding var photos: [PostPhoto]
+    /// When true, the thumbnail strip is hidden (caller handles preview separately).
+    var hideThumbnails: Bool = false
 
     @State private var newImage:      UIImage?   = nil
     @State private var showCamera     = false
@@ -30,7 +32,7 @@ struct MultiPhotoSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             // Thumbnails
-            if !photos.isEmpty {
+            if !photos.isEmpty && !hideThumbnails {
                 thumbnailStrip
             }
 
