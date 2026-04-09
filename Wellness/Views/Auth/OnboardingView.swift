@@ -10,6 +10,7 @@
 
 import SwiftUI
 import UIKit
+import FirebaseAuth
 
 // MARK: - OnboardingView
 
@@ -92,6 +93,10 @@ struct OnboardingView: View {
             // Pre-fill from whatever was collected at sign-up
             name     = userSettings.name
             username = userSettings.username
+            // If sign-up already collected name + username, skip to the profile photo page
+            if !name.isEmpty && username.count >= 4 {
+                page = 1
+            }
         }
     }
 
@@ -165,7 +170,12 @@ struct OnboardingView: View {
 
     private func advance() {
         if page < totalPages - 1 {
-            withAnimation { page += 1 }
+            var next = page + 1
+            // Skip username page if already set from sign-up
+            if next == 2 && username.count >= 4 {
+                next = 3
+            }
+            withAnimation { page = next }
         } else {
             Task { await finishOnboarding() }
         }
@@ -691,8 +701,11 @@ struct OnboardingView: View {
             try? await Task.sleep(nanoseconds: 600_000_000) // 0.6s debounce
             guard !Task.isCancelled else { return }
             checkingUsername = true
+            let uid = userSettings.userID.isEmpty
+                ? (Auth.auth().currentUser?.uid ?? "")
+                : userSettings.userID
             let taken = await UserProfileService.shared.isUsernameTaken(
-                trimmed, excludingUserID: userSettings.userID)
+                trimmed, excludingUserID: uid)
             guard !Task.isCancelled else { return }
             checkingUsername = false
             usernameAvailable = !taken

@@ -263,7 +263,7 @@ exports.deleteAccount = onCall(async (request) => {
   const subcollections = [
     "foodEntries", "fuelLog", "macroHistory", "workoutEntries",
     "following", "followers", "notifications", "subscribers",
-    "balanceScoreHistory",
+    "balanceScoreHistory", "blockedUsers",
   ];
   for (const sub of subcollections) {
     await deleteCollection(db.collection("users").doc(uid).collection(sub));

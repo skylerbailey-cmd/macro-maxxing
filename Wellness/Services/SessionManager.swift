@@ -428,7 +428,12 @@ final class SessionManager {
                   nsError.code == AuthErrorCode.requiresRecentLogin.rawValue {
             errorMessage = "For security, please sign out and sign in again before deleting your account."
         } catch {
-            errorMessage = Self.friendlyMessage(for: error)
+            let msg = error.localizedDescription
+            if msg.uppercased().contains("INTERNAL") {
+                errorMessage = "Something went wrong deleting your account. Please try again or contact support."
+            } else {
+                errorMessage = Self.friendlyMessage(for: error)
+            }
         }
     }
 

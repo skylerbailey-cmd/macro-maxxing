@@ -37,6 +37,8 @@ struct UserSearchView: View {
 
     // MARK: Body
 
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
         ZStack {
             pageBg.ignoresSafeArea()
@@ -59,7 +61,33 @@ struct UserSearchView: View {
         .preferredColorScheme(.dark)
         .navigationTitle("Find People")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.70))
+                }
+            }
+        }
         .task { await loadInitialData() }
+        .sheet(item: $selectedProfile) { profile in
+            NavigationStack {
+                ProfileView(
+                    profileUserID:       profile.id,
+                    profileUsername:     profile.username,
+                    profileDisplayName:  profile.name,
+                    profileAuraLevel:    auraLevel(for: profile.auraPoints),
+                    profileAuraPoints:   profile.auraPoints,
+                    profileImageData:    nil,
+                    profileLocation:     profile.location,
+                    profileStreak:       profile.streakDays,
+                    currentUserSettings: currentUserSettings,
+                    isDismissable:       true,
+                    profileIsPrivate:    profile.isPrivateAccount
+                )
+            }
+        }
     }
 
     // MARK: - Search Bar
@@ -156,57 +184,49 @@ struct UserSearchView: View {
 
     // MARK: - User Row
 
+    @State private var selectedProfile: UserProfile? = nil
+
     @ViewBuilder
     private func userRow(profile: UserProfile) -> some View {
-        NavigationLink {
-            ProfileView(
-                profileUserID:      profile.id,
-                profileUsername:    profile.username,
-                profileDisplayName: profile.name,
-                profileAuraLevel:   auraLevel(for: profile.auraPoints),
-                profileAuraPoints:  profile.auraPoints,
-                profileImageData:   nil,
-                profileLocation:    profile.location,
-                profileStreak:      profile.streakDays,
-                currentUserSettings: currentUserSettings,
-                profileIsPrivate:   profile.isPrivateAccount
-            )
-        } label: {
-            HStack(spacing: 12) {
-                // Avatar
-                userAvatar(url: profile.profilePhotoURL, name: profile.name, size: 48)
+        HStack(spacing: 12) {
+            // Avatar + info (tappable → profile)
+            Button {
+                selectedProfile = profile
+            } label: {
+                HStack(spacing: 12) {
+                    userAvatar(url: profile.profilePhotoURL, name: profile.name, size: 48)
 
-                // Info
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("@\(profile.username)")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white)
-                    if !profile.name.isEmpty {
-                        Text(profile.name)
-                            .font(.system(size: 12))
-                            .foregroundStyle(.white.opacity(0.50))
-                    }
-                    HStack(spacing: 10) {
-                        if !profile.location.isEmpty {
-                            Label(profile.location, systemImage: "mappin.and.ellipse")
-                                .font(.system(size: 10))
-                                .foregroundStyle(purpl.opacity(0.60))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("@\(profile.username)")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                        if !profile.name.isEmpty {
+                            Text(profile.name)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white.opacity(0.50))
                         }
-                        Label("\(profile.followerCount)", systemImage: "person.2.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.white.opacity(0.30))
+                        HStack(spacing: 10) {
+                            if !profile.location.isEmpty {
+                                Label(profile.location, systemImage: "mappin.and.ellipse")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(purpl.opacity(0.60))
+                            }
+                            Label("\(profile.followerCount)", systemImage: "person.2.fill")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.white.opacity(0.30))
+                        }
                     }
                 }
-
-                Spacer()
-
-                // Follow / Unfollow button
-                followButton(for: profile)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            // Follow / Unfollow button (separate tap target)
+            followButton(for: profile)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
 
         Divider()
             .background(purpl.opacity(0.10))
