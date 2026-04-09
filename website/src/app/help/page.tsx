@@ -32,6 +32,14 @@ const guides = [
     tag: "WORKOUT TRACKING",
     tagColor: "text-brand-teal",
   },
+  {
+    href: "/help/how-to-log-a-meal",
+    title: "How to Log a Meal",
+    description:
+      "Log meals with AI photo scanning, voice, or manual entry. Get instant macro breakdowns, meal scores, and portion size adjustments.",
+    tag: "FOOD LOGGING",
+    tagColor: "text-brand-orange",
+  },
 ];
 
 export default function HelpPage() {

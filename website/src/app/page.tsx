@@ -469,6 +469,7 @@ export default function Home() {
                 links: [
                   { href: "/help/how-to-make-a-post", title: "How to Make a Post" },
                   { href: "/help/how-to-log-a-workout", title: "How to Log a Workout" },
+                  { href: "/help/how-to-log-a-meal", title: "How to Log a Meal" },
                 ],
               },
             ].map((group) => (
