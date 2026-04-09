@@ -242,7 +242,8 @@ struct LeaderboardView: View {
             timeUntilReset = UserSettings.nextWeekReset().timeIntervalSinceNow
             // Show winner popup if either an arena or local win is pending
             if userSettings.pendingWeeklyWinnerRank != nil || userSettings.pendingLocalWinnerRank != nil {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                Task {
+                    try? await Task.sleep(nanoseconds: 600_000_000)
                     showingWinnerPopup = true
                 }
             }
@@ -1505,7 +1506,10 @@ private struct BoardPreviewSheet: View {
         onPost(renderedImage)
         isPosting = false
         withAnimation { didPost = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { dismiss() }
+        Task {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            dismiss()
+        }
     }
 }
 

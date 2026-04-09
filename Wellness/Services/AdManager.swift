@@ -43,24 +43,23 @@ final class AdManager: NSObject, ObservableObject {
 
     // MARK: - Initialize SDK
 
-    /// Call once on app launch (e.g. in WellnessApp .task).
+    /// Call once after splash/auth completes (from WellnessApp .task).
     /// Requests ATT authorization before initializing the ads SDK so that
     /// AdMob respects the user's tracking preference from the first ad request.
-    func initialize() {
-        // ATT must be requested after the app becomes active (not from applicationDidFinishLaunching).
-        // DispatchQueue.main.asyncAfter gives the UI a moment to settle.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            ATTrackingManager.requestTrackingAuthorization { _ in
-                DispatchQueue.main.async { [weak self] in
-                    MobileAds.shared.start { _ in
-                        print("[AdManager] Google Mobile Ads SDK initialized")
-                        self?.isReady = true
-                        self?.preloadRewarded()
-                        self?.preloadInterstitial()
-                    }
-                }
+    func initialize() async {
+        // Request tracking authorization (must happen after app is active).
+        await ATTrackingManager.requestTrackingAuthorization()
+
+        // Start the ads SDK and preload ad inventory.
+        await withCheckedContinuation { cont in
+            MobileAds.shared.start { _ in
+                print("[AdManager] Google Mobile Ads SDK initialized")
+                cont.resume()
             }
         }
+        isReady = true
+        preloadRewarded()
+        preloadInterstitial()
     }
 
     // MARK: - Banner Ad Unit ID (for BannerAdView)

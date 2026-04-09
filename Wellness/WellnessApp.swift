@@ -188,7 +188,7 @@ struct WellnessApp: App {
                 // Small extra delay so the first meaningful frame renders before
                 // the ads SDK and remote config hit the network.
                 try? await Task.sleep(nanoseconds: 500_000_000)
-                AdManager.shared.initialize()
+                await AdManager.shared.initialize()
                 await RemoteConfigService.shared.fetchAndActivate()
             }
             .onChange(of: scenePhase) { _, phase in
