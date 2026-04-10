@@ -270,4 +270,37 @@ extension UserProfile {
     func firestoreData() throws -> [String: Any] {
         try Firestore.Encoder().encode(self)
     }
+
+    // MARK: - Private / Public Field Splitting
+
+    /// Keys that belong in `users/{uid}/private/profile` rather than the
+    /// public `users/{uid}` document.  These contain health/PII data that
+    /// other authenticated users should NOT be able to read.
+    static let privateFieldKeys: Set<String> = [
+        "dateOfBirth", "currentWeight", "goalWeight", "heightInches",
+        "proteinPerLb", "gender", "excludeDairy", "excludeGluten",
+    ]
+
+    /// Returns only the sensitive fields, suitable for writing to
+    /// `users/{uid}/private/profile`.
+    func privateFieldsData() -> [String: Any] {
+        [
+            "dateOfBirth":   dateOfBirth,
+            "currentWeight": currentWeight,
+            "goalWeight":    goalWeight,
+            "heightInches":  heightInches,
+            "proteinPerLb":  proteinPerLb,
+            "gender":        gender,
+            "excludeDairy":  excludeDairy,
+            "excludeGluten": excludeGluten,
+        ]
+    }
+
+    /// Returns the full encoded data with private keys removed, suitable for
+    /// writing to the public `users/{uid}` document.
+    func publicFieldsData() throws -> [String: Any] {
+        var data = try firestoreData()
+        for key in Self.privateFieldKeys { data.removeValue(forKey: key) }
+        return data
+    }
 }

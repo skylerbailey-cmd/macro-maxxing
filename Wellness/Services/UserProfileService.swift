@@ -41,12 +41,17 @@ final class UserProfileService {
     // MARK: - 1. Create Profile
 
     /// Writes a new user document to Firestore at `users/{profile.userID}`.
+    /// Sensitive fields (DOB, weight, height, gender, dietary) are stored in
+    /// `users/{uid}/private/profile` so other users cannot read them.
     /// Uses `setData(merge: true)` so calling this on an existing profile is safe.
     func createProfile(_ profile: UserProfile) async throws {
         let userID = profile.userID
         guard !userID.isEmpty else { return }
-        let data = try profile.firestoreData()
-        try await db.collection(collectionName).document(userID).setData(data, merge: true)
+        let publicData  = try profile.publicFieldsData()
+        let privateData = profile.privateFieldsData()
+        try await db.collection(collectionName).document(userID).setData(publicData, merge: true)
+        try await db.collection(collectionName).document(userID)
+            .collection("private").document("profile").setData(privateData, merge: true)
         AppLogger.log("[UserProfileService] Profile created/merged for \(userID)")
     }
 
@@ -63,11 +68,32 @@ final class UserProfileService {
     }
 
     /// Fetches the user document for `userID` and decodes it into a `UserProfile`.
-    func fetchProfile(userID: String) async throws -> UserProfile {
+    ///
+    /// - Parameter includePrivateFields: When `true` (default), also reads
+    ///   `users/{uid}/private/profile` and merges the sensitive fields into the
+    ///   result. Pass `false` when loading another user's profile for display
+    ///   (leaderboard, feed, profile cards) so you never attempt to read data
+    ///   the Firestore rules would deny.
+    func fetchProfile(userID: String, includePrivateFields: Bool = true) async throws -> UserProfile {
         guard !userID.isEmpty else { throw UserProfileError.profileNotFound }
         let doc = try await db.collection(collectionName).document(userID).getDocument()
-        guard let profile = UserProfile(document: doc) else {
+        guard var profile = UserProfile(document: doc) else {
             throw UserProfileError.profileNotFound
+        }
+        // Merge private fields (only for the authenticated user's own profile)
+        if includePrivateFields {
+            let privateDoc = try? await db.collection(collectionName).document(userID)
+                .collection("private").document("profile").getDocument()
+            if let data = privateDoc?.data() {
+                profile.dateOfBirth   = data["dateOfBirth"]   as? String ?? profile.dateOfBirth
+                profile.currentWeight = data["currentWeight"] as? Double ?? profile.currentWeight
+                profile.goalWeight    = data["goalWeight"]    as? Double ?? profile.goalWeight
+                profile.heightInches  = data["heightInches"]  as? Int    ?? profile.heightInches
+                profile.proteinPerLb  = data["proteinPerLb"]  as? Double ?? profile.proteinPerLb
+                profile.gender        = data["gender"]        as? String ?? profile.gender
+                profile.excludeDairy  = data["excludeDairy"]  as? Bool   ?? profile.excludeDairy
+                profile.excludeGluten = data["excludeGluten"] as? Bool   ?? profile.excludeGluten
+            }
         }
         return profile
     }
@@ -185,11 +211,12 @@ final class UserProfileService {
     // MARK: - 4. Sync Profile Fields (convenience)
 
     /// Pushes the current local UserSettings values to Firestore.
+    /// Public fields go to `users/{uid}`, sensitive fields to `users/{uid}/private/profile`.
     /// Fire-and-forget — errors are logged but not rethrown.
     func syncProfile(from userSettings: UserSettings) async {
         let userID = userSettings.userID
         guard !userID.isEmpty else { return }
-        let fields: [String: Any] = [
+        let publicFields: [String: Any] = [
             "username":          userSettings.username,
             "name":              userSettings.name,
             "location":          userSettings.location,
@@ -199,18 +226,23 @@ final class UserProfileService {
             "instagramHandle":   userSettings.instagramHandle,
             "tiktokHandle":      userSettings.tiktokHandle,
             "isPrivateAccount":  userSettings.isPrivateAccount,
-            "currentWeight":     userSettings.currentWeight,
-            "goalWeight":        userSettings.goalWeight,
-            "proteinPerLb":      userSettings.proteinPerLb,
-            "gender":            userSettings.gender,
             "fastingEnabled":    userSettings.fastingEnabled,
             "auraPopupsEnabled": userSettings.auraPopupsEnabled,
-            "excludeDairy":          userSettings.excludeDairy,
-            "excludeGluten":         userSettings.excludeGluten,
-            "lastGoalsMetDate":     userSettings.lastGoalsMetDate,
+            "lastGoalsMetDate":  userSettings.lastGoalsMetDate,
+        ]
+        let privateFields: [String: Any] = [
+            "currentWeight": userSettings.currentWeight,
+            "goalWeight":    userSettings.goalWeight,
+            "proteinPerLb":  userSettings.proteinPerLb,
+            "gender":        userSettings.gender,
+            "excludeDairy":  userSettings.excludeDairy,
+            "excludeGluten": userSettings.excludeGluten,
         ]
         do {
-            try await updateProfile(userID: userID, fields: fields)
+            try await updateProfile(userID: userID, fields: publicFields)
+            try await db.collection(collectionName).document(userID)
+                .collection("private").document("profile")
+                .setData(privateFields, merge: true)
         } catch {
             AppLogger.log("[UserProfileService] syncProfile failed: \(error.localizedDescription)")
         }
