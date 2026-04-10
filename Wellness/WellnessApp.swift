@@ -10,6 +10,7 @@ import SwiftUI
 import SwiftData
 import FirebaseCore
 import FirebaseAuth
+import FirebaseAppCheck
 import BackgroundTasks
 import UserNotifications
 import GoogleSignIn
@@ -124,6 +125,19 @@ struct WellnessApp: App {
     @State private var authTimedOut = false
 
     init() {
+        // Configure App Check BEFORE FirebaseApp.configure() so the provider
+        // factory is set when Firebase services request App Check tokens.
+        // DEBUG builds use AppCheckDebugProvider (you'll need to register the
+        // debug token printed to the console in Firebase Console → App Check →
+        // your app → Manage debug tokens).
+        // RELEASE builds use DeviceCheckProvider which is transparent to users.
+        #if DEBUG
+        let providerFactory = AppCheckDebugProviderFactory()
+        #else
+        let providerFactory = DeviceCheckProviderFactory()
+        #endif
+        AppCheck.setAppCheckProviderFactory(providerFactory)
+
         // Configure Firebase before any Firebase service (Auth, Firestore) is touched.
         FirebaseApp.configure()
         if let clientID = FirebaseApp.app()?.options.clientID {
