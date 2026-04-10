@@ -128,7 +128,23 @@ struct AuraGain: Identifiable, Equatable {
     var fastingEnabled: Bool = false {
         didSet {
             UserDefaults.standard.set(fastingEnabled, forKey: "fastingEnabled")
-            if fastingEnabled {
+            if fastingEnabled && fastingWindowNotificationEnabled {
+                let hour   = UserDefaults.standard.integer(forKey: "windowStartHour")
+                let minute = UserDefaults.standard.integer(forKey: "windowStartMinute")
+                NotificationService.shared.scheduleFastingWindowNotification(
+                    windowStartHour: hour, windowStartMinute: minute)
+            } else {
+                NotificationService.shared.cancelFastingWindowNotification()
+            }
+        }
+    }
+
+    /// Controls whether the "eating window closing in 90 minutes" push is scheduled.
+    /// Only has an effect when `fastingEnabled` is also true.
+    var fastingWindowNotificationEnabled: Bool = true {
+        didSet {
+            UserDefaults.standard.set(fastingWindowNotificationEnabled, forKey: "fastingWindowNotificationEnabled")
+            if fastingEnabled && fastingWindowNotificationEnabled {
                 let hour   = UserDefaults.standard.integer(forKey: "windowStartHour")
                 let minute = UserDefaults.standard.integer(forKey: "windowStartMinute")
                 NotificationService.shared.scheduleFastingWindowNotification(
@@ -975,6 +991,10 @@ struct AuraGain: Identifiable, Equatable {
         self.useGPSLocation = UserDefaults.standard.object(forKey: "useGPSLocation") == nil
             ? true : UserDefaults.standard.bool(forKey: "useGPSLocation")
         self.aiConsentGiven = UserDefaults.standard.bool(forKey: "aiConsentGiven")
+        // Default to true when the key has never been written — existing users
+        // keep the notification they've always had unless they explicitly turn it off.
+        self.fastingWindowNotificationEnabled = UserDefaults.standard.object(forKey: "fastingWindowNotificationEnabled") == nil
+            ? true : UserDefaults.standard.bool(forKey: "fastingWindowNotificationEnabled")
         self.mealReminderEnabled = UserDefaults.standard.bool(forKey: "mealReminderEnabled")
         let storedReminderHour = UserDefaults.standard.object(forKey: "mealReminderHour")
         self.mealReminderHour = storedReminderHour != nil

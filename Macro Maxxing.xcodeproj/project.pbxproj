@@ -15,6 +15,7 @@
 		881BDADE2F67A1A2003E41BE /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 881BDADD2F67A1A2003E41BE /* GoogleSignInSwift */; };
 		8863D94E2F705AAF00047CD0 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 8863D94D2F705AAF00047CD0 /* GoogleMobileAds */; };
 		8863D9502F705AB000047CD0 /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = 8863D94F2F705AB000047CD0 /* FirebaseRemoteConfig */; };
+		88C8F1B32F89A9FA00CA7E64 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 88C8F1B22F89A9FA00CA7E64 /* FirebaseAppCheck */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +44,7 @@
 				881BD8072F64841E003E41BE /* FirebaseStorage in Frameworks */,
 				881BD9012F64841E003E41BE /* FirebaseFunctions in Frameworks */,
 				8863D94E2F705AAF00047CD0 /* GoogleMobileAds in Frameworks */,
+				88C8F1B32F89A9FA00CA7E64 /* FirebaseAppCheck in Frameworks */,
 				8863D9502F705AB000047CD0 /* FirebaseRemoteConfig in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -56,6 +58,7 @@
 				8863DED72F70B28F00047CD0 /* Macro MaxxingRelease.entitlements */,
 				8863DED62F70B20F00047CD0 /* Macro Maxxing.entitlements */,
 				881BD6752F620203003E41BE /* Wellness */,
+				88C8F1B12F89A9FA00CA7E64 /* Frameworks */,
 				881BD6742F620203003E41BE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -66,6 +69,13 @@
 				881BD6732F620203003E41BE /* Macro Maxxing.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		88C8F1B12F89A9FA00CA7E64 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -96,6 +106,7 @@
 				881BDADD2F67A1A2003E41BE /* GoogleSignInSwift */,
 				8863D94D2F705AAF00047CD0 /* GoogleMobileAds */,
 				8863D94F2F705AB000047CD0 /* FirebaseRemoteConfig */,
+				88C8F1B22F89A9FA00CA7E64 /* FirebaseAppCheck */,
 			);
 			productName = Wellness;
 			productReference = 881BD6732F620203003E41BE /* Macro Maxxing.app */;
@@ -450,6 +461,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 881BD8012F64841E003E41BE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseRemoteConfig;
+		};
+		88C8F1B22F89A9FA00CA7E64 /* FirebaseAppCheck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 881BD8012F64841E003E41BE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAppCheck;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

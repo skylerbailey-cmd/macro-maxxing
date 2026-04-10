@@ -392,7 +392,7 @@ struct SettingsView: View {
                      : "Enable to track your daily intermittent fasting window on the Home screen.")
             }
 
-            // MARK: Meal Logging Reminder
+            // MARK: Notifications
             Section {
                 Toggle("Daily Meal Reminder", isOn: $userSettings.mealReminderEnabled)
 
@@ -403,12 +403,14 @@ struct SettingsView: View {
                         displayedComponents: .hourAndMinute
                     )
                 }
+
+                if userSettings.fastingEnabled {
+                    Toggle("Fasting Window Reminder", isOn: $userSettings.fastingWindowNotificationEnabled)
+                }
             } header: {
                 Text("Notifications")
             } footer: {
-                Text(userSettings.mealReminderEnabled
-                     ? "You'll get a daily reminder at the time above if you haven't hit your macro goals yet."
-                     : "Enable to receive a daily push notification reminding you to log your meals.")
+                Text(notificationsFooterText)
             }
 
             // MARK: Health Disclaimer
@@ -615,6 +617,19 @@ struct SettingsView: View {
         } message: {
             Text(exportError ?? "")
         }
+    }
+
+    private var notificationsFooterText: String {
+        var lines: [String] = []
+        lines.append(userSettings.mealReminderEnabled
+                     ? "You'll get a daily reminder at the time above if you haven't hit your macro goals yet."
+                     : "Enable the daily meal reminder to get a push notification reminding you to log your meals.")
+        if userSettings.fastingEnabled {
+            lines.append(userSettings.fastingWindowNotificationEnabled
+                         ? "You'll get a notification 90 minutes before your eating window closes so you can fit in a final meal."
+                         : "The 90-minute fasting window reminder is off.")
+        }
+        return lines.joined(separator: "\n\n")
     }
 
     private var attStatusText: String {

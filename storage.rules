@@ -5,10 +5,11 @@ service firebase.storage {
     // =====================================================================
     // PROFILE PHOTOS — owner writes, any authenticated user reads
     // =====================================================================
-    match /profile_photos/{userID}.jpg {
+    match /profile_photos/{fileName} {
+      // Extract userID by matching everything before ".jpg"
       allow read: if request.auth != null;
       allow write: if request.auth != null
-                   && request.auth.uid == userID
+                   && fileName.matches(request.auth.uid + '.jpg')
                    && request.resource.size < 1 * 1024 * 1024
                    && request.resource.contentType.matches('image/jpeg');
     }

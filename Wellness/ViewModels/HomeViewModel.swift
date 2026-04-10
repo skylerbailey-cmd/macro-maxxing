@@ -25,7 +25,7 @@ import FirebaseFirestore
             UserDefaults.standard.set(windowStartHour, forKey: "windowStartHour")
             snapshotTodayWindow()
             saveWindowToFirestore()
-            if userSettings.fastingEnabled {
+            if userSettings.fastingEnabled && userSettings.fastingWindowNotificationEnabled {
                 NotificationService.shared.scheduleFastingWindowNotification(
                     windowStartHour: windowStartHour, windowStartMinute: windowStartMinute)
             }
@@ -36,7 +36,7 @@ import FirebaseFirestore
             UserDefaults.standard.set(windowStartMinute, forKey: "windowStartMinute")
             snapshotTodayWindow()
             saveWindowToFirestore()
-            if userSettings.fastingEnabled {
+            if userSettings.fastingEnabled && userSettings.fastingWindowNotificationEnabled {
                 NotificationService.shared.scheduleFastingWindowNotification(
                     windowStartHour: windowStartHour, windowStartMinute: windowStartMinute)
             }
@@ -229,7 +229,7 @@ import FirebaseFirestore
         snapshotTodayWindow()
 
         // Schedule fasting window notification if enabled
-        if userSettings.fastingEnabled {
+        if userSettings.fastingEnabled && userSettings.fastingWindowNotificationEnabled {
             NotificationService.shared.scheduleFastingWindowNotification(
                 windowStartHour: windowStartHour, windowStartMinute: windowStartMinute)
         }
