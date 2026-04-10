@@ -790,24 +790,37 @@ struct HomeView: View {
 
     @ViewBuilder
     private var macroGapSummary: some View {
-        let remainCal = max(0, viewModel.displayGoalCalories - viewModel.totalCalories)
-        let remainPro = max(0, viewModel.displayGoalProtein  - viewModel.totalProtein)
-        let remainCarb = max(0, viewModel.displayGoalCarbs   - viewModel.totalCarbs)
-        let remainFat = max(0, viewModel.displayGoalFat      - viewModel.totalFat)
+        let goalCal  = viewModel.displayGoalCalories
+        let goalPro  = viewModel.displayGoalProtein
+        let goalCarb = viewModel.displayGoalCarbs
+        let goalFat  = viewModel.displayGoalFat
+
+        // Room to the upper limit (goal + 15%) — this is the real budget.
+        let roomCal = max(0, goalCal * 1.15 - viewModel.totalCalories)
+        let overGoalCal = viewModel.totalCalories > goalCal
 
         // Determine which macros still need significant intake (>15% of goal remaining)
+        let remainPro  = max(0, goalPro  - viewModel.totalProtein)
+        let remainCarb = max(0, goalCarb - viewModel.totalCarbs)
+        let remainFat  = max(0, goalFat  - viewModel.totalFat)
         var needs: [String] = []
-        if remainPro  > viewModel.displayGoalProtein  * 0.15 { needs.append("protein") }
-        if remainCarb > viewModel.displayGoalCarbs    * 0.15 { needs.append("carbs") }
-        if remainFat  > viewModel.displayGoalFat      * 0.15 { needs.append("fat") }
+        if remainPro  > goalPro  * 0.15 { needs.append("protein") }
+        if remainCarb > goalCarb * 0.15 { needs.append("carbs") }
+        if remainFat  > goalFat  * 0.15 { needs.append("fat") }
 
         let summary: String
-        if needs.isEmpty {
-            summary = "You're close to hitting all your macros — just \(Int(remainCal)) cal left. Here's a light option to finish the day."
+        if roomCal <= 0 {
+            summary = "You've hit your calorie limit. Check tomorrow's plan below."
+        } else if needs.isEmpty {
+            summary = "You're close to hitting all your macros — just \(Int(roomCal)) cal of room left. Here's a light option to finish the day."
         } else {
             let joined = needs.count == 1 ? needs[0]
                 : needs.dropLast().joined(separator: ", ") + " and " + needs.last!
-            summary = "You have \(Int(remainCal)) cal remaining and need more \(joined). Here's what to eat next."
+            if overGoalCal {
+                summary = "You're over your calorie goal but have \(Int(roomCal)) cal of room left. You just need more \(joined) — grab a quick lean snack."
+            } else {
+                summary = "You have \(Int(roomCal)) cal of room and need more \(joined). Here's what to eat next."
+            }
         }
 
         return Text(summary)
