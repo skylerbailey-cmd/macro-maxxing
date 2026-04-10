@@ -166,6 +166,12 @@ final class FoodRecognitionManager {
                 components: sonnetResult.components
             )
         } catch {
+            // Log the underlying error so we can diagnose why Haiku or the
+            // low-confidence Sonnet text-only fallback failed. Without this,
+            // any proxyClaude rejection (wrong model ID, rate limit, auth)
+            // surfaces as a generic "trouble identifying this food" error
+            // with no trail.
+            AppLogger.log("[Tier1] ❌ Haiku pipeline failed: \(error.localizedDescription)")
             return nil
         }
     }
@@ -211,6 +217,7 @@ final class FoodRecognitionManager {
                 components: sonnetResult.components
             )
         } catch {
+            AppLogger.log("[Tier2] ❌ Sonnet vision failed: \(error.localizedDescription)")
             return nil
         }
     }

@@ -331,10 +331,14 @@ exports.deleteAccount = onCall(async (request) => {
 // proxyClaude  (callable — server-side proxy for Anthropic API)
 // ---------------------------------------------------------------------------
 
-// Allowed models — prevent callers from using expensive models via our key
+// Allowed models — prevent callers from using expensive models via our key.
+// IMPORTANT: these must match the exact strings sent by the iOS client
+// (ClaudeHaikuService, ClaudeSonnetService, ClaudeAnalysisService). Any
+// mismatch causes proxyClaude to reject the call with "Unsupported model",
+// which the client turns into the "trouble identifying this food" error.
 const ALLOWED_CLAUDE_MODELS = [
   "claude-haiku-4-5-20251001",
-  "claude-sonnet-4-6-20250514",
+  "claude-sonnet-4-6",
   // Add new model IDs here as you adopt them
 ];
 const MAX_ALLOWED_TOKENS = 4096;
