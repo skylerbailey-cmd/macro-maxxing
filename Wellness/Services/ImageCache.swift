@@ -20,6 +20,10 @@ final class ImageCache {
 
     private let cache = NSCache<NSString, UIImage>()
 
+    func removeAll() {
+        cache.removeAllObjects()
+    }
+
     subscript(url: String) -> UIImage? {
         get { cache.object(forKey: url as NSString) }
         set {
