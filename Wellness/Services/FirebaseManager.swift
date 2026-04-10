@@ -19,24 +19,38 @@ final class FirebaseManager {
     private let networkReady: Task<Void, Never>
 
     private static let sessionActiveKey = "firestoreSessionActive"
+    /// Bumped whenever the cache-recovery logic changes. If the stored
+    /// version is lower (or missing), persistence is cleared once so
+    /// any corruption left by earlier builds is wiped automatically.
+    private static let cacheSchemaVersion = 1
+    private static let cacheSchemaKey     = "firestoreCacheSchema"
 
     private init() {
         // ── Crash recovery ──────────────────────────────────────────────
-        // If the flag is still true the previous session didn't terminate
-        // cleanly, which means LevelDB may be corrupted.  Clear the
-        // persistence cache so Firestore can start fresh and re-sync.
+        // Clear the persistence cache when:
+        //   1. This is the first launch with the new recovery code
+        //      (cacheSchemaVersion is missing / outdated), OR
+        //   2. The previous session crashed (sessionActive flag is
+        //      still true because markCleanExit() never ran).
+        //
+        // This guarantees corrupted LevelDB files left by earlier
+        // builds are cleaned up on the very first run of the fix.
+        let storedSchema    = UserDefaults.standard.integer(forKey: Self.cacheSchemaKey)
         let previousCrashed = UserDefaults.standard.bool(forKey: Self.sessionActiveKey)
-        if previousCrashed {
+        let needsCacheClear = storedSchema < Self.cacheSchemaVersion || previousCrashed
+
+        if needsCacheClear {
             let sem = DispatchSemaphore(value: 0)
             Firestore.firestore().clearPersistence { error in
                 if let error {
                     print("[FirebaseManager] clearPersistence failed: \(error.localizedDescription)")
                 } else {
-                    print("[FirebaseManager] Cleared corrupted persistence cache after crash")
+                    print("[FirebaseManager] Cleared persistence cache (schema \(storedSchema)→\(Self.cacheSchemaVersion), crashed=\(previousCrashed))")
                 }
                 sem.signal()
             }
             sem.wait()
+            UserDefaults.standard.set(Self.cacheSchemaVersion, forKey: Self.cacheSchemaKey)
         }
         // Mark this session as active; cleared in markCleanExit().
         UserDefaults.standard.set(true, forKey: Self.sessionActiveKey)
