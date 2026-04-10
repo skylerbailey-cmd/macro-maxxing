@@ -424,7 +424,7 @@ struct LeaderboardView: View {
                     postID:           fbPostID
                 )
             } catch {
-                print("[LeaderboardView] Firebase post failed: \(error.localizedDescription)")
+                AppLogger.log("[LeaderboardView] Firebase post failed: \(error.localizedDescription)")
             }
         }
     }

@@ -39,7 +39,7 @@ final class FoodRecognitionManager {
         // Voice notes skip straight to Sonnet, which can understand natural language
         // like "1 tablespoon of olive oil" regardless of what the photo shows.
         if let voice = voiceNote, !voice.isEmpty {
-            print("[FoodRecognition] Voice note present — going to Sonnet: \"\(voice)\"")
+            AppLogger.log("[FoodRecognition] Voice note present — going to Sonnet: \"\(voice)\"")
             if let result = await attemptSonnetVision(image: image, previousGuess: nil, voiceNote: voice, userID: userID) {
                 return result
             }
@@ -103,7 +103,7 @@ final class FoodRecognitionManager {
                     )
                 }
 
-                print("[Tier1] ✅ Haiku (confident \(Int(haikuResult.confidence * 100))%) for \"\(haikuResult.foodName)\" — \(haikuResult.calories) kcal / \(Int(haikuResult.portionGrams))g")
+                AppLogger.log("[Tier1] ✅ Haiku (confident \(Int(haikuResult.confidence * 100))%) for \"\(haikuResult.foodName)\" — \(haikuResult.calories) kcal / \(Int(haikuResult.portionGrams))g")
                 ScanAnalyticsService.shared.recordScan(userID: userID, tier: 1, cacheHit: false)
 
                 return FoodRecognitionResult(
@@ -147,7 +147,7 @@ final class FoodRecognitionManager {
                 )
             }
 
-            print("[Tier1] ✅ Haiku→Sonnet(text) for \"\(haikuResult.foodName)\" — \(sonnetResult.calories) kcal (Haiku confidence was \(Int(haikuResult.confidence * 100))%)")
+            AppLogger.log("[Tier1] ✅ Haiku→Sonnet(text) for \"\(haikuResult.foodName)\" — \(sonnetResult.calories) kcal (Haiku confidence was \(Int(haikuResult.confidence * 100))%)")
             ScanAnalyticsService.shared.recordScan(userID: userID, tier: 1, cacheHit: false)
 
             let sonnetIsMixed = (sonnetResult.components?.count ?? 0) > 1

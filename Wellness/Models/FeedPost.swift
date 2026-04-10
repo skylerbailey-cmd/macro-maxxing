@@ -323,7 +323,7 @@ extension FeedPost {
             self.createdAt = createdAtTs?.dateValue()
             self.macroDate = macroDateTs?.dateValue()
         } catch {
-            print("[FeedPost] Decode error – \(document.documentID): \(error)")
+            AppLogger.log("[FeedPost] Decode error – \(document.documentID): \(error)")
             return nil
         }
     }

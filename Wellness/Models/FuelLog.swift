@@ -108,7 +108,7 @@ extension FuelLog {
         do {
             self = try Firestore.Decoder().decode(FuelLog.self, from: document.data() ?? [:])
         } catch {
-            print("[FuelLog] Decode error – \(document.documentID): \(error)")
+            AppLogger.log("[FuelLog] Decode error – \(document.documentID): \(error)")
             return nil
         }
     }

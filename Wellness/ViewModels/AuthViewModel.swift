@@ -110,7 +110,7 @@ final class AuthViewModel {
             do {
                 try await result.user.sendEmailVerification()
             } catch {
-                print("[AuthViewModel] sendEmailVerification failed: \(error.localizedDescription)")
+                AppLogger.log("[AuthViewModel] sendEmailVerification failed: \(error.localizedDescription)")
             }
 
             try await UserProfileService.shared.createProfile(UserProfile(

@@ -40,10 +40,10 @@ final class FirebaseManager {
         let needsCacheClear = storedSchema < Self.cacheSchemaVersion || previousCrashed
 
         if needsCacheClear {
-            // Clear persistence asynchronously — avoid blocking main thread with semaphore
+            // Clear persistence synchronously — avoid blocking main thread with semaphore
             // which can deadlock when Firestore dispatches the completion on the main queue.
             try? Firestore.firestore().clearPersistence()
-            print("[FirebaseManager] Cleared persistence cache (schema \(storedSchema)→\(Self.cacheSchemaVersion), crashed=\(previousCrashed))")
+            AppLogger.log("[FirebaseManager] Cleared persistence cache (schema \(storedSchema)→\(Self.cacheSchemaVersion), crashed=\(previousCrashed))")
             UserDefaults.standard.set(Self.cacheSchemaVersion, forKey: Self.cacheSchemaKey)
         }
         // Mark this session as active; cleared in markCleanExit().
@@ -72,7 +72,7 @@ final class FirebaseManager {
             do {
                 try await firestore.disableNetwork()
             } catch {
-                print("[FirebaseManager] disableNetwork failed: \(error.localizedDescription)")
+                AppLogger.log("[FirebaseManager] disableNetwork failed: \(error.localizedDescription)")
             }
         }
     }
@@ -116,9 +116,9 @@ final class FirebaseManager {
         await networkReady.value
         do {
             try await db.enableNetwork()
-            print("[FirebaseManager] Network enabled")
+            AppLogger.log("[FirebaseManager] Network enabled")
         } catch {
-            print("[FirebaseManager] enableNetwork failed: \(error.localizedDescription)")
+            AppLogger.log("[FirebaseManager] enableNetwork failed: \(error.localizedDescription)")
         }
     }
 }

@@ -108,7 +108,7 @@ final class FollowService {
         }
 
         try await batch.commit()
-        print("[FollowService] \(currentUserID) followed \(targetUserID) (friends: \(becomesFriends))")
+        AppLogger.log("[FollowService] \(currentUserID) followed \(targetUserID) (friends: \(becomesFriends))")
     }
 
     // MARK: - 2. Unfollow User
@@ -154,7 +154,7 @@ final class FollowService {
         }
 
         try await batch.commit()
-        print("[FollowService] \(currentUserID) unfollowed \(targetUserID) (wasFriends: \(wasFriends))")
+        AppLogger.log("[FollowService] \(currentUserID) unfollowed \(targetUserID) (wasFriends: \(wasFriends))")
     }
 
     // MARK: - 3. Is Following

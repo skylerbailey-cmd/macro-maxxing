@@ -53,7 +53,7 @@ final class AdManager: NSObject, ObservableObject {
         // Start the ads SDK and preload ad inventory.
         await withCheckedContinuation { cont in
             MobileAds.shared.start { _ in
-                print("[AdManager] Google Mobile Ads SDK initialized")
+                AppLogger.log("[AdManager] Google Mobile Ads SDK initialized")
                 cont.resume()
             }
         }
@@ -71,11 +71,11 @@ final class AdManager: NSObject, ObservableObject {
     func preloadRewarded() {
         RewardedAd.load(with: rewardedAdUnitID, request: Request()) { [weak self] ad, error in
             if let error {
-                print("[AdManager] Rewarded ad load failed: \(error.localizedDescription)")
+                AppLogger.log("[AdManager] Rewarded ad load failed: \(error.localizedDescription)")
                 return
             }
             self?.rewardedAd = ad
-            print("[AdManager] Rewarded ad loaded")
+            AppLogger.log("[AdManager] Rewarded ad loaded")
         }
     }
 
@@ -85,7 +85,7 @@ final class AdManager: NSObject, ObservableObject {
     func showRewarded(onReward: @escaping () -> Void, onDismiss: (() -> Void)? = nil) {
         guard let ad = rewardedAd,
               let root = rootViewController() else {
-            print("[AdManager] No rewarded ad available — granting reward anyway")
+            AppLogger.log("[AdManager] No rewarded ad available — granting reward anyway")
             onReward()
             onDismiss?()
             return
@@ -98,7 +98,7 @@ final class AdManager: NSObject, ObservableObject {
 
         ad.present(from: root) {
             let reward = ad.adReward
-            print("[AdManager] User earned reward: \(reward.amount) \(reward.type)")
+            AppLogger.log("[AdManager] User earned reward: \(reward.amount) \(reward.type)")
             onReward()
         }
         rewardedAd = nil
@@ -112,11 +112,11 @@ final class AdManager: NSObject, ObservableObject {
     func preloadInterstitial() {
         InterstitialAd.load(with: interstitialAdUnitID, request: Request()) { [weak self] ad, error in
             if let error {
-                print("[AdManager] Interstitial ad load failed: \(error.localizedDescription)")
+                AppLogger.log("[AdManager] Interstitial ad load failed: \(error.localizedDescription)")
                 return
             }
             self?.interstitialAd = ad
-            print("[AdManager] Interstitial ad loaded")
+            AppLogger.log("[AdManager] Interstitial ad loaded")
         }
     }
 
@@ -157,7 +157,7 @@ private class RewardedAdDelegate: NSObject, FullScreenContentDelegate {
         onDismiss()
     }
     func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
-        print("[AdManager] Ad failed to present: \(error.localizedDescription)")
+        AppLogger.log("[AdManager] Ad failed to present: \(error.localizedDescription)")
         onDismiss()
     }
 }
@@ -170,7 +170,7 @@ private class InterstitialAdDelegate: NSObject, FullScreenContentDelegate {
         onDismiss()
     }
     func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
-        print("[AdManager] Ad failed to present: \(error.localizedDescription)")
+        AppLogger.log("[AdManager] Ad failed to present: \(error.localizedDescription)")
         onDismiss()
     }
 }

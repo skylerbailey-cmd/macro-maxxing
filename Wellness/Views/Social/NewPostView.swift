@@ -876,7 +876,7 @@ struct NewPostView: View {
                 // before the write completes and shows the post without its fuel log.
                 await MainActor.run { postCompletedCallback?() }
             } catch {
-                print("[NewPostView] Firebase sync failed: \(error.localizedDescription)")
+                AppLogger.log("[NewPostView] Firebase sync failed: \(error.localizedDescription)")
             }
             await InAppNotificationService.shared.notifySubscribers(
                 ofUserID:          userSettings.userID,
