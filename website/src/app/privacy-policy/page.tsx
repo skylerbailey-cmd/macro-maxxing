@@ -11,7 +11,7 @@ export default function PrivacyPolicyPage() {
     <section className="bg-brand-bg text-gray-300 py-20">
       <div className="max-w-3xl mx-auto px-4 sm:px-6">
         <h1 className="text-4xl font-bold text-white mb-2">Privacy Policy</h1>
-        <p className="text-gray-500 mb-12">Effective Date: March 25, 2026</p>
+        <p className="text-gray-500 mb-12">Effective Date: April 10, 2026</p>
 
         <div className="space-y-10 text-sm leading-relaxed">
           <div>
@@ -403,20 +403,92 @@ export default function PrivacyPolicyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              11. Advertising, Tracking &amp; Do Not Track
+              11. Cookies, Advertising &amp; Tracking
             </h2>
-            <p className="mb-2">
-              The App itself does not use cookies. Our website (macromaxxing.app)
-              may use cookies and similar tracking technologies for analytics and
-              to improve your browsing experience.
+
+            <h3 className="text-base font-semibold text-white mt-4 mb-2">
+              11.1 Cookies on the Website
+            </h3>
+            <p className="mb-3">
+              When you visit macromaxxing.app we use cookies and similar
+              technologies (including browser <code>localStorage</code>) to
+              operate the site and &mdash; only with your consent &mdash; to
+              measure usage, remember preferences, and support marketing
+              activities. On your first visit you will see a cookie banner
+              allowing you to accept all, reject all non-essential cookies, or
+              customize your choices by category. You can change or withdraw
+              your consent at any time by clicking{" "}
+              <strong className="text-white">&ldquo;Cookie settings&rdquo;</strong>{" "}
+              in the website footer.
             </p>
+            <p className="mb-3">
+              We classify cookies and similar technologies into four
+              categories:
+            </p>
+            <ul className="list-disc list-inside space-y-2 ml-2 mb-3">
+              <li>
+                <strong className="text-white">Strictly necessary:</strong>{" "}
+                Required for the Website to function. This includes a single
+                entry in your browser&apos;s local storage that records your
+                own cookie-consent choices so we do not show you the banner on
+                every page. These are active by default and do not require
+                consent because the site could not operate without them.
+              </li>
+              <li>
+                <strong className="text-white">Preferences:</strong> Remember
+                non-essential choices you make on the site, such as UI
+                preferences. Opt-in only.
+              </li>
+              <li>
+                <strong className="text-white">Analytics:</strong> Help us
+                understand how visitors use the site (for example, which pages
+                are viewed and which buttons are clicked) so we can improve
+                it. Opt-in only.
+              </li>
+              <li>
+                <strong className="text-white">Marketing:</strong> Used to
+                measure advertising effectiveness and, where applicable, to
+                show relevant ads on other sites. Opt-in only.
+              </li>
+            </ul>
+            <p className="mb-3">
+              <strong className="text-white">Current status:</strong> As of
+              the effective date of this policy, the Website does{" "}
+              <em>not</em> set any Preferences, Analytics, or Marketing
+              cookies. The only item we store is the strictly necessary record
+              of your consent choice. If we add analytics or marketing
+              technologies in the future, they will be gated behind your
+              consent and disclosed in an updated version of this policy.
+            </p>
+            <p className="mb-3">
+              <strong className="text-white">Legal basis (EU/UK/EEA).</strong>{" "}
+              Where the GDPR, UK GDPR, and ePrivacy rules apply, we rely on
+              your consent as the legal basis for setting any non-essential
+              cookies. Strictly necessary cookies are set on the basis of our
+              legitimate interest in operating the site. You may withdraw
+              consent at any time via the Cookie settings link; withdrawal
+              does not affect the lawfulness of processing carried out before
+              withdrawal.
+            </p>
+            <p className="mb-3">
+              <strong className="text-white">Browser-level controls.</strong>{" "}
+              In addition to our in-site controls, most browsers let you
+              block or delete cookies and site data through their settings.
+              Blocking strictly necessary cookies may cause parts of the site
+              to stop working.
+            </p>
+
+            <h3 className="text-base font-semibold text-white mt-4 mb-2">
+              11.2 In-App Advertising (Mobile App)
+            </h3>
             <p className="mb-2">
-              We display advertisements within the App using Google AdMob,
-              including banner ads, interstitial ads, and rewarded ads. Google
-              AdMob may collect device identifiers (such as your Advertising ID),
-              IP address, and ad interaction data to serve and measure
-              personalized ads. You can opt out of personalized advertising by
-              adjusting your device settings:
+              The App itself does not use cookies. We display advertisements
+              within the App using Google AdMob, including banner ads,
+              interstitial ads, and rewarded ads. Google AdMob may collect
+              device identifiers (such as your Advertising ID), IP address,
+              and ad interaction data to serve and measure personalized ads.
+              You can opt out of personalized advertising by adjusting your
+              device settings:
             </p>
             <ul className="list-disc list-inside space-y-1 ml-2 mb-3">
               <li>
@@ -426,18 +498,22 @@ export default function PrivacyPolicyPage() {
                 Tracking Transparency prompt when first launching the App.
               </li>
               <li>
-                <strong className="text-white">Web:</strong> Manage cookie
-                preferences via your browser settings or our cookie banner (if
-                displayed).
+                <strong className="text-white">Web:</strong> Manage your
+                choices via the cookie banner on first visit, the
+                &ldquo;Cookie settings&rdquo; link in our footer, or your
+                browser&apos;s cookie and site-data controls.
               </li>
             </ul>
+
+            <h3 className="text-base font-semibold text-white mt-4 mb-2">
+              11.3 Do Not Track Signals
+            </h3>
             <p>
-              <strong className="text-white">Do Not Track Signals:</strong>{" "}
               Some browsers transmit &ldquo;Do Not Track&rdquo; (DNT) signals.
-              There is currently no industry standard for how to respond to DNT
-              signals. Our Website does not currently respond to DNT signals,
-              but you can manage tracking preferences through the controls
-              described above.
+              There is currently no industry standard for how to respond to
+              DNT signals. Our Website does not currently respond to DNT
+              signals, but you can manage tracking preferences through the
+              Cookie settings link described above or through your browser.
             </p>
           </div>
 
