@@ -180,11 +180,22 @@ final class ClaudeAnalysisService {
     }
 
     func brainstorm(_ input: BrainstormInput) async throws -> String {
-        // Calculate remaining grams for each macro
+        // Calculate remaining grams to reach the goal
         let remainingCalories = max(0, input.goalCalories - input.totalCalories)
         let remainingProtein  = max(0, input.goalProtein  - input.totalProtein)
         let remainingCarbs    = max(0, input.goalCarbs    - input.totalCarbs)
         let remainingFat      = max(0, input.goalFat      - input.totalFat)
+
+        // Upper limits — the app uses a ±15% acceptable range around each goal.
+        // "Room" is how much the user can still eat before exceeding the upper limit.
+        let upperCalories = input.goalCalories * 1.15
+        let upperProtein  = input.goalProtein  * 1.15
+        let upperCarbs    = input.goalCarbs    * 1.15
+        let upperFat      = input.goalFat      * 1.15
+
+        let roomCalories = max(0, upperCalories - input.totalCalories)
+        let roomCarbs    = max(0, upperCarbs    - input.totalCarbs)
+        let roomFat      = max(0, upperFat      - input.totalFat)
 
         // Determine which macros are met or over goal
         let caloriesMet = input.totalCalories >= input.goalCalories
@@ -198,14 +209,17 @@ final class ClaudeAnalysisService {
         let carbsNearlyMet    = !carbsMet    && input.goalCarbs    > 0 && (input.totalCarbs    / input.goalCarbs)    >= 0.90
         let fatNearlyMet      = !fatMet      && input.goalFat      > 0 && (input.totalFat      / input.goalFat)      >= 0.90
 
-        // Build per-macro status lines with exact gram amounts
+        // Build per-macro status lines with exact gram amounts AND upper-limit room
         var macroLines: [String] = []
 
         if caloriesMet {
-            let over = Int(input.totalCalories - input.goalCalories)
-            macroLines.append("- Calories: ALREADY MET (\(Int(input.totalCalories)) / \(Int(input.goalCalories)) kcal, over by \(over) kcal) — OFF LIMITS, do NOT suggest calorie-dense foods")
+            if roomCalories > 0 {
+                macroLines.append("- Calories: OVER GOAL but \(Int(roomCalories)) kcal room before upper limit (\(Int(input.totalCalories))/\(Int(input.goalCalories)) kcal, upper limit \(Int(upperCalories))) — keep any suggestion under \(Int(roomCalories)) kcal total")
+            } else {
+                macroLines.append("- Calories: OVER UPPER LIMIT (\(Int(input.totalCalories))/\(Int(input.goalCalories)) kcal, limit \(Int(upperCalories))) — HARD STOP, do not suggest eating more")
+            }
         } else if caloriesNearlyMet {
-            macroLines.append("- Calories: NEARLY MET — only \(Int(remainingCalories)) kcal remaining (\(Int(input.totalCalories)) eaten of \(Int(input.goalCalories)) kcal goal) — MINIMIZE, keep suggestions low-calorie")
+            macroLines.append("- Calories: NEARLY MET — only \(Int(remainingCalories)) kcal to goal, \(Int(roomCalories)) kcal to upper limit (\(Int(input.totalCalories))/\(Int(input.goalCalories))) — keep suggestions low-calorie")
         } else {
             macroLines.append("- Calories: \(Int(remainingCalories)) kcal remaining (\(Int(input.totalCalories)) eaten of \(Int(input.goalCalories)) kcal goal)")
         }
@@ -220,8 +234,11 @@ final class ClaudeAnalysisService {
         }
 
         if carbsMet {
-            let over = Int(input.totalCarbs - input.goalCarbs)
-            macroLines.append("- Carbs: ALREADY MET (\(Int(input.totalCarbs))g / \(Int(input.goalCarbs))g, over by \(over)g) — OFF LIMITS, do NOT suggest carb-heavy foods")
+            if roomCarbs > 0 {
+                macroLines.append("- Carbs: OVER GOAL but \(Int(roomCarbs))g room before upper limit (\(Int(input.totalCarbs))g/\(Int(input.goalCarbs))g, limit \(Int(upperCarbs))g) — keep carbs under \(Int(roomCarbs))g")
+            } else {
+                macroLines.append("- Carbs: OVER UPPER LIMIT (\(Int(input.totalCarbs))g/\(Int(input.goalCarbs))g, limit \(Int(upperCarbs))g) — HARD STOP on carbs, zero-carb foods only")
+            }
         } else if carbsNearlyMet {
             macroLines.append("- Carbs: NEARLY MET — only \(Int(remainingCarbs))g remaining (\(Int(input.totalCarbs))g eaten of \(Int(input.goalCarbs))g goal) — MINIMIZE, keep suggestions low-carb")
         } else {
@@ -229,8 +246,11 @@ final class ClaudeAnalysisService {
         }
 
         if fatMet {
-            let over = Int(input.totalFat - input.goalFat)
-            macroLines.append("- Fat: ALREADY MET (\(Int(input.totalFat))g / \(Int(input.goalFat))g, over by \(over)g) — OFF LIMITS, avoid added fats entirely")
+            if roomFat > 0 {
+                macroLines.append("- Fat: OVER GOAL but \(Int(roomFat))g room before upper limit (\(Int(input.totalFat))g/\(Int(input.goalFat))g, limit \(Int(upperFat))g) — keep fat under \(Int(roomFat))g")
+            } else {
+                macroLines.append("- Fat: OVER UPPER LIMIT (\(Int(input.totalFat))g/\(Int(input.goalFat))g, limit \(Int(upperFat))g) — HARD STOP on fat, zero-fat foods only")
+            }
         } else if fatNearlyMet {
             macroLines.append("- Fat: NEARLY MET — only \(Int(remainingFat))g remaining (\(Int(input.totalFat))g eaten of \(Int(input.goalFat))g goal) — MINIMIZE, avoid fatty foods")
         } else {
@@ -258,7 +278,7 @@ final class ClaudeAnalysisService {
         gaps.sort { $0.remainingFraction > $1.remainingFraction }
         let deficits = gaps.map { $0.label }
 
-        // Build the list of macros to avoid (met) and minimize (nearly met)
+        // Build the list of macros to avoid (met/over) and minimize (nearly met)
         var offLimits: [String] = []
         if caloriesMet { offLimits.append("calories") }
         if proteinMet  { offLimits.append("protein") }
@@ -277,11 +297,47 @@ final class ClaudeAnalysisService {
 
         let avoidSummary = offLimits.isEmpty
             ? ""
-            : " Macros that are OFF LIMITS (already met or over): \(offLimits.joined(separator: ", ")). Do NOT suggest foods high in these."
+            : " Macros that are OVER GOAL (already met or over): \(offLimits.joined(separator: ", ")). Stay within the upper limit room shown above."
 
         let minimizeSummary = minimizeMacros.isEmpty
             ? ""
             : " Macros that are NEARLY MET: \(minimizeMacros.joined(separator: ", ")). Keep these as low as possible in your suggestions — do not build meals around these macros."
+
+        // Dynamically choose suggestion format based on calorie budget.
+        // When the user is near or over their calorie goal, full meals don't make
+        // sense — suggest small, targeted snacks or single-ingredient options instead.
+        let formatInstruction: String
+        if roomCalories <= 0 {
+            formatInstruction = """
+            The user is at or over their calorie upper limit. Do NOT suggest eating more. \
+            Instead, give 2 brief tips: one about how they did today, and one about what \
+            to prioritize tomorrow to close the gap (e.g. front-load protein earlier).
+            """
+        } else if roomCalories < 200 {
+            formatInstruction = """
+            The user has very little calorie room left (\(Int(roomCalories)) kcal to upper limit). \
+            Do NOT suggest meals. Suggest exactly 2 small, single-ingredient snacks that \
+            target the remaining deficit with minimal calories. Think: a can of tuna, a \
+            protein shake, plain chicken breast, egg whites, deli turkey slices, beef jerky, \
+            or similar lean/simple options. Each suggestion must stay under \(Int(roomCalories)) kcal.
+            1. Best option
+            2. Quick alternative
+            """
+        } else if roomCalories < 400 {
+            formatInstruction = """
+            The user has limited calorie room (\(Int(roomCalories)) kcal to upper limit). \
+            Suggest exactly 2 light snacks (not full meals) that target the remaining deficit. \
+            Each suggestion must stay under \(Int(roomCalories)) kcal.
+            1. A light snack
+            2. A quick alternative
+            """
+        } else {
+            formatInstruction = """
+            Suggest exactly 2 specific meals or snacks that primarily address the remaining deficits:
+            1. A full meal option
+            2. A quick snack option
+            """
+        }
 
         let prompt = """
         You are a no-nonsense nutrition coach who's been in the gym long enough to know what actually works. \
@@ -290,20 +346,20 @@ final class ClaudeAnalysisService {
         but the quality of the advice always comes first.
 
         A user is mid-day and wants to know what to eat NEXT. Your job is to suggest foods that fill \
-        their remaining macro gaps WITHOUT increasing any macro that is already at or over its goal, \
-        and while MINIMIZING any macro that is nearly met.
+        their remaining macro gaps while respecting the calorie and macro room they have left. \
+        Each macro has a goal and an upper limit (goal + 15%). Suggestions must stay within the upper limit.
 
-        **Macro status (exact gram amounts):**
+        **Macro status (exact amounts with upper-limit room):**
         \(macroLines.joined(separator: "\n"))
 
         **Summary:** \(deficitSummary)\(avoidSummary)\(minimizeSummary)
         \(dietaryRestrictionsPrompt)
-        Suggest exactly 2 specific meals or snacks that primarily address the remaining deficits:
-        1. A full meal option
-        2. A quick snack option
+        \(formatInstruction)
 
         Rules:
-        - CRITICAL: Any macro marked OFF LIMITS must not be meaningfully increased by your suggestions. \
+        - CRITICAL: Every suggestion must fit within the calorie room to the upper limit (\(Int(roomCalories)) kcal max). \
+          Do NOT suggest anything that would push the user over their upper limit.
+        - CRITICAL: For any macro marked OVER GOAL, stay within the remaining room to the upper limit shown above. \
           Choose foods that are naturally low in those macros.
         - IMPORTANT: Any macro marked NEARLY MET should be kept as low as possible. Do NOT build meals \
           around nearly-met macros. For example, if protein is nearly met, do NOT suggest chicken breast \
@@ -311,10 +367,7 @@ final class ClaudeAnalysisService {
         - Focus your suggestions on the macro with the LARGEST remaining gap. The deficits are listed \
           in priority order (biggest gap first).
         - Each option must use a DIFFERENT primary ingredient — no repeating main ingredients across options
-        - Draw from the full range of real foods: chicken, beef, fish, eggs, Greek yogurt, \
-          cottage cheese, tofu, turkey, tuna, lentils, oats, rice, fruit, nuts, seeds, pasta, \
-          bread, potatoes, sweet potatoes, granola, cereal, juice, dried fruit, etc.
-        - Be very specific with amounts in grams (e.g. "200g cooked pasta + 100g marinara sauce") \
+        - Be very specific with amounts in grams (e.g. "142g can of tuna, drained") \
           and include estimated macros for each suggestion (calories, protein, carbs, fat)
         - Format: bold the food name, then one short sentence on why it fits the macro gap, \
           then the estimated macros in parentheses
