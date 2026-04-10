@@ -117,7 +117,7 @@ struct BlockedUsersView: View {
         do {
             blockedUsers = try await BlockService.shared.fetchBlockedUsers(userID: currentUserID)
         } catch {
-            print("[BlockedUsersView] Failed to load: \(error)")
+            AppLogger.log("[BlockedUsersView] Failed to load: \(error)")
         }
         isLoading = false
     }
@@ -128,7 +128,7 @@ struct BlockedUsersView: View {
             try await BlockService.shared.unblockUser(currentUserID: currentUserID, targetUserID: user.userID)
             blockedUsers.removeAll { $0.userID == user.userID }
         } catch {
-            print("[BlockedUsersView] Unblock failed: \(error)")
+            AppLogger.log("[BlockedUsersView] Unblock failed: \(error)")
         }
         unblockingIDs.remove(user.userID)
     }

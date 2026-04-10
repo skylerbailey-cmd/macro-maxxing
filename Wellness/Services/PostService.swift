@@ -108,20 +108,20 @@ final class PostService {
         let metadata = StorageMetadata()
         metadata.contentType = "image/jpeg"
 
-        print("[PostService] Uploading photo to \(imageRef.fullPath) (\(imageData.count / 1024) KB)")
+        AppLogger.log("[PostService] Uploading photo to \(imageRef.fullPath) (\(imageData.count / 1024) KB)")
         do {
             try await uploadData(imageData, to: imageRef, metadata: metadata)
         } catch {
-            print("[PostService] Storage upload FAILED: \(error.localizedDescription)")
+            AppLogger.log("[PostService] Storage upload FAILED: \(error.localizedDescription)")
             throw error
         }
 
         let downloadURL: URL
         do {
             downloadURL = try await fetchDownloadURL(for: imageRef)
-            print("[PostService] Photo upload succeeded: \(downloadURL)")
+            AppLogger.log("[PostService] Photo upload succeeded: \(downloadURL)")
         } catch {
-            print("[PostService] downloadURL FAILED: \(error.localizedDescription)")
+            AppLogger.log("[PostService] downloadURL FAILED: \(error.localizedDescription)")
             try? await imageRef.delete()
             throw error
         }
@@ -207,7 +207,7 @@ final class PostService {
             .getDocuments()
 
         let decoded = snapshot.documents.compactMap { FeedPost(document: $0) }
-        print("[PostService] fetchUserPosts: \(snapshot.documents.count) docs, \(decoded.count) decoded for userID=\(userID)")
+        AppLogger.log("[PostService] fetchUserPosts: \(snapshot.documents.count) docs, \(decoded.count) decoded for userID=\(userID)")
         return decoded.sorted { ($0.createdAtDate ?? .distantPast) > ($1.createdAtDate ?? .distantPast) }
     }
 
@@ -254,7 +254,7 @@ final class PostService {
                                   nsErr.code  == StorageErrorCode.objectNotFound.rawValue)
                 if !isNotFound {
                     // Unexpected error: log it but continue cleaning up remaining files
-                    print("[PostService] Storage delete warning (\(ref.fullPath)): \(error.localizedDescription)")
+                    AppLogger.log("[PostService] Storage delete warning (\(ref.fullPath)): \(error.localizedDescription)")
                 }
             }
         }
@@ -284,7 +284,7 @@ final class PostService {
                 let isNotFound = (nsErr.domain == StorageErrorDomain &&
                                   nsErr.code  == StorageErrorCode.objectNotFound.rawValue)
                 if !isNotFound {
-                    print("[PostService] Storage delete warning (\(ref.fullPath)): \(error.localizedDescription)")
+                    AppLogger.log("[PostService] Storage delete warning (\(ref.fullPath)): \(error.localizedDescription)")
                 }
             }
         }
@@ -381,24 +381,24 @@ final class PostService {
 
         for (idx, image) in photos.prefix(4).enumerated() {
             guard let imageData = compress(image) else {
-                print("[PostService] Photo \(idx): compression failed, skipping")
+                AppLogger.log("[PostService] Photo \(idx): compression failed, skipping")
                 continue
             }
             let ref      = storage.child("posts/\(author.userID)/\(postID)_\(idx).jpg")
             let metadata = StorageMetadata()
             metadata.contentType = "image/jpeg"
-            print("[PostService] Uploading photo \(idx) to \(ref.fullPath) (\(imageData.count / 1024) KB)")
+            AppLogger.log("[PostService] Uploading photo \(idx) to \(ref.fullPath) (\(imageData.count / 1024) KB)")
             do {
                 try await uploadData(imageData, to: ref, metadata: metadata)
                 let url = try await fetchDownloadURL(for: ref)
-                print("[PostService] Photo \(idx) upload succeeded: \(url)")
+                AppLogger.log("[PostService] Photo \(idx) upload succeeded: \(url)")
                 if idx == 0 { primaryURL = url.absoluteString }
                 else         { additionalURLs.append(url.absoluteString) }
             } catch {
                 // Non-fatal: log the error and continue. The post will save without this photo.
                 // Common cause: Firebase Storage security rules require auth — update rules in
                 // Firebase Console → Storage → Rules to allow writes from your app.
-                print("[PostService] Photo \(idx) upload FAILED: \(error.localizedDescription)")
+                AppLogger.log("[PostService] Photo \(idx) upload FAILED: \(error.localizedDescription)")
             }
         }
 
@@ -463,7 +463,7 @@ final class PostService {
             .limit(to: 20)
             .addSnapshotListener { snapshot, error in
                 if let error {
-                    print("[PostService] Feed listener error: \(error.localizedDescription)")
+                    AppLogger.log("[PostService] Feed listener error: \(error.localizedDescription)")
                     onError(error.localizedDescription)
                     return
                 }

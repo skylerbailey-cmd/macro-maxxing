@@ -47,7 +47,7 @@ final class UserProfileService {
         guard !userID.isEmpty else { return }
         let data = try profile.firestoreData()
         try await db.collection(collectionName).document(userID).setData(data, merge: true)
-        print("[UserProfileService] Profile created/merged for \(userID)")
+        AppLogger.log("[UserProfileService] Profile created/merged for \(userID)")
     }
 
     // MARK: - 2. Fetch Profile
@@ -85,7 +85,7 @@ final class UserProfileService {
             // Available if no documents found, or the only match is the current user
             return snapshot.documents.contains { $0.documentID != excludingUserID }
         } catch {
-            print("[UserProfileService] Username check failed: \(error.localizedDescription)")
+            AppLogger.log("[UserProfileService] Username check failed: \(error.localizedDescription)")
             return false // fail open so the user isn't blocked by a network error
         }
     }
@@ -179,7 +179,7 @@ final class UserProfileService {
     func updateProfile(userID: String, fields: [String: Any]) async throws {
         guard !userID.isEmpty else { return }
         try await db.collection(collectionName).document(userID).setData(fields, merge: true)
-        print("[UserProfileService] Updated fields \(fields.keys.joined(separator: ", ")) for \(userID)")
+        AppLogger.log("[UserProfileService] Updated fields \(fields.keys.joined(separator: ", ")) for \(userID)")
     }
 
     // MARK: - 4. Sync Profile Fields (convenience)
@@ -212,7 +212,7 @@ final class UserProfileService {
         do {
             try await updateProfile(userID: userID, fields: fields)
         } catch {
-            print("[UserProfileService] syncProfile failed: \(error.localizedDescription)")
+            AppLogger.log("[UserProfileService] syncProfile failed: \(error.localizedDescription)")
         }
     }
 
@@ -232,11 +232,11 @@ final class UserProfileService {
         let metadata = StorageMetadata()
         metadata.contentType = "image/jpeg"
 
-        print("[UserProfileService] Uploading profile photo to \(ref.fullPath) (\(imageData.count / 1024) KB)")
+        AppLogger.log("[UserProfileService] Uploading profile photo to \(ref.fullPath) (\(imageData.count / 1024) KB)")
         try await uploadData(imageData, to: ref, metadata: metadata)
 
         let downloadURL = try await fetchDownloadURL(for: ref)
-        print("[UserProfileService] Profile photo upload succeeded: \(downloadURL)")
+        AppLogger.log("[UserProfileService] Profile photo upload succeeded: \(downloadURL)")
 
         // Use setData(merge:true) so this works whether or not the document exists yet
         try await db.collection(collectionName).document(userID).setData([

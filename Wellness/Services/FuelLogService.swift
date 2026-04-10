@@ -129,7 +129,7 @@ final class FuelLogService {
             }
             return log.meals.count
         } as! Int
-        print("[FuelLogService] Added meal '\(foodName)' to \(dateKey) (\(mealCount) meals total)")
+        AppLogger.log("[FuelLogService] Added meal '\(foodName)' to \(dateKey) (\(mealCount) meals total)")
 
         // Notify HomeView so it recalculates totals and syncs macro history in one place.
         // (No direct syncMacroHistory call here — HomeView.loadTodayTotals handles it.)
@@ -196,7 +196,7 @@ final class FuelLogService {
             let photoRef = storage.child("fuel_log/\(userID)/\(dateKey)/\(mealID).jpg")
             try? await photoRef.delete()
         }
-        print("[FuelLogService] Deleted meal \(mealID) from \(dateKey) (\(remaining) meals remaining)")
+        AppLogger.log("[FuelLogService] Deleted meal \(mealID) from \(dateKey) (\(remaining) meals remaining)")
 
         // Notify HomeView so it recalculates totals and syncs macro history in one place.
         let isToday = Calendar.current.isDateInToday(date)
@@ -254,7 +254,7 @@ final class FuelLogService {
             }
         }
 
-        print("[FuelLogService] Meal photo uploaded: \(url)")
+        AppLogger.log("[FuelLogService] Meal photo uploaded: \(url)")
         return url.absoluteString
     }
 

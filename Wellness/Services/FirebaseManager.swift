@@ -43,9 +43,9 @@ final class FirebaseManager {
             let sem = DispatchSemaphore(value: 0)
             Firestore.firestore().clearPersistence { error in
                 if let error {
-                    print("[FirebaseManager] clearPersistence failed: \(error.localizedDescription)")
+                    AppLogger.log("[FirebaseManager] clearPersistence failed: \(error.localizedDescription)")
                 } else {
-                    print("[FirebaseManager] Cleared persistence cache (schema \(storedSchema)→\(Self.cacheSchemaVersion), crashed=\(previousCrashed))")
+                    AppLogger.log("[FirebaseManager] Cleared persistence cache (schema \(storedSchema)→\(Self.cacheSchemaVersion), crashed=\(previousCrashed))")
                 }
                 sem.signal()
             }
@@ -78,7 +78,7 @@ final class FirebaseManager {
             do {
                 try await firestore.disableNetwork()
             } catch {
-                print("[FirebaseManager] disableNetwork failed: \(error.localizedDescription)")
+                AppLogger.log("[FirebaseManager] disableNetwork failed: \(error.localizedDescription)")
             }
         }
     }
@@ -122,9 +122,9 @@ final class FirebaseManager {
         await networkReady.value
         do {
             try await db.enableNetwork()
-            print("[FirebaseManager] Network enabled")
+            AppLogger.log("[FirebaseManager] Network enabled")
         } catch {
-            print("[FirebaseManager] enableNetwork failed: \(error.localizedDescription)")
+            AppLogger.log("[FirebaseManager] enableNetwork failed: \(error.localizedDescription)")
         }
     }
 }

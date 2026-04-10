@@ -2114,7 +2114,7 @@ private struct FuelLogPostSheet: View {
                     postID:       fbPostID
                 )
             } catch {
-                print("Failed to mirror fuel log post to Firebase: \(error)")
+                AppLogger.log("Failed to mirror fuel log post to Firebase: \(error)")
             }
         }
 

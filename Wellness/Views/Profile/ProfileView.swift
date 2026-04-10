@@ -1434,7 +1434,7 @@ struct ProfileView: View {
                 )
             }
         } catch {
-            print("[ProfileView] toggleFollow error: \(error)")
+            AppLogger.log("[ProfileView] toggleFollow error: \(error)")
         }
     }
 
@@ -1489,7 +1489,7 @@ struct ProfileView: View {
                 isSubscribed = true
             }
         } catch {
-            print("[ProfileView] toggleSubscribe error: \(error)")
+            AppLogger.log("[ProfileView] toggleSubscribe error: \(error)")
         }
     }
 }

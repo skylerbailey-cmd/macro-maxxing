@@ -444,7 +444,7 @@ struct UserSearchView: View {
                 }
             }
         } catch {
-            print("[UserSearchView] toggleFollow error: \(error)")
+            AppLogger.log("[UserSearchView] toggleFollow error: \(error)")
         }
     }
 

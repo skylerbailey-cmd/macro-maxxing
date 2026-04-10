@@ -103,7 +103,7 @@ final class FastingWindowService {
             let encoded = try Firestore.Encoder().encode(snapshot)
             try await todayDocRef(userID: userID).setData(["fasting": encoded], merge: true)
         } catch {
-            print("[FastingWindowService] logTodaysWindow failed: \(error.localizedDescription)")
+            AppLogger.log("[FastingWindowService] logTodaysWindow failed: \(error.localizedDescription)")
         }
     }
 
@@ -145,9 +145,9 @@ final class FastingWindowService {
                 }
                 try await batch.commit()
             }
-            print("[FastingWindowService] Locked \(snapshot.documents.count) past window(s)")
+            AppLogger.log("[FastingWindowService] Locked \(snapshot.documents.count) past window(s)")
         } catch {
-            print("[FastingWindowService] lockPastWindows failed: \(error.localizedDescription)")
+            AppLogger.log("[FastingWindowService] lockPastWindows failed: \(error.localizedDescription)")
         }
     }
 
@@ -160,9 +160,9 @@ final class FastingWindowService {
         do {
             try await todayDocRef(userID: userID)
                 .updateData(["fasting.isCompleted": true])
-            print("[FastingWindowService] Marked today's window as completed")
+            AppLogger.log("[FastingWindowService] Marked today's window as completed")
         } catch {
-            print("[FastingWindowService] markWindowCompleted failed: \(error.localizedDescription)")
+            AppLogger.log("[FastingWindowService] markWindowCompleted failed: \(error.localizedDescription)")
         }
     }
 

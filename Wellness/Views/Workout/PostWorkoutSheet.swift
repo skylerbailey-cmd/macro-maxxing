@@ -332,7 +332,7 @@ struct PostWorkoutSheet: View {
                 postID:       fbPostID
             )
         } catch {
-            print("[PostWorkoutSheet] Firebase sync failed: \(error.localizedDescription)")
+            AppLogger.log("[PostWorkoutSheet] Firebase sync failed: \(error.localizedDescription)")
         }
 
         Task {

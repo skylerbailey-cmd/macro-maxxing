@@ -1012,7 +1012,7 @@ struct PostCard: View {
                 withAnimation { showCheckmark = false }
             }
         } catch {
-            print("[PostCard] toggleFollow error: \(error)")
+            AppLogger.log("[PostCard] toggleFollow error: \(error)")
         }
     }
 

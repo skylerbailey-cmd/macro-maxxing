@@ -84,7 +84,7 @@ final class MacroHistoryService {
 
         let data = try snapshot.firestoreData()
         try await historyCollection(userID: userID).document(key).setData(data)
-        print("[MacroHistoryService] Saved macro snapshot for \(key)")
+        AppLogger.log("[MacroHistoryService] Saved macro snapshot for \(key)")
     }
 
     // MARK: - 2. Update Today's Macros
@@ -105,13 +105,13 @@ final class MacroHistoryService {
         mealCount:     Int,
         streakDay:     Int
     ) async {
-        print("[MacroHistoryService] updateTodaysMacros called — userID=\(userID.prefix(8)) totalCalories=\(totalCalories) goalCalories=\(goalCalories)")
+        AppLogger.log("[MacroHistoryService] updateTodaysMacros called — userID=\(userID.prefix(8)) totalCalories=\(totalCalories) goalCalories=\(goalCalories)")
         guard !userID.isEmpty else {
-            print("[MacroHistoryService] updateTodaysMacros skipped — userID is empty")
+            AppLogger.log("[MacroHistoryService] updateTodaysMacros skipped — userID is empty")
             return
         }
         guard totalCalories > 0 else {
-            print("[MacroHistoryService] updateTodaysMacros skipped — totalCalories is 0")
+            AppLogger.log("[MacroHistoryService] updateTodaysMacros skipped — totalCalories is 0")
             return
         }
 
@@ -130,9 +130,9 @@ final class MacroHistoryService {
                 mealCount:     mealCount,
                 streakDay:     streakDay
             )
-            print("[MacroHistoryService] updateTodaysMacros succeeded — wrote \(Int(totalCalories)) cal to macroHistory")
+            AppLogger.log("[MacroHistoryService] updateTodaysMacros succeeded — wrote \(Int(totalCalories)) cal to macroHistory")
         } catch {
-            print("[MacroHistoryService] updateTodaysMacros FAILED: \(error)")
+            AppLogger.log("[MacroHistoryService] updateTodaysMacros FAILED: \(error)")
         }
     }
 
