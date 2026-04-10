@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CookieSettingsLink } from "./CookieSettingsLink";
 
 export function Footer() {
   return (
@@ -183,6 +184,7 @@ export function Footer() {
             <Link href="/terms" className="hover:text-white transition">
               Terms of Service
             </Link>
+            <CookieSettingsLink className="hover:text-white transition" />
           </div>
         </div>
       </div>

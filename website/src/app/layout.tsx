@@ -3,6 +3,8 @@ import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { OrganizationJsonLd } from "@/components/JsonLd";
+import { CookieConsentProvider } from "@/components/CookieConsentProvider";
+import { CookieBanner } from "@/components/CookieBanner";
 
 export const metadata: Metadata = {
   icons: {
@@ -58,10 +60,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        <OrganizationJsonLd />
-        <Header />
-        <main>{children}</main>
-        <Footer />
+        <CookieConsentProvider>
+          <OrganizationJsonLd />
+          <Header />
+          <main>{children}</main>
+          <Footer />
+          <CookieBanner />
+        </CookieConsentProvider>
       </body>
     </html>
   );
