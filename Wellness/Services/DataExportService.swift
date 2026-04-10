@@ -34,9 +34,15 @@ final class DataExportService {
             "userID": userID,
         ]
 
-        // 1. Profile
+        // 1. Profile (public + private fields)
         let profileDoc = try? await db.collection("users").document(userID).getDocument()
-        if let profileData = profileDoc?.data() {
+        if var profileData = profileDoc?.data() {
+            // Merge private fields into the export so the user gets all their data
+            let privateDoc = try? await db.collection("users").document(userID)
+                .collection("private").document("profile").getDocument()
+            if let privateData = privateDoc?.data() {
+                for (key, value) in privateData { profileData[key] = value }
+            }
             exportData["profile"] = sanitize(profileData)
         }
 

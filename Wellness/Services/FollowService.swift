@@ -213,7 +213,7 @@ final class FollowService {
 
         var profiles: [UserProfile] = []
         for id in friendIDs {
-            if let profile = try? await UserProfileService.shared.fetchProfile(userID: id) {
+            if let profile = try? await UserProfileService.shared.fetchProfile(userID: id, includePrivateFields: false) {
                 profiles.append(profile)
             }
         }

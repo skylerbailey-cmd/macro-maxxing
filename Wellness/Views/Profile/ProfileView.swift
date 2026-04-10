@@ -1379,8 +1379,8 @@ struct ProfileView: View {
         }
 
         async let followingCheck = FollowService.shared.isFollowing(currentUserID: viewerID, targetUserID: profileUserID)
-        async let targetProfile  = UserProfileService.shared.fetchProfile(userID: profileUserID)
-        async let viewerProfile  = UserProfileService.shared.fetchProfile(userID: viewerID)
+        async let targetProfile  = UserProfileService.shared.fetchProfile(userID: profileUserID, includePrivateFields: false)
+        async let viewerProfile  = UserProfileService.shared.fetchProfile(userID: viewerID, includePrivateFields: false)
 
         if let viewerIsFollowing = try? await followingCheck { isFollowing = viewerIsFollowing }
         guard !Task.isCancelled else { return }
