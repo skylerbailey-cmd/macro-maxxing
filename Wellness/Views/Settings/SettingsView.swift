@@ -6,6 +6,7 @@
 import SwiftUI
 import MapKit
 import FirebaseAuth
+import FirebaseFunctions
 import AppTrackingTransparency
 
 // MARK: - FAQ item model
@@ -119,6 +120,7 @@ struct SettingsView: View {
     @State private var dobDate:          Date   = Calendar.current.date(byAdding: .year, value: -18, to: Date()) ?? Date()
     @State private var showCitySearch    = false
     @State private var showDeleteAccount = false
+    @State private var migrationResult: String? = nil
     @State private var showChangeEmail   = false
     @State private var isExportingData   = false
     @State private var exportFileURL: URL? = nil
@@ -524,6 +526,29 @@ struct SettingsView: View {
                         Image(systemName: "person.crop.circle.badge.minus")
                         Text("Delete Account")
                     }
+                }
+            }
+
+            // MARK: - One-time migration (REMOVE after running once)
+            Section("Data Migration") {
+                Button {
+                    Task {
+                        migrationResult = "Running..."
+                        let callable = Functions.functions().httpsCallable("migratePrivateFields")
+                        do {
+                            let result = try await callable.call()
+                            migrationResult = "Done: \(result.data)"
+                        } catch {
+                            migrationResult = "Error: \(error.localizedDescription)"
+                        }
+                    }
+                } label: {
+                    Label("Migrate Private Fields", systemImage: "arrow.triangle.2.circlepath")
+                }
+                if let migrationResult {
+                    Text(migrationResult)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
