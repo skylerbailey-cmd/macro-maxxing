@@ -205,6 +205,11 @@ struct WellnessApp: App {
                 await RemoteConfigService.shared.fetchAndActivate()
             }
             .onChange(of: scenePhase) { _, phase in
+                if phase == .background {
+                    // Record clean exit so crash recovery knows
+                    // the app didn't terminate unexpectedly.
+                    FirebaseManager.shared.markCleanExit()
+                }
                 guard phase == .active else { return }
                 // Reset auth timeout flag so a fresh resolve attempt can happen
                 authTimedOut = false
