@@ -75,6 +75,33 @@ enum AnalysisTier: Equatable {
     private let recognitionManager = FoodRecognitionManager.shared
     private(set) var userID: String
 
+    // MARK: - Scan daily limit
+
+    private static let scanDailyLimit = 15
+
+    /// Checks and consumes a scan use. Returns false and sets an error if limit reached.
+    private func checkScanLimit() -> Bool {
+        let ud = UserDefaults.standard
+        let countKey = "scanUsageCount"
+        let dateKey  = "scanUsageDate"
+
+        // Reset if new day
+        let lastDate = Date(timeIntervalSince1970: ud.double(forKey: dateKey))
+        if !Calendar.current.isDateInToday(lastDate) {
+            ud.set(0, forKey: countKey)
+            ud.set(Date().timeIntervalSince1970, forKey: dateKey)
+        }
+
+        let count = ud.integer(forKey: countKey)
+        guard count < Self.scanDailyLimit else {
+            analysisState = .error("Daily scan limit reached (\(Self.scanDailyLimit)/\(Self.scanDailyLimit)). Try again tomorrow.")
+            return false
+        }
+        ud.set(count + 1, forKey: countKey)
+        ud.set(Date().timeIntervalSince1970, forKey: dateKey)
+        return true
+    }
+
     // MARK: - Tier tracking (UserDefaults)
 
     static var tier1Count: Int {
@@ -166,6 +193,7 @@ enum AnalysisTier: Equatable {
     /// Analyzes a food image through the three-tier recognition pipeline.
     func analyzeImage() async {
         guard let image = selectedImage else { return }
+        guard checkScanLimit() else { return }
         analysisState = .analyzing
         analysisTier  = .none
 
@@ -200,6 +228,7 @@ enum AnalysisTier: Equatable {
     /// Analyzes with voice note context.
     func analyzeImageWithVoice() async {
         guard let image = selectedImage else { return }
+        guard checkScanLimit() else { return }
         analysisState = .analyzing
         analysisTier  = .none
 

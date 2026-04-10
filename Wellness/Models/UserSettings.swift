@@ -409,6 +409,40 @@ struct AuraGain: Identifiable, Equatable {
         }
     }
 
+    // MARK: - Food Scan Daily Limit
+
+    private static let scanDailyLimit = 15
+
+    private var scanUsageCount: Int = 0 {
+        didSet { UserDefaults.standard.set(scanUsageCount, forKey: "scanUsageCount") }
+    }
+    private var scanUsageDate: Date = .distantPast {
+        didSet { UserDefaults.standard.set(scanUsageDate.timeIntervalSince1970, forKey: "scanUsageDate") }
+    }
+
+    var scanUsesRemaining: Int {
+        resetScanIfNewDay()
+        return max(0, UserSettings.scanDailyLimit - scanUsageCount)
+    }
+
+    var scanLimitReached: Bool { scanUsesRemaining == 0 }
+
+    /// Returns true if a use was successfully consumed, false if limit already reached.
+    @discardableResult
+    func consumeScanUse() -> Bool {
+        resetScanIfNewDay()
+        guard scanUsageCount < UserSettings.scanDailyLimit else { return false }
+        scanUsageCount += 1
+        return true
+    }
+
+    private func resetScanIfNewDay() {
+        if !Calendar.current.isDateInToday(scanUsageDate) {
+            scanUsageCount = 0
+            scanUsageDate  = Date()
+        }
+    }
+
     // MARK: - Aura (in-memory for identity fields; weekly/leaderboard fields device-local)
 
     var auraPoints: Int = 0
