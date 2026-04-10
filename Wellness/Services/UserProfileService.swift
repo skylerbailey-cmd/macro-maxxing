@@ -84,6 +84,17 @@ final class UserProfileService {
         guard var profile = UserProfile(document: doc) else {
             throw UserProfileError.profileNotFound
         }
+
+        // Capture the RAW public-doc data so we can detect private fields
+        // that got written to the public doc by the pre-fix saveProfile flow.
+        // Those values represent the user's most recent saves and must win
+        // over any stale values in the private subcollection, otherwise the
+        // save appears to "reset" on next fetch.
+        let rawPublicData = doc.data() ?? [:]
+        let legacyPublicPrivateFields: [String: Any] = rawPublicData.filter {
+            UserProfile.privateFieldKeys.contains($0.key)
+        }
+
         // Merge private fields (only for the authenticated user's own profile).
         // Errors are logged rather than swallowed silently — a failed private
         // fetch leaves weight/gender/dietary at the public-doc defaults, which
@@ -107,8 +118,60 @@ final class UserProfileService {
             } catch {
                 AppLogger.log("[UserProfileService] Failed to read private profile doc for \(userID): \(error.localizedDescription)")
             }
+
+            // RECOVERY: legacy saves (via SettingsView / OnboardingView before
+            // the auto-split fix) wrote private fields to the public doc.
+            // Those values represent the user's most recent intent, so they
+            // override any stale values from the private subcollection.
+            if !legacyPublicPrivateFields.isEmpty {
+                if let v = legacyPublicPrivateFields["dateOfBirth"]   as? String { profile.dateOfBirth   = v }
+                if let v = legacyPublicPrivateFields["currentWeight"] as? Double { profile.currentWeight = v }
+                if let v = legacyPublicPrivateFields["goalWeight"]    as? Double { profile.goalWeight    = v }
+                if let v = legacyPublicPrivateFields["heightInches"]  as? Int    { profile.heightInches  = v }
+                if let v = legacyPublicPrivateFields["proteinPerLb"]  as? Double { profile.proteinPerLb  = v }
+                if let v = legacyPublicPrivateFields["gender"]        as? String { profile.gender        = v }
+                if let v = legacyPublicPrivateFields["excludeDairy"]  as? Bool   { profile.excludeDairy  = v }
+                if let v = legacyPublicPrivateFields["excludeGluten"] as? Bool   { profile.excludeGluten = v }
+
+                let recoveredKeys = legacyPublicPrivateFields.keys.joined(separator: ", ")
+                AppLogger.log("[UserProfileService] Recovered \(legacyPublicPrivateFields.count) legacy private field(s) from public doc for \(userID): \(recoveredKeys)")
+
+                // Self-heal: move the recovered values into the private
+                // subcollection and delete them from the public doc so
+                // sensitive data stops leaking and future fetches don't
+                // need to run this recovery path.
+                Task.detached {
+                    await UserProfileService.shared.healLegacyPrivateFields(
+                        userID: userID, fields: legacyPublicPrivateFields)
+                }
+            }
         }
         return profile
+    }
+
+    // MARK: - Legacy Private Field Self-Heal
+
+    /// Moves legacy private field values from the public `users/{uid}` doc
+    /// into `users/{uid}/private/profile`, then deletes them from the
+    /// public doc. Called from fetchProfile when the public doc is detected
+    /// to contain keys that belong in the private subcollection (because
+    /// pre-fix SettingsView / OnboardingView code wrote them there).
+    func healLegacyPrivateFields(userID: String, fields: [String: Any]) async {
+        guard !userID.isEmpty, !fields.isEmpty else { return }
+        do {
+            try await db.collection(collectionName).document(userID)
+                .collection("private").document("profile")
+                .setData(fields, merge: true)
+            var deletes: [String: Any] = [:]
+            for key in fields.keys {
+                deletes[key] = FieldValue.delete()
+            }
+            try await db.collection(collectionName).document(userID)
+                .updateData(deletes)
+            AppLogger.log("[UserProfileService] Self-heal complete: moved \(fields.count) field(s) from public doc to private subcollection for \(userID)")
+        } catch {
+            AppLogger.log("[UserProfileService] Self-heal failed for \(userID): \(error.localizedDescription)")
+        }
     }
 
     // MARK: - 3. Username Availability
@@ -213,12 +276,54 @@ final class UserProfileService {
 
     // MARK: - 4. Update Profile Fields
 
-    /// Merges `fields` into the existing user document.
-    /// Pass only the keys you want to change, e.g. `["username": "newname", "auraPoints": 500]`.
+    /// Merges `fields` into the user's profile, routing each key to the
+    /// correct document automatically. Keys in `UserProfile.privateFieldKeys`
+    /// go to `users/{uid}/private/profile`; everything else goes to the
+    /// public `users/{uid}` document.
+    ///
+    /// This splitting is essential after commit 598f47d: before that, every
+    /// caller wrote the full profile to the public doc. Callers like
+    /// SettingsView.saveProfile and OnboardingView were never updated, so
+    /// their saves landed in the wrong document and were then overridden on
+    /// the next fetch by stale values in the private subcollection — which
+    /// is what caused the "settings reset after save" bug.
+    ///
+    /// Pass only the keys you want to change, e.g.
+    /// `["username": "newname", "currentWeight": 190]` — the first goes to
+    /// the public doc, the second to the private subcollection.
     func updateProfile(userID: String, fields: [String: Any]) async throws {
         guard !userID.isEmpty else { return }
-        try await db.collection(collectionName).document(userID).setData(fields, merge: true)
-        AppLogger.log("[UserProfileService] Updated fields \(fields.keys.joined(separator: ", ")) for \(userID)")
+
+        var publicFields:  [String: Any] = [:]
+        var privateFields: [String: Any] = [:]
+        for (key, value) in fields {
+            if UserProfile.privateFieldKeys.contains(key) {
+                privateFields[key] = value
+            } else {
+                publicFields[key] = value
+            }
+        }
+
+        if !publicFields.isEmpty {
+            try await db.collection(collectionName).document(userID)
+                .setData(publicFields, merge: true)
+        }
+        if !privateFields.isEmpty {
+            try await db.collection(collectionName).document(userID)
+                .collection("private").document("profile")
+                .setData(privateFields, merge: true)
+            // Also delete any legacy copies of these keys from the public doc
+            // so sensitive data doesn't keep leaking there.
+            var legacyDeletes: [String: Any] = [:]
+            for key in privateFields.keys {
+                legacyDeletes[key] = FieldValue.delete()
+            }
+            try? await db.collection(collectionName).document(userID)
+                .updateData(legacyDeletes)
+        }
+
+        let allKeys = fields.keys.joined(separator: ", ")
+        AppLogger.log("[UserProfileService] Updated fields \(allKeys) for \(userID) (public: \(publicFields.count), private: \(privateFields.count))")
     }
 
     // MARK: - 4. Sync Profile Fields (convenience)
