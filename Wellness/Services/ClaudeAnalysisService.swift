@@ -9,6 +9,41 @@ import FirebaseFunctions
 final class ClaudeAnalysisService {
     private let model = "claude-haiku-4-5-20251001"
 
+    // MARK: - Recent brainstorm ingredient tracking
+
+    private static let recentIngredientsKey = "brainstormRecentIngredients"
+    /// Max ingredients to remember across sessions (roughly 3-4 brainstorms).
+    private static let maxRecentIngredients = 8
+
+    /// Returns the list of recently suggested primary ingredients.
+    private var recentIngredients: [String] {
+        UserDefaults.standard.stringArray(forKey: Self.recentIngredientsKey) ?? []
+    }
+
+    /// Appends new ingredients and trims the list to the rolling window.
+    private func saveRecentIngredients(_ newIngredients: [String]) {
+        var list = recentIngredients
+        list.append(contentsOf: newIngredients)
+        // Keep only the most recent entries
+        if list.count > Self.maxRecentIngredients {
+            list = Array(list.suffix(Self.maxRecentIngredients))
+        }
+        UserDefaults.standard.set(list, forKey: Self.recentIngredientsKey)
+    }
+
+    /// Extracts bold text (e.g. "**Canned tuna**") from a brainstorm result
+    /// and returns just the food names.
+    private func extractIngredients(from text: String) -> [String] {
+        // Match **bold text** patterns
+        let pattern = #"\*\*(.+?)\*\*"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+        return matches.compactMap { match in
+            guard let range = Range(match.range(at: 1), in: text) else { return nil }
+            return String(text[range])
+        }
+    }
+
     /// Reads dietary exclusion toggles from UserDefaults and returns a prompt
     /// fragment to inject into both the nutrition coach and meal planner prompts.
     private var dietaryRestrictionsPrompt: String {
@@ -339,6 +374,33 @@ final class ClaudeAnalysisService {
             """
         }
 
+        // Build "do not repeat" rule from recent brainstorm history
+        let recent = recentIngredients
+        let varietyRule: String
+        if recent.isEmpty {
+            varietyRule = ""
+        } else {
+            varietyRule = """
+            - VARIETY: The user was recently suggested these foods: \(recent.joined(separator: ", ")). \
+              Do NOT repeat any of these — pick completely different primary ingredients this time.
+            """
+        }
+
+        // Shuffle example foods so the model doesn't always gravitate to
+        // whichever items appear first in the list.
+        var exampleFoods = [
+            "chicken", "beef", "fish", "eggs", "Greek yogurt",
+            "cottage cheese", "tofu", "turkey", "tuna", "lentils",
+            "oats", "rice", "fruit", "nuts", "seeds", "pasta",
+            "bread", "potatoes", "sweet potatoes", "granola",
+            "cereal", "juice", "dried fruit", "protein shake",
+            "shrimp", "salmon", "pork tenderloin", "edamame",
+            "beef jerky", "deli turkey slices", "egg whites",
+            "protein bar", "chickpeas", "tempeh", "sardines",
+            "skyr", "bone broth", "collagen peptides"
+        ]
+        exampleFoods.shuffle()
+
         let prompt = """
         You are a no-nonsense nutrition coach who's been in the gym long enough to know what actually works. \
         You give precise, accurate advice in a direct, confident tone — like someone who's dialed in and wants \
@@ -367,6 +429,8 @@ final class ClaudeAnalysisService {
         - Focus your suggestions on the macro with the LARGEST remaining gap. The deficits are listed \
           in priority order (biggest gap first).
         - Each option must use a DIFFERENT primary ingredient — no repeating main ingredients across options
+        \(varietyRule)\
+        - Draw from the full range of real foods: \(exampleFoods.joined(separator: ", ")), etc.
         - Be very specific with amounts in grams (e.g. "142g can of tuna, drained") \
           and include estimated macros for each suggestion (calories, protein, carbs, fat)
         - Format: bold the food name, then one short sentence on why it fits the macro gap, \
@@ -386,6 +450,13 @@ final class ClaudeAnalysisService {
               let text = content.first(where: { $0["type"] as? String == "text" })?["text"] as? String else {
             throw ClaudeServiceError.noContent
         }
+
+        // Remember the suggested ingredients so the next brainstorm avoids repeats.
+        let suggested = extractIngredients(from: text)
+        if !suggested.isEmpty {
+            saveRecentIngredients(suggested)
+        }
+
         return text
     }
 
