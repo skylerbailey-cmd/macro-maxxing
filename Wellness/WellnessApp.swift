@@ -67,6 +67,19 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
     private func handleFeedRefresh(_ task: BGAppRefreshTask) {
         Self.scheduleFeedRefresh()
+
+        // Firestore's LevelDB cache lives under the app's data directory.
+        // When the device is locked, iOS Data Protection makes these files
+        // inaccessible ("Operation not permitted"), causing a Firestore
+        // internal assertion → abort().  Skip the fetch if the cache dir
+        // isn't writable right now.
+        let cacheDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+        if let cacheDir, !FileManager.default.isWritableFile(atPath: cacheDir.path) {
+            print("[AppDelegate] Skipping feed refresh — data directory not writable (device locked?)")
+            task.setTaskCompleted(success: false)
+            return
+        }
+
         let fetchTask = Task {
             _ = try? await PostService.shared.fetchFeedPosts(limit: 20)
             task.setTaskCompleted(success: true)

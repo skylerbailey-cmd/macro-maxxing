@@ -106,22 +106,30 @@ final class FuelLogService {
             photoURL: photoURL
         )
 
-        // 3. Read existing log (or create a blank one)
-        let existingDoc = try? await docRef.getDocument()
-        var log: FuelLog
-        if let existingDoc, let decoded = FuelLog(document: existingDoc) {
-            log = decoded
-        } else {
-            log = FuelLog(dateString: dateKey, date: today)
-        }
+        // 3-4. Atomically read-modify-write inside a transaction so
+        //       concurrent addMeal / deleteMeal calls don't corrupt LevelDB.
+        let mealCount: Int = try await db.runTransaction { transaction, errorPointer in
+            let existingDoc = try? transaction.getDocument(docRef)
+            var log: FuelLog
+            if let existingDoc, let decoded = FuelLog(document: existingDoc) {
+                log = decoded
+            } else {
+                log = FuelLog(dateString: dateKey, date: today)
+            }
 
-        // 4. Append meal, recalculate totals, write back
-        log.meals.append(meal)
-        log.recalculateTotals()
+            log.meals.append(meal)
+            log.recalculateTotals()
 
-        let data = try log.firestoreData()
-        try await docRef.setData(data)
-        print("[FuelLogService] Added meal '\(foodName)' to \(dateKey) (\(log.meals.count) meals total)")
+            do {
+                let data = try log.firestoreData()
+                transaction.setData(data, forDocument: docRef)
+            } catch {
+                errorPointer?.pointee = error as NSError
+                return 0
+            }
+            return log.meals.count
+        } as! Int
+        print("[FuelLogService] Added meal '\(foodName)' to \(dateKey) (\(mealCount) meals total)")
 
         // Notify HomeView so it recalculates totals and syncs macro history in one place.
         // (No direct syncMacroHistory call here — HomeView.loadTodayTotals handles it.)
@@ -150,26 +158,45 @@ final class FuelLogService {
         let dateKey = Self.dateString(for: date)
         let docRef  = logDocument(userID: userID, dateString: dateKey)
 
-        // 1. Fetch existing log
-        let snapshot = try await docRef.getDocument()
-        guard var log = FuelLog(document: snapshot) else { throw FuelLogError.logNotFound }
+        // 1-4. Atomically read-modify-write inside a transaction so
+        //       concurrent addMeal / deleteMeal calls don't corrupt LevelDB.
+        let remaining: Int = try await db.runTransaction { transaction, errorPointer in
+            let snapshot: DocumentSnapshot
+            do {
+                snapshot = try transaction.getDocument(docRef)
+            } catch {
+                errorPointer?.pointee = error as NSError
+                return -1
+            }
+            guard var log = FuelLog(document: snapshot) else {
+                errorPointer?.pointee = FuelLogError.logNotFound as NSError
+                return -1
+            }
 
-        // 2. Find and remove the meal
-        let before = log.meals.count
-        log.meals.removeAll { $0.mealID == mealID }
-        guard log.meals.count < before else { throw FuelLogError.mealNotFound }
+            let before = log.meals.count
+            log.meals.removeAll { $0.mealID == mealID }
+            guard log.meals.count < before else {
+                errorPointer?.pointee = FuelLogError.mealNotFound as NSError
+                return -1
+            }
 
-        // 3. Delete the meal photo from Storage (best-effort)
+            log.recalculateTotals()
+            do {
+                let data = try log.firestoreData()
+                transaction.setData(data, forDocument: docRef)
+            } catch {
+                errorPointer?.pointee = error as NSError
+                return -1
+            }
+            return log.meals.count
+        } as! Int
+
+        // Delete the meal photo from Storage (best-effort, outside transaction)
         Task {
             let photoRef = storage.child("fuel_log/\(userID)/\(dateKey)/\(mealID).jpg")
             try? await photoRef.delete()
         }
-
-        // 4. Recalculate totals and write back
-        log.recalculateTotals()
-        let data = try log.firestoreData()
-        try await docRef.setData(data)
-        print("[FuelLogService] Deleted meal \(mealID) from \(dateKey) (\(log.meals.count) meals remaining)")
+        print("[FuelLogService] Deleted meal \(mealID) from \(dateKey) (\(remaining) meals remaining)")
 
         // Notify HomeView so it recalculates totals and syncs macro history in one place.
         let isToday = Calendar.current.isDateInToday(date)
