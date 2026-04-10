@@ -211,10 +211,10 @@ enum AnalysisTier: Equatable {
         // Update tier counters
         if result.tier == 1 {
             Self.tier1Count += 1
-            print("[Tier1] ✓ Haiku result: \(result.foodName) — \(result.calories) kcal")
+            AppLogger.log("[Tier1] ✓ Haiku result: \(result.foodName) — \(result.calories) kcal")
         } else if result.tier == 2 {
             Self.tier2Count += 1
-            print("[Tier2] ✓ Sonnet result: \(result.foodName) — \(result.calories) kcal")
+            AppLogger.log("[Tier2] ✓ Sonnet result: \(result.foodName) — \(result.calories) kcal")
         }
 
         if result.tier == 0 && result.calories == 0 {

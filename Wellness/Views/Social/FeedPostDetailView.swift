@@ -522,7 +522,7 @@ struct FeedPostDetailView: View {
             }
         } catch {
             guard !Task.isCancelled else { return }
-            print("[FeedPostDetailView] Failed to load comments: \(error)")
+            AppLogger.log("[FeedPostDetailView] Failed to load comments: \(error)")
         }
         isLoadingComments = false
     }
@@ -548,7 +548,7 @@ struct FeedPostDetailView: View {
             await loadComments()
         } catch {
             guard !Task.isCancelled else { return }
-            print("[FeedPostDetailView] Failed to submit comment: \(error)")
+            AppLogger.log("[FeedPostDetailView] Failed to submit comment: \(error)")
         }
         isSubmitting = false
     }

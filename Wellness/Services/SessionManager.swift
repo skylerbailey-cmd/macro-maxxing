@@ -81,7 +81,7 @@ final class SessionManager {
         let hasLaunchedKey = "hasLaunchedBefore"
         if !UserDefaults.standard.bool(forKey: hasLaunchedKey) {
             if Auth.auth().currentUser != nil {
-                print("[SessionManager] Reinstall detected — signing out stale auth session")
+                AppLogger.log("[SessionManager] Reinstall detected — signing out stale auth session")
                 try? Auth.auth().signOut()
                 KeychainService.delete(key: "cachedUserID")
             }
@@ -182,7 +182,7 @@ final class SessionManager {
             do {
                 try await result.user.sendEmailVerification()
             } catch {
-                print("[SessionManager] sendEmailVerification failed: \(error.localizedDescription)")
+                AppLogger.log("[SessionManager] sendEmailVerification failed: \(error.localizedDescription)")
             }
 
             try await UserProfileService.shared.createProfile(UserProfile(

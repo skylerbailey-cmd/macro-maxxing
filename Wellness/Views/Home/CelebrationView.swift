@@ -567,7 +567,7 @@ struct CelebrationPostEditorSheet: View {
                     postID:               fbPostID
                 )
             } catch {
-                print("[CelebrationView] Firebase sync failed: \(error.localizedDescription)")
+                AppLogger.log("[CelebrationView] Firebase sync failed: \(error.localizedDescription)")
             }
             await InAppNotificationService.shared.notifySubscribers(
                 ofUserID:          userSettings.userID,

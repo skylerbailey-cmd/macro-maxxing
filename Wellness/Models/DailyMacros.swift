@@ -184,7 +184,7 @@ extension DailyMacros {
         do {
             self = try Firestore.Decoder().decode(DailyMacros.self, from: document.data() ?? [:])
         } catch {
-            print("[DailyMacros] Decode error – \(document.documentID): \(error)")
+            AppLogger.log("[DailyMacros] Decode error – \(document.documentID): \(error)")
             return nil
         }
     }

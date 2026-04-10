@@ -31,10 +31,10 @@ import StoreKit
             let results = try await Product.products(for: [Self.productID])
             product = results.first
             if product == nil {
-                print("[StreakExtensionStore] Product not found — check App Store Connect configuration")
+                AppLogger.log("[StreakExtensionStore] Product not found — check App Store Connect configuration")
             }
         } catch {
-            print("[StreakExtensionStore] Failed to load product: \(error)")
+            AppLogger.log("[StreakExtensionStore] Failed to load product: \(error)")
         }
     }
 
@@ -53,7 +53,7 @@ import StoreKit
                 switch verification {
                 case .verified(let transaction):
                     await transaction.finish()
-                    print("[StreakExtensionStore] Purchase verified — transaction \(transaction.id)")
+                    AppLogger.log("[StreakExtensionStore] Purchase verified — transaction \(transaction.id)")
                     return true
                 case .unverified(_, let error):
                     errorMessage = "Purchase could not be verified: \(error.localizedDescription)"
@@ -69,7 +69,7 @@ import StoreKit
             }
         } catch {
             errorMessage = error.localizedDescription
-            print("[StreakExtensionStore] Purchase error: \(error)")
+            AppLogger.log("[StreakExtensionStore] Purchase error: \(error)")
             return false
         }
     }

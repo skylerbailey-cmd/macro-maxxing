@@ -208,7 +208,7 @@ struct AuraGain: Identifiable, Equatable {
                     "shieldedDates":          shielded,
                 ]
             )
-            print("[UserSettings] Streak shield applied — restored to \(restored), shielded \(breakDate)")
+            AppLogger.log("[UserSettings] Streak shield applied — restored to \(restored), shielded \(breakDate)")
         }
     }
 
@@ -278,7 +278,7 @@ struct AuraGain: Identifiable, Equatable {
                     "shieldedDates":    allShielded,
                 ]
             )
-            print("[UserSettings] Cheat day applied for \(todayKey) — streak now \(streak)")
+            AppLogger.log("[UserSettings] Cheat day applied for \(todayKey) — streak now \(streak)")
         }
     }
 
@@ -355,7 +355,7 @@ struct AuraGain: Identifiable, Equatable {
                     "shieldedDates":    allShielded,
                 ]
             )
-            print("[UserSettings] Streak extension applied — 7 days shielded, streak now \(streak)")
+            AppLogger.log("[UserSettings] Streak extension applied — 7 days shielded, streak now \(streak)")
         }
     }
 
@@ -606,10 +606,10 @@ struct AuraGain: Identifiable, Equatable {
                         "weeklyAuraWeekStartTimestamp":  wkTs,
                     ]
                 )
-                print("[UserSettings] awardAura: synced +\(points) xp (total \(pts), weekly \(wkPts))")
+                AppLogger.log("[UserSettings] awardAura: synced +\(points) xp (total \(pts), weekly \(wkPts))")
             } catch {
                 let msg = error.localizedDescription
-                print("[UserSettings] awardAura Firestore error: \(msg)")
+                AppLogger.log("[UserSettings] awardAura Firestore error: \(msg)")
                 await MainActor.run { self.firestoreError = "XP sync failed: \(msg)" }
             }
         }

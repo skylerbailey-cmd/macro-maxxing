@@ -298,7 +298,7 @@ struct FollowListView: View {
                 followingIDs.insert(targetID)
             }
         } catch {
-            print("[FollowListView] toggleFollow error: \(error)")
+            AppLogger.log("[FollowListView] toggleFollow error: \(error)")
         }
     }
 }

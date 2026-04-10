@@ -48,9 +48,9 @@ final class RemoteConfigService {
     func fetchAndActivate() async {
         do {
             let status = try await config.fetchAndActivate()
-            print("[RemoteConfig] Fetch status: \(status == .successFetchedFromRemote ? "remote" : "cached")")
+            AppLogger.log("[RemoteConfig] Fetch status: \(status == .successFetchedFromRemote ? "remote" : "cached")")
         } catch {
-            print("[RemoteConfig] Fetch error: \(error.localizedDescription)")
+            AppLogger.log("[RemoteConfig] Fetch error: \(error.localizedDescription)")
         }
     }
 

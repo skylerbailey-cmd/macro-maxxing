@@ -75,7 +75,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // isn't writable right now.
         let cacheDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
         if let cacheDir, !FileManager.default.isWritableFile(atPath: cacheDir.path) {
-            print("[AppDelegate] Skipping feed refresh — data directory not writable (device locked?)")
+            AppLogger.log("[AppDelegate] Skipping feed refresh — data directory not writable (device locked?)")
             task.setTaskCompleted(success: false)
             return
         }

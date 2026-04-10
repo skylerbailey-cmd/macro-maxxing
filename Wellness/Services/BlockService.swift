@@ -93,7 +93,7 @@ final class BlockService {
                 .collection("followers").document(targetUserID))
         try? await batch.commit()
 
-        print("[BlockService] \(currentUserID) blocked \(targetUserID)")
+        AppLogger.log("[BlockService] \(currentUserID) blocked \(targetUserID)")
     }
 
     // MARK: - Unblock User
@@ -103,7 +103,7 @@ final class BlockService {
         try await db.collection("users").document(currentUserID)
             .collection("blockedUsers").document(targetUserID)
             .delete()
-        print("[BlockService] \(currentUserID) unblocked \(targetUserID)")
+        AppLogger.log("[BlockService] \(currentUserID) unblocked \(targetUserID)")
     }
 
     // MARK: - Fetch Blocked Users
@@ -134,7 +134,7 @@ final class BlockService {
             "createdAt":      FieldValue.serverTimestamp()
         ]
         try await db.collection("reports").addDocument(data: data)
-        print("[BlockService] User \(reporterID) reported user \(reportedUserID)")
+        AppLogger.log("[BlockService] User \(reporterID) reported user \(reportedUserID)")
     }
 
     // MARK: - Report Post
@@ -181,6 +181,6 @@ final class BlockService {
             "createdAt":      FieldValue.serverTimestamp()
         ]
         _ = try? await db.collection("reports").addDocument(data: reportData)
-        print("[BlockService] User \(reporterID) reported post \(postID)")
+        AppLogger.log("[BlockService] User \(reporterID) reported post \(postID)")
     }
 }

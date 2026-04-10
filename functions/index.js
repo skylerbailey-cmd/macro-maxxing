@@ -331,13 +331,45 @@ exports.deleteAccount = onCall(async (request) => {
 // proxyClaude  (callable — server-side proxy for Anthropic API)
 // ---------------------------------------------------------------------------
 
+// Allowed models — prevent callers from using expensive models via our key
+const ALLOWED_CLAUDE_MODELS = [
+  "claude-haiku-4-5-20251001",
+  "claude-sonnet-4-6-20250514",
+  // Add new model IDs here as you adopt them
+];
+const MAX_ALLOWED_TOKENS = 4096;
+const DAILY_SCAN_LIMIT   = 100;  // per-user daily limit
+
 exports.proxyClaude = onCall(
   { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 60, memory: "256MiB" },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Must be signed in.");
 
+    const uid = request.auth.uid;
     const { model, maxTokens, messages } = request.data;
     if (!model || !messages) throw new HttpsError("invalid-argument", "model and messages required.");
+
+    // --- Model validation ---
+    if (!ALLOWED_CLAUDE_MODELS.includes(model)) {
+      throw new HttpsError("invalid-argument", "Unsupported model.");
+    }
+    const clampedTokens = Math.min(maxTokens || 1024, MAX_ALLOWED_TOKENS);
+
+    // --- Per-user daily rate limiting ---
+    const db = getFirestore();
+    const today = localDateStr("America/New_York");
+    const statsRef = db.collection("users").doc(uid).collection("scanStats").doc("daily");
+    const statsDoc = await statsRef.get();
+    const stats = statsDoc.exists ? statsDoc.data() : {};
+    if (stats.date === today && (stats.count || 0) >= DAILY_SCAN_LIMIT) {
+      throw new HttpsError("resource-exhausted", "Daily scan limit reached. Try again tomorrow.");
+    }
+    // Increment counter (reset if new day)
+    if (stats.date === today) {
+      await statsRef.update({ count: FieldValue.increment(1) });
+    } else {
+      await statsRef.set({ date: today, count: 1 });
+    }
 
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -348,7 +380,7 @@ exports.proxyClaude = onCall(
       },
       body: JSON.stringify({
         model,
-        max_tokens: maxTokens || 1024,
+        max_tokens: clampedTokens,
         messages,
       }),
     });

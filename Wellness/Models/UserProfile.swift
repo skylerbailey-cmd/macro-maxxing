@@ -261,7 +261,7 @@ extension UserProfile {
         do {
             self = try Firestore.Decoder().decode(UserProfile.self, from: data)
         } catch {
-            print("[UserProfile] Decode error – \(document.documentID): \(error)")
+            AppLogger.log("[UserProfile] Decode error – \(document.documentID): \(error)")
             return nil
         }
     }
