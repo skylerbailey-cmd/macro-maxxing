@@ -12,6 +12,11 @@ final class FirebaseManager {
     let db: Firestore
     let storage: StorageReference
 
+    /// Serialises disableNetwork / enableNetwork so they never overlap.
+    /// The task completes once the initial disableNetwork finishes;
+    /// enableNetwork() awaits it first so the two calls can never race.
+    private let networkReady: Task<Void, Never>
+
     private init() {
         // Enable offline persistence with a 50 MB cache
         let settings = FirestoreSettings()
@@ -25,8 +30,10 @@ final class FirebaseManager {
         // instead of blocking on Firestore backend connectivity (which caused
         // 10s+ "Could not reach Cloud Firestore backend" stalls).
         // Call enableNetwork() after auth resolves.
-        firestore.disableNetwork { error in
-            if let error {
+        networkReady = Task {
+            do {
+                try await firestore.disableNetwork()
+            } catch {
                 print("[FirebaseManager] disableNetwork failed: \(error.localizedDescription)")
             }
         }
@@ -35,6 +42,8 @@ final class FirebaseManager {
     /// Re-enable the Firestore network connection.
     /// Call once after auth resolves so writes sync to the backend.
     func enableNetwork() async {
+        // Wait for disableNetwork to finish so the two never overlap.
+        await networkReady.value
         do {
             try await db.enableNetwork()
             print("[FirebaseManager] Network enabled")
