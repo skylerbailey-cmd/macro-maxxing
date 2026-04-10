@@ -37,17 +37,40 @@ struct AuraGain: Identifiable, Equatable {
         didSet { UserDefaults.standard.set(aiConsentGiven, forKey: "aiConsentGiven") }
     }
 
-    var userID:           String = ""
-    var username:         String = ""
-    var name:             String = ""
-    var location:         String = ""
-    var profilePhotoURL:  String = ""
-    var bio:              String = ""
-    var instagramHandle:  String = ""
-    var tiktokHandle:     String = ""
-    var isPrivateAccount: Bool   = false
+    /// Identity fields are cached to UserDefaults via didSet so a failed
+    /// Firestore fetch on the next launch doesn't leave the UI blank —
+    /// the user sees their last-known values until populate(from:) runs.
+    var userID:           String = "" {
+        didSet { UserDefaults.standard.set(userID, forKey: "cached_userID") }
+    }
+    var username:         String = "" {
+        didSet { UserDefaults.standard.set(username, forKey: "cached_username") }
+    }
+    var name:             String = "" {
+        didSet { UserDefaults.standard.set(name, forKey: "cached_name") }
+    }
+    var location:         String = "" {
+        didSet { UserDefaults.standard.set(location, forKey: "cached_location") }
+    }
+    var profilePhotoURL:  String = "" {
+        didSet { UserDefaults.standard.set(profilePhotoURL, forKey: "cached_profilePhotoURL") }
+    }
+    var bio:              String = "" {
+        didSet { UserDefaults.standard.set(bio, forKey: "cached_bio") }
+    }
+    var instagramHandle:  String = "" {
+        didSet { UserDefaults.standard.set(instagramHandle, forKey: "cached_instagramHandle") }
+    }
+    var tiktokHandle:     String = "" {
+        didSet { UserDefaults.standard.set(tiktokHandle, forKey: "cached_tiktokHandle") }
+    }
+    var isPrivateAccount: Bool   = false {
+        didSet { UserDefaults.standard.set(isPrivateAccount, forKey: "cached_isPrivateAccount") }
+    }
     /// Date of birth as "yyyy-MM-dd". Empty string if not set.
-    var dateOfBirth:      String = ""
+    var dateOfBirth:      String = "" {
+        didSet { UserDefaults.standard.set(dateOfBirth, forKey: "cached_dateOfBirth") }
+    }
 
     /// Age in years derived from `dateOfBirth`. Returns 20 as a fallback.
     var ageInYears: Int {
@@ -59,14 +82,24 @@ struct AuraGain: Identifiable, Equatable {
         return Calendar.current.dateComponents([.year], from: dob, to: Date()).year ?? 20
     }
 
-    // MARK: - Body (in-memory only)
+    // MARK: - Body (cached to UserDefaults so stale values survive fetch failures)
 
-    var currentWeight: Double = 160
-    var goalWeight:    Double = 160
-    var heightInches:  Int    = 0
-    var proteinPerLb:  Double = 0.9
+    var currentWeight: Double = 160 {
+        didSet { UserDefaults.standard.set(currentWeight, forKey: "cached_currentWeight") }
+    }
+    var goalWeight:    Double = 160 {
+        didSet { UserDefaults.standard.set(goalWeight, forKey: "cached_goalWeight") }
+    }
+    var heightInches:  Int    = 0 {
+        didSet { UserDefaults.standard.set(heightInches, forKey: "cached_heightInches") }
+    }
+    var proteinPerLb:  Double = 0.9 {
+        didSet { UserDefaults.standard.set(proteinPerLb, forKey: "cached_proteinPerLb") }
+    }
     /// "male", "female", or "" (not set). Used for Mifflin-St Jeor BMR calculation.
-    var gender:        String = ""
+    var gender:        String = "" {
+        didSet { UserDefaults.standard.set(gender, forKey: "cached_gender") }
+    }
 
     // MARK: - Location
 
@@ -443,9 +476,11 @@ struct AuraGain: Identifiable, Equatable {
         }
     }
 
-    // MARK: - Aura (in-memory for identity fields; weekly/leaderboard fields device-local)
+    // MARK: - Aura (identity points cached; weekly/leaderboard fields device-local)
 
-    var auraPoints: Int = 0
+    var auraPoints: Int = 0 {
+        didSet { UserDefaults.standard.set(auraPoints, forKey: "cached_auraPoints") }
+    }
     /// Aura earned since the most recent Monday 00:00 local time.
     var weeklyAuraPoints: Int = 0 {
         didSet { UserDefaults.standard.set(weeklyAuraPoints, forKey: "weeklyAuraPoints") }
@@ -515,7 +550,9 @@ struct AuraGain: Identifiable, Equatable {
     }
 
     /// Whether to show the aura gain popup when points are earned.
-    var auraPopupsEnabled: Bool = true
+    var auraPopupsEnabled: Bool = true {
+        didSet { UserDefaults.standard.set(auraPopupsEnabled, forKey: "cached_auraPopupsEnabled") }
+    }
     /// Set whenever points are awarded (when popups enabled). Observe to show popup.
     var pendingAuraGain: AuraGain? = nil
     /// Set whenever all macro goals are met for the first time today. Observe to show celebration.
@@ -879,6 +916,14 @@ struct AuraGain: Identifiable, Equatable {
             // Tutorial flags — reset so a new account gets all tutorials
             "hasSeenAppTour",
             "hasSeenProfileTutorial",
+            // Identity cache (written via didSet on profile identity fields) —
+            // must be wiped on logout so the next user on this device starts fresh.
+            "cached_userID", "cached_username", "cached_name", "cached_location",
+            "cached_profilePhotoURL", "cached_bio", "cached_instagramHandle",
+            "cached_tiktokHandle", "cached_isPrivateAccount", "cached_dateOfBirth",
+            "cached_currentWeight", "cached_goalWeight", "cached_heightInches",
+            "cached_proteinPerLb", "cached_gender", "cached_auraPoints",
+            "cached_auraPopupsEnabled",
             // aiConsentGiven intentionally NOT cleared — consent is per-device, not per-account
         ] { ud.removeObject(forKey: key) }
 
@@ -893,9 +938,34 @@ struct AuraGain: Identifiable, Equatable {
     // MARK: - Init
 
     init() {
-        // Restore only device-local tracking fields from UserDefaults.
-        // Profile identity fields start at their zero/default values —
-        // they will be set by populate(from:) after SessionManager resolves auth.
+        // Restore cached identity fields from UserDefaults so the UI shows
+        // the user's last-known name/username/photo/weights immediately on
+        // launch, even if the Firestore fetch in SessionManager is still
+        // pending or fails transiently. populate(from:) overwrites these
+        // once the fresh profile arrives.
+        let ud = UserDefaults.standard
+        self.userID           = ud.string(forKey: "cached_userID")           ?? ""
+        self.username         = ud.string(forKey: "cached_username")         ?? ""
+        self.name             = ud.string(forKey: "cached_name")             ?? ""
+        self.location         = ud.string(forKey: "cached_location")         ?? ""
+        self.profilePhotoURL  = ud.string(forKey: "cached_profilePhotoURL")  ?? ""
+        self.bio              = ud.string(forKey: "cached_bio")              ?? ""
+        self.instagramHandle  = ud.string(forKey: "cached_instagramHandle")  ?? ""
+        self.tiktokHandle     = ud.string(forKey: "cached_tiktokHandle")     ?? ""
+        self.isPrivateAccount = ud.bool(forKey: "cached_isPrivateAccount")
+        self.dateOfBirth      = ud.string(forKey: "cached_dateOfBirth")      ?? ""
+        // Body metrics — fall back to existing defaults when no cache exists
+        self.currentWeight = ud.object(forKey: "cached_currentWeight") != nil
+            ? ud.double(forKey: "cached_currentWeight") : 160
+        self.goalWeight    = ud.object(forKey: "cached_goalWeight") != nil
+            ? ud.double(forKey: "cached_goalWeight")    : 160
+        self.heightInches  = ud.integer(forKey: "cached_heightInches")
+        self.proteinPerLb  = ud.object(forKey: "cached_proteinPerLb") != nil
+            ? ud.double(forKey: "cached_proteinPerLb")  : 0.9
+        self.gender        = ud.string(forKey: "cached_gender")        ?? ""
+        self.auraPoints    = ud.integer(forKey: "cached_auraPoints")
+        self.auraPopupsEnabled = ud.object(forKey: "cached_auraPopupsEnabled") != nil
+            ? ud.bool(forKey: "cached_auraPopupsEnabled") : true
 
         self.autoAdjustMacrosForWorkout = UserDefaults.standard.bool(forKey: "autoAdjustMacrosForWorkout")
         self.weeklyAuraPoints = UserDefaults.standard.integer(forKey: "weeklyAuraPoints")
