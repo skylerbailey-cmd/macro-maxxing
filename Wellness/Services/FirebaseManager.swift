@@ -40,16 +40,10 @@ final class FirebaseManager {
         let needsCacheClear = storedSchema < Self.cacheSchemaVersion || previousCrashed
 
         if needsCacheClear {
-            let sem = DispatchSemaphore(value: 0)
-            Firestore.firestore().clearPersistence { error in
-                if let error {
-                    print("[FirebaseManager] clearPersistence failed: \(error.localizedDescription)")
-                } else {
-                    print("[FirebaseManager] Cleared persistence cache (schema \(storedSchema)→\(Self.cacheSchemaVersion), crashed=\(previousCrashed))")
-                }
-                sem.signal()
-            }
-            sem.wait()
+            // Clear persistence asynchronously — avoid blocking main thread with semaphore
+            // which can deadlock when Firestore dispatches the completion on the main queue.
+            try? Firestore.firestore().clearPersistence()
+            print("[FirebaseManager] Cleared persistence cache (schema \(storedSchema)→\(Self.cacheSchemaVersion), crashed=\(previousCrashed))")
             UserDefaults.standard.set(Self.cacheSchemaVersion, forKey: Self.cacheSchemaKey)
         }
         // Mark this session as active; cleared in markCleanExit().
