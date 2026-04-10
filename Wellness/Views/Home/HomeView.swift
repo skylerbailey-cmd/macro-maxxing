@@ -134,6 +134,9 @@ struct HomeView: View {
         let contentWithGoalChanges = contentWithModifiers
             .onChange(of: viewModel.userSettings.goalWeight) { _, newVal in handleGoalWeightChange(newVal) }
             .onChange(of: viewModel.userSettings.proteinPerLb) { _, _ in handleProteinPerLbChange() }
+            .onChange(of: viewModel.userSettings.heightInches) { _, _ in handleBodyStatsChange() }
+            .onChange(of: viewModel.userSettings.gender) { _, _ in handleBodyStatsChange() }
+            .onChange(of: viewModel.userSettings.dateOfBirth) { _, _ in handleBodyStatsChange() }
         let contentWithOverlays = contentWithGoalChanges
             .onChange(of: viewModel.macrosMetToday) { oldVal, newVal in handleMacrosMetChange(oldVal, newVal) }
 
@@ -494,6 +497,13 @@ struct HomeView: View {
         // Show the streak immediately from whatever UserSettings has right now
         // (populated from Firestore or UserDefaults), before the async compute runs.
         viewModel.macroStreak = viewModel.userSettings.macroStreak
+        // Self-heal macro goals from current body stats. Covers users whose
+        // goals were computed with incomplete data earlier (e.g. heightInches=0
+        // before Settings was filled in) and got pinned at the minimum floor.
+        // Idempotent — no-op if goalWeight is unset.
+        if viewModel.userSettings.goalWeight > 0 && viewModel.userSettings.heightInches > 0 {
+            viewModel.recalculateMacrosFromGoalWeight()
+        }
         // Defer the DB fetch to after the first frame so the UI renders immediately
         Task { viewModel.loadTodayTotals() }
         // lockPastWindows is now called once at app launch (ContentView.onAppear)
@@ -510,6 +520,16 @@ struct HomeView: View {
     }
     
     private func handleProteinPerLbChange() {
+        viewModel.recalculateMacrosFromGoalWeight()
+    }
+
+    /// Recompute macro goals when height, gender, or date-of-birth changes in
+    /// Settings. Without this, BMR inputs could update while the goals stayed
+    /// stale — e.g. a new user whose first calculation ran with heightInches=0
+    /// would be pinned at the 1200 kcal minimum floor until goalWeight or
+    /// proteinPerLb happened to change.
+    private func handleBodyStatsChange() {
+        guard viewModel.userSettings.goalWeight > 0 else { return }
         viewModel.recalculateMacrosFromGoalWeight()
     }
     
