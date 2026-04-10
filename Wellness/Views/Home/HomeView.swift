@@ -692,6 +692,7 @@ struct HomeView: View {
             case .loading:
                 BrainstormSkeletonView()
             case .result(let text):
+                macroGapSummary
                 brainstormResult(text)
             case .error(let msg):
                 VStack(spacing: 10) {
@@ -788,6 +789,35 @@ struct HomeView: View {
     }
 
     @ViewBuilder
+    private var macroGapSummary: some View {
+        let remainCal = max(0, viewModel.displayGoalCalories - viewModel.totalCalories)
+        let remainPro = max(0, viewModel.displayGoalProtein  - viewModel.totalProtein)
+        let remainCarb = max(0, viewModel.displayGoalCarbs   - viewModel.totalCarbs)
+        let remainFat = max(0, viewModel.displayGoalFat      - viewModel.totalFat)
+
+        // Determine which macros still need significant intake (>15% of goal remaining)
+        var needs: [String] = []
+        if remainPro  > viewModel.displayGoalProtein  * 0.15 { needs.append("protein") }
+        if remainCarb > viewModel.displayGoalCarbs    * 0.15 { needs.append("carbs") }
+        if remainFat  > viewModel.displayGoalFat      * 0.15 { needs.append("fat") }
+
+        let summary: String
+        if needs.isEmpty {
+            summary = "You're close to hitting all your macros — just \(Int(remainCal)) cal left. Here's a light option to finish the day."
+        } else {
+            let joined = needs.count == 1 ? needs[0]
+                : needs.dropLast().joined(separator: ", ") + " and " + needs.last!
+            summary = "You have \(Int(remainCal)) cal remaining and need more \(joined). Here's what to eat next."
+        }
+
+        return Text(summary)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20).opacity(0.85))
+            .lineSpacing(2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 4)
+    }
+
     private func brainstormResult(_ text: String) -> some View {
         if let attr = try? AttributedString(
             markdown: text,
