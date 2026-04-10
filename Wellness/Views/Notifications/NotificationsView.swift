@@ -403,7 +403,7 @@ struct NotificationsView: View {
         followLoading.insert(actorID)
         defer { followLoading.remove(actorID) }
 
-        let actorProfile = try? await UserProfileService.shared.fetchProfile(userID: actorID)
+        let actorProfile = try? await UserProfileService.shared.fetchProfile(userID: actorID, includePrivateFields: false)
         try? await FollowService.shared.followUser(
             currentUserID:          userSettings.userID,
             currentUsername:        userSettings.username,

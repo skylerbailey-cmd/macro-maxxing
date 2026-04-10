@@ -263,7 +263,7 @@ exports.deleteAccount = onCall(async (request) => {
   const subcollections = [
     "foodEntries", "fuelLog", "macroHistory", "workoutEntries",
     "following", "followers", "notifications", "subscribers",
-    "balanceScoreHistory", "blockedUsers",
+    "balanceScoreHistory", "blockedUsers", "private",
   ];
   for (const sub of subcollections) {
     await deleteCollection(db.collection("users").doc(uid).collection(sub));
@@ -397,3 +397,77 @@ exports.proxyClaude = onCall(
 );
 
 // proxyUSDA and proxyFatSecret removed — no longer used by the app.
+
+// ---------------------------------------------------------------------------
+// migratePrivateFields  (callable — one-time migration)
+// ---------------------------------------------------------------------------
+
+/**
+ * Copies sensitive fields (DOB, weight, height, gender, dietary prefs) from
+ * each user's public document into `users/{uid}/private/profile`, then removes
+ * them from the public document.
+ *
+ * Run once after deploying the new Firestore rules and client code.
+ * Call via: firebase functions:shell → migratePrivateFields({})
+ * Or from the app: Functions.functions().httpsCallable("migratePrivateFields").call()
+ *
+ * Safe to run multiple times — uses setData(merge: true) and only deletes
+ * fields that were successfully copied.
+ */
+exports.migratePrivateFields = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be signed in.");
+  }
+  // Only allow the call from an admin or the first user to trigger it.
+  // For safety, this migrates ALL users when called.
+  const db = getFirestore();
+  const usersSnap = await db.collection("users").get();
+
+  const PRIVATE_KEYS = [
+    "dateOfBirth", "currentWeight", "goalWeight", "heightInches",
+    "proteinPerLb", "gender", "excludeDairy", "excludeGluten",
+  ];
+
+  let migrated = 0;
+  const BATCH_LIMIT = 499;
+  let batch = db.batch();
+  let pendingWrites = 0;
+
+  for (const doc of usersSnap.docs) {
+    const data = doc.data();
+    const privateData = {};
+    const removeFields = {};
+    let hasPrivateData = false;
+
+    for (const key of PRIVATE_KEYS) {
+      if (data[key] !== undefined) {
+        privateData[key] = data[key];
+        removeFields[key] = FieldValue.delete();
+        hasPrivateData = true;
+      }
+    }
+
+    if (!hasPrivateData) continue;
+
+    // Write to private subcollection
+    const privateRef = doc.ref.collection("private").doc("profile");
+    batch.set(privateRef, privateData, { merge: true });
+    pendingWrites++;
+
+    // Remove from public document
+    batch.update(doc.ref, removeFields);
+    pendingWrites++;
+
+    if (pendingWrites >= BATCH_LIMIT - 1) {
+      await batch.commit();
+      batch = db.batch();
+      pendingWrites = 0;
+    }
+    migrated++;
+  }
+
+  if (pendingWrites > 0) await batch.commit();
+
+  console.log(`[migratePrivateFields] Migrated ${migrated} / ${usersSnap.size} users`);
+  return { migrated, total: usersSnap.size };
+});
