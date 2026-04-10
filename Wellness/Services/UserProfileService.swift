@@ -61,10 +61,14 @@ final class UserProfileService {
     /// it can be fully decoded into a UserProfile. Use this instead of fetchProfile()
     /// when you only need to know whether the document is present (e.g. before creating
     /// a new profile to avoid overwriting an existing one).
-    func profileExists(userID: String) async -> Bool {
+    ///
+    /// Throws on network / permission errors rather than returning false, so callers
+    /// don't silently create a fresh profile (and merge over the real one) on a
+    /// transient fetch failure.
+    func profileExists(userID: String) async throws -> Bool {
         guard !userID.isEmpty else { return false }
-        return (try? await db.collection(collectionName).document(userID)
-            .getDocument())?.exists == true
+        let doc = try await db.collection(collectionName).document(userID).getDocument()
+        return doc.exists
     }
 
     /// Fetches the user document for `userID` and decodes it into a `UserProfile`.
@@ -80,19 +84,28 @@ final class UserProfileService {
         guard var profile = UserProfile(document: doc) else {
             throw UserProfileError.profileNotFound
         }
-        // Merge private fields (only for the authenticated user's own profile)
+        // Merge private fields (only for the authenticated user's own profile).
+        // Errors are logged rather than swallowed silently — a failed private
+        // fetch leaves weight/gender/dietary at the public-doc defaults, which
+        // is what caused the "settings reset after migration" bug.
         if includePrivateFields {
-            let privateDoc = try? await db.collection(collectionName).document(userID)
-                .collection("private").document("profile").getDocument()
-            if let data = privateDoc?.data() {
-                profile.dateOfBirth   = data["dateOfBirth"]   as? String ?? profile.dateOfBirth
-                profile.currentWeight = data["currentWeight"] as? Double ?? profile.currentWeight
-                profile.goalWeight    = data["goalWeight"]    as? Double ?? profile.goalWeight
-                profile.heightInches  = data["heightInches"]  as? Int    ?? profile.heightInches
-                profile.proteinPerLb  = data["proteinPerLb"]  as? Double ?? profile.proteinPerLb
-                profile.gender        = data["gender"]        as? String ?? profile.gender
-                profile.excludeDairy  = data["excludeDairy"]  as? Bool   ?? profile.excludeDairy
-                profile.excludeGluten = data["excludeGluten"] as? Bool   ?? profile.excludeGluten
+            do {
+                let privateDoc = try await db.collection(collectionName).document(userID)
+                    .collection("private").document("profile").getDocument()
+                if let data = privateDoc.data() {
+                    profile.dateOfBirth   = data["dateOfBirth"]   as? String ?? profile.dateOfBirth
+                    profile.currentWeight = data["currentWeight"] as? Double ?? profile.currentWeight
+                    profile.goalWeight    = data["goalWeight"]    as? Double ?? profile.goalWeight
+                    profile.heightInches  = data["heightInches"]  as? Int    ?? profile.heightInches
+                    profile.proteinPerLb  = data["proteinPerLb"]  as? Double ?? profile.proteinPerLb
+                    profile.gender        = data["gender"]        as? String ?? profile.gender
+                    profile.excludeDairy  = data["excludeDairy"]  as? Bool   ?? profile.excludeDairy
+                    profile.excludeGluten = data["excludeGluten"] as? Bool   ?? profile.excludeGluten
+                } else {
+                    AppLogger.log("[UserProfileService] Private profile doc missing for \(userID) — using public-doc defaults for weight/gender/dietary")
+                }
+            } catch {
+                AppLogger.log("[UserProfileService] Failed to read private profile doc for \(userID): \(error.localizedDescription)")
             }
         }
         return profile

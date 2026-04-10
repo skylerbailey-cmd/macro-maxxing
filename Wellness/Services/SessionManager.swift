@@ -75,18 +75,14 @@ final class SessionManager {
     // MARK: - Lifecycle
 
     init() {
-        // Detect reinstall: UserDefaults is wiped on delete but Keychain/Auth persists.
-        // If the flag is missing but a user is signed in, the app was reinstalled →
-        // sign out so the user must log in fresh.
-        let hasLaunchedKey = "hasLaunchedBefore"
-        if !UserDefaults.standard.bool(forKey: hasLaunchedKey) {
-            if Auth.auth().currentUser != nil {
-                AppLogger.log("[SessionManager] Reinstall detected — signing out stale auth session")
-                try? Auth.auth().signOut()
-                KeychainService.delete(key: "cachedUserID")
-            }
-            UserDefaults.standard.set(true, forKey: hasLaunchedKey)
-        }
+        // NOTE: Previous versions tried to detect reinstalls via a
+        // `hasLaunchedBefore` UserDefaults flag and force-signed the user out
+        // when it was missing. That was too aggressive — any user upgrading
+        // from a build that didn't write the flag would be signed out on
+        // first launch, which fired the auth listener with a nil user and
+        // called clearProfile(), wiping their cached name/username/streaks.
+        // Reinstalls now recover gracefully: Firestore is the source of
+        // truth and populate(from:) restores everything on next fetch.
 
         authStateHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             guard let self else { return }
@@ -99,9 +95,13 @@ final class SessionManager {
                     await FirebaseManager.shared.enableNetwork()
                     await self.fetchAndApplyProfile(uid: user.uid)
                 } else {
+                    // A nil user here can mean either an explicit logout OR a
+                    // transient token refresh failure. We ONLY clear local
+                    // state on explicit logout (handled by logout() /
+                    // deleteAccount() below), so a transient blip doesn't
+                    // wipe the user's streaks and identity cache.
                     self.authState = .unauthenticated
                     self.userProfile = nil
-                    self.userSettings?.clearProfile()
                 }
             }
         }
@@ -123,11 +123,28 @@ final class SessionManager {
     }
 
     private func fetchAndApplyProfile(uid: String) async {
-        guard let profile = try? await UserProfileService.shared.fetchProfile(userID: uid) else { return }
-        userProfile = profile
-        userSettings?.populate(from: profile)
-        // Download and cache the profile photo so every tab icon shows it immediately
-        await userSettings?.downloadProfileImageIfNeeded()
+        // Retry once on failure with a short backoff. Without this, a single
+        // transient network/Firestore error would leave UserSettings at its
+        // cached-from-UserDefaults values forever (or blank on first login),
+        // because no other code path triggers a re-fetch until the app is
+        // backgrounded and foregrounded again.
+        var lastError: Error? = nil
+        for attempt in 1...2 {
+            do {
+                let profile = try await UserProfileService.shared.fetchProfile(userID: uid)
+                userProfile = profile
+                userSettings?.populate(from: profile)
+                await userSettings?.downloadProfileImageIfNeeded()
+                return
+            } catch {
+                lastError = error
+                AppLogger.log("[SessionManager] fetchProfile attempt \(attempt) failed: \(error.localizedDescription)")
+                if attempt < 2 {
+                    try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s
+                }
+            }
+        }
+        AppLogger.log("[SessionManager] fetchProfile gave up for \(uid); UserSettings will keep its cached identity fields. Last error: \(lastError?.localizedDescription ?? "unknown")")
     }
 
     // MARK: - Profile Update
@@ -324,9 +341,12 @@ final class SessionManager {
         successMessage = nil
         isBypassSession = false
         GIDSignIn.sharedInstance.signOut()
+        // Clear local profile state explicitly here — the auth listener no
+        // longer wipes UserSettings on nil-user events because those can
+        // fire on transient token failures and wipe the cached data.
+        userSettings?.clearProfile()
         try? Auth.auth().signOut()
-        // The auth listener handles setting authState = .unauthenticated and
-        // calling userSettings?.clearProfile().
+        // The auth listener handles setting authState = .unauthenticated.
     }
 
     // MARK: - Email Verification
@@ -426,7 +446,8 @@ final class SessionManager {
             // Call server-side cascading delete (Firestore data, Storage files, Auth user)
             let callable = Functions.functions().httpsCallable("deleteAccount")
             _ = try await callable.call()
-            // Server deleted the Auth user, so sign out locally
+            // Server deleted the Auth user, so clear local profile + sign out locally
+            userSettings?.clearProfile()
             try? Auth.auth().signOut()
         } catch let nsError as NSError
             where nsError.domain == AuthErrorDomain &&
@@ -467,8 +488,18 @@ final class SessionManager {
         // fetchProfile() returns nil on ANY error (network blip, missing field,
         // decode failure), which would falsely trigger profile creation and
         // overwrite the user's existing data with email-derived defaults.
-        let exists = await UserProfileService.shared.profileExists(userID: uid)
-        if exists { return }
+        //
+        // profileExists now throws on network/permission errors so we can
+        // distinguish "does not exist" from "failed to check". On failure,
+        // bail out rather than create a new profile that would merge over
+        // the real one via setData(merge: true).
+        do {
+            let exists = try await UserProfileService.shared.profileExists(userID: uid)
+            if exists { return }
+        } catch {
+            AppLogger.log("[SessionManager] profileExists failed for \(uid) — skipping createProfile to avoid overwriting: \(error.localizedDescription)")
+            return
+        }
 
         // Derive a best-effort username from email, falling back to a random suffix
         let base = email.components(separatedBy: "@").first ?? ""

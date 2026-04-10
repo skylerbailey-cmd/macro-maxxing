@@ -381,8 +381,17 @@ final class AuthViewModel {
         // fetchProfile() returns nil on ANY error (network blip, missing field,
         // decode failure), which would falsely trigger profile creation and
         // overwrite the user's existing data with email-derived defaults.
-        let exists = await UserProfileService.shared.profileExists(userID: uid)
-        if exists { return }
+        //
+        // profileExists now throws on network/permission errors so we bail
+        // out on failure instead of creating a new profile that would merge
+        // over the real one.
+        do {
+            let exists = try await UserProfileService.shared.profileExists(userID: uid)
+            if exists { return }
+        } catch {
+            AppLogger.log("[AuthViewModel] profileExists failed for \(uid) — skipping createProfile to avoid overwriting: \(error.localizedDescription)")
+            return
+        }
 
         // Derive a best-effort username from email, falling back to a random suffix
         let base = email.components(separatedBy: "@").first ?? ""
