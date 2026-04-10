@@ -851,8 +851,9 @@ struct AuraGain: Identifiable, Equatable {
         // Clear Keychain
         KeychainService.delete(key: "cachedUserID")
 
-        // Clear URL and Firestore caches so the next user starts fresh
+        // Clear URL, Firestore, and in-memory image caches so the next user starts fresh
         URLCache.shared.removeAllCachedResponses()
+        ImageCache.shared.removeAll()
     }
 
     // MARK: - Init
