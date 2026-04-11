@@ -4,9 +4,62 @@ const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
+const jwt = require("jsonwebtoken");
 
 // Secrets (stored via firebase functions:secrets:set, never in source)
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
+
+// Sign in with Apple — used to exchange the short-lived authorization code
+// for a long-lived refresh token at sign-in, and to revoke that refresh
+// token at account deletion (App Store guideline 5.1.1(v)).
+const APPLE_TEAM_ID     = defineSecret("APPLE_TEAM_ID");
+const APPLE_KEY_ID      = defineSecret("APPLE_KEY_ID");
+const APPLE_BUNDLE_ID   = defineSecret("APPLE_BUNDLE_ID");
+const APPLE_PRIVATE_KEY = defineSecret("APPLE_PRIVATE_KEY");
+
+/**
+ * Generates an Apple client-secret JWT (ES256) for calling
+ * appleid.apple.com /auth/token and /auth/revoke. Valid for 5 minutes.
+ *
+ * Requires all four APPLE_* secrets to be resolved (i.e. the calling
+ * function must declare them in its `secrets` array).
+ */
+function generateAppleClientSecret() {
+  // Normalise the stored PEM: some deployment paths (CLI paste, dashboard
+  // edits, CI env vars) strip real newlines and leave the key as a single
+  // line, or substitute them with literal `\n`. Both forms are unusable
+  // by `jsonwebtoken` for ES256 — it throws "secretOrPrivateKey must be
+  // an asymmetric key". Rebuild a proper multi-line PEM defensively.
+  let privateKey = APPLE_PRIVATE_KEY.value();
+  // Replace literal backslash-n with real newlines
+  privateKey = privateKey.replace(/\\n/g, "\n");
+  // If the header/footer are on the same line as the body, split them out
+  if (!privateKey.includes("\n") && privateKey.includes("-----BEGIN")) {
+    privateKey = privateKey
+      .replace(/-----BEGIN ([A-Z ]+)-----/, "-----BEGIN $1-----\n")
+      .replace(/-----END ([A-Z ]+)-----/, "\n-----END $1-----");
+  }
+
+  const teamID   = APPLE_TEAM_ID.value();
+  const keyID    = APPLE_KEY_ID.value();
+  const bundleID = APPLE_BUNDLE_ID.value();
+
+  const now = Math.floor(Date.now() / 1000);
+  return jwt.sign(
+    {
+      iss: teamID,
+      iat: now,
+      exp: now + 300, // 5 minutes — Apple's maximum
+      aud: "https://appleid.apple.com",
+      sub: bundleID,
+    },
+    privateKey,
+    {
+      algorithm: "ES256",
+      header: { alg: "ES256", kid: keyID },
+    }
+  );
+}
 
 initializeApp();
 
@@ -190,6 +243,91 @@ exports.resetWeeklyAura = onSchedule(
 // resetExpiredStreaks has been removed — streak resets are handled client-side.
 
 // ---------------------------------------------------------------------------
+// exchangeAppleAuthCode  (callable — exchanges Apple authorization code for refresh token)
+// ---------------------------------------------------------------------------
+
+/**
+ * Exchanges the short-lived Apple authorization code (5-minute lifespan)
+ * for a long-lived refresh token by calling appleid.apple.com/auth/token,
+ * then stores the refresh token in `users/{uid}/private/appleAuth`.
+ *
+ * MUST be called within 5 minutes of a successful Sign In with Apple.
+ * The stored refresh token is used later in `deleteAccount` to revoke
+ * the app's sign-in grant with Apple (App Store guideline 5.1.1(v)).
+ *
+ * Request:  { authorizationCode: string }
+ * Response: { success: true }
+ */
+exports.exchangeAppleAuthCode = onCall(
+  {
+    secrets: [APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_BUNDLE_ID, APPLE_PRIVATE_KEY],
+    timeoutSeconds: 30,
+    memory: "256MiB",
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Must be signed in.");
+    }
+    const uid = request.auth.uid;
+    const { authorizationCode } = request.data || {};
+    if (!authorizationCode || typeof authorizationCode !== "string") {
+      throw new HttpsError("invalid-argument", "authorizationCode required.");
+    }
+
+    let clientSecret;
+    try {
+      clientSecret = generateAppleClientSecret();
+    } catch (e) {
+      console.error(`[exchangeAppleAuthCode] JWT signing failed: ${e.message}`);
+      throw new HttpsError("internal", "Apple client secret generation failed.");
+    }
+
+    // POST to Apple's token endpoint.
+    // Body must be application/x-www-form-urlencoded.
+    const body = new URLSearchParams({
+      client_id:     APPLE_BUNDLE_ID.value(),
+      client_secret: clientSecret,
+      code:          authorizationCode,
+      grant_type:    "authorization_code",
+    });
+
+    const resp = await fetch("https://appleid.apple.com/auth/token", {
+      method:  "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body:    body.toString(),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.error(`[exchangeAppleAuthCode] Apple token endpoint ${resp.status}: ${text}`);
+      // Common causes: code expired (>5 min old), code already used, bundle ID mismatch
+      throw new HttpsError("failed-precondition", `Apple rejected the authorization code (${resp.status}).`);
+    }
+
+    const tokens = await resp.json();
+    const refreshToken = tokens.refresh_token;
+    if (!refreshToken) {
+      console.error(`[exchangeAppleAuthCode] Apple response missing refresh_token: ${JSON.stringify(tokens)}`);
+      throw new HttpsError("internal", "Apple did not return a refresh token.");
+    }
+
+    // Store the refresh token in the user's private subcollection.
+    // Admin SDK bypasses Firestore rules; the stored doc is only readable
+    // by the owner (client) or by Cloud Functions using the admin SDK.
+    const db = getFirestore();
+    await db.collection("users").doc(uid)
+      .collection("private").doc("appleAuth")
+      .set({
+        refreshToken,
+        issuedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+
+    console.log(`[exchangeAppleAuthCode] Stored Apple refresh token for ${uid}`);
+    return { success: true };
+  }
+);
+
+// ---------------------------------------------------------------------------
 // deleteAccount  (callable — cascading delete of all user data)
 // ---------------------------------------------------------------------------
 
@@ -200,7 +338,12 @@ exports.resetWeeklyAura = onSchedule(
  * Request:  {} (no params — uses auth.uid)
  * Response: { deleted: true }
  */
-exports.deleteAccount = onCall(async (request) => {
+exports.deleteAccount = onCall(
+  {
+    secrets: [APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_BUNDLE_ID, APPLE_PRIVATE_KEY],
+    timeoutSeconds: 120,
+  },
+  async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Must be signed in.");
   }
@@ -209,6 +352,40 @@ exports.deleteAccount = onCall(async (request) => {
   const bucket = getStorage().bucket();
 
   console.log(`[deleteAccount] Starting cascading delete for uid=${uid}`);
+
+  // 0. Revoke the Apple refresh token if one was stored at sign-in.
+  // Required by App Store guideline 5.1.1(v) for Sign in with Apple users.
+  // Non-fatal — deletion proceeds even if revoke fails so the user can
+  // still delete their account during an Apple outage.
+  try {
+    const appleAuthDoc = await db.collection("users").doc(uid)
+      .collection("private").doc("appleAuth").get();
+    const refreshToken = appleAuthDoc.exists ? appleAuthDoc.data().refreshToken : null;
+    if (refreshToken) {
+      const clientSecret = generateAppleClientSecret();
+      const body = new URLSearchParams({
+        client_id:       APPLE_BUNDLE_ID.value(),
+        client_secret:   clientSecret,
+        token:           refreshToken,
+        token_type_hint: "refresh_token",
+      });
+      const resp = await fetch("https://appleid.apple.com/auth/revoke", {
+        method:  "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body:    body.toString(),
+      });
+      if (resp.ok) {
+        console.log(`[deleteAccount] Apple refresh token revoked for ${uid}`);
+      } else {
+        const text = await resp.text();
+        console.warn(`[deleteAccount] Apple revoke returned ${resp.status}: ${text}`);
+      }
+    } else {
+      console.log(`[deleteAccount] No Apple refresh token stored for ${uid} — skipping revoke`);
+    }
+  } catch (e) {
+    console.warn(`[deleteAccount] Apple revoke step failed (continuing): ${e.message}`);
+  }
 
   // Helper: delete all documents in a collection/subcollection (batched)
   async function deleteCollection(ref) {
@@ -325,7 +502,8 @@ exports.deleteAccount = onCall(async (request) => {
 
   console.log(`[deleteAccount] Cascading delete complete for uid=${uid}`);
   return { deleted: true };
-});
+  }
+);
 
 // ---------------------------------------------------------------------------
 // proxyClaude  (callable — server-side proxy for Anthropic API)

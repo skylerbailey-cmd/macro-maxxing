@@ -135,6 +135,16 @@ final class SessionManager {
                 userProfile = profile
                 userSettings?.populate(from: profile)
                 await userSettings?.downloadProfileImageIfNeeded()
+                // Onboarding gate: a profile is considered "onboarded" only if
+                // the user has set their DOB AND height. These are collected
+                // only in OnboardingView, so missing values mean the user never
+                // completed the flow — either because they're brand-new or
+                // because a social sign-in (Apple / Google) created a stub
+                // profile and the app was closed mid-flow. In either case,
+                // route them through onboarding on next launch.
+                if profile.dateOfBirth.isEmpty || profile.heightInches == 0 {
+                    needsOnboarding = true
+                }
                 return
             } catch {
                 lastError = error
@@ -271,6 +281,13 @@ final class SessionManager {
                 return
             }
 
+            // Apple's short-lived authorization code — needed later to revoke
+            // the refresh token server-side when the user deletes their account.
+            // Apple requires revocation as part of the account deletion flow
+            // (App Store guideline 5.1.1(v)).
+            let authorizationCode = appleCredential.authorizationCode
+                .flatMap { String(data: $0, encoding: .utf8) } ?? ""
+
             let firebaseCredential = OAuthProvider.appleCredential(
                 withIDToken: idToken,
                 rawNonce: currentAppleNonce,
@@ -287,9 +304,37 @@ final class SessionManager {
                     name: name,
                     email: appleCredential.email ?? authResult.user.email ?? ""
                 )
+                // Exchange the short-lived Apple authorization code for a
+                // long-lived refresh token via the exchangeAppleAuthCode
+                // Cloud Function. The server stores the refresh token in
+                // users/{uid}/private/appleAuth, which deleteAccount reads
+                // at deletion time to revoke the grant with Apple.
+                // MUST happen within 5 minutes of sign-in or Apple will
+                // reject the authorization code.
+                if !authorizationCode.isEmpty {
+                    await exchangeAppleAuthorizationCode(authorizationCode)
+                }
             } catch {
                 errorMessage = Self.friendlyMessage(for: error)
             }
+        }
+    }
+
+    /// Calls the `exchangeAppleAuthCode` Cloud Function which trades the
+    /// authorization code for a refresh token server-side and persists it
+    /// under the user's private subcollection.
+    ///
+    /// Non-fatal: failures are logged but don't surface an error to the
+    /// user — sign-in still succeeds. The only consequence of failure is
+    /// that Apple's token can't be revoked at deletion time, which falls
+    /// back gracefully in `deleteAccount`.
+    private func exchangeAppleAuthorizationCode(_ code: String) async {
+        do {
+            let callable = Functions.functions().httpsCallable("exchangeAppleAuthCode")
+            _ = try await callable.call(["authorizationCode": code])
+            AppLogger.log("[SessionManager] Apple authorization code exchanged")
+        } catch {
+            AppLogger.log("[SessionManager] exchangeAppleAuthCode failed: \(error.localizedDescription)")
         }
     }
 
@@ -443,7 +488,9 @@ final class SessionManager {
             return
         }
         do {
-            // Call server-side cascading delete (Firestore data, Storage files, Auth user)
+            // Server-side cascading delete. The Cloud Function revokes the
+            // Apple refresh token (if one was stored at sign-in) before
+            // wiping Firestore data, Storage files, and the Auth user.
             let callable = Functions.functions().httpsCallable("deleteAccount")
             _ = try await callable.call()
             // Server deleted the Auth user, so clear local profile + sign out locally

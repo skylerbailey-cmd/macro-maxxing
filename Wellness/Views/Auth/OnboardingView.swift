@@ -57,38 +57,62 @@ struct OnboardingView: View {
     @State private var saveError: String? = nil
 
     private let totalPages = 7
-    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
+    private let purpl    = Color(red: 0.65, green: 0.45, blue: 1.00)
+    // Matches TutorialOverlayView: pure black dim behind a floating purple-bordered card.
+    private let backdrop = Color.black.opacity(0.85)
+    private let cardBg   = Color(red: 0.10, green: 0.10, blue: 0.14)
 
     var body: some View {
         ZStack {
-            pageBg.ignoresSafeArea()
+            // Dark backdrop — same visual language as TutorialOverlayView.
+            backdrop.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // Progress dots
-                progressDots
-                    .padding(.top, 20)
-                    .padding(.bottom, 8)
+            // Decorative purple glow behind the card so the screen doesn't
+            // feel empty with a pure-black backdrop.
+            RadialGradient(
+                colors: [purpl.opacity(0.22), .clear],
+                center: .center,
+                startRadius: 20,
+                endRadius: 340
+            )
+            .ignoresSafeArea()
 
-                // Page content
-                TabView(selection: $page) {
-                    namePage.tag(0)
-                    profilePicPage.tag(1)
-                    usernamePage.tag(2)
-                    dobPage.tag(3)
-                    weightPage.tag(4)
-                    healthDisclaimerPage.tag(5)
-                    privacyPage.tag(6)
+            // A single floating card that swaps its inner content as the
+            // user advances. Mirrors TutorialOverlayView.card precisely:
+            // header (progress + counter), title/body, then nav buttons.
+            VStack(alignment: .leading, spacing: 18) {
+                cardHeader
+
+                ScrollView {
+                    pageContent
+                        .id(page)
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .move(edge: .trailing)),
+                            removal:   .opacity.combined(with: .move(edge: .leading))
+                        ))
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.easeInOut, value: page)
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicators(.hidden)
+                // Let the card grow with content but cap at 62% of screen
+                // so it stays the same approximate size as the tutorial card
+                // and leaves room for the keyboard on short devices.
+                .frame(maxHeight: 440)
 
-                // Navigation buttons
                 navButtons
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 40)
             }
+            .padding(20)
+            .background {
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(cardBg)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .strokeBorder(purpl.opacity(0.30), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.50), radius: 24, y: 8)
+            }
+            .padding(.horizontal, 16)
         }
+        .animation(.easeInOut(duration: 0.3), value: page)
         .onAppear {
             // Pre-fill from whatever was collected at sign-up
             name     = userSettings.name
@@ -100,55 +124,82 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: Progress Dots
+    // MARK: Page switcher
 
-    private var progressDots: some View {
-        HStack(spacing: 8) {
-            ForEach(0..<totalPages, id: \.self) { i in
-                Capsule()
-                    .fill(i <= page ? purpl : Color.white.opacity(0.15))
-                    .frame(width: i == page ? 24 : 8, height: 8)
-                    .animation(.spring(response: 0.3), value: page)
+    @ViewBuilder
+    private var pageContent: some View {
+        switch page {
+        case 0: namePage
+        case 1: profilePicPage
+        case 2: usernamePage
+        case 3: dobPage
+        case 4: weightPage
+        case 5: healthDisclaimerPage
+        case 6: privacyPage
+        default: EmptyView()
+        }
+    }
+
+    // MARK: Card Header (progress capsules + step counter)
+    // Matches TutorialOverlayView's progress row: tiny capsules that grow
+    // for the active step, with "N / M" counter on the right.
+
+    private var cardHeader: some View {
+        HStack(spacing: 0) {
+            HStack(spacing: 5) {
+                ForEach(0..<totalPages, id: \.self) { i in
+                    Capsule()
+                        .fill(i == page
+                              ? purpl
+                              : Color.white.opacity(0.20))
+                        .frame(width: i == page ? 18 : 6, height: 6)
+                        .animation(.spring(duration: 0.3), value: page)
+                }
             }
+            Spacer()
+            Text("\(page + 1) / \(totalPages)")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.40))
         }
     }
 
     // MARK: Nav Buttons
+    // Matches TutorialOverlayView's footer: subtle Back pill on the left,
+    // bold solid-purple Next/Let's Go pill on the right.
 
     private var navButtons: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 10) {
             if page > 0 {
-                Button("Back") {
-                    withAnimation { page -= 1 }
+                Button { withAnimation { page -= 1 } } label: {
+                    Text("Back")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.75))
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 9)
+                        .background(Color.white.opacity(0.10),
+                                    in: RoundedRectangle(cornerRadius: 10))
                 }
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.50))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+                .buttonStyle(.plain)
             }
-
+            Spacer()
             Button(action: advance) {
                 ZStack {
                     if isSaving {
                         ProgressView().tint(.black)
                     } else {
-                        Text(page == totalPages - 1 ? "Let's Go!" : "Continue")
-                            .font(.system(size: 16, weight: .bold))
+                        Text(page == totalPages - 1 ? "Let's Go!" : "Next")
+                            .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(.black)
                     }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 9)
                 .background(
-                    canAdvance
-                        ? LinearGradient(colors: [purpl, Color(red: 0.85, green: 0.55, blue: 1.0)],
-                                         startPoint: .leading, endPoint: .trailing)
-                        : LinearGradient(colors: [Color.white.opacity(0.12), Color.white.opacity(0.12)],
-                                         startPoint: .leading, endPoint: .trailing),
-                    in: RoundedRectangle(cornerRadius: 14)
+                    canAdvance ? purpl : Color.white.opacity(0.18),
+                    in: RoundedRectangle(cornerRadius: 10)
                 )
             }
+            .buttonStyle(.plain)
             .disabled(!canAdvance || isSaving)
         }
     }
@@ -775,30 +826,30 @@ private struct OnboardingPageShell<Content: View>: View {
     let subtitle: String
     @ViewBuilder let content: () -> Content
 
+    // Matches TutorialOverlayView.card's title/body typography:
+    // • title: 19pt .black .rounded white
+    // • body : 14pt white.opacity(0.82) with a little line-spacing
+    // The emoji is kept but shrunk and left-aligned so it reads as a small
+    // section accent rather than a giant hero image.
     var body: some View {
-        ScrollView {
-            VStack(spacing: 28) {
-                VStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
                     Text(emoji)
-                        .font(.system(size: 64))
-
+                        .font(.system(size: 24))
                     Text(title)
-                        .font(.system(size: 26, weight: .black, design: .rounded))
+                        .font(.system(size: 19, weight: .black, design: .rounded))
                         .foregroundStyle(.white)
-                        .multilineTextAlignment(.center)
-
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.55))
-                        .multilineTextAlignment(.center)
                 }
-
-                content()
+                Text(subtitle)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.white.opacity(0.82))
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.horizontal, 28)
-            .padding(.top, 32)
-            .padding(.bottom, 20)
+
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .scrollBounceBehavior(.basedOnSize)
     }
 }
