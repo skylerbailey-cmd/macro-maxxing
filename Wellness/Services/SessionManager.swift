@@ -119,17 +119,40 @@ final class SessionManager {
     /// Call this when the app returns to the foreground to ensure fresh state.
     func refreshProfile() async {
         guard let uid = currentUID else { return }
+        // The app deliberately launches Firestore in offline mode (see
+        // FirebaseManager.init) so the UI can render instantly without
+        // blocking on a backend connection. Before reading from Firestore
+        // we must bring the network up — otherwise fetchProfile races
+        // the auth listener's enableNetwork call and fails with
+        // "client is offline" on a fresh install with no cache.
+        // enableNetwork() is idempotent, so this is a cheap no-op on
+        // warm foregroundings.
+        await FirebaseManager.shared.enableNetwork()
         await fetchAndApplyProfile(uid: uid)
     }
 
     private func fetchAndApplyProfile(uid: String) async {
-        // Retry once on failure with a short backoff. Without this, a single
-        // transient network/Firestore error would leave UserSettings at its
-        // cached-from-UserDefaults values forever (or blank on first login),
-        // because no other code path triggers a re-fetch until the app is
-        // backgrounded and foregrounded again.
+        // Firestore's `enableNetwork()` returns as soon as it flips its
+        // internal online flag — it does NOT wait for an actual backend
+        // connection to be established. On a cold launch with no cached
+        // data, `getDocument()` then fails immediately with
+        // "client is offline" because there's nothing to serve and
+        // Firestore hasn't finished handshaking with the backend.
+        //
+        // Retry with exponential backoff (0.5s → 1s → 2s → 4s, ~7.5s
+        // total) so the first few attempts give Firestore enough time
+        // to bring the connection up. Without this, users on a fresh
+        // install see a blank/stale profile until they background and
+        // foreground the app.
         var lastError: Error? = nil
-        for attempt in 1...2 {
+        let backoffs: [UInt64] = [
+            500_000_000,   // 0.5s
+            1_000_000_000, // 1.0s
+            2_000_000_000, // 2.0s
+            4_000_000_000, // 4.0s
+        ]
+        let maxAttempts = 4
+        for attempt in 1...maxAttempts {
             do {
                 let profile = try await UserProfileService.shared.fetchProfile(userID: uid)
                 userProfile = profile
@@ -149,8 +172,8 @@ final class SessionManager {
             } catch {
                 lastError = error
                 AppLogger.log("[SessionManager] fetchProfile attempt \(attempt) failed: \(error.localizedDescription)")
-                if attempt < 2 {
-                    try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s
+                if attempt < maxAttempts {
+                    try? await Task.sleep(nanoseconds: backoffs[attempt - 1])
                 }
             }
         }
