@@ -5,6 +5,7 @@ const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 // Secrets (stored via firebase functions:secrets:set, never in source)
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
@@ -27,17 +28,73 @@ const APPLE_PRIVATE_KEY = defineSecret("APPLE_PRIVATE_KEY");
 function generateAppleClientSecret() {
   // Normalise the stored PEM: some deployment paths (CLI paste, dashboard
   // edits, CI env vars) strip real newlines and leave the key as a single
-  // line, or substitute them with literal `\n`. Both forms are unusable
-  // by `jsonwebtoken` for ES256 — it throws "secretOrPrivateKey must be
-  // an asymmetric key". Rebuild a proper multi-line PEM defensively.
+  // line, substitute them with literal `\n`, or leave stray Windows `\r`
+  // characters behind. All of those break ES256 parsing. Rebuild a proper
+  // multi-line PEM defensively before handing it to Node's crypto module.
   let privateKey = APPLE_PRIVATE_KEY.value();
-  // Replace literal backslash-n with real newlines
+  // Replace literal backslash-n with real newlines (from JSON-encoded env vars)
   privateKey = privateKey.replace(/\\n/g, "\n");
+  // Strip carriage returns that Windows or CRLF paste can leave behind
+  privateKey = privateKey.replace(/\r/g, "");
+  // Strip leading/trailing whitespace
+  privateKey = privateKey.trim();
   // If the header/footer are on the same line as the body, split them out
+  if (privateKey.includes("-----BEGIN") && !privateKey.startsWith("-----BEGIN")) {
+    // Shouldn't happen, but trim anything before the header
+    privateKey = privateKey.slice(privateKey.indexOf("-----BEGIN"));
+  }
   if (!privateKey.includes("\n") && privateKey.includes("-----BEGIN")) {
     privateKey = privateKey
       .replace(/-----BEGIN ([A-Z ]+)-----/, "-----BEGIN $1-----\n")
       .replace(/-----END ([A-Z ]+)-----/, "\n-----END $1-----");
+  }
+
+  // Diagnostic fingerprint so we can see in the logs EXACTLY what the
+  // function is receiving, without leaking the key. Masks the base64 body.
+  const newlineCount = (privateKey.match(/\n/g) || []).length;
+  const hasBegin = privateKey.includes("-----BEGIN PRIVATE KEY-----");
+  const hasEnd   = privateKey.includes("-----END PRIVATE KEY-----");
+  const first40  = privateKey.slice(0, 40);
+  const last40   = privateKey.slice(-40);
+  console.log(
+    `[generateAppleClientSecret] key length=${privateKey.length} ` +
+    `newlines=${newlineCount} hasBegin=${hasBegin} hasEnd=${hasEnd} ` +
+    `first40=${JSON.stringify(first40)} last40=${JSON.stringify(last40)}`
+  );
+
+  // Parse the PEM via Node's crypto module first. This gives a much more
+  // specific error than `jwt.sign`'s generic "must be an asymmetric key",
+  // and ensures the key is actually an EC P-256 private key (what Apple
+  // issues and what ES256 requires).
+  let keyObject;
+  try {
+    keyObject = crypto.createPrivateKey({
+      key: privateKey,
+      format: "pem",
+      type: "pkcs8",
+    });
+  } catch (parseErr) {
+    // If explicit PKCS#8 parsing failed, try with format auto-detect
+    try {
+      keyObject = crypto.createPrivateKey(privateKey);
+    } catch (fallbackErr) {
+      throw new Error(
+        `crypto.createPrivateKey failed: ${parseErr.message} ` +
+        `(fallback also failed: ${fallbackErr.message})`
+      );
+    }
+  }
+
+  console.log(
+    `[generateAppleClientSecret] parsed key type=${keyObject.asymmetricKeyType} ` +
+    `curve=${keyObject.asymmetricKeyDetails && keyObject.asymmetricKeyDetails.namedCurve}`
+  );
+
+  if (keyObject.asymmetricKeyType !== "ec") {
+    throw new Error(
+      `Apple private key is not an EC key (got ${keyObject.asymmetricKeyType}). ` +
+      `Apple Sign In keys must be ES256 / P-256.`
+    );
   }
 
   const teamID   = APPLE_TEAM_ID.value();
@@ -53,7 +110,7 @@ function generateAppleClientSecret() {
       aud: "https://appleid.apple.com",
       sub: bundleID,
     },
-    privateKey,
+    keyObject,
     {
       algorithm: "ES256",
       header: { alg: "ES256", kid: keyID },
