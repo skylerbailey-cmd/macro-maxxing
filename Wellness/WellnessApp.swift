@@ -153,6 +153,19 @@ struct WellnessApp: App {
     }
 
     let modelContainer: ModelContainer = {
+        // On a fresh install `Library/Application Support` doesn't exist
+        // yet. SwiftData / CoreData will recover by creating it on demand,
+        // but on the way it logs ~60 lines of stat-walk diagnostics which
+        // drown out the rest of the launch logs. Pre-create the directory
+        // so the store opens cleanly and those diagnostics never fire.
+        if let appSupport = FileManager.default.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask
+        ).first {
+            try? FileManager.default.createDirectory(
+                at: appSupport, withIntermediateDirectories: true
+            )
+        }
+
         let schema = Schema([FoodEntry.self, SocialPost.self, SocialComment.self, FuelLogEntry.self, WorkoutLogEntry.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do { return try ModelContainer(for: schema, configurations: [config]) }
