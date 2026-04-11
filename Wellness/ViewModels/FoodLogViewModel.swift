@@ -120,7 +120,28 @@ enum AnalysisTier: Equatable {
     }
 
     func loadTodayEntries() async {
+        // Retry any pending uploads that never made it to Firestore (e.g. previous
+        // photo-upload failures) before we refetch, so they have a chance to sync.
+        await flushPendingEntries()
+
         let firestoreEntries = (try? await FoodEntryService.shared.fetch(userID: userID, date: selectedDate)) ?? []
+
+        // Freshly-fetched Firestore entries only have photoURL — they don't carry the
+        // local imageData that was set when the meal was logged. Without this carry-over
+        // the photo would flicker / disappear on the first refetch, before (or if) the
+        // Storage URL becomes reachable. Keyed by UUID id so per-entry bytes stay with
+        // the right row.
+        let previousImageData: [UUID: Data] = Dictionary(
+            uniqueKeysWithValues: todayEntries.compactMap { entry in
+                guard let data = entry.imageData else { return nil }
+                return (entry.id, data)
+            }
+        )
+        for entry in firestoreEntries where entry.imageData == nil {
+            if let data = previousImageData[entry.id] {
+                entry.imageData = data
+            }
+        }
 
         // Remove pending entries that now appear in Firestore (synced successfully)
         let firestoreIDs = Set(firestoreEntries.map { $0.id })
@@ -136,6 +157,26 @@ enum AnalysisTier: Equatable {
                 merged.insert(local, at: 0)
             }
             todayEntries = merged.sorted { $0.loggedAt > $1.loggedAt }
+        }
+    }
+
+    /// Attempts to push any still-pending local entries (typically stranded by a
+    /// previous photo upload failure) to Firestore. Entries that still fail remain
+    /// in `pendingLocalEntries` so they continue to render from in-memory `imageData`.
+    private func flushPendingEntries() async {
+        // Snapshot so concurrent saveEntry() calls that mutate pendingLocalEntries
+        // during awaits don't throw us off.
+        let pending = pendingLocalEntries.filter { $0.firebaseEntryID.isEmpty }
+        guard !pending.isEmpty else { return }
+        for entry in pending {
+            let image = entry.imageData.flatMap { UIImage(data: $0) }
+            do {
+                let result = try await FoodEntryService.shared.save(entry: entry, image: image)
+                entry.firebaseEntryID = result.docID
+                entry.photoURL        = result.photoURL
+            } catch {
+                AppLogger.log("[FoodLog] Pending entry retry failed: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -371,12 +412,19 @@ enum AnalysisTier: Equatable {
 
         // Persist to Firestore
         Task {
-            if let result = try? await FoodEntryService.shared.save(entry: entry, image: image) {
+            do {
+                let result = try await FoodEntryService.shared.save(entry: entry, image: image)
                 entry.firebaseEntryID = result.docID
                 entry.photoURL        = result.photoURL
+                // Only remove from pending on a successful Firestore write — otherwise
+                // we'd lose the photo (and the row would vanish on the next refetch).
+                pendingLocalEntries.removeAll { $0.id == entry.id }
+            } catch {
+                // Leave the entry in pendingLocalEntries so the row keeps rendering
+                // from in-memory imageData and loadTodayEntries() will retry it on the
+                // next refresh via flushPendingEntries().
+                AppLogger.log("[FoodLog] Firestore save failed, keeping entry pending: \(error.localizedDescription)")
             }
-            // After Firestore write completes, remove from pending
-            pendingLocalEntries.removeAll { $0.id == entry.id }
         }
 
         return true
@@ -399,15 +447,23 @@ enum AnalysisTier: Equatable {
             calories: meal.calories,
             protein:  meal.protein,
             carbs:    meal.carbs,
-            fat:      meal.fat
+            fat:      meal.fat,
+            imageData: meal.imageData
         )
+        // Carry the saved meal's photo URL through so the new log entry renders
+        // the same thumbnail instead of falling back to the fork.knife placeholder.
+        entry.photoURL = meal.photoURL
 
         todayEntries.insert(entry, at: 0)
 
         NotificationCenter.default.post(name: FuelLogService.mealChangedNotification, object: nil)
 
         Task {
-            if let result = try? await FoodEntryService.shared.save(entry: entry, image: nil) {
+            if let result = try? await FoodEntryService.shared.save(
+                entry: entry,
+                image: nil,
+                existingPhotoURL: meal.photoURL
+            ) {
                 entry.firebaseEntryID = result.docID
                 entry.photoURL        = result.photoURL
             }

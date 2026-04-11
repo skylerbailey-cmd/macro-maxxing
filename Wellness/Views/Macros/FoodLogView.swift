@@ -1280,13 +1280,12 @@ private struct AnalysisSheet: View {
         } label: {
             HStack(spacing: 10) {
                 if let url = URL(string: meal.photoURL), !meal.photoURL.isEmpty {
-                    AsyncImage(url: url) { phase in
-                        if case .success(let img) = phase {
-                            img.resizable().scaledToFill()
-                        } else {
-                            Color.white.opacity(0.05)
-                        }
+                    CachedAsyncImage(url: url) { img in
+                        img.resizable().scaledToFill()
+                    } placeholder: {
+                        Color.white.opacity(0.05)
                     }
+                    .id(meal.photoURL)
                     .frame(width: 38, height: 38)
                     .clipped()
                     .cornerRadius(8)
@@ -1362,19 +1361,17 @@ private struct FoodEntryRow: View {
                         .resizable()
                         .scaledToFill()
                 } else if !entry.photoURL.isEmpty, let url = URL(string: entry.photoURL) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let img):
-                            img.resizable().scaledToFill()
-                        default:
-                            Color.white.opacity(0.06)
-                                .overlay {
-                                    Image(systemName: "fork.knife")
-                                        .font(.system(size: 20))
-                                        .foregroundStyle(.white.opacity(0.25))
-                                }
-                        }
+                    CachedAsyncImage(url: url) { img in
+                        img.resizable().scaledToFill()
+                    } placeholder: {
+                        Color.white.opacity(0.06)
+                            .overlay {
+                                Image(systemName: "fork.knife")
+                                    .font(.system(size: 20))
+                                    .foregroundStyle(.white.opacity(0.25))
+                            }
                     }
+                    .id(entry.photoURL)
                 } else {
                     Color.white.opacity(0.06)
                         .overlay {
@@ -1908,14 +1905,13 @@ private struct FuelLogPostSheet: View {
                                                     .resizable()
                                                     .scaledToFill()
                                             } else if !entry.photoURL.isEmpty, let url = URL(string: entry.photoURL) {
-                                                AsyncImage(url: url) { phase in
-                                                    if case .success(let img) = phase {
-                                                        img.resizable().scaledToFill()
-                                                    } else {
-                                                        Color.white.opacity(0.07)
-                                                            .overlay { Image(systemName: "fork.knife").font(.system(size: 14)).foregroundStyle(.white.opacity(0.30)) }
-                                                    }
+                                                CachedAsyncImage(url: url) { img in
+                                                    img.resizable().scaledToFill()
+                                                } placeholder: {
+                                                    Color.white.opacity(0.07)
+                                                        .overlay { Image(systemName: "fork.knife").font(.system(size: 14)).foregroundStyle(.white.opacity(0.30)) }
                                                 }
+                                                .id(entry.photoURL)
                                             } else {
                                                 RoundedRectangle(cornerRadius: 8)
                                                     .fill(Color.white.opacity(0.07))

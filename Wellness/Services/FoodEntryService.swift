@@ -28,6 +28,10 @@ final class FoodEntryService {
 
     /// Uploads the photo (if any) to Storage then writes all fields to Firestore.
     /// Returns the Firestore document ID and the photo download URL (empty string if no photo).
+    ///
+    /// Throws if a photo is provided and the upload fails — the Firestore write is
+    /// skipped so the caller can retry instead of leaving a meal stranded without a
+    /// photoURL in the database.
     @discardableResult
     func save(entry: FoodEntry, image: UIImage?, existingPhotoURL: String = "") async throws -> (docID: String, photoURL: String) {
         guard !entry.userID.isEmpty else { return ("", "") }
@@ -36,9 +40,12 @@ final class FoodEntryService {
 
         // Upload photo first so the URL can be included in the Firestore write.
         // If no new image but an existing URL is provided (e.g. from a saved meal), use that.
+        // If a photo IS provided, we require the upload to succeed — silently swallowing
+        // upload errors used to leave entries in Firestore with an empty photoURL, which
+        // is unrecoverable once the in-memory imageData is dropped on the next refetch.
         var photoURL = existingPhotoURL
         if let image {
-            photoURL = (try? await uploadPhoto(image: image, userID: entry.userID, entryID: entryID)) ?? existingPhotoURL
+            photoURL = try await uploadPhoto(image: image, userID: entry.userID, entryID: entryID)
         }
 
         let data: [String: Any] = [

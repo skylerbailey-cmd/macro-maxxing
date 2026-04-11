@@ -104,18 +104,16 @@ struct SavedMealsView: View {
         HStack(spacing: 14) {
             // Thumbnail or placeholder
             if let url = URL(string: meal.photoURL), !meal.photoURL.isEmpty {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 52, height: 52)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                    default:
-                        mealPlaceholder
-                    }
+                CachedAsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 52, height: 52)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                } placeholder: {
+                    mealPlaceholder
                 }
+                .id(meal.photoURL)
             } else {
                 mealPlaceholder
             }
