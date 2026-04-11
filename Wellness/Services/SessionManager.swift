@@ -3,8 +3,8 @@
 //  Wellness
 //
 //  Single source of truth for Firebase auth state AND the current user's profile.
-//  Replaces AuthViewModel. The auth listener is the ONLY place that reacts to
-//  login/logout; all other code reads `authState` and `userProfile`.
+//  The auth listener is the ONLY place that reacts to login/logout; all other
+//  code reads `authState` and `userProfile`.
 //
 
 import Foundation
@@ -154,7 +154,23 @@ final class SessionManager {
                 }
             }
         }
-        AppLogger.log("[SessionManager] fetchProfile gave up for \(uid); UserSettings will keep its cached identity fields. Last error: \(lastError?.localizedDescription ?? "unknown")")
+        AppLogger.log("[SessionManager] fetchProfile gave up for \(uid). Last error: \(lastError?.localizedDescription ?? "unknown")")
+
+        // Ghost-user guard: if we can't load a profile for the currently
+        // authed UID AND the previously-cached UserSettings belongs to a
+        // DIFFERENT user, that stale cache is not safe to show. It would
+        // render the previous user's name, photo, streaks, etc. on top of
+        // the new user's auth session. Wipe the cache so the app routes
+        // back to the auth / onboarding flow with a clean slate.
+        //
+        // We deliberately do NOT sign out here — the Auth session is still
+        // valid, and the user may just need onboarding to create a profile.
+        // needsOnboarding=true will route them there on next render.
+        if let settings = userSettings, !settings.userID.isEmpty, settings.userID != uid {
+            AppLogger.log("[SessionManager] Clearing stale UserSettings (cached uid=\(settings.userID) != current uid=\(uid))")
+            settings.clearProfile()
+            needsOnboarding = true
+        }
     }
 
     // MARK: - Profile Update
@@ -296,6 +312,14 @@ final class SessionManager {
 
             do {
                 let authResult = try await Auth.auth().signIn(with: firebaseCredential)
+                // Firestore is launched with `disableNetwork()` so the UI can
+                // render instantly from cache. For a fresh sign-in we need the
+                // live backend to check whether a profile already exists, so
+                // bring the connection up *before* `createProfileIfNeeded`.
+                // Without this, `profileExists` races the auth listener's
+                // enableNetwork call and fails with "client is offline",
+                // leaving the user in a ghost-user state.
+                await FirebaseManager.shared.enableNetwork()
                 let name = [appleCredential.fullName?.givenName,
                             appleCredential.fullName?.familyName]
                     .compactMap { $0 }.joined(separator: " ")
@@ -396,6 +420,10 @@ final class SessionManager {
                 accessToken: result.user.accessToken.tokenString
             )
             let authResult = try await Auth.auth().signIn(with: credential)
+            // See handleAppleSignIn for the rationale — bring Firestore up
+            // before checking profile existence so we don't race the auth
+            // listener and hit "client is offline" on a fresh sign-in.
+            await FirebaseManager.shared.enableNetwork()
             await createProfileIfNeeded(
                 uid: authResult.user.uid,
                 name: result.user.profile?.name ?? "",
