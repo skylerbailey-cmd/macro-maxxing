@@ -23,14 +23,15 @@ final class FirebaseManager {
     /// version is lower (or missing), persistence is cleared once so
     /// any corruption left by earlier builds is wiped automatically.
     ///
-    /// v2: earlier builds shipped with `NSFileProtectionComplete` as
-    /// the default data-protection class, which meant every LevelDB
-    /// file Firestore wrote inherited `Complete` protection and became
-    /// unwritable whenever the device locked — causing the index
-    /// backfiller to crash with "Operation not permitted". The
-    /// entitlement is now `CompleteUntilFirstUserAuthentication`, but
-    /// files that were created on-disk under the old entitlement keep
-    /// their original class forever. Bumping the schema version forces
+    /// v2: earlier builds shipped with `NSFileProtectionComplete` set
+    /// as the default data-protection entitlement, which meant every
+    /// LevelDB file Firestore wrote inherited `Complete` protection
+    /// and became unwritable whenever the device locked — causing
+    /// the index backfiller to crash with "Operation not permitted".
+    /// The entitlement has been removed (iOS 7+ defaults to
+    /// `CompleteUntilFirstUserAuthentication`), but files created
+    /// on-disk under the old entitlement keep their original
+    /// protection class forever. Bumping the schema version forces
     /// a one-shot `clearPersistence()` on upgrade so those files are
     /// wiped and recreated with the correct class.
     private static let cacheSchemaVersion = 2
@@ -100,14 +101,15 @@ final class FirebaseManager {
     /// and index-backfill operations can always write to it — even
     /// while the device is locked.
     ///
-    /// The app's default data-protection entitlement is set to
+    /// With no `com.apple.developer.default-data-protection`
+    /// entitlement set, the iOS 7+ default is already
     /// `CompleteUntilFirstUserAuthentication`, so any files Firestore
-    /// creates from now on will already inherit that class. This
-    /// function exists as a defence-in-depth retrofit for installs
-    /// that already have LevelDB files left over from a build that
-    /// shipped with `NSFileProtectionComplete` — those files keep
-    /// their original (too-strict) protection class and must be
-    /// downgraded explicitly.
+    /// creates from now on will inherit that class. This function
+    /// exists as a defence-in-depth retrofit for installs that still
+    /// have LevelDB files left over from a build that shipped with
+    /// `NSFileProtectionComplete` — those files keep their original
+    /// (too-strict) protection class and must be downgraded
+    /// explicitly.
     ///
     /// Firestore's actual on-disk path is:
     ///   Library/Application Support/firestore/__FIRAPP_DEFAULT/<project>/main/
