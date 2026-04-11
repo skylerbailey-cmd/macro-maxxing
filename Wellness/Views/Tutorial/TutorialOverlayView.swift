@@ -40,6 +40,12 @@ enum TutorialIcon {
 enum TutorialSteps {
 
     // MARK: Full App Tour (combines per-tab steps with tab switching + highlighting)
+    //
+    // The per-tab step collections (`hub`, `log`, `feed`, `board`) are the single
+    // source of truth for tutorial content. The first-time app tour simply
+    // re-wraps them with a `tabIndex` so the overlay can switch tabs between
+    // steps. Always forward every field (including `icon`) so the two entry
+    // points — first launch and tapping the ? icon — display identical cards.
     static let appTour: [TutorialStep] = {
         var steps: [TutorialStep] = []
         steps.append(.init(
@@ -48,16 +54,16 @@ enum TutorialSteps {
             anchorID: nil
         ))
         for s in hub {
-            steps.append(.init(title: s.title, body: s.body, tabIndex: 0, anchorID: s.anchorID))
+            steps.append(.init(title: s.title, body: s.body, tabIndex: 0, anchorID: s.anchorID, icon: s.icon))
         }
         for s in log {
-            steps.append(.init(title: s.title, body: s.body, tabIndex: 1, anchorID: s.anchorID))
+            steps.append(.init(title: s.title, body: s.body, tabIndex: 1, anchorID: s.anchorID, icon: s.icon))
         }
         for s in feed {
-            steps.append(.init(title: s.title, body: s.body, tabIndex: 2, anchorID: s.anchorID))
+            steps.append(.init(title: s.title, body: s.body, tabIndex: 2, anchorID: s.anchorID, icon: s.icon))
         }
         for s in board {
-            steps.append(.init(title: s.title, body: s.body, tabIndex: 3, anchorID: s.anchorID))
+            steps.append(.init(title: s.title, body: s.body, tabIndex: 3, anchorID: s.anchorID, icon: s.icon))
         }
         return steps
     }()
