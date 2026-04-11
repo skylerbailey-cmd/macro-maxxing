@@ -274,56 +274,95 @@ exports.exchangeAppleAuthCode = onCall(
       throw new HttpsError("invalid-argument", "authorizationCode required.");
     }
 
-    let clientSecret;
+    // Everything below must convert thrown errors into HttpsError with a
+    // message the client can read. An uncaught exception turns into a bare
+    // "INTERNAL" on the client with no diagnostic — impossible to debug.
     try {
-      clientSecret = generateAppleClientSecret();
+      // 1. Build the Apple client-secret JWT.
+      let clientSecret;
+      try {
+        clientSecret = generateAppleClientSecret();
+      } catch (e) {
+        console.error(`[exchangeAppleAuthCode] JWT signing failed for ${uid}: ${e.stack || e.message}`);
+        // Most common cause: APPLE_PRIVATE_KEY secret not set, or pasted with
+        // stray whitespace / missing BEGIN-END headers / wrong format.
+        throw new HttpsError(
+          "failed-precondition",
+          `Apple client secret generation failed: ${e.message}. Verify APPLE_PRIVATE_KEY / APPLE_TEAM_ID / APPLE_KEY_ID / APPLE_BUNDLE_ID secrets.`
+        );
+      }
+
+      // 2. POST to Apple's token endpoint.
+      // Body must be application/x-www-form-urlencoded.
+      const body = new URLSearchParams({
+        client_id:     APPLE_BUNDLE_ID.value(),
+        client_secret: clientSecret,
+        code:          authorizationCode,
+        grant_type:    "authorization_code",
+      });
+
+      let resp;
+      try {
+        resp = await fetch("https://appleid.apple.com/auth/token", {
+          method:  "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body:    body.toString(),
+        });
+      } catch (e) {
+        console.error(`[exchangeAppleAuthCode] fetch to Apple failed for ${uid}: ${e.stack || e.message}`);
+        throw new HttpsError("unavailable", `Could not reach Apple ID servers: ${e.message}`);
+      }
+
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => "<no body>");
+        console.error(`[exchangeAppleAuthCode] Apple token endpoint ${resp.status} for ${uid}: ${text}`);
+        // Common causes: code expired (>5 min old), code already used,
+        // bundle ID mismatch, or wrong APPLE_KEY_ID / APPLE_TEAM_ID.
+        throw new HttpsError(
+          "failed-precondition",
+          `Apple rejected the authorization code (HTTP ${resp.status}): ${text}`
+        );
+      }
+
+      let tokens;
+      try {
+        tokens = await resp.json();
+      } catch (e) {
+        console.error(`[exchangeAppleAuthCode] Could not parse Apple response for ${uid}: ${e.message}`);
+        throw new HttpsError("internal", `Apple returned a malformed response: ${e.message}`);
+      }
+
+      const refreshToken = tokens.refresh_token;
+      if (!refreshToken) {
+        console.error(`[exchangeAppleAuthCode] Apple response missing refresh_token for ${uid}: ${JSON.stringify(tokens)}`);
+        throw new HttpsError("internal", "Apple did not return a refresh token.");
+      }
+
+      // 3. Store the refresh token in the user's private subcollection.
+      // Admin SDK bypasses Firestore rules; the stored doc is only readable
+      // by the owner (client) or by Cloud Functions using the admin SDK.
+      try {
+        const db = getFirestore();
+        await db.collection("users").doc(uid)
+          .collection("private").doc("appleAuth")
+          .set({
+            refreshToken,
+            issuedAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+      } catch (e) {
+        console.error(`[exchangeAppleAuthCode] Firestore write failed for ${uid}: ${e.stack || e.message}`);
+        throw new HttpsError("internal", `Failed to persist Apple refresh token: ${e.message}`);
+      }
+
+      console.log(`[exchangeAppleAuthCode] Stored Apple refresh token for ${uid}`);
+      return { success: true };
     } catch (e) {
-      console.error(`[exchangeAppleAuthCode] JWT signing failed: ${e.message}`);
-      throw new HttpsError("internal", "Apple client secret generation failed.");
+      // Re-throw HttpsError as-is so the client sees the typed error.
+      // Wrap anything else so the client gets a message instead of bare INTERNAL.
+      if (e instanceof HttpsError) throw e;
+      console.error(`[exchangeAppleAuthCode] Unhandled error for ${uid}: ${e.stack || e.message}`);
+      throw new HttpsError("internal", `Unhandled error: ${e.message || String(e)}`);
     }
-
-    // POST to Apple's token endpoint.
-    // Body must be application/x-www-form-urlencoded.
-    const body = new URLSearchParams({
-      client_id:     APPLE_BUNDLE_ID.value(),
-      client_secret: clientSecret,
-      code:          authorizationCode,
-      grant_type:    "authorization_code",
-    });
-
-    const resp = await fetch("https://appleid.apple.com/auth/token", {
-      method:  "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body:    body.toString(),
-    });
-
-    if (!resp.ok) {
-      const text = await resp.text();
-      console.error(`[exchangeAppleAuthCode] Apple token endpoint ${resp.status}: ${text}`);
-      // Common causes: code expired (>5 min old), code already used, bundle ID mismatch
-      throw new HttpsError("failed-precondition", `Apple rejected the authorization code (${resp.status}).`);
-    }
-
-    const tokens = await resp.json();
-    const refreshToken = tokens.refresh_token;
-    if (!refreshToken) {
-      console.error(`[exchangeAppleAuthCode] Apple response missing refresh_token: ${JSON.stringify(tokens)}`);
-      throw new HttpsError("internal", "Apple did not return a refresh token.");
-    }
-
-    // Store the refresh token in the user's private subcollection.
-    // Admin SDK bypasses Firestore rules; the stored doc is only readable
-    // by the owner (client) or by Cloud Functions using the admin SDK.
-    const db = getFirestore();
-    await db.collection("users").doc(uid)
-      .collection("private").doc("appleAuth")
-      .set({
-        refreshToken,
-        issuedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
-
-    console.log(`[exchangeAppleAuthCode] Stored Apple refresh token for ${uid}`);
-    return { success: true };
   }
 );
 
@@ -353,6 +392,9 @@ exports.deleteAccount = onCall(
 
   console.log(`[deleteAccount] Starting cascading delete for uid=${uid}`);
 
+  // Wrap the entire deletion flow so uncaught exceptions surface to the
+  // client with a usable message instead of bare "INTERNAL".
+  try {
   // 0. Revoke the Apple refresh token if one was stored at sign-in.
   // Required by App Store guideline 5.1.1(v) for Sign in with Apple users.
   // Non-fatal — deletion proceeds even if revoke fails so the user can
@@ -377,14 +419,14 @@ exports.deleteAccount = onCall(
       if (resp.ok) {
         console.log(`[deleteAccount] Apple refresh token revoked for ${uid}`);
       } else {
-        const text = await resp.text();
+        const text = await resp.text().catch(() => "<no body>");
         console.warn(`[deleteAccount] Apple revoke returned ${resp.status}: ${text}`);
       }
     } else {
       console.log(`[deleteAccount] No Apple refresh token stored for ${uid} — skipping revoke`);
     }
   } catch (e) {
-    console.warn(`[deleteAccount] Apple revoke step failed (continuing): ${e.message}`);
+    console.warn(`[deleteAccount] Apple revoke step failed (continuing): ${e.stack || e.message}`);
   }
 
   // Helper: delete all documents in a collection/subcollection (batched)
@@ -502,6 +544,11 @@ exports.deleteAccount = onCall(
 
   console.log(`[deleteAccount] Cascading delete complete for uid=${uid}`);
   return { deleted: true };
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    console.error(`[deleteAccount] Unhandled error for ${uid}: ${e.stack || e.message}`);
+    throw new HttpsError("internal", `Unhandled error during deletion: ${e.message || String(e)}`);
+  }
   }
 );
 

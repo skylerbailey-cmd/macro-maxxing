@@ -328,14 +328,45 @@ final class SessionManager {
     /// user — sign-in still succeeds. The only consequence of failure is
     /// that Apple's token can't be revoked at deletion time, which falls
     /// back gracefully in `deleteAccount`.
+    ///
+    /// Performs a single retry on transient failures (network, unavailable,
+    /// internal) because the authorization code is valid for 5 minutes and
+    /// a brief App Check / network blip right after sign-in is common.
     private func exchangeAppleAuthorizationCode(_ code: String) async {
-        do {
-            let callable = Functions.functions().httpsCallable("exchangeAppleAuthCode")
-            _ = try await callable.call(["authorizationCode": code])
-            AppLogger.log("[SessionManager] Apple authorization code exchanged")
-        } catch {
-            AppLogger.log("[SessionManager] exchangeAppleAuthCode failed: \(error.localizedDescription)")
+        let callable = Functions.functions().httpsCallable("exchangeAppleAuthCode")
+        for attempt in 1...2 {
+            do {
+                _ = try await callable.call(["authorizationCode": code])
+                AppLogger.log("[SessionManager] Apple authorization code exchanged (attempt \(attempt))")
+                return
+            } catch {
+                let nsError = error as NSError
+                AppLogger.log("[SessionManager] exchangeAppleAuthCode attempt \(attempt) failed — \(Self.describeFunctionsError(nsError))")
+                // FIRFunctionsErrorDomain == "com.firebase.functions"
+                // Codes: 4 = deadlineExceeded, 13 = internal, 14 = unavailable.
+                // Retry only those — not invalid-argument, unauthenticated, etc.
+                let isTransient = nsError.domain == "com.firebase.functions"
+                    && (nsError.code == 4 || nsError.code == 13 || nsError.code == 14)
+                if attempt == 2 || !isTransient { return }
+                try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s
+            }
         }
+    }
+
+    /// Pretty-prints a Firebase Functions NSError so callable failures can
+    /// be diagnosed. Without this, errors show up as bare "INTERNAL" in logs.
+    private static func describeFunctionsError(_ error: NSError) -> String {
+        var parts: [String] = [
+            "domain=\(error.domain)",
+            "code=\(error.code)",
+            "localizedDescription=\(error.localizedDescription)",
+        ]
+        // "details" is the user-info key the Firebase Functions SDK uses to
+        // expose the `details` argument passed to HttpsError on the server.
+        if let details = error.userInfo["details"] {
+            parts.append("details=\(details)")
+        }
+        return parts.joined(separator: " | ")
     }
 
     // MARK: - Sign in with Google
@@ -501,6 +532,8 @@ final class SessionManager {
                   nsError.code == AuthErrorCode.requiresRecentLogin.rawValue {
             errorMessage = "For security, please sign out and sign in again before deleting your account."
         } catch {
+            let nsError = error as NSError
+            AppLogger.log("[SessionManager] deleteAccount failed — \(Self.describeFunctionsError(nsError))")
             let msg = error.localizedDescription
             if msg.uppercased().contains("INTERNAL") {
                 errorMessage = "Something went wrong deleting your account. Please try again or contact support."
