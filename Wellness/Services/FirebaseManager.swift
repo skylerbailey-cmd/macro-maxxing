@@ -22,7 +22,18 @@ final class FirebaseManager {
     /// Bumped whenever the cache-recovery logic changes. If the stored
     /// version is lower (or missing), persistence is cleared once so
     /// any corruption left by earlier builds is wiped automatically.
-    private static let cacheSchemaVersion = 1
+    ///
+    /// v2: earlier builds shipped with `NSFileProtectionComplete` as
+    /// the default data-protection class, which meant every LevelDB
+    /// file Firestore wrote inherited `Complete` protection and became
+    /// unwritable whenever the device locked — causing the index
+    /// backfiller to crash with "Operation not permitted". The
+    /// entitlement is now `CompleteUntilFirstUserAuthentication`, but
+    /// files that were created on-disk under the old entitlement keep
+    /// their original class forever. Bumping the schema version forces
+    /// a one-shot `clearPersistence()` on upgrade so those files are
+    /// wiped and recreated with the correct class.
+    private static let cacheSchemaVersion = 2
     private static let cacheSchemaKey     = "firestoreCacheSchema"
 
     private init() {
@@ -84,27 +95,47 @@ final class FirebaseManager {
 
     // MARK: - File Protection
 
-    /// Ensures the Firestore / Firebase support directories use
+    /// Ensures the Firestore LevelDB cache uses
     /// `.completeUntilFirstUserAuthentication` so background threads
-    /// and index-backfill operations can always write to LevelDB.
+    /// and index-backfill operations can always write to it — even
+    /// while the device is locked.
+    ///
+    /// The app's default data-protection entitlement is set to
+    /// `CompleteUntilFirstUserAuthentication`, so any files Firestore
+    /// creates from now on will already inherit that class. This
+    /// function exists as a defence-in-depth retrofit for installs
+    /// that already have LevelDB files left over from a build that
+    /// shipped with `NSFileProtectionComplete` — those files keep
+    /// their original (too-strict) protection class and must be
+    /// downgraded explicitly.
+    ///
+    /// Firestore's actual on-disk path is:
+    ///   Library/Application Support/firestore/__FIRAPP_DEFAULT/<project>/main/
     private static func relaxFirestoreCacheProtection() {
         guard let appSupport = FileManager.default.urls(
             for: .applicationSupportDirectory, in: .userDomainMask
         ).first else { return }
 
-        let firebaseDir = appSupport.appendingPathComponent("Firebase")
         let fm = FileManager.default
-        guard fm.fileExists(atPath: firebaseDir.path) else { return }
+        // Cover both the lowercase path Firestore actually uses
+        // and the capitalised name some older Firebase SDK builds
+        // used, just in case either exists on disk.
+        let candidates = [
+            appSupport.appendingPathComponent("firestore"),
+            appSupport.appendingPathComponent("Firebase")
+        ]
 
         let protection: [FileAttributeKey: Any] = [
             .protectionKey: FileProtectionType.completeUntilFirstUserAuthentication
         ]
-        // Apply to the Firebase directory and all children
-        if let enumerator = fm.enumerator(at: firebaseDir, includingPropertiesForKeys: nil) {
-            // Set on the root first
-            try? fm.setAttributes(protection, ofItemAtPath: firebaseDir.path)
-            while let fileURL = enumerator.nextObject() as? URL {
-                try? fm.setAttributes(protection, ofItemAtPath: fileURL.path)
+
+        for root in candidates {
+            guard fm.fileExists(atPath: root.path) else { continue }
+            try? fm.setAttributes(protection, ofItemAtPath: root.path)
+            if let enumerator = fm.enumerator(at: root, includingPropertiesForKeys: nil) {
+                while let fileURL = enumerator.nextObject() as? URL {
+                    try? fm.setAttributes(protection, ofItemAtPath: fileURL.path)
+                }
             }
         }
     }
