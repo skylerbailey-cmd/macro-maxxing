@@ -222,9 +222,16 @@ struct FastingSnapshot: Codable {
     /// key to be present, which caused every historical day to fail to
     /// decode. Use `decodeIfPresent` + sensible defaults so old documents
     /// load cleanly and any missing fields get neutral values.
+    ///
+    /// NOTE: the window start/end defaults must be a *valid* Firestore
+    /// Timestamp. `Date.distantPast` (year -4712) is outside Firestore's
+    /// valid range (0001-01-01 … 9999-12-31) and crashes the Timestamp
+    /// constructor with "seconds out of range". Use Unix epoch 0
+    /// (1970-01-01) as a safe sentinel instead — it's a valid Timestamp
+    /// and an obvious "no data" value for calling code.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        let epoch = Timestamp(date: .distantPast)
+        let epoch = Timestamp(seconds: 0, nanoseconds: 0)
         self.fastingEnabled      = try c.decodeIfPresent(Bool.self,      forKey: .fastingEnabled)      ?? false
         self.windowStartTime     = try c.decodeIfPresent(Timestamp.self, forKey: .windowStartTime)     ?? epoch
         self.windowEndTime       = try c.decodeIfPresent(Timestamp.self, forKey: .windowEndTime)       ?? epoch
