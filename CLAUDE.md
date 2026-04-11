@@ -9,7 +9,7 @@ SwiftUI iOS app for intermittent fasting tracking and macro logging via food pho
 - **UI Framework**: SwiftUI
 - **Persistence**: SwiftData
 - **Architecture**: MVVM
-- **Bundle ID**: com.sbailey.Wellness
+- **Bundle ID**: QM.Wellness
 
 ## Architecture
 
