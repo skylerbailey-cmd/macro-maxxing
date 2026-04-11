@@ -97,8 +97,11 @@ struct ContentView: View {
                 await FastingWindowService.shared.lockPastWindows(userID: userSettings.userID)
             }
             .task(id: userSettings.userID) {
-                guard !userSettings.userID.isEmpty else { return }
+                // Always notify the listener of the current uid — an empty string
+                // tells it to stop the previous user's listener, which prevents
+                // stale listeners from producing permissions errors after sign-out.
                 InAppNotificationService.shared.startNewPostListener(userID: userSettings.userID)
+                guard !userSettings.userID.isEmpty else { return }
                 if !hasSeenAppTour {
                     try? await Task.sleep(for: .seconds(0.6))
                     showingAppTour = true

@@ -182,9 +182,15 @@ final class InAppNotificationService {
     /// Starts a Firestore listener on the current user's notifications collection.
     /// When a newPost notification is written (e.g. by a subscribed user's device),
     /// fires a local UNUserNotificationCenter alert — works while app is foregrounded or backgrounded.
+    ///
+    /// Passing an empty `userID` stops the existing listener and returns. This lets
+    /// callers use the same entry point for start / switch / stop, and prevents a
+    /// listener attached for a previous user from leaking past sign-out and
+    /// producing "Missing or insufficient permissions" errors when the new auth
+    /// no longer matches the old path.
     func startNewPostListener(userID: String) {
-        guard !userID.isEmpty else { return }
         stopNewPostListener()
+        guard !userID.isEmpty else { return }
         let since = Timestamp(date: Date())
         newPostListener = col(userID)
             .whereField("createdAt", isGreaterThan: since)

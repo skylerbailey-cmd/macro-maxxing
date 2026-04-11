@@ -172,6 +172,71 @@ struct FastingSnapshot: Codable {
     var windowEndDate:   Date { windowEndTime.dateValue() }
     var firstMealDate:   Date? { firstMealTime?.dateValue() }
     var lastMealDate:    Date? { lastMealTime?.dateValue() }
+
+    // MARK: Decodable (tolerant of partial / historical documents)
+
+    private enum CodingKeys: String, CodingKey {
+        case fastingEnabled
+        case windowStartTime
+        case windowEndTime
+        case windowDurationHours
+        case fastingHours
+        case firstMealTime
+        case lastMealTime
+        case mealsWithinWindow
+        case mealsOutsideWindow
+        case isCompleted
+        case isLocked
+    }
+
+    init(
+        fastingEnabled: Bool,
+        windowStartTime: Timestamp,
+        windowEndTime: Timestamp,
+        windowDurationHours: Double,
+        fastingHours: Double,
+        firstMealTime: Timestamp? = nil,
+        lastMealTime: Timestamp? = nil,
+        mealsWithinWindow: Int,
+        mealsOutsideWindow: Int,
+        isCompleted: Bool,
+        isLocked: Bool
+    ) {
+        self.fastingEnabled = fastingEnabled
+        self.windowStartTime = windowStartTime
+        self.windowEndTime = windowEndTime
+        self.windowDurationHours = windowDurationHours
+        self.fastingHours = fastingHours
+        self.firstMealTime = firstMealTime
+        self.lastMealTime = lastMealTime
+        self.mealsWithinWindow = mealsWithinWindow
+        self.mealsOutsideWindow = mealsOutsideWindow
+        self.isCompleted = isCompleted
+        self.isLocked = isLocked
+    }
+
+    /// Custom decoder that tolerates partial documents. Historical
+    /// `macroHistory/{date}` documents were written before every field on
+    /// this struct existed — in particular `fastingEnabled` was added
+    /// later. Swift's synthesized `Decodable` requires every non-optional
+    /// key to be present, which caused every historical day to fail to
+    /// decode. Use `decodeIfPresent` + sensible defaults so old documents
+    /// load cleanly and any missing fields get neutral values.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let epoch = Timestamp(date: .distantPast)
+        self.fastingEnabled      = try c.decodeIfPresent(Bool.self,      forKey: .fastingEnabled)      ?? false
+        self.windowStartTime     = try c.decodeIfPresent(Timestamp.self, forKey: .windowStartTime)     ?? epoch
+        self.windowEndTime       = try c.decodeIfPresent(Timestamp.self, forKey: .windowEndTime)       ?? epoch
+        self.windowDurationHours = try c.decodeIfPresent(Double.self,    forKey: .windowDurationHours) ?? 0
+        self.fastingHours        = try c.decodeIfPresent(Double.self,    forKey: .fastingHours)        ?? 0
+        self.firstMealTime       = try c.decodeIfPresent(Timestamp.self, forKey: .firstMealTime)
+        self.lastMealTime        = try c.decodeIfPresent(Timestamp.self, forKey: .lastMealTime)
+        self.mealsWithinWindow   = try c.decodeIfPresent(Int.self,       forKey: .mealsWithinWindow)   ?? 0
+        self.mealsOutsideWindow  = try c.decodeIfPresent(Int.self,       forKey: .mealsOutsideWindow)  ?? 0
+        self.isCompleted         = try c.decodeIfPresent(Bool.self,      forKey: .isCompleted)         ?? false
+        self.isLocked            = try c.decodeIfPresent(Bool.self,      forKey: .isLocked)            ?? false
+    }
 }
 
 // MARK: - Firestore Helpers
