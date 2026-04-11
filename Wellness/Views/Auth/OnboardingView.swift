@@ -786,22 +786,49 @@ struct OnboardingView: View {
         let fat       = (cals * 0.25) / 9.0
         let carbs     = (cals - protein * 4.0 - fat * 9.0) / 4.0
 
+        // Route sensitive fields (DOB, weights, height, gender) to the
+        // `users/{uid}/private/profile` subcollection. Post-migration these
+        // no longer live in the public doc, and `fetchProfile` reads the
+        // private doc last and overrides anything in the public doc with
+        // whatever it finds there. Writing these through the public-doc
+        // path would leave the private doc at its createProfile defaults
+        // (dateOfBirth: "", heightInches: 0), which in turn trips the
+        // onboarding gate in `SessionManager.fetchAndApplyProfile` the
+        // next time the app returns to the foreground — including the
+        // brief scenePhase flicker iOS fires when the user takes a
+        // screenshot during the post-onboarding tutorial.
+        let uid = userSettings.userID.isEmpty
+            ? (Auth.auth().currentUser?.uid ?? "")
+            : userSettings.userID
+        let privateFields: [String: Any] = [
+            "dateOfBirth":   dobString,
+            "heightInches":  totalInches,
+            "gender":        gender,
+            "currentWeight": currentWeight,
+            "goalWeight":    goalWeight,
+        ]
+        let publicFields: [String: Any] = [
+            "name":             name.trimmingCharacters(in: .whitespacesAndNewlines),
+            "username":         username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+            "isPrivateAccount": isPrivate,
+        ]
+
         do {
-            // Upload profile photo first if one was selected
+            // Write the private subcollection FIRST. Both `updateProfilePhoto`
+            // and `updateProfile` call `fetchAndApplyProfile` internally, and
+            // that call trips the onboarding gate in `SessionManager` if the
+            // private doc still holds empty `dateOfBirth` / `heightInches`.
+            // Getting the private doc right up front also keeps `populate`
+            // from briefly overwriting UserSettings with stale empty values.
+            try await UserProfileService.shared.updatePrivateProfile(
+                userID: uid, fields: privateFields)
+
+            // Upload profile photo if one was selected
             if let image = profileImage {
                 try await session.updateProfilePhoto(image: image)
             }
 
-            try await session.updateProfile(fields: [
-                "name":             name.trimmingCharacters(in: .whitespacesAndNewlines),
-                "username":         username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
-                "dateOfBirth":      dobString,
-                "heightInches":     totalInches,
-                "gender":           gender,
-                "currentWeight":    currentWeight,
-                "goalWeight":       goalWeight,
-                "isPrivateAccount": isPrivate
-            ])
+            try await session.updateProfile(fields: publicFields)
 
             // Update local macro goals to match the goal weight
             UserDefaults.standard.set(max(cals,    1200), forKey: "goalCalories")

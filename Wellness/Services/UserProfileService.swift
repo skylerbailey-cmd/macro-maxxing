@@ -215,10 +215,33 @@ final class UserProfileService {
 
     /// Merges `fields` into the existing user document.
     /// Pass only the keys you want to change, e.g. `["username": "newname", "auraPoints": 500]`.
+    ///
+    /// IMPORTANT: callers must not pass keys in `UserProfile.privateFieldKeys`
+    /// (dateOfBirth, weights, height, gender, dietary prefs) here — those live
+    /// in the `users/{uid}/private/profile` subcollection and must go through
+    /// `updatePrivateProfile(userID:fields:)` instead. `fetchProfile` reads the
+    /// private doc and overrides any value in the public doc, so writing a
+    /// private field here silently appears to do nothing on the next fetch.
     func updateProfile(userID: String, fields: [String: Any]) async throws {
         guard !userID.isEmpty else { return }
         try await db.collection(collectionName).document(userID).setData(fields, merge: true)
         AppLogger.log("[UserProfileService] Updated fields \(fields.keys.joined(separator: ", ")) for \(userID)")
+    }
+
+    /// Merges `fields` into `users/{uid}/private/profile` — the sensitive
+    /// subcollection that holds DOB, weights, height, gender, and dietary
+    /// preferences. Pass only keys listed in `UserProfile.privateFieldKeys`.
+    ///
+    /// Use this from `OnboardingView` and any other screen that edits the
+    /// private fields individually. The public `updateProfile(userID:fields:)`
+    /// path writes straight to the public doc and leaves the private doc
+    /// stale, which trips the onboarding gate in `SessionManager`.
+    func updatePrivateProfile(userID: String, fields: [String: Any]) async throws {
+        guard !userID.isEmpty, !fields.isEmpty else { return }
+        try await db.collection(collectionName).document(userID)
+            .collection("private").document("profile")
+            .setData(fields, merge: true)
+        AppLogger.log("[UserProfileService] Updated private fields \(fields.keys.joined(separator: ", ")) for \(userID)")
     }
 
     // MARK: - 4. Sync Profile Fields (convenience)
