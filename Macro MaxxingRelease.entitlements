@@ -7,7 +7,7 @@
 		<string>Default</string>
 	</array>
 	<key>com.apple.developer.default-data-protection</key>
-	<string>NSFileProtectionComplete</string>
+	<string>NSFileProtectionCompleteUntilFirstUserAuthentication</string>
 	<key>keychain-access-groups</key>
 	<array/>
 </dict>
