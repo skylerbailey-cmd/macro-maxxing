@@ -97,13 +97,21 @@ final class ClaudeHaikuService {
     }
 
     private nonisolated func resized(_ image: UIImage, maxEdge: CGFloat) -> UIImage {
-        let size = image.size
-        let longest = max(size.width, size.height)
-        guard longest > maxEdge else { return image }
-        let scale = maxEdge / longest
-        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
-        let renderer = UIGraphicsImageRenderer(size: newSize)
-        return renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
+        // See ClaudeSonnetService.resized — same pixel-vs-point
+        // and scale=1 fix to keep peak memory sane on a 12 MP photo.
+        let pxW = image.size.width  * image.scale
+        let pxH = image.size.height * image.scale
+        let longestPx = max(pxW, pxH)
+        guard longestPx > maxEdge else { return image }
+        let ratio = maxEdge / longestPx
+        let newSize = CGSize(width: (pxW * ratio).rounded(),
+                             height: (pxH * ratio).rounded())
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        return autoreleasepool {
+            renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
+        }
     }
 
     private nonisolated func stripMarkdownFences(_ text: String) -> String {
