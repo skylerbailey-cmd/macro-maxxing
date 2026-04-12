@@ -128,41 +128,29 @@ struct WellnessApp: App {
         // Configure App Check BEFORE FirebaseApp.configure() so the provider
         // factory is set when Firebase services request App Check tokens.
         //
-        // DEBUG: AppCheckDebugProvider resolves its token in this order:
-        //   1. `FIRAAppCheckDebugToken` environment variable (scheme)
-        //   2. `-FIRAAppCheckDebugToken <UUID>` launch argument (scheme)
-        //   3. Keychain-cached token from a previous run on this install
-        //   4. Auto-generate a new UUID and cache it in Keychain
-        //
-        // The Keychain cache persists across runs as long as the app is NOT
-        // deleted/reinstalled. If every run shows a different UUID, Xcode is
-        // wiping the app between builds — check Edit Scheme → Options and
-        // disable any "Reset" toggles.
-        //
-        // Pick ONE mechanism and stick with it:
-        //   • Launch arg — easiest, scoped to one dev machine
-        //   • Info.plist build setting — shared across the team, Debug-only
-        //   • Let Firebase auto-generate and register the UUID once per
-        //     device/simulator in Firebase Console
+        // DEBUG: a custom provider that bypasses Firebase's built-in debug
+        // provider entirely. Firebase SDK 12.x's AppCheckCore ignores the
+        // FIRAAppCheckDebugToken launch argument / UserDefaults key
+        // (confirmed via diagnostic prints — the value reaches UserDefaults
+        // but AppCheckCore auto-generates a fresh UUID anyway), which made
+        // the documented mechanism unusable. Our provider hardcodes one
+        // UUID, calls Firebase's exchangeDebugToken REST endpoint directly,
+        // and returns the resulting token. Register the UUID *once* in
+        // Firebase Console → App Check → Manage debug tokens and every dev
+        // build on every device/simulator uses it forever. The #if DEBUG
+        // guard strips the literal from Release binaries at compile time.
         //
         // RELEASE: App Attest (hardware-backed, Secure Enclave, iOS 14+) with
         // a DeviceCheck fallback for the rare devices where App Attest isn't
         // available. Both are transparent to end users.
         #if DEBUG
-        let providerFactory: AppCheckProviderFactory = AppCheckDebugProviderFactory()
+        let providerFactory: AppCheckProviderFactory = HardcodedDebugAppCheckProviderFactory(
+            debugToken: "REDACTED"
+        )
         #else
         let providerFactory: AppCheckProviderFactory = AppAttestWithDeviceCheckFallbackProviderFactory()
         #endif
         AppCheck.setAppCheckProviderFactory(providerFactory)
-
-        #if DEBUG
-        // Diagnostic: show what the debug provider will see at launch so we
-        // can tell which token source it's pulling from.
-        let envToken = ProcessInfo.processInfo.environment["FIRAAppCheckDebugToken"]
-        let launchArgToken = UserDefaults.standard.string(forKey: "FIRAAppCheckDebugToken")
-        print("[AppCheck] env FIRAAppCheckDebugToken = \(envToken ?? "nil")")
-        print("[AppCheck] UserDefaults FIRAAppCheckDebugToken = \(launchArgToken ?? "nil")")
-        #endif
 
         // Configure Firebase before any Firebase service (Auth, Firestore) is touched.
         FirebaseApp.configure()
@@ -294,3 +282,96 @@ final class AppAttestWithDeviceCheckFallbackProviderFactory: NSObject, AppCheckP
         return DeviceCheckProvider(app: app)
     }
 }
+
+#if DEBUG
+/// A deterministic App Check provider for DEBUG builds that bypasses
+/// Firebase's built-in AppCheckDebugProvider entirely. It uses a hardcoded
+/// debug token UUID and performs the token exchange directly against
+/// Firebase's REST API. Register the UUID once in Firebase Console → App
+/// Check → Manage debug tokens and every dev build everywhere uses it.
+///
+/// Wrapped in `#if DEBUG` so the token literal and the exchange logic are
+/// stripped from Release binaries at compile time.
+final class HardcodedDebugAppCheckProviderFactory: NSObject, AppCheckProviderFactory {
+    private let debugToken: String
+
+    init(debugToken: String) {
+        self.debugToken = debugToken
+        super.init()
+    }
+
+    func createProvider(with app: FirebaseApp) -> AppCheckProvider? {
+        HardcodedDebugAppCheckProvider(debugToken: debugToken, app: app)
+    }
+}
+
+final class HardcodedDebugAppCheckProvider: NSObject, AppCheckProvider {
+    private let debugToken: String
+    private let projectID: String
+    private let appID: String
+
+    init(debugToken: String, app: FirebaseApp) {
+        self.debugToken = debugToken
+        self.projectID = app.options.projectID ?? ""
+        self.appID = app.options.googleAppID
+        super.init()
+    }
+
+    func getToken() async throws -> AppCheckToken {
+        guard !projectID.isEmpty else {
+            throw NSError(
+                domain: "HardcodedDebugAppCheckProvider",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "FirebaseApp has no projectID"]
+            )
+        }
+
+        let urlString = "https://firebaseappcheck.googleapis.com/v1/projects/\(projectID)/apps/\(appID):exchangeDebugToken"
+        guard let url = URL(string: urlString) else {
+            throw NSError(
+                domain: "HardcodedDebugAppCheckProvider",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "Could not build exchange URL from \(urlString)"]
+            )
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["debug_token": debugToken])
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let http = response as? HTTPURLResponse else {
+            throw NSError(
+                domain: "HardcodedDebugAppCheckProvider",
+                code: 3,
+                userInfo: [NSLocalizedDescriptionKey: "Exchange response was not HTTP"]
+            )
+        }
+
+        guard http.statusCode == 200 else {
+            let body = String(data: data, encoding: .utf8) ?? "<no body>"
+            throw NSError(
+                domain: "HardcodedDebugAppCheckProvider",
+                code: http.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: "Exchange failed (HTTP \(http.statusCode)): \(body)"]
+            )
+        }
+
+        struct ExchangeResponse: Decodable {
+            let token: String
+            let ttl: String
+        }
+
+        let decoded = try JSONDecoder().decode(ExchangeResponse.self, from: data)
+
+        // Google API durations are formatted like "3600s".
+        let ttlSeconds = Double(decoded.ttl.dropLast()) ?? 3600
+        return AppCheckToken(
+            token: decoded.token,
+            expirationDate: Date().addingTimeInterval(ttlSeconds)
+        )
+    }
+}
+#endif
