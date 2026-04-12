@@ -263,7 +263,7 @@ final class FoodEntryService {
     /// Compresses the image to stay under the Storage rule's 2 MB cap.
     /// Steps down JPEG quality first; if even quality 0.20 is too big,
     /// resizes the image and re-encodes at 0.85. Mirrors the helper
-    /// used by PostService / UserProfileService / FuelLogService.
+    /// used by PostService and UserProfileService.
     ///
     /// Exposed as static so callers can compress ONCE at capture time
     /// and pass the same bytes to both the SwiftData entry and `save`.

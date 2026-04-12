@@ -30,11 +30,20 @@ final class FastingWindowService {
 
     // MARK: - 1. Log Today's Window
 
-    /// Fetches today's meal timestamps directly from the Firestore fuelLog, classifies
-    /// each meal as inside or outside the eating window, then merges the result into
-    /// today's macroHistory document without touching the macro fields.
+    /// Writes today's fasting window snapshot into the macroHistory
+    /// document without touching the macro fields. Call this every
+    /// time macros are reloaded so the snapshot stays current.
     ///
-    /// Call this every time macros are reloaded so the fasting snapshot stays current.
+    /// Historical note: this used to read meal timestamps out of the
+    /// `fuelLog` Firestore collection to classify meals as inside vs.
+    /// outside the eating window. That collection is no longer
+    /// written to (FoodEntryService took over, writing to
+    /// `foodEntries`), so the classification counts were always 0/0
+    /// and none of the resulting fields are consumed by any view.
+    /// The meal-count fields are still encoded into the snapshot
+    /// (always zero) so old documents keep decoding cleanly — if
+    /// we want real in-window/out-of-window stats later, source
+    /// them from `foodEntries` here.
     func logTodaysWindow(
         userID:         String,
         startHour:      Int,
@@ -47,18 +56,6 @@ final class FastingWindowService {
         let today      = Date()
         let cal        = Calendar.current
         let startOfDay = cal.startOfDay(for: today)
-        let dateKey    = MacroHistoryService.dateString(for: today)
-
-        // Fetch actual meal timestamps from the Firestore fuelLog — the source of truth
-        let fuelLogRef = db.collection("users").document(userID)
-            .collection("fuelLog").document(dateKey)
-        let mealDates: [Date]
-        if let snap = try? await fuelLogRef.getDocument(),
-           let log  = FuelLog(document: snap) {
-            mealDates = log.meals.map { $0.timestampDate }
-        } else {
-            mealDates = []
-        }
 
         // Compute exact eating window start/end as Dates
         let windowStartTime = startOfDay
@@ -66,36 +63,17 @@ final class FastingWindowService {
         let windowEndTime   = windowStartTime
             .addingTimeInterval(Double(durationHours) * 3600)
 
-        let startFrac = Double(startHour) + Double(startMinute) / 60.0
-        let endFrac   = startFrac + Double(durationHours)
-
-        // Classify each meal using its actual timestamp
-        var within = 0, outside = 0
-        for mealDate in mealDates {
-            let h = Double(cal.component(.hour,   from: mealDate))
-            let m = Double(cal.component(.minute, from: mealDate))
-            let frac = h + m / 60.0
-            if isWithinWindow(mealFrac: frac, startFrac: startFrac, endFrac: endFrac) {
-                within  += 1
-            } else {
-                outside += 1
-            }
-        }
-
-        let firstMealTime: Timestamp? = mealDates.min().map { Timestamp(date: $0) }
-        let lastMealTime:  Timestamp? = mealDates.max().map { Timestamp(date: $0) }
-
         let snapshot = FastingSnapshot(
             fastingEnabled:      fastingEnabled,
             windowStartTime:     Timestamp(date: windowStartTime),
             windowEndTime:       Timestamp(date: windowEndTime),
             windowDurationHours: Double(durationHours),
             fastingHours:        24.0 - Double(durationHours),
-            firstMealTime:       firstMealTime,
-            lastMealTime:        lastMealTime,
-            mealsWithinWindow:   within,
-            mealsOutsideWindow:  outside,
-            isCompleted:         fastingEnabled && !mealDates.isEmpty && outside == 0,
+            firstMealTime:       nil,
+            lastMealTime:        nil,
+            mealsWithinWindow:   0,
+            mealsOutsideWindow:  0,
+            isCompleted:         false,
             isLocked:            false
         )
 
@@ -163,19 +141,6 @@ final class FastingWindowService {
             AppLogger.log("[FastingWindowService] Marked today's window as completed")
         } catch {
             AppLogger.log("[FastingWindowService] markWindowCompleted failed: \(error.localizedDescription)")
-        }
-    }
-
-    // MARK: - Helpers
-
-    /// Returns true if `mealFrac` falls inside the eating window.
-    /// Handles windows that cross midnight (e.g., 8 PM – 4 AM).
-    private func isWithinWindow(mealFrac: Double, startFrac: Double, endFrac: Double) -> Bool {
-        if endFrac <= 24 {
-            return mealFrac >= startFrac && mealFrac < endFrac
-        } else {
-            // Window crosses midnight
-            return mealFrac >= startFrac || mealFrac < (endFrac - 24)
         }
     }
 
