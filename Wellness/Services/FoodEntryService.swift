@@ -194,7 +194,13 @@ final class FoodEntryService {
     // MARK: - Private: Photo upload
 
     private func uploadPhoto(image: UIImage, userID: String, entryID: String) async throws -> String {
-        guard let data = image.jpegData(compressionQuality: 0.75) else {
+        // The Storage rule enforces request.resource.size < 2 MB. A raw
+        // iPhone photo at jpegData(compressionQuality: 0.75) is 3-5 MB,
+        // so the rule rejected every upload — which the SDK surfaces as
+        // "User does not have permission" (rule evaluation failed), not
+        // as a size error. Compress to ~600 KB, resizing if needed, so
+        // we stay comfortably under the cap.
+        guard let data = Self.compress(image) else {
             throw URLError(.cannotCreateFile)
         }
 
@@ -251,6 +257,24 @@ final class FoodEntryService {
                 else         { cont.resume(throwing: error ?? URLError(.badServerResponse)) }
             }
         }
+    }
+
+    /// Compresses the image to stay under the Storage rule's 2 MB cap.
+    /// Steps down JPEG quality first; if even quality 0.20 is too big,
+    /// resizes the image and re-encodes at 0.85. Mirrors the helper
+    /// used by PostService / UserProfileService / FuelLogService.
+    private static func compress(_ image: UIImage, targetBytes: Int = 600_000) -> Data? {
+        let steps: [CGFloat] = [0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.20]
+        for q in steps {
+            if let data = image.jpegData(compressionQuality: q), data.count <= targetBytes { return data }
+        }
+        guard let oversized = image.jpegData(compressionQuality: 0.20) else { return nil }
+        let ratio   = sqrt(Double(targetBytes) / Double(oversized.count))
+        let newSize = CGSize(width: (image.size.width * ratio).rounded(),
+                             height: (image.size.height * ratio).rounded())
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let resized  = renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
+        return resized.jpegData(compressionQuality: 0.85)
     }
 
     /// Detects the "Upload has already been finalized" HTTP 400 that
