@@ -601,6 +601,22 @@ struct SettingsView: View {
                 Text("We do not sell or share your personal information for advertising purposes. Ad tracking permissions control whether personalized ads are shown. You can export a copy of all your data at any time.")
             }
 
+            // MARK: Feedback & Support
+            Section("Feedback & Support") {
+                if let mailURL = URL(string: "mailto:support@grnd-lab.com?subject=Macro%20Maxxing%20Feedback") {
+                    Link(destination: mailURL) {
+                        HStack {
+                            Label("Contact Us", systemImage: "envelope")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Text("support@grnd-lab.com")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
             // MARK: Account Actions
             Section {
                 Button(role: .destructive) {
