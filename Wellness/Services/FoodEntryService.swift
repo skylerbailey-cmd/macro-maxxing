@@ -274,17 +274,60 @@ final class FoodEntryService {
     }
 
     private static func compress(_ image: UIImage, targetBytes: Int = 600_000) -> Data? {
-        let steps: [CGFloat] = [0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.20]
-        for q in steps {
-            if let data = image.jpegData(compressionQuality: q), data.count <= targetBytes { return data }
+        // Downscale FIRST so we never iterate JPEG quality on a
+        // full-resolution bitmap. A 12 MP camera UIImage is ~48 MB
+        // decoded; encoding it 7 times in sequence was driving the
+        // app over iOS's memory limit and getting it OS-killed.
+        // After downscaling to 1600 px longest edge the decoded
+        // bitmap is ~8 MB, and each quality pass is cheap.
+        let source = Self.downscale(image, maxEdge: 1600)
+
+        return autoreleasepool { () -> Data? in
+            let steps: [CGFloat] = [0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.20]
+            for q in steps {
+                if let data = source.jpegData(compressionQuality: q),
+                   data.count <= targetBytes {
+                    return data
+                }
+            }
+            // Still too big at q=0.20 — resize further and re-encode once.
+            guard let oversized = source.jpegData(compressionQuality: 0.20) else { return nil }
+            let ratio   = sqrt(Double(targetBytes) / Double(oversized.count))
+            let newSize = CGSize(width: (source.size.width * ratio).rounded(),
+                                 height: (source.size.height * ratio).rounded())
+            let format = UIGraphicsImageRendererFormat.default()
+            // scale = 1 gives a true 1:1 pixel-to-point bitmap; the
+            // default device scale (3 on most iPhones) would triple
+            // the bitmap size for no visible benefit.
+            format.scale = 1
+            let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+            let resized  = renderer.image { _ in source.draw(in: CGRect(origin: .zero, size: newSize)) }
+            return resized.jpegData(compressionQuality: 0.85)
         }
-        guard let oversized = image.jpegData(compressionQuality: 0.20) else { return nil }
-        let ratio   = sqrt(Double(targetBytes) / Double(oversized.count))
-        let newSize = CGSize(width: (image.size.width * ratio).rounded(),
-                             height: (image.size.height * ratio).rounded())
-        let renderer = UIGraphicsImageRenderer(size: newSize)
-        let resized  = renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
-        return resized.jpegData(compressionQuality: 0.85)
+    }
+
+    /// Downscales a UIImage so its longest edge is at most `maxEdge` in
+    /// pixels (accounting for UIImage.scale). Returns the original image
+    /// if it's already small enough. Always renders at scale = 1 so the
+    /// output bitmap's memory footprint matches its point dimensions.
+    private static func downscale(_ image: UIImage, maxEdge: CGFloat) -> UIImage {
+        // image.size is in points; the actual pixel dimensions are
+        // size * image.scale. Compare in pixels so a scale-3 UIImage
+        // from the photo library isn't left at ~3x the intended size.
+        let pxW = image.size.width  * image.scale
+        let pxH = image.size.height * image.scale
+        let longestPx = max(pxW, pxH)
+        guard longestPx > maxEdge else { return image }
+
+        let ratio = maxEdge / longestPx
+        let newSize = CGSize(width: (pxW * ratio).rounded(),
+                             height: (pxH * ratio).rounded())
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        return autoreleasepool {
+            renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
+        }
     }
 
     /// Detects the "Upload has already been finalized" HTTP 400 that

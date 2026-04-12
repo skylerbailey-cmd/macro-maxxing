@@ -180,13 +180,25 @@ Reply with ONLY the JSON, no markdown fences, no extra text.
     // MARK: - Image Helpers
 
     private nonisolated func resized(_ image: UIImage, maxEdge: CGFloat) -> UIImage {
-        let size = image.size
-        let longest = max(size.width, size.height)
-        guard longest > maxEdge else { return image }
-        let scale = maxEdge / longest
-        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
-        let renderer = UIGraphicsImageRenderer(size: newSize)
-        return renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
+        // Compare in pixels, not points. A scale-3 UIImage with size
+        // 1344x1008 is actually 4032x3024 pixels on disk. Without
+        // accounting for that, we'd leave it untouched even though
+        // the decoded bitmap is still ~48 MB.
+        let pxW = image.size.width  * image.scale
+        let pxH = image.size.height * image.scale
+        let longestPx = max(pxW, pxH)
+        guard longestPx > maxEdge else { return image }
+        let ratio = maxEdge / longestPx
+        let newSize = CGSize(width: (pxW * ratio).rounded(),
+                             height: (pxH * ratio).rounded())
+        let format = UIGraphicsImageRendererFormat.default()
+        // scale = 1 so the rendered bitmap is exactly newSize pixels
+        // (default device scale of 3 would triple the memory).
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        return autoreleasepool {
+            renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
+        }
     }
 
     private nonisolated func stripMarkdownFences(_ text: String) -> String {
