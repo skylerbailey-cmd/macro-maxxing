@@ -267,11 +267,15 @@ struct HomeView: View {
                                 .foregroundStyle(.white.opacity(0.65))
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Help")
+                        .accessibilityHint("Shows the tutorial")
                         BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
                         Button { showingProfile = true } label: {
                             profileAvatarIcon
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Profile")
+                        .accessibilityHint("Opens your profile")
                     }
                     .tutorialAnchor("hub.notifications")
                 }
@@ -944,6 +948,7 @@ struct DateNavigatorView: View {
                     .foregroundStyle(.white)
                     .frame(width: 44, height: 38)
             }
+            .accessibilityLabel("Previous day")
 
             Button { showingPicker = true } label: {
                 Text(displayText)
@@ -951,6 +956,8 @@ struct DateNavigatorView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
             }
+            .accessibilityLabel("Selected date: \(displayText)")
+            .accessibilityHint("Opens date picker")
 
             Button {
                 guard !isToday,
@@ -963,6 +970,7 @@ struct DateNavigatorView: View {
                     .frame(width: 44, height: 38)
             }
             .disabled(isToday)
+            .accessibilityLabel("Next day")
 
             if !isToday {
                 Button("Today") {
