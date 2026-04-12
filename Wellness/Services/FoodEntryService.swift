@@ -30,23 +30,29 @@ final class FoodEntryService {
     /// Uploads the photo (if any) to Storage then writes all fields to Firestore.
     /// Returns the Firestore document ID and the photo download URL (empty string if no photo).
     ///
-    /// Throws if a photo is provided and the upload fails — the Firestore write is
+    /// The caller passes already-compressed JPEG bytes so the raw UIImage doesn't
+    /// get re-encoded here on every retry — re-encoding a 12 MP photo repeatedly
+    /// was inflating memory enough for the OS to kill the process. Use
+    /// `FoodEntryService.compress(image:)` to produce the bytes once at capture
+    /// time and pass the same `Data` to the model entry AND this method.
+    ///
+    /// Throws if photo bytes are provided and the upload fails — the Firestore write is
     /// skipped so the caller can retry instead of leaving a meal stranded without a
     /// photoURL in the database.
     @discardableResult
-    func save(entry: FoodEntry, image: UIImage?, existingPhotoURL: String = "") async throws -> (docID: String, photoURL: String) {
+    func save(entry: FoodEntry, imageData: Data?, existingPhotoURL: String = "") async throws -> (docID: String, photoURL: String) {
         guard !entry.userID.isEmpty else { return ("", "") }
 
         let entryID = entry.firebaseEntryID.isEmpty ? entry.id.uuidString : entry.firebaseEntryID
 
         // Upload photo first so the URL can be included in the Firestore write.
         // If no new image but an existing URL is provided (e.g. from a saved meal), use that.
-        // If a photo IS provided, we require the upload to succeed — silently swallowing
+        // If photo bytes ARE provided, we require the upload to succeed — silently swallowing
         // upload errors used to leave entries in Firestore with an empty photoURL, which
         // is unrecoverable once the in-memory imageData is dropped on the next refetch.
         var photoURL = existingPhotoURL
-        if let image {
-            photoURL = try await uploadPhoto(image: image, userID: entry.userID, entryID: entryID)
+        if let imageData {
+            photoURL = try await uploadPhoto(data: imageData, userID: entry.userID, entryID: entryID)
         }
 
         let data: [String: Any] = [
@@ -193,16 +199,11 @@ final class FoodEntryService {
 
     // MARK: - Private: Photo upload
 
-    private func uploadPhoto(image: UIImage, userID: String, entryID: String) async throws -> String {
-        // The Storage rule enforces request.resource.size < 2 MB. A raw
-        // iPhone photo at jpegData(compressionQuality: 0.75) is 3-5 MB,
-        // so the rule rejected every upload — which the SDK surfaces as
-        // "User does not have permission" (rule evaluation failed), not
-        // as a size error. Compress to ~600 KB, resizing if needed, so
-        // we stay comfortably under the cap.
-        guard let data = Self.compress(image) else {
-            throw URLError(.cannotCreateFile)
-        }
+    private func uploadPhoto(data: Data, userID: String, entryID: String) async throws -> String {
+        // `data` must already be under the 2 MB Storage rule limit —
+        // `FoodEntryService.compress(image:)` is the canonical way to
+        // produce it. We avoid re-encoding here so repeated flush
+        // retries don't inflate the bitmap into memory again and again.
 
         // Force-refresh the Firebase ID token before talking to Storage.
         // On cold launch or after a long idle, the cached token can be close
@@ -263,6 +264,15 @@ final class FoodEntryService {
     /// Steps down JPEG quality first; if even quality 0.20 is too big,
     /// resizes the image and re-encodes at 0.85. Mirrors the helper
     /// used by PostService / UserProfileService / FuelLogService.
+    ///
+    /// Exposed as static so callers can compress ONCE at capture time
+    /// and pass the same bytes to both the SwiftData entry and `save`.
+    /// Repeatedly encoding a 12 MP UIImage caused the app to be killed
+    /// for excessive memory use.
+    static func compress(image: UIImage, targetBytes: Int = 600_000) -> Data? {
+        compress(image, targetBytes: targetBytes)
+    }
+
     private static func compress(_ image: UIImage, targetBytes: Int = 600_000) -> Data? {
         let steps: [CGFloat] = [0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.20]
         for q in steps {
