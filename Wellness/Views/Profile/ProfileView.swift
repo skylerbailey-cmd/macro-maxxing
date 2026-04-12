@@ -327,13 +327,13 @@ struct ProfileView: View {
                         if isOwnProfile && AISubscriptionStore.shared.isSubscribed {
                             Text("PRO")
                                 .font(.system(size: 10, weight: .black, design: .rounded))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(.black)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
                                 .background(
                                     LinearGradient(
-                                        colors: [Color(red: 0.65, green: 0.45, blue: 1.00),
-                                                 Color(red: 0.45, green: 0.30, blue: 0.95)],
+                                        colors: [Color(red: 1.00, green: 0.80, blue: 0.20),
+                                                 Color(red: 1.00, green: 0.65, blue: 0.10)],
                                         startPoint: .leading,
                                         endPoint: .trailing
                                     ),

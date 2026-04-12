@@ -380,13 +380,13 @@ struct FeedPostCard: View {
                     if post.isProSubscriber {
                         Text("PRO")
                             .font(.system(size: 9, weight: .black, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.black)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(
                                 LinearGradient(
-                                    colors: [Color(red: 0.65, green: 0.45, blue: 1.00),
-                                             Color(red: 0.45, green: 0.30, blue: 0.95)],
+                                    colors: [Color(red: 1.00, green: 0.80, blue: 0.20),
+                                             Color(red: 1.00, green: 0.65, blue: 0.10)],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 ),
