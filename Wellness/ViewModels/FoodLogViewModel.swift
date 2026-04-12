@@ -207,9 +207,11 @@ enum AnalysisTier: Equatable {
         for entry in pending {
             let attempt = (pendingRetryCounts[entry.id] ?? 0) + 1
             pendingRetryCounts[entry.id] = attempt
-            let image = entry.imageData.flatMap { UIImage(data: $0) }
+            // entry.imageData is already compressed at capture time, so we
+            // upload those bytes directly. Decoding → re-encoding on each
+            // retry was causing memory spikes that triggered OS termination.
             do {
-                let result = try await FoodEntryService.shared.save(entry: entry, image: image)
+                let result = try await FoodEntryService.shared.save(entry: entry, imageData: entry.imageData)
                 entry.firebaseEntryID = result.docID
                 entry.photoURL        = result.photoURL
                 pendingRetryCounts.removeValue(forKey: entry.id)
@@ -431,8 +433,12 @@ enum AnalysisTier: Equatable {
         comps.second  = calendar.component(.second, from: now)
         let loggedAt  = calendar.date(from: comps) ?? selectedDate
 
-        let image     = selectedImage
-        let imageData = image?.jpegData(compressionQuality: 0.8)
+        // Compress the photo ONCE — this is the single expensive encode.
+        // The resulting bytes are used for both the local SwiftData entry
+        // and the Storage upload, so we never re-encode the full-resolution
+        // UIImage again on retry (which was causing the OS to kill the
+        // process for excessive memory use).
+        let imageData = selectedImage.flatMap { FoodEntryService.compress(image: $0) }
         let entry = FoodEntry(
             loggedAt: loggedAt,
             userID:   userID,
@@ -456,7 +462,7 @@ enum AnalysisTier: Equatable {
         // Persist to Firestore
         Task {
             do {
-                let result = try await FoodEntryService.shared.save(entry: entry, image: image)
+                let result = try await FoodEntryService.shared.save(entry: entry, imageData: imageData)
                 entry.firebaseEntryID = result.docID
                 entry.photoURL        = result.photoURL
                 // Only remove from pending on a successful Firestore write — otherwise
@@ -504,7 +510,7 @@ enum AnalysisTier: Equatable {
         Task {
             if let result = try? await FoodEntryService.shared.save(
                 entry: entry,
-                image: nil,
+                imageData: nil,
                 existingPhotoURL: meal.photoURL
             ) {
                 entry.firebaseEntryID = result.docID
@@ -556,7 +562,7 @@ enum AnalysisTier: Equatable {
 
         Task {
             do {
-                let result = try await FoodEntryService.shared.save(entry: dupe, image: nil)
+                let result = try await FoodEntryService.shared.save(entry: dupe, imageData: nil)
                 dupe.firebaseEntryID = result.docID
                 if !result.photoURL.isEmpty { dupe.photoURL = result.photoURL }
                 pendingLocalEntries.removeAll { $0.id == dupe.id }
