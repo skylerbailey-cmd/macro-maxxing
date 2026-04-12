@@ -468,7 +468,8 @@ struct CreatePostView: View {
             auraTitle:           userSettings.auraTitle,
             streak:              userSettings.macroStreak,
             memeType:            memeKey(for: userSettings.auraLevel),
-            isPublic:            !userSettings.isPrivateAccount
+            isPublic:            !userSettings.isPrivateAccount,
+            isProSubscriber:     AISubscriptionStore.shared.isSubscribed
         )
 
         let cityName  = userSettings.postLocation(gpsCity: locationManager.city)

@@ -72,7 +72,12 @@
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "AIMonthlySubscription01",
-          "introductoryOffer" : null,
+          "introductoryOffer" : {
+            "displayPrice" : "0",
+            "internalID" : "AIMonthlyTrial01",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
           "localizations" : [
             {
               "description" : "Unlocks AI Meal Planner, AI Nutrition Coach, AI meal logging, and AI workout logging.",

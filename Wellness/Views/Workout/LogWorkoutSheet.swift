@@ -382,14 +382,16 @@ struct LogWorkoutSheet: View {
             HStack(spacing: 8) {
                 if aiState == .analyzing {
                     ProgressView().tint(accent)
-                } else if aiSubscription.isSubscribed {
-                    Image(systemName: "sparkles")
                 } else {
-                    Image(systemName: "lock.fill")
+                    Image(systemName: "sparkles")
                 }
                 Text(aiState == .analyzing
                      ? "Analyzing…"
-                     : (aiSubscription.isSubscribed ? "Generate with AI" : "Unlock AI Workout Logging"))
+                     : (aiSubscription.isSubscribed
+                        ? "Generate with AI"
+                        : (aiSubscription.isEligibleForIntroOffer
+                           ? "Try AI Free for 7 Days"
+                           : "Unlock AI Workout Logging")))
             }
             .font(.system(size: 15, weight: .semibold))
             .foregroundStyle(aiState == .analyzing ? .white.opacity(0.45) : .black)

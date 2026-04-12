@@ -50,6 +50,8 @@ final class PostService {
         /// Meme badge key matching asset names (e.g. "sigma", "gigachad").
         let memeType:            String
         let isPublic:            Bool
+        /// True when the author has an active AI subscription at time of posting.
+        var isProSubscriber:     Bool = false
     }
 
     enum PostServiceError: LocalizedError {
@@ -154,6 +156,7 @@ final class PostService {
             isPublic:            author.isPublic,
             macroDate:           macroDate
         )
+        post.isProSubscriber = author.isProSubscriber
 
         // -- Write to Firestore (setData preserves the pre-generated document ID)
         do {
