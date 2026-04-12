@@ -303,6 +303,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MacroMaxxing;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Macro Maxxing uses your camera to photograph food for macro estimation.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Macro Maxxing uses your location to show posts and leaderboards from people near you.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Macro Maxxing uses your microphone so you can describe what you ate and have the AI estimate your macros from your voice and photo.";
@@ -314,6 +315,7 @@
 				INFOPLIST_KEY_UILaunchScreen_BackgroundColor = LaunchBackground;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -343,6 +345,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MacroMaxxing;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Macro Maxxing uses your camera to photograph food for macro estimation.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Macro Maxxing uses your location to show posts and leaderboards from people near you.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Macro Maxxing uses your microphone so you can describe what you ate and have the AI estimate your macros from your voice and photo.";
@@ -354,6 +357,7 @@
 				INFOPLIST_KEY_UILaunchScreen_BackgroundColor = LaunchBackground;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

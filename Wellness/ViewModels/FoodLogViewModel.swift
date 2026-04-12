@@ -73,7 +73,7 @@ enum AnalysisTier: Equatable {
     private var pendingLocalEntries: [FoodEntry] = []
 
     private let recognitionManager = FoodRecognitionManager.shared
-    private(set) var userID: String
+    var userID: String
 
     // MARK: - Scan daily limit
 
@@ -514,7 +514,7 @@ enum AnalysisTier: Equatable {
             do {
                 let result = try await FoodEntryService.shared.save(entry: dupe, image: nil)
                 dupe.firebaseEntryID = result.docID
-                if let url = result.photoURL, !url.isEmpty { dupe.photoURL = url }
+                if !result.photoURL.isEmpty { dupe.photoURL = result.photoURL }
                 pendingLocalEntries.removeAll { $0.id == dupe.id }
             } catch {
                 AppLogger.log("[FoodLog] Duplicate save failed: \(error.localizedDescription)")

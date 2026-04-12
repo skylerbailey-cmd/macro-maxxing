@@ -34,7 +34,7 @@ final class FoodEntryService {
     /// photoURL in the database.
     @discardableResult
     func save(entry: FoodEntry, image: UIImage?, existingPhotoURL: String = "") async throws -> (docID: String, photoURL: String) {
-        guard !entry.userID.isEmpty else { return ("", "") }
+        guard !entry.userID.isEmpty else { throw URLError(.userAuthenticationRequired) }
 
         let entryID = entry.firebaseEntryID.isEmpty ? entry.id.uuidString : entry.firebaseEntryID
 

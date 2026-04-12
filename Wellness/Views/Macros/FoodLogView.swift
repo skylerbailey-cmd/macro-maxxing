@@ -420,6 +420,7 @@ struct FoodLogView: View {
     // MARK: - Lifecycle Handlers
     
     private func handleOnAppear() {
+        viewModel.userID = userSettings.userID
         viewModel.selectedDate = selectedDate
         // Fetch from Firestore — merge logic in loadTodayEntries preserves
         // any pending local entries that haven't synced yet.
@@ -1704,10 +1705,11 @@ private struct EditEntrySheet: View {
 
     private enum Field: Hashable { case name, calories, protein, carbs, fat }
 
-    init(entry: FoodEntry, onSave: @escaping (String, Double, Double, Double, Double, Date) -> Void, onDelete: (() -> Void)? = nil) {
-        self.entry    = entry
-        self.onSave   = onSave
-        self.onDelete = onDelete
+    init(entry: FoodEntry, onSave: @escaping (String, Double, Double, Double, Double, Date) -> Void, onDelete: (() -> Void)? = nil, onDuplicate: (() -> Void)? = nil) {
+        self.entry       = entry
+        self.onSave      = onSave
+        self.onDelete    = onDelete
+        self.onDuplicate = onDuplicate
         _foodName     = State(initialValue: entry.foodName)
         _caloriesText = State(initialValue: String(format: "%.0f", entry.calories))
         _proteinText  = State(initialValue: String(format: "%.1f", entry.protein))
