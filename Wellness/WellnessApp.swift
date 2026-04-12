@@ -128,31 +128,41 @@ struct WellnessApp: App {
         // Configure App Check BEFORE FirebaseApp.configure() so the provider
         // factory is set when Firebase services request App Check tokens.
         //
-        // DEBUG: use AppCheckDebugProvider with a hardcoded token so every dev
-        // machine / simulator / device sees the same token. This UUID is
-        // registered once in Firebase Console → App Check → Manage debug
-        // tokens, and no per-device setup is ever required again. The #if
-        // DEBUG guard strips the literal from Release binaries at compile
-        // time, so it cannot leak to App Store users.
+        // DEBUG: AppCheckDebugProvider resolves its token in this order:
+        //   1. `FIRAAppCheckDebugToken` environment variable (scheme)
+        //   2. `-FIRAAppCheckDebugToken <UUID>` launch argument (scheme)
+        //   3. Keychain-cached token from a previous run on this install
+        //   4. Auto-generate a new UUID and cache it in Keychain
+        //
+        // The Keychain cache persists across runs as long as the app is NOT
+        // deleted/reinstalled. If every run shows a different UUID, Xcode is
+        // wiping the app between builds — check Edit Scheme → Options and
+        // disable any "Reset" toggles.
+        //
+        // Pick ONE mechanism and stick with it:
+        //   • Launch arg — easiest, scoped to one dev machine
+        //   • Info.plist build setting — shared across the team, Debug-only
+        //   • Let Firebase auto-generate and register the UUID once per
+        //     device/simulator in Firebase Console
         //
         // RELEASE: App Attest (hardware-backed, Secure Enclave, iOS 14+) with
         // a DeviceCheck fallback for the rare devices where App Attest isn't
         // available. Both are transparent to end users.
         #if DEBUG
-        // AppCheckDebugProvider reads this key from UserDefaults.standard,
-        // which includes values set here, via launch argument, or via the
-        // FIRAAppCheckDebugToken environment variable. Writing it here wins
-        // on first launch and persists, overriding any previously auto-
-        // generated token cached on the device.
-        UserDefaults.standard.set(
-            "REDACTED",
-            forKey: "FIRAAppCheckDebugToken"
-        )
         let providerFactory: AppCheckProviderFactory = AppCheckDebugProviderFactory()
         #else
         let providerFactory: AppCheckProviderFactory = AppAttestWithDeviceCheckFallbackProviderFactory()
         #endif
         AppCheck.setAppCheckProviderFactory(providerFactory)
+
+        #if DEBUG
+        // Diagnostic: show what the debug provider will see at launch so we
+        // can tell which token source it's pulling from.
+        let envToken = ProcessInfo.processInfo.environment["FIRAAppCheckDebugToken"]
+        let launchArgToken = UserDefaults.standard.string(forKey: "FIRAAppCheckDebugToken")
+        print("[AppCheck] env FIRAAppCheckDebugToken = \(envToken ?? "nil")")
+        print("[AppCheck] UserDefaults FIRAAppCheckDebugToken = \(launchArgToken ?? "nil")")
+        #endif
 
         // Configure Firebase before any Firebase service (Auth, Firestore) is touched.
         FirebaseApp.configure()
