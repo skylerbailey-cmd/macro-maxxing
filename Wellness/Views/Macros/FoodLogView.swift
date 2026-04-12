@@ -100,15 +100,10 @@ struct FoodLogView: View {
             .onChange(of: selectedDate, handleDateChange)
             .onChange(of: viewModel.selectedImage) { _, newValue in
                 guard newValue != nil else { return }
-                // AI meal logging is a paid feature — gate before the consent
-                // sheet or the analysis sheet.
-                if !aiSubscription.isSubscribed {
-                    showingAIPaywall = true
-                } else if userSettings.aiConsentGiven {
-                    activeMealSheet = .analysis
-                } else {
-                    showingAIConsent = true
-                }
+                // Always allow users to reach the analysis sheet so they can
+                // log the meal manually. AI features inside the sheet are
+                // gated by subscription/consent individually.
+                activeMealSheet = .analysis
             }
             .onChange(of: viewModel.analysisState) { _, newState in
                 if case .confirmed = newState {
@@ -163,22 +158,9 @@ struct FoodLogView: View {
                 AISubscriptionPaywallView(
                     onSubscribed: {
                         showingAIPaywall = false
-                        // Resume whatever AI action the user was trying to take.
-                        if viewModel.selectedImage != nil {
-                            if userSettings.aiConsentGiven {
-                                activeMealSheet = .analysis
-                            } else {
-                                showingAIConsent = true
-                            }
-                        }
                     },
                     onDismiss: {
                         showingAIPaywall = false
-                        // If they had selected an image for AI analysis, drop it
-                        // — they can still log manually with a different flow.
-                        if viewModel.selectedImage != nil {
-                            viewModel.discardEntry()
-                        }
                     }
                 )
             }
@@ -364,7 +346,7 @@ struct FoodLogView: View {
     }
     
     private var analysisSheet: some View {
-        AnalysisSheet(viewModel: viewModel, onSaved: {
+        AnalysisSheet(viewModel: viewModel, userSettings: userSettings, onSaved: {
             activeMealSheet = nil
         })
         .presentationDetents([.large])
@@ -838,6 +820,7 @@ struct FoodLogView: View {
 
 private struct AnalysisSheet: View {
     @Bindable var viewModel: FoodLogViewModel
+    let userSettings: UserSettings
     let onSaved: () -> Void
     @Environment(\.dismiss) private var dismiss
 
@@ -846,7 +829,15 @@ private struct AnalysisSheet: View {
     @State private var skeletonPulse     = false
     @State private var showSaveError     = false
 
+    // AI gating (paywall + consent) — checked per AI action so users can still
+    // log the meal manually without encountering a paywall.
+    @State private var aiSubscription     = AISubscriptionStore.shared
+    @State private var showingAIPaywall   = false
+    @State private var showingAIConsent   = false
+    @State private var pendingAIAction: PendingAIAction? = nil
+
     enum EntryMode { case photo, voice, manual }
+    enum PendingAIAction { case analyze, analyzeWithVoice, reanalyze }
 
     private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
     private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
@@ -928,7 +919,7 @@ private struct AnalysisSheet: View {
                                     Spacer()
 
                                     Button {
-                                        Task { await viewModel.reanalyzeWithClaude() }
+                                        requestAI(action: .reanalyze)
                                     } label: {
                                         HStack(spacing: 4) {
                                             Image(systemName: "sparkles")
@@ -979,6 +970,66 @@ private struct AnalysisSheet: View {
                 Task { await viewModel.loadSavedMeals() }
             }
             .onDisappear { speechRecognizer.reset() }
+            .sheet(isPresented: $showingAIPaywall) {
+                AISubscriptionPaywallView(
+                    onSubscribed: {
+                        showingAIPaywall = false
+                        // Resume whichever AI action the user tried to run.
+                        if userSettings.aiConsentGiven {
+                            if let action = pendingAIAction {
+                                pendingAIAction = nil
+                                runAI(action: action)
+                            }
+                        } else {
+                            showingAIConsent = true
+                        }
+                    },
+                    onDismiss: {
+                        showingAIPaywall = false
+                        pendingAIAction = nil
+                    }
+                )
+            }
+            .sheet(isPresented: $showingAIConsent) {
+                AIConsentSheet(
+                    onAgree: {
+                        userSettings.aiConsentGiven = true
+                        showingAIConsent = false
+                        if let action = pendingAIAction {
+                            pendingAIAction = nil
+                            runAI(action: action)
+                        }
+                    },
+                    onDecline: {
+                        showingAIConsent = false
+                        pendingAIAction = nil
+                    }
+                )
+            }
+        }
+    }
+
+    // MARK: - AI Gating
+
+    private func requestAI(action: PendingAIAction) {
+        if !aiSubscription.isSubscribed {
+            pendingAIAction = action
+            showingAIPaywall = true
+        } else if !userSettings.aiConsentGiven {
+            pendingAIAction = action
+            showingAIConsent = true
+        } else {
+            runAI(action: action)
+        }
+    }
+
+    private func runAI(action: PendingAIAction) {
+        Task {
+            switch action {
+            case .analyze:          await viewModel.analyzeImage()
+            case .analyzeWithVoice: await viewModel.analyzeImageWithVoice()
+            case .reanalyze:        await viewModel.reanalyzeWithClaude()
+            }
         }
     }
 
@@ -1043,13 +1094,8 @@ private struct AnalysisSheet: View {
                     .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
 
                     Button {
-                        Task {
-                            if viewModel.voiceNote.trimmingCharacters(in: .whitespaces).isEmpty {
-                                await viewModel.analyzeImage()
-                            } else {
-                                await viewModel.analyzeImageWithVoice()
-                            }
-                        }
+                        let hasVoiceNote = !viewModel.voiceNote.trimmingCharacters(in: .whitespaces).isEmpty
+                        requestAI(action: hasVoiceNote ? .analyzeWithVoice : .analyze)
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "sparkles")
@@ -1128,10 +1174,7 @@ private struct AnalysisSheet: View {
                 && viewModel.analysisState == .idle {
                 Button {
                     viewModel.voiceNote = speechRecognizer.transcript
-                    Task {
-                        if hasPhoto { await viewModel.analyzeImageWithVoice() }
-                        else        { await viewModel.analyzeImage() }
-                    }
+                    requestAI(action: hasPhoto ? .analyzeWithVoice : .analyze)
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "sparkles")

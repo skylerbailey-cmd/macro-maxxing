@@ -309,11 +309,13 @@ final class HardcodedDebugAppCheckProvider: NSObject, AppCheckProvider {
     private let debugToken: String
     private let projectID: String
     private let appID: String
+    private let apiKey: String
 
     init(debugToken: String, app: FirebaseApp) {
         self.debugToken = debugToken
         self.projectID = app.options.projectID ?? ""
         self.appID = app.options.googleAppID
+        self.apiKey = app.options.apiKey ?? ""
         super.init()
     }
 
@@ -325,8 +327,22 @@ final class HardcodedDebugAppCheckProvider: NSObject, AppCheckProvider {
                 userInfo: [NSLocalizedDescriptionKey: "FirebaseApp has no projectID"]
             )
         }
+        guard !apiKey.isEmpty else {
+            // Without the API key the exchangeDebugToken endpoint returns
+            // HTTP 403 "Method doesn't allow unregistered callers" because
+            // Google API Gateway can't identify the calling project.
+            throw NSError(
+                domain: "HardcodedDebugAppCheckProvider",
+                code: 4,
+                userInfo: [NSLocalizedDescriptionKey: "FirebaseApp has no apiKey — cannot call exchangeDebugToken"]
+            )
+        }
 
-        let urlString = "https://firebaseappcheck.googleapis.com/v1/projects/\(projectID)/apps/\(appID):exchangeDebugToken"
+        // `?key=<API_KEY>` is required: the exchangeDebugToken REST
+        // endpoint is a public Google API and needs an API key to
+        // identify the calling Firebase project, otherwise it returns
+        // HTTP 403 "Method doesn't allow unregistered callers".
+        let urlString = "https://firebaseappcheck.googleapis.com/v1/projects/\(projectID)/apps/\(appID):exchangeDebugToken?key=\(apiKey)"
         guard let url = URL(string: urlString) else {
             throw NSError(
                 domain: "HardcodedDebugAppCheckProvider",
