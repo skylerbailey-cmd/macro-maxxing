@@ -531,53 +531,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Streak add-ons */}
-          <div className="max-w-4xl mx-auto mt-10">
-            <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-6">
-              <h3 className="text-sm font-semibold text-white mb-4">
-                Optional Streak Add-Ons
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="flex items-start gap-3">
-                  <span className="text-brand-gold text-lg shrink-0">🔥</span>
-                  <div>
-                    <p className="text-white text-sm font-semibold">
-                      Streak Extension{" "}
-                      <span className="text-brand-gold font-normal">$4.99</span>
-                    </p>
-                    <p className="text-gray-500 text-xs mt-0.5">
-                      Extend your streak 7 days without logging
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="text-brand-teal text-lg shrink-0">🛡️</span>
-                  <div>
-                    <p className="text-white text-sm font-semibold">
-                      Streak Shield{" "}
-                      <span className="text-brand-teal font-normal">$0.99</span>
-                    </p>
-                    <p className="text-gray-500 text-xs mt-0.5">
-                      Restore a broken streak one time
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="text-brand-orange text-lg shrink-0">🍕</span>
-                  <div>
-                    <p className="text-white text-sm font-semibold">
-                      Cheat Day{" "}
-                      <span className="text-brand-orange font-normal">$0.99</span>
-                    </p>
-                    <p className="text-gray-500 text-xs mt-0.5">
-                      Skip a day without breaking your streak
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Price comparison */}
           <div className="max-w-4xl mx-auto mt-10 text-center">
             <p className="text-gray-500 text-sm">
