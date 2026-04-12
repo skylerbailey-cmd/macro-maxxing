@@ -267,6 +267,15 @@ struct HomeView: View {
                                 .foregroundStyle(.white.opacity(0.65))
                         }
                         .buttonStyle(.plain)
+                        #if DEBUG
+                        Button { showingStreakExtension = true } label: {
+                            Image(systemName: "ladybug.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(.white.opacity(0.65))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Debug: Present Streak Extension")
+                        #endif
                         BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
                         Button { showingProfile = true } label: {
                             profileAvatarIcon
