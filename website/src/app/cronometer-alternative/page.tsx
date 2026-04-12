@@ -7,7 +7,7 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 export const metadata: Metadata = {
   title: "Best Cronometer Alternative 2026 — Macro Maxxing vs Cronometer",
   description:
-    "Looking for a Cronometer alternative? Macro Maxxing offers AI photo scanning, voice logging, gamified streaks, and a social community — all included. No complex UI, no subscription required.",
+    "Looking for a Cronometer alternative? Macro Maxxing offers AI photo scanning, voice logging, gamified streaks, and a social community — with core features free and AI Pro at $9.99/mo. Simpler UI, better value than Cronometer Gold.",
   keywords: [
     "Cronometer alternative",
     "Cronometer replacement",
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "What is the best alternative to Cronometer?",
-    answer: "Macro Maxxing is the best alternative to Cronometer for macro tracking. It uses AI photo scanning and voice logging instead of manual entry, includes gamification (streaks, leaderboards, XP) for accountability, and has a social community — all included.",
+    answer: "Macro Maxxing is the best alternative to Cronometer for macro tracking. It uses AI photo scanning and voice logging instead of manual entry, includes gamification (streaks, leaderboards, XP) for accountability, and has a social community — with core features free and AI Pro at $9.99/month.",
   },
   {
     question: "Is Macro Maxxing as accurate as Cronometer?",
@@ -37,7 +37,7 @@ const faqs = [
   },
   {
     question: "What does Macro Maxxing cost?",
-    answer: "Yes. Macro Maxxing is Available now with no premium tier or subscription. All features including AI scanning, voice logging, streaks, leaderboards, and the social community are available to download. Cronometer charges $50/year for Gold features.",
+    answer: "Macro Maxxing is free to download with core tracking, streaks, leaderboards, and community included. AI-powered features (photo scanning, voice logging, meal planner, nutrition coach) are available through an optional AI Pro subscription at $9.99/month. Cronometer charges $50/year for Gold features, which don't include AI scanning or voice logging.",
   },
 ];
 
@@ -71,9 +71,10 @@ export default function CronometerAlternativePage() {
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
               Macro Maxxing is an Cronometer alternative that provides
               accurate macro tracking with AI photo scanning and voice logging,
-              without Cronometer's complex interface or $50/year Gold
-              subscription. It adds gamified streaks, leaderboards, and a
-              social community for accountability.
+              without Cronometer's complex interface. Core features are
+              free, and AI Pro at $9.99/month offers photo scanning and
+              voice logging that Cronometer Gold ($50/year) doesn't
+              include.
             </p>
             <p className="text-gray-500 text-sm mb-8">Last updated: March 2026</p>
             <a
@@ -91,7 +92,7 @@ export default function CronometerAlternativePage() {
             <h2 className="text-sm font-semibold text-brand-teal uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
               <strong className="text-white">Macro Maxxing is the best Cronometer alternative for users who want accurate macro tracking without the complexity.</strong>{" "}
-              It replaces manual entry with AI photo scanning and voice logging, adds gamified streaks and a social community, and costs a fraction of Cronometer Gold at $50/year. The trade-off: Cronometer has detailed micronutrient tracking that Macro Maxxing doesn&apos;t offer — if you need vitamin and mineral data, Cronometer is still the better choice.
+              It replaces manual entry with AI photo scanning and voice logging, adds gamified streaks and a social community, with core features free and AI Pro at $9.99/month (compared to Cronometer Gold at $50/year, which lacks AI scanning). The trade-off: Cronometer has detailed micronutrient tracking that Macro Maxxing doesn&apos;t offer — if you need vitamin and mineral data, Cronometer is still the better choice.
             </p>
           </div>
         </section>
@@ -149,15 +150,15 @@ export default function CronometerAlternativePage() {
                 { name: "AI photo food scanning", macroMaxxing: true, others: false },
                 { name: "Voice meal logging", macroMaxxing: true, others: false },
                 { name: "Simple, focused interface", macroMaxxing: true, others: false },
-                { name: "Available now", macroMaxxing: true, others: "Freemium ($50/yr)" },
+                { name: "Price", macroMaxxing: "Free / $9.99/mo AI Pro", others: "Freemium ($50/yr)" },
                 { name: "Daily streaks", macroMaxxing: true, others: false },
                 { name: "Leaderboards & XP", macroMaxxing: true, others: false },
                 { name: "Social community feed", macroMaxxing: true, others: false },
                 { name: "Workout macro adjustments", macroMaxxing: true, others: false },
                 { name: "Detailed micronutrients", macroMaxxing: "Macro-focused", others: true },
                 { name: "Verified nutrition data", macroMaxxing: true, others: true },
-                { name: "AI meal planner", macroMaxxing: true, others: "Food suggestions (Gold)" },
-                { name: "AI nutrition coach", macroMaxxing: true, others: false },
+                { name: "AI meal planner", macroMaxxing: "AI Pro ($9.99/mo)", others: "Food suggestions (Gold)" },
+                { name: "AI nutrition coach", macroMaxxing: "AI Pro ($9.99/mo)", others: false },
               ]}
             />
           </div>
@@ -194,8 +195,8 @@ export default function CronometerAlternativePage() {
             />
             <FeatureCard
               icon="💰"
-              title="No Subscription Required"
-              description="No Gold subscription needed. Every feature including AI scanning, streaks, and community is included."
+              title="Better Value"
+              description="Core tracking, streaks, and community are free. AI Pro adds photo scanning, voice logging, and coaching for $9.99/month — with features Cronometer Gold doesn't offer at any price."
               color="brand-orange"
             />
             <FeatureCard
@@ -220,7 +221,7 @@ export default function CronometerAlternativePage() {
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Find Cronometer&apos;s interface overwhelming or slow</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want faster logging with AI photos and voice</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want gamification and social features for motivation</li>
-                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Don&apos;t want to pay for Gold features</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want better value — core features free, AI Pro at $9.99/month with features Gold doesn&apos;t include</li>
               </ul>
             </div>
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
@@ -280,7 +281,7 @@ export default function CronometerAlternativePage() {
         <div id="download">
           <DownloadCTA
             headline="Simpler, Faster, Better"
-            subheadline="All the macro accuracy you need without the complexity. AI scanning, streaks, and community included."
+            subheadline="Core macro tracking free. AI scanning, voice logging, and coaching at $9.99/mo — with features Cronometer Gold doesn't offer."
           />
         </div>
       </article>

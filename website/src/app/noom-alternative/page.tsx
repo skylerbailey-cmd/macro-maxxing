@@ -7,7 +7,7 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 export const metadata: Metadata = {
   title: "Best Noom Alternative 2026 — Macro Maxxing vs Noom",
   description:
-    "Looking for an Noom alternative? Macro Maxxing provides AI macro tracking, gamified streaks, leaderboards, and social accountability — without the $60/month price tag. Track macros, not colors.",
+    "Looking for an Noom alternative? Macro Maxxing provides AI macro tracking, gamified streaks, leaderboards, and social accountability — starting at $0 with AI Pro at $9.99/mo — a fraction of Noom's $60/month. Track macros, not colors.",
   keywords: [
     "Noom alternative",
     "Noom replacement",
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "What is the best alternative to Noom?",
-    answer: "Macro Maxxing is the best alternative to Noom. It offers AI-powered macro tracking (not just color-coded foods), gamified streaks and leaderboards, and a social community for accountability — all available to download. Noom costs $40-60/month.",
+    answer: "Macro Maxxing is the best alternative to Noom. It offers AI-powered macro tracking (not just color-coded foods), gamified streaks and leaderboards, and a social community for accountability — with core features free and AI-powered features at $9.99/month through an optional AI Pro subscription. Noom costs $40-60/month.",
   },
   {
     question: "Is Macro Maxxing better than Noom for weight loss?",
@@ -37,7 +37,7 @@ const faqs = [
   },
   {
     question: "How does Macro Maxxing compare to Noom's pricing?",
-    answer: "Macro Maxxing is designed to be accessible to everyone. It doesn't have paid coaching staff or lengthy psychology curriculums to fund. Instead, it uses AI for food logging and builds accountability through streaks, leaderboards, and community — all of which can be delivered included to users.",
+    answer: "Macro Maxxing is designed to be accessible to everyone. Core features like macro tracking, streaks, leaderboards, and community are completely free. AI-powered features (photo scanning, voice logging, meal planner, nutrition coach) are available for $9.99/month — a fraction of Noom's $40-60/month subscription.",
   },
 ];
 
@@ -72,8 +72,7 @@ export default function NoomAlternativePage() {
               Macro Maxxing is an Noom alternative that provides precise
               AI-powered macro tracking instead of Noom's simplified color-coded
               food system. It includes photo scanning, voice logging, daily
-              streaks, leaderboards, and a social community — at a fraction of
-              Noom's $40-60/month subscription.
+              streaks, leaderboards, and a social community — with core features free and AI Pro at just $9.99/month — a fraction of Noom's $40-60/month.
             </p>
             <p className="text-gray-500 text-sm mb-8">Last updated: March 2026</p>
             <a
@@ -91,7 +90,7 @@ export default function NoomAlternativePage() {
             <h2 className="text-sm font-semibold text-brand-green uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
               <strong className="text-white">Macro Maxxing is the best Noom alternative for people who want real macro tracking instead of color-coded food categories.</strong>{" "}
-              It provides AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — all included versus Noom&apos;s $40-60/month. The trade-off: Noom includes psychology-based coaching and behavioral lessons, while Macro Maxxing focuses on precise tracking with gamified accountability.
+              It provides AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — with core features free and AI Pro at $9.99/month versus Noom&apos;s $40-60/month. The trade-off: Noom includes psychology-based coaching and behavioral lessons, while Macro Maxxing focuses on precise tracking with gamified accountability.
             </p>
           </div>
         </section>
@@ -146,7 +145,7 @@ export default function NoomAlternativePage() {
             </h2>
             <ComparisonTable
               features={[
-                { name: "Price", macroMaxxing: "Download", others: "$40-60/month" },
+                { name: "Price", macroMaxxing: "Free / $9.99/mo AI Pro", others: "$40-60/month" },
                 { name: "AI photo food scanning", macroMaxxing: true, others: false },
                 { name: "Voice meal logging", macroMaxxing: true, others: false },
                 { name: "Full macro tracking (P/C/F)", macroMaxxing: true, others: "Color system only" },
@@ -156,8 +155,8 @@ export default function NoomAlternativePage() {
                 { name: "Workout macro adjustments", macroMaxxing: true, others: false },
                 { name: "Works for all goals", macroMaxxing: true, others: "Weight loss only" },
                 { name: "Psychology lessons", macroMaxxing: false, others: true },
-                { name: "AI meal planner", macroMaxxing: true, others: "Welli (calorie-based)" },
-                { name: "AI nutrition coach", macroMaxxing: true, others: "Welli AI + human coaching" },
+                { name: "AI meal planner", macroMaxxing: "AI Pro ($9.99/mo)", others: "Welli (calorie-based)" },
+                { name: "AI nutrition coach", macroMaxxing: "AI Pro ($9.99/mo)", others: "Welli AI + human coaching" },
               ]}
             />
           </div>
@@ -182,8 +181,8 @@ export default function NoomAlternativePage() {
             />
             <FeatureCard
               icon="💰"
-              title="$0 vs $720/year"
-              description="Get real macro tracking with AI scanning, streaks, leaderboards, and community — without Noom's price tag."
+              title="$9.99/mo vs $720/year"
+              description="Core tracking, streaks, and community are free. Add AI scanning, voice logging, and coaching for $9.99/month — saving over $600/year compared to Noom."
               color="brand-gold"
             />
             <FeatureCard
@@ -217,7 +216,7 @@ export default function NoomAlternativePage() {
               <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macro Maxxing if you:</h3>
               <ul className="space-y-2 text-gray-300 text-sm">
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want precise macro tracking (protein, carbs, fat) — not color codes</li>
-                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Don&apos;t want to pay $40-60/month for a food tracker</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Don&apos;t want to pay $40-60/month when Macro Maxxing starts free with AI Pro at $9.99/month</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want AI photo scanning and voice logging for faster tracking</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Are motivated by game mechanics (streaks, leaderboards) more than lessons</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Have goals beyond weight loss (muscle gain, recomp, maintenance)</li>
@@ -242,7 +241,7 @@ export default function NoomAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-green font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing from the App Store. No subscription, no trial period.</p>
+                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. Core features included, AI Pro available for $9.99/mo.</p>
               </div>
               <div>
                 <p className="text-brand-green font-bold text-lg mb-1">2. Set Real Macros</p>
@@ -250,7 +249,7 @@ export default function NoomAlternativePage() {
               </div>
               <div>
                 <p className="text-brand-green font-bold text-lg mb-1">3. Cancel Noom</p>
-                <p className="text-gray-400 text-sm">Save $40-60/month. Start logging with AI and building your streak.</p>
+                <p className="text-gray-400 text-sm">Save up to $50/month compared to Noom. Start logging with AI and building your streak.</p>
               </div>
             </div>
           </div>
@@ -279,8 +278,8 @@ export default function NoomAlternativePage() {
 
         <div id="download">
           <DownloadCTA
-            headline="Stop Paying $60/Month"
-            subheadline="Better tracking, real macros, gamified accountability, and social community. Download now."
+            headline="Stop Paying $60/Month for Less"
+            subheadline="Core tracking and community free. AI scanning, voice logging, and coaching at $9.99/mo — a fraction of Noom's price."
           />
         </div>
       </article>

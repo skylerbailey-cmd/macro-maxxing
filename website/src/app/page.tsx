@@ -501,7 +501,7 @@ export default function Home() {
 
       {/* Freshness signal for AI crawlers */}
       <div className="text-center py-4 text-gray-600 text-xs">
-        <p>Last updated: March 24, 2026</p>
+        <p>Last updated: April 12, 2026</p>
       </div>
     </>
   );

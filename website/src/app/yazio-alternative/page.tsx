@@ -7,7 +7,7 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 export const metadata: Metadata = {
   title: "Best YAZIO Alternative 2026 — Macro Maxxing vs YAZIO",
   description:
-    "Looking for an YAZIO alternative without aggressive upsells? Macro Maxxing offers AI photo scanning, voice logging, accurate macros, streaks, leaderboards, and community — Available now with no ads.",
+    "Looking for an YAZIO alternative without aggressive upsells? Macro Maxxing offers AI photo scanning, voice logging, accurate macros, streaks, leaderboards, and community — Core features free, AI Pro at $9.99/mo — no aggressive upsells.",
   keywords: [
     "YAZIO alternative",
     "YAZIO replacement",
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "What is the best alternative to YAZIO?",
-    answer: "Macro Maxxing is the best alternative to YAZIO. It offers accurate Claude AI photo scanning, voice meal logging, customizable fasting timers, gamified streaks, leaderboards, and a social community — all Available now with no pop-ups, ads, or subscription upsells.",
+    answer: "Macro Maxxing is the best alternative to YAZIO. It offers accurate Claude AI photo scanning, voice meal logging, customizable fasting timers, gamified streaks, leaderboards, and a social community — with core features free and AI Pro at $9.99/month — no aggressive upsells or pop-ups like YAZIO.",
   },
   {
     question: "Is Macro Maxxing more accurate than YAZIO?",
@@ -37,7 +37,7 @@ const faqs = [
   },
   {
     question: "Does Macro Maxxing have upsells?",
-    answer: "Yes. Every feature in Macro Maxxing is available to download — AI scanning, voice logging, fasting timer, streaks, leaderboards, and social community. There is no premium tier, no ads, and no pop-ups asking you to subscribe. It's the anti-YAZIO experience.",
+    answer: "Macro Maxxing is free to download with core tracking, fasting timer, streaks, leaderboards, and community included. AI-powered features (photo scanning, voice logging, meal planner, nutrition coach) are available through an optional AI Pro subscription at $9.99/month. There are no aggressive pop-ups or upsells — you upgrade on your terms.",
   },
 ];
 
@@ -72,8 +72,7 @@ export default function YazioAlternativePage() {
               Macro Maxxing is an YAZIO alternative that provides accurate
               AI-powered macro tracking without the aggressive upsells, pop-ups,
               or inaccurate food data that YAZIO users report. It includes
-              gamified streaks, leaderboards, and a social community — all included
-              with zero subscription prompts.
+              gamified streaks, leaderboards, and a social community — with core features free and an optional AI Pro subscription at $9.99/month — no aggressive upsells.
             </p>
             <p className="text-gray-500 text-sm mb-8">Last updated: March 2026</p>
             <a
@@ -91,7 +90,7 @@ export default function YazioAlternativePage() {
             <h2 className="text-sm font-semibold text-brand-mint uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
               <strong className="text-white">Macro Maxxing is the best YAZIO alternative with accurate data and zero upsells.</strong>{" "}
-              It provides Claude AI photo scanning, voice logging, a customizable fasting timer, and gamified accountability — all included with no ads or pop-ups. The trade-off: YAZIO has a larger international food database (especially for European foods) and offers structured meal plans, which some users prefer for guided nutrition.
+              It provides Claude AI photo scanning, voice logging, a customizable fasting timer, and gamified accountability — with core features free and AI Pro at $9.99/month — no ads or pop-ups. The trade-off: YAZIO has a larger international food database (especially for European foods) and offers structured meal plans, which some users prefer for guided nutrition.
             </p>
           </div>
         </section>
@@ -147,7 +146,7 @@ export default function YazioAlternativePage() {
               features={[
                 { name: "Claude AI photo scanning", macroMaxxing: true, others: "Basic AI" },
                 { name: "Voice meal logging", macroMaxxing: true, others: false },
-                { name: "Available now (no upsells)", macroMaxxing: true, others: "Aggressive freemium" },
+                { name: "Price", macroMaxxing: "Free / $9.99/mo AI Pro", others: "Aggressive freemium" },
                 { name: "No ads or pop-ups", macroMaxxing: true, others: false },
                 { name: "Accurate nutrition data", macroMaxxing: "Claude AI", others: "User-reported issues" },
                 { name: "Daily streaks", macroMaxxing: true, others: "Streak baiting for Pro" },
@@ -155,8 +154,8 @@ export default function YazioAlternativePage() {
                 { name: "Social community feed", macroMaxxing: true, others: false },
                 { name: "Workout macro adjustments", macroMaxxing: true, others: false },
                 { name: "Customizable fasting timer", macroMaxxing: true, others: "Limited" },
-                { name: "AI meal planner", macroMaxxing: true, others: "Recipe suggestions (PRO)" },
-                { name: "AI nutrition coach", macroMaxxing: true, others: false },
+                { name: "AI meal planner", macroMaxxing: "AI Pro ($9.99/mo)", others: "Recipe suggestions (PRO)" },
+                { name: "AI nutrition coach", macroMaxxing: "AI Pro ($9.99/mo)", others: false },
               ]}
             />
           </div>
@@ -176,7 +175,7 @@ export default function YazioAlternativePage() {
             <FeatureCard
               icon="🚫"
               title="Zero Pop-Ups"
-              description="No upsells, no subscription prompts, no animations after every meal. Just clean, fast tracking. Every feature is included."
+              description="No aggressive upsells or pop-ups after every meal. Core features are free, and AI Pro is an optional $9.99/month upgrade — on your terms, not theirs."
               color="brand-purple"
             />
             <FeatureCard
@@ -241,7 +240,7 @@ export default function YazioAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-mint font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing. No trial period, no credit card required.</p>
+                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. Core features included immediately.</p>
               </div>
               <div>
                 <p className="text-brand-mint font-bold text-lg mb-1">2. Set Goals</p>
@@ -279,7 +278,7 @@ export default function YazioAlternativePage() {
         <div id="download">
           <DownloadCTA
             headline="Tracking Without the Annoyance"
-            subheadline="Accurate AI scanning, real gamification, and zero pop-ups. The YAZIO experience you actually wanted.."
+            subheadline="Core tracking free, AI Pro at $9.99/mo. Accurate AI scanning, real gamification, and zero aggressive upsells."
           />
         </div>
       </article>

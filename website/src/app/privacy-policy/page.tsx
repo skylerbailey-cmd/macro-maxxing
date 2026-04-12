@@ -11,7 +11,7 @@ export default function PrivacyPolicyPage() {
     <section className="bg-brand-bg text-gray-300 py-20">
       <div className="max-w-3xl mx-auto px-4 sm:px-6">
         <h1 className="text-4xl font-bold text-white mb-2">Privacy Policy</h1>
-        <p className="text-gray-500 mb-12">Effective Date: April 10, 2026</p>
+        <p className="text-gray-500 mb-12">Effective Date: April 12, 2026</p>
 
         <div className="space-y-10 text-sm leading-relaxed">
           <div>
@@ -145,6 +145,10 @@ export default function PrivacyPolicyPage() {
                 alerts) if you opt in.
               </li>
               <li>
+                To process and verify subscription and in-app purchase
+                entitlements through the Apple App Store.
+              </li>
+              <li>
                 To serve advertisements via Google AdMob (subject to your
                 tracking preferences).
               </li>
@@ -239,7 +243,83 @@ export default function PrivacyPolicyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              6. Data Sharing
+              6. Subscriptions &amp; In-App Purchases
+            </h2>
+            <p className="mb-3">
+              The App offers optional paid subscriptions and one-time in-app
+              purchases to unlock additional features. All transactions are
+              processed by Apple through the App Store; we do not collect or
+              store your payment card details, banking information, or Apple ID
+              password.
+            </p>
+
+            <h3 className="text-base font-semibold text-white mt-4 mb-2">
+              6.1 AI Features Subscription
+            </h3>
+            <p className="mb-3">
+              The App offers an optional auto-renewable monthly subscription
+              (&ldquo;AI Pro&rdquo;) that unlocks AI-powered features,
+              including the AI food photo scanner, AI voice meal logging, AI
+              Meal Planner, and AI Nutrition Coach. The subscription is billed
+              at $9.99/month through your Apple ID account and renews
+              automatically unless canceled at least 24&nbsp;hours before the
+              end of the current billing period. You can manage or cancel your
+              subscription at any time in your Apple&nbsp;ID account settings.
+            </p>
+
+            <h3 className="text-base font-semibold text-white mt-4 mb-2">
+              6.2 One-Time In-App Purchases
+            </h3>
+            <p className="mb-3">
+              The App also offers optional consumable (one-time) purchases
+              related to the streak system:
+            </p>
+            <ul className="list-disc list-inside space-y-1 ml-2 mb-3">
+              <li>
+                <strong className="text-white">Streak Extension:</strong>{" "}
+                Extends your macro logging streak by 7&nbsp;days without
+                requiring daily logging during that period.
+              </li>
+              <li>
+                <strong className="text-white">Streak Shield:</strong>{" "}
+                Restores a broken streak one time.
+              </li>
+              <li>
+                <strong className="text-white">Cheat Day:</strong>{" "}
+                Allows you to skip logging for one day without breaking your
+                streak.
+              </li>
+            </ul>
+
+            <h3 className="text-base font-semibold text-white mt-4 mb-2">
+              6.3 Information We Collect Related to Purchases
+            </h3>
+            <p className="mb-3">
+              When you make a purchase, Apple provides us with a transaction
+              receipt that includes your transaction identifier, product
+              purchased, purchase date, and subscription status (active,
+              expired, or canceled). We use this information solely to verify
+              your entitlements and deliver the features you purchased. We do
+              not receive your payment method details.
+            </p>
+            <p>
+              For more information about how Apple handles your purchase data,
+              see{" "}
+              <a
+                href="https://www.apple.com/legal/privacy/"
+                className="text-brand-purple hover:underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Apple&apos;s Privacy Policy
+              </a>
+              .
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-white mb-3">
+              7. Data Sharing
             </h2>
             <p>
               We do not sell your personal information to third parties. We share
@@ -275,7 +355,7 @@ export default function PrivacyPolicyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              7. Data Retention
+              8. Data Retention
             </h2>
             <p className="mb-3">
               We retain your data for as long as your account is active or as
@@ -309,6 +389,14 @@ export default function PrivacyPolicyPage() {
                 Retained until you delete the post or delete your account.
               </li>
               <li>
+                <strong className="text-white">
+                  Subscription &amp; purchase data:
+                </strong>{" "}
+                Transaction receipts and entitlement records are retained for
+                the duration of your account or as required for financial
+                record-keeping and legal compliance.
+              </li>
+              <li>
                 <strong className="text-white">Analytics data:</strong>{" "}
                 Anonymous, aggregated analytics may be retained indefinitely.
               </li>
@@ -322,7 +410,7 @@ export default function PrivacyPolicyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              8. Your Rights
+              9. Your Rights
             </h2>
             <p className="mb-2">
               Regardless of where you live, you have the right to:
@@ -376,7 +464,7 @@ export default function PrivacyPolicyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              9. Data Security
+              10. Data Security
             </h2>
             <p>
               We use industry-standard security measures to protect your data,
@@ -390,7 +478,7 @@ export default function PrivacyPolicyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              10. Data Breach Notification
+              11. Data Breach Notification
             </h2>
             <p>
               In the event of a data breach that poses a risk to your rights and
@@ -403,11 +491,11 @@ export default function PrivacyPolicyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              11. Cookies, Advertising &amp; Tracking
+              12. Cookies, Advertising &amp; Tracking
             </h2>
 
             <h3 className="text-base font-semibold text-white mt-4 mb-2">
-              11.1 Cookies on the Website
+              12.1 Cookies on the Website
             </h3>
             <p className="mb-3">
               When you visit macromaxxing.app we use cookies and similar
@@ -479,7 +567,7 @@ export default function PrivacyPolicyPage() {
             </p>
 
             <h3 className="text-base font-semibold text-white mt-4 mb-2">
-              11.2 In-App Advertising (Mobile App)
+              12.2 In-App Advertising (Mobile App)
             </h3>
             <p className="mb-2">
               The App itself does not use cookies. We display advertisements
@@ -506,7 +594,7 @@ export default function PrivacyPolicyPage() {
             </ul>
 
             <h3 className="text-base font-semibold text-white mt-4 mb-2">
-              11.3 Do Not Track Signals
+              12.3 Do Not Track Signals
             </h3>
             <p>
               Some browsers transmit &ldquo;Do Not Track&rdquo; (DNT) signals.
@@ -519,7 +607,7 @@ export default function PrivacyPolicyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              12. Children&apos;s Privacy
+              13. Children&apos;s Privacy
             </h2>
             <p>
               The App is not intended for children under 13 (or under 16 in
@@ -541,7 +629,7 @@ export default function PrivacyPolicyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              13. International Data Transfers
+              14. International Data Transfers
             </h2>
             <p className="mb-3">
               Your data may be processed and stored on servers located in the
@@ -569,7 +657,7 @@ export default function PrivacyPolicyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              14. Your Privacy Rights Under Applicable Law
+              15. Your Privacy Rights Under Applicable Law
             </h2>
             <p className="mb-3">
               Depending on where you live, you may have additional rights under
@@ -759,7 +847,7 @@ export default function PrivacyPolicyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              15. Changes to This Policy
+              16. Changes to This Policy
             </h2>
             <p>
               We may update this Privacy Policy from time to time. We will
@@ -772,7 +860,7 @@ export default function PrivacyPolicyPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              16. Contact Us
+              17. Contact Us
             </h2>
             <p>
               If you have questions about this Privacy Policy, want to

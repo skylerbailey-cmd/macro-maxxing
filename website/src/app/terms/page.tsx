@@ -13,7 +13,7 @@ export default function TermsPage() {
         <h1 className="text-4xl font-bold text-white mb-2">
           Terms of Service &amp; End User License Agreement
         </h1>
-        <p className="text-gray-500 mb-12">Effective Date: April 8, 2026</p>
+        <p className="text-gray-500 mb-12">Effective Date: April 12, 2026</p>
 
         <div className="space-y-10 text-sm leading-relaxed">
           {/* 1 */}
@@ -164,27 +164,87 @@ export default function TermsPage() {
           {/* 5 */}
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">
-              5. Subscriptions, Purchases &amp; Billing
+              5. Subscriptions, In-App Purchases &amp; Billing
             </h2>
             <p className="mb-3">
-              The App may offer in-app purchases, subscriptions, or premium
-              features (&ldquo;Paid Features&rdquo;). All purchases are
-              processed through the Apple App Store and are subject to
-              Apple&apos;s terms and conditions.
+              The App is free to download and includes core features such as
+              manual macro tracking, intermittent fasting timer, workout
+              tracking with automatic macro adjustments, daily streaks,
+              leaderboards, Aura&nbsp;XP, and the social community feed. The
+              App also offers optional paid features as described below. All
+              purchases are processed through the Apple App Store and are
+              subject to Apple&apos;s terms and conditions.
+            </p>
+
+            <h3 className="text-base font-semibold text-white mt-4 mb-2">
+              5.1 AI Features Subscription (&ldquo;AI Pro&rdquo;)
+            </h3>
+            <p className="mb-3">
+              The App offers an optional auto-renewable monthly subscription
+              that unlocks the following AI-powered features:
             </p>
             <ul className="list-disc list-inside space-y-1 ml-2 mb-3">
               <li>
-                <strong className="text-white">Billing:</strong> Subscription
-                fees are billed in advance on a recurring basis (monthly or
-                annually, as selected). Your Apple ID account will be charged
-                upon confirmation of purchase.
+                <strong className="text-white">AI Food Photo Scanner:</strong>{" "}
+                Snap a photo of your meal and Claude AI identifies every item
+                and estimates calories, protein, carbs, and fat.
               </li>
               <li>
+                <strong className="text-white">AI Voice Meal Logging:</strong>{" "}
+                Describe your meal by voice and AI generates accurate macro
+                breakdowns from your description.
+              </li>
+              <li>
+                <strong className="text-white">AI Meal Planner:</strong>{" "}
+                AI analyzes your remaining macro gaps and suggests specific
+                meals with portions to help you hit your targets.
+              </li>
+              <li>
+                <strong className="text-white">AI Nutrition Coach:</strong>{" "}
+                A personalized daily debrief that reviews your meals, macros,
+                workouts, and timing, with actionable recommendations.
+              </li>
+            </ul>
+            <p className="mb-3">
+              The AI Features subscription is billed at $9.99/month (USD).
+              Your Apple&nbsp;ID account will be charged upon confirmation of
+              purchase.
+            </p>
+
+            <h3 className="text-base font-semibold text-white mt-4 mb-2">
+              5.2 Streak In-App Purchases
+            </h3>
+            <p className="mb-3">
+              The App offers optional one-time (consumable) purchases related
+              to the streak system:
+            </p>
+            <ul className="list-disc list-inside space-y-1 ml-2 mb-3">
+              <li>
+                <strong className="text-white">Streak Extension ($4.99):</strong>{" "}
+                Extends your macro logging streak by 7&nbsp;days without
+                requiring daily logging during that period.
+              </li>
+              <li>
+                <strong className="text-white">Streak Shield ($0.99):</strong>{" "}
+                Restores a broken streak one time.
+              </li>
+              <li>
+                <strong className="text-white">Cheat Day ($0.99):</strong>{" "}
+                Allows you to skip logging for one day without breaking your
+                current streak.
+              </li>
+            </ul>
+
+            <h3 className="text-base font-semibold text-white mt-4 mb-2">
+              5.3 Billing &amp; Renewal
+            </h3>
+            <ul className="list-disc list-inside space-y-1 ml-2 mb-3">
+              <li>
                 <strong className="text-white">Auto-Renewal:</strong>{" "}
-                Subscriptions automatically renew unless canceled at least 24
-                hours before the end of the current billing period. You can
-                manage and cancel subscriptions in your Apple ID account
-                settings.
+                The AI Features subscription automatically renews unless
+                canceled at least 24&nbsp;hours before the end of the current
+                billing period. You can manage and cancel subscriptions in your
+                Apple&nbsp;ID account settings.
               </li>
               <li>
                 <strong className="text-white">Refunds:</strong> All purchases
@@ -210,6 +270,11 @@ export default function TermsPage() {
                 <strong className="text-white">Free Trial:</strong> If offered,
                 free trial periods convert to paid subscriptions automatically
                 unless canceled before the trial ends.
+              </li>
+              <li>
+                <strong className="text-white">Consumable Purchases:</strong>{" "}
+                One-time streak purchases are non-refundable once used. Unused
+                consumables are subject to Apple&apos;s standard refund policy.
               </li>
             </ul>
           </div>
