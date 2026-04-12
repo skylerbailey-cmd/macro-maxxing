@@ -56,6 +56,14 @@ const guides = [
     tag: "ACCOUNT",
     tagColor: "text-brand-cyan",
   },
+  {
+    href: "/help/how-to-delete-account",
+    title: "How to Delete Your Account",
+    description:
+      "Permanently delete your account and all associated data. Covers what gets deleted, data export, subscription cancellation, and regulatory compliance (GDPR, CCPA, and more).",
+    tag: "PRIVACY & DATA",
+    tagColor: "text-red-400",
+  },
 ];
 
 export default function HelpPage() {

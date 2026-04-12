@@ -472,6 +472,7 @@ export default function Home() {
                   { href: "/help/how-to-log-a-meal", title: "How to Log a Meal" },
                   { href: "/help/how-to-find-people", title: "How to Find People" },
                   { href: "/help/settings", title: "Settings & Account" },
+                  { href: "/help/how-to-delete-account", title: "How to Delete Your Account" },
                 ],
               },
             ].map((group) => (
