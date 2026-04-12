@@ -44,6 +44,12 @@ export default function Home() {
             >
               See How It Works
             </a>
+            <a
+              href="#pricing"
+              className="text-gray-400 hover:text-white text-sm font-medium transition underline underline-offset-4"
+            >
+              View Pricing
+            </a>
           </div>
         </div>
       </section>
@@ -410,6 +416,174 @@ export default function Home() {
                 <p className="text-gray-500 text-xs mt-1">{screen.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section id="pricing" className="py-24 px-4 sm:px-6 bg-brand-card/30">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <div className="inline-block bg-brand-green/10 border border-brand-green/20 rounded-full px-4 py-1.5 text-sm text-brand-green font-medium mb-4">
+              Simple Pricing
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+              Start Free.{" "}
+              <span className="text-gradient">Upgrade When Ready.</span>
+            </h2>
+            <p className="text-gray-400 max-w-xl mx-auto">
+              Core macro tracking, streaks, leaderboards, and community are
+              completely free. Unlock AI-powered features when you want more.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            {/* Free tier */}
+            <div className="bg-brand-bg rounded-3xl border border-white/10 p-8 flex flex-col">
+              <div className="mb-6">
+                <p className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                  Free
+                </p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-black text-white">$0</span>
+                  <span className="text-gray-500 text-sm">/forever</span>
+                </div>
+                <p className="text-gray-500 text-sm mt-2">
+                  Everything you need to start tracking macros
+                </p>
+              </div>
+
+              <ul className="space-y-3 flex-1">
+                {[
+                  "Full macro tracking (calories, protein, carbs, fat)",
+                  "Manual meal logging with macro entry",
+                  "Smart workout tracking with auto macro adjustments",
+                  "Intermittent fasting timer (all protocols)",
+                  "Daily streaks and Aura XP",
+                  "Team, Local, and Arena leaderboards",
+                  "Social community feed",
+                  "Saved meal and workout templates",
+                ].map((item, i) => (
+                  <li
+                    key={i}
+                    className="flex items-start gap-3 text-gray-300 text-sm"
+                  >
+                    <span className="text-brand-green mt-0.5 shrink-0">✓</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+
+              <a
+                href="#download"
+                className="mt-8 block text-center border border-white/20 hover:border-white/40 text-white px-6 py-3.5 rounded-2xl font-bold transition"
+              >
+                Download Free
+              </a>
+            </div>
+
+            {/* AI Pro tier */}
+            <div className="bg-brand-bg rounded-3xl border-2 border-brand-purple p-8 flex flex-col relative">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                <span className="bg-brand-purple text-white text-xs font-bold px-4 py-1.5 rounded-full">
+                  MOST POPULAR
+                </span>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-sm font-semibold text-brand-purple uppercase tracking-wider mb-2">
+                  AI Pro
+                </p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-black text-white">$9.99</span>
+                  <span className="text-gray-500 text-sm">/month</span>
+                </div>
+                <p className="text-gray-500 text-sm mt-2">
+                  Everything in Free, plus AI-powered features
+                </p>
+              </div>
+
+              <ul className="space-y-3 flex-1">
+                {[
+                  "Everything in the free tier",
+                  "AI photo food scanner — snap a photo, get instant macros",
+                  "AI voice meal logging — describe your meal hands-free",
+                  "AI Meal Planner — get meal suggestions to hit your remaining macros",
+                  "AI Nutrition Coach — daily personalized debrief on your eating",
+                  "Powered by Claude AI (Haiku + Sonnet)",
+                ].map((item, i) => (
+                  <li
+                    key={i}
+                    className="flex items-start gap-3 text-gray-300 text-sm"
+                  >
+                    <span className="text-brand-purple mt-0.5 shrink-0">✓</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+
+              <a
+                href="#download"
+                className="mt-8 block text-center bg-brand-purple hover:bg-brand-purple/80 text-white px-6 py-3.5 rounded-2xl font-bold transition"
+              >
+                Get AI Pro
+              </a>
+            </div>
+          </div>
+
+          {/* Streak add-ons */}
+          <div className="max-w-4xl mx-auto mt-10">
+            <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-6">
+              <h3 className="text-sm font-semibold text-white mb-4">
+                Optional Streak Add-Ons
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-brand-gold text-lg shrink-0">🔥</span>
+                  <div>
+                    <p className="text-white text-sm font-semibold">
+                      Streak Extension{" "}
+                      <span className="text-brand-gold font-normal">$4.99</span>
+                    </p>
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      Extend your streak 7 days without logging
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="text-brand-teal text-lg shrink-0">🛡️</span>
+                  <div>
+                    <p className="text-white text-sm font-semibold">
+                      Streak Shield{" "}
+                      <span className="text-brand-teal font-normal">$0.99</span>
+                    </p>
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      Restore a broken streak one time
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="text-brand-orange text-lg shrink-0">🍕</span>
+                  <div>
+                    <p className="text-white text-sm font-semibold">
+                      Cheat Day{" "}
+                      <span className="text-brand-orange font-normal">$0.99</span>
+                    </p>
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      Skip a day without breaking your streak
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Price comparison */}
+          <div className="max-w-4xl mx-auto mt-10 text-center">
+            <p className="text-gray-500 text-sm">
+              Compare: MyFitnessPal Premium $20/mo &middot; Noom $40-60/mo &middot;
+              MacroFactor $12/mo &middot; Carbon $10/mo &middot; Cronometer Gold $50/yr
+            </p>
           </div>
         </div>
       </section>
