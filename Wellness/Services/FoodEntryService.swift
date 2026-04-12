@@ -9,6 +9,7 @@
 //
 
 import UIKit
+import FirebaseAuth
 import FirebaseFirestore
 import FirebaseStorage
 
@@ -196,22 +197,81 @@ final class FoodEntryService {
         guard let data = image.jpegData(compressionQuality: 0.75) else {
             throw URLError(.cannotCreateFile)
         }
+
+        // Force-refresh the Firebase ID token before talking to Storage.
+        // On cold launch or after a long idle, the cached token can be close
+        // to expiry; Storage then rejects downloadURL / putData with
+        // "User does not have permission" even though the rules match. A
+        // proactive refresh here gives GTMSessionFetcher a fresh bearer.
+        _ = try? await Auth.auth().currentUser?.getIDTokenResult(forcingRefresh: true)
+
         let ref      = storage.child("food_photos/\(userID)/\(entryID).jpg")
         let metadata = StorageMetadata()
         metadata.contentType = "image/jpeg"
 
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-            ref.putData(data, metadata: metadata) { _, error in
-                if let error { cont.resume(throwing: error) }
-                else         { cont.resume() }
+        // Upload. If this throws with "object already exists / upload
+        // already finalized" (HTTP 400 from a resumable retry after a
+        // partial success), the bytes are already on the server — fall
+        // through to the downloadURL step instead of reporting failure.
+        do {
+            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                ref.putData(data, metadata: metadata) { _, error in
+                    if let error { cont.resume(throwing: error) }
+                    else         { cont.resume() }
+                }
             }
+        } catch {
+            if !Self.isAlreadyFinalizedError(error) {
+                throw error
+            }
+            AppLogger.log("[FoodEntryService] putData reported 'already finalized' — treating as success for \(entryID)")
         }
-        let url = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<URL, Error>) in
+
+        // Fetch the download URL with one retry after a token refresh.
+        // A "permission denied" here usually means the Storage bearer
+        // expired mid-upload, not that the rule actually rejects the read.
+        do {
+            return try await fetchDownloadURL(ref: ref).absoluteString
+        } catch {
+            let ns = error as NSError
+            let isPermission = ns.domain == StorageErrorDomain
+                && ns.code == StorageErrorCode.unauthorized.rawValue
+            guard isPermission else { throw error }
+
+            AppLogger.log("[FoodEntryService] downloadURL unauthorized — refreshing token and retrying")
+            _ = try? await Auth.auth().currentUser?.getIDTokenResult(forcingRefresh: true)
+            return try await fetchDownloadURL(ref: ref).absoluteString
+        }
+    }
+
+    private func fetchDownloadURL(ref: StorageReference) async throws -> URL {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<URL, Error>) in
             ref.downloadURL { url, error in
                 if let url   { cont.resume(returning: url) }
                 else         { cont.resume(throwing: error ?? URLError(.badServerResponse)) }
             }
         }
-        return url.absoluteString
+    }
+
+    /// Detects the "Upload has already been finalized" HTTP 400 that
+    /// GTMSessionFetcher surfaces when a resumable upload is retried
+    /// after the object has already been committed server-side. The
+    /// object exists — the retry is just noise.
+    private static func isAlreadyFinalizedError(_ error: Error) -> Bool {
+        let ns = error as NSError
+        if ns.domain == "com.google.HTTPStatus" && ns.code == 400 {
+            if let data = ns.userInfo["data"] as? Data,
+               let body = String(data: data, encoding: .utf8),
+               body.lowercased().contains("already been finalized") {
+                return true
+            }
+        }
+        // Firebase Storage sometimes wraps the same condition in
+        // StorageErrorCode.objectNotFound or .unknown with the body
+        // text in localizedDescription.
+        if ns.localizedDescription.lowercased().contains("already been finalized") {
+            return true
+        }
+        return false
     }
 }
