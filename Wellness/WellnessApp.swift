@@ -219,6 +219,13 @@ struct WellnessApp: App {
             }
             .task { await userSettings.loadCachedImage() }
             .task {
+                // AISubscriptionStore's init starts the Transaction.updates
+                // listener, but we also need an initial entitlement pull so the
+                // UI knows on first render whether the user is subscribed.
+                await AISubscriptionStore.shared.loadProduct()
+                await AISubscriptionStore.shared.refreshEntitlement()
+            }
+            .task {
                 // Defer ads + remote config until the splash is dismissed and auth resolves.
                 // Running these during launch competes for network and main thread,
                 // causing 9-21s process stalls when connectivity is poor.
