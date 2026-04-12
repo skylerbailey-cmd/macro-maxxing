@@ -239,12 +239,16 @@ struct FoodLogView: View {
                     .foregroundStyle(.white.opacity(0.65))
             }
             .buttonStyle(.plain)
-            
+            .accessibilityLabel("Help")
+            .accessibilityHint("Shows the Fuel Log tutorial")
+
             BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
-            
+
             Button { showingProfile = true } label: {
                 profileAvatarIcon
             }
+            .accessibilityLabel("Profile")
+            .accessibilityHint("Opens your profile")
         }
     }
     
