@@ -7,7 +7,7 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 export const metadata: Metadata = {
   title: "Best Carbon Diet Coach Alternative 2026 — Macro Maxxing vs Carbon",
   description:
-    "Looking for an Carbon Diet Coach alternative? Macro Maxxing offers AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — without the $10/month subscription.",
+    "Looking for an Carbon Diet Coach alternative? Macro Maxxing offers AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — with core features free and AI Pro at $9.99/mo — comparable price to Carbon but with more features.",
   keywords: [
     "Carbon Diet Coach alternative",
     "Carbon Diet Coach replacement",
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "What is the best alternative to Carbon Diet Coach?",
-    answer: "Macro Maxxing is the best alternative to Carbon Diet Coach. It offers AI photo scanning and voice logging (which Carbon lacks), gamified streaks and leaderboards, and a social community . Carbon costs $10/month with no free tier.",
+    answer: "Macro Maxxing is the best alternative to Carbon Diet Coach. It offers AI photo scanning and voice logging (which Carbon lacks), gamified streaks and leaderboards, and a social community — with core features free and AI Pro at $9.99/month. Carbon costs $10/month with no free tier.",
   },
   {
     question: "Is Macro Maxxing good for bodybuilding like Carbon?",
@@ -72,8 +72,7 @@ export default function CarbonDietCoachAlternativePage() {
               Macro Maxxing is an Carbon Diet Coach alternative that provides
               AI photo scanning and voice logging — features Carbon doesn&apos;t offer
               despite its $10/month price tag. It includes gamified streaks,
-              leaderboards, and a social community, and works for any fitness
-              goal beyond just bodybuilding.
+              leaderboards, and a social community, with core features free and AI Pro at $9.99/month — comparable to Carbon&apos;s $10/month but with AI features Carbon doesn&apos;t offer.
             </p>
             <p className="text-gray-500 text-sm mb-8">Last updated: March 2026</p>
             <a
@@ -91,7 +90,7 @@ export default function CarbonDietCoachAlternativePage() {
             <h2 className="text-sm font-semibold text-brand-rose uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
               <strong className="text-white">Macro Maxxing is the best Carbon Diet Coach alternative for serious trackers who want AI-powered logging.</strong>{" "}
-              It offers photo scanning, voice input, gamified streaks, and a competitive community at a fraction of the cost versus Carbon&apos;s $10/month. The trade-off: Carbon has Layne Norton&apos;s auto-adjusting coaching algorithm that adapts your calories weekly based on weight data — if fully automated contest prep coaching is your priority, Carbon is purpose-built for that.
+              It offers photo scanning, voice input, gamified streaks, and a competitive community with core features free and AI Pro at $9.99/month versus Carbon&apos;s $10/month (with no free tier). The trade-off: Carbon has Layne Norton&apos;s auto-adjusting coaching algorithm that adapts your calories weekly based on weight data — if fully automated contest prep coaching is your priority, Carbon is purpose-built for that.
             </p>
           </div>
         </section>
@@ -149,7 +148,7 @@ export default function CarbonDietCoachAlternativePage() {
               features={[
                 { name: "AI photo food scanning", macroMaxxing: true, others: false },
                 { name: "Voice meal logging", macroMaxxing: true, others: false },
-                { name: "Price", macroMaxxing: "Download", others: "$10/month" },
+                { name: "Price", macroMaxxing: "Free / $9.99/mo AI Pro", others: "$10/month (no free tier)" },
                 { name: "Daily streaks", macroMaxxing: true, others: false },
                 { name: "Leaderboards & XP", macroMaxxing: true, others: false },
                 { name: "Social community feed", macroMaxxing: true, others: false },
@@ -157,8 +156,8 @@ export default function CarbonDietCoachAlternativePage() {
                 { name: "Auto macro adjustments", macroMaxxing: false, others: true },
                 { name: "Works for all fitness goals", macroMaxxing: true, others: "Bodybuilding focus" },
                 { name: "Intermittent fasting timer", macroMaxxing: true, others: false },
-                { name: "AI meal planner", macroMaxxing: true, others: false },
-                { name: "AI nutrition coach", macroMaxxing: true, others: "Weekly algorithmic adjustments" },
+                { name: "AI meal planner", macroMaxxing: "AI Pro ($9.99/mo)", others: false },
+                { name: "AI nutrition coach", macroMaxxing: "AI Pro ($9.99/mo)", others: "Weekly algorithmic adjustments" },
                 { name: "Saved meal templates", macroMaxxing: true, others: true },
               ]}
             />
@@ -179,7 +178,7 @@ export default function CarbonDietCoachAlternativePage() {
             <FeatureCard
               icon="💰"
               title="Better Value"
-              description="Macro Maxxing is Available now. Carbon charges $10/month with no free tier at all."
+              description="Core tracking, streaks, and community are free. AI Pro at $9.99/month is comparable to Carbon's $10/month — but includes AI scanning and voice logging that Carbon doesn't offer, plus free core features."
               color="brand-gold"
             />
             <FeatureCard
@@ -219,7 +218,7 @@ export default function CarbonDietCoachAlternativePage() {
               <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macro Maxxing if you:</h3>
               <ul className="space-y-2 text-gray-300 text-sm">
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want AI photo scanning and voice logging for faster tracking</li>
-                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Don&apos;t want to pay $10/month ($120/year)</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want a free core experience plus AI Pro at $9.99/month — with features Carbon doesn&apos;t offer</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want gamified accountability with streaks, XP, and leaderboards</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want a community for motivation, not just solo coaching</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Have goals beyond bodybuilding (weight loss, recomp, general fitness)</li>
@@ -244,7 +243,7 @@ export default function CarbonDietCoachAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-rose font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing from the App Store. No subscription needed.</p>
+                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. Core features included immediately.</p>
               </div>
               <div>
                 <p className="text-brand-rose font-bold text-lg mb-1">2. Transfer Targets</p>
@@ -252,7 +251,7 @@ export default function CarbonDietCoachAlternativePage() {
               </div>
               <div>
                 <p className="text-brand-rose font-bold text-lg mb-1">3. Better Value</p>
-                <p className="text-gray-400 text-sm">Cancel Carbon, start logging with AI, and build your streak.</p>
+                <p className="text-gray-400 text-sm">Cancel Carbon and save — or try Macro Maxxing's free tier first, then add AI Pro when ready.</p>
               </div>
             </div>
           </div>
@@ -282,7 +281,7 @@ export default function CarbonDietCoachAlternativePage() {
         <div id="download">
           <DownloadCTA
             headline="Built for Serious Trackers"
-            subheadline="AI scanning, voice logging, streaks, leaderboards, and community. All the tools you need ."
+            subheadline="Core features free. AI scanning, voice logging, and coaching at $9.99/mo — with features Carbon doesn't offer at $10/mo."
           />
         </div>
       </article>

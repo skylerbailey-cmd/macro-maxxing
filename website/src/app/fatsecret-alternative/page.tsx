@@ -25,11 +25,11 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "What is the best alternative to FatSecret?",
-    answer: "Macro Maxxing is the best alternative to FatSecret. Both are free, but Macro Maxxing offers Claude AI photo scanning, voice logging, AI-powered nutrition estimates, gamified streaks and leaderboards, and a modern social community. It's everything FatSecret should have evolved into.",
+    answer: "Macro Maxxing is the best alternative to FatSecret. Macro Maxxing offers Claude AI photo scanning, voice logging, AI-powered nutrition estimates, gamified streaks and leaderboards, and a modern social community. It's everything FatSecret should have evolved into.",
   },
   {
     question: "How does Macro Maxxing's pricing compare to FatSecret?",
-    answer: "Yes. Macro Maxxing is Available now, just like FatSecret. The difference is that Macro Maxxing includes modern AI features (photo scanning, voice logging), gamification (streaks, XP, leaderboards), and a social community — all included.",
+    answer: "Macro Maxxing is free to download with core tracking, streaks, leaderboards, and community included — just like FatSecret. The difference is that Macro Maxxing also offers AI-powered features (photo scanning, voice logging, meal planner, nutrition coach) through an optional AI Pro subscription at $9.99/month.",
   },
   {
     question: "Is Macro Maxxing more accurate than FatSecret?",
@@ -148,7 +148,7 @@ export default function FatSecretAlternativePage() {
               features={[
                 { name: "AI photo food scanning", macroMaxxing: true, others: false },
                 { name: "Voice meal logging", macroMaxxing: true, others: false },
-                { name: "Available now", macroMaxxing: true, others: true },
+                { name: "Price", macroMaxxing: "Free / $9.99/mo AI Pro", others: "Free" },
                 { name: "Modern, polished UI", macroMaxxing: true, others: false },
                 { name: "Verified nutrition data", macroMaxxing: "Claude AI", others: "Unverified" },
                 { name: "Daily streaks", macroMaxxing: true, others: false },
@@ -156,8 +156,8 @@ export default function FatSecretAlternativePage() {
                 { name: "Social community feed", macroMaxxing: true, others: "Basic forums" },
                 { name: "Workout macro adjustments", macroMaxxing: true, others: false },
                 { name: "Intermittent fasting timer", macroMaxxing: true, others: false },
-                { name: "AI meal planner", macroMaxxing: true, others: false },
-                { name: "AI nutrition coach", macroMaxxing: true, others: false },
+                { name: "AI meal planner", macroMaxxing: "AI Pro ($9.99/mo)", others: false },
+                { name: "AI nutrition coach", macroMaxxing: "AI Pro ($9.99/mo)", others: false },
                 { name: "App reliability", macroMaxxing: true, others: "Frequent freezes" },
               ]}
             />
@@ -281,7 +281,7 @@ export default function FatSecretAlternativePage() {
         <div id="download">
           <DownloadCTA
             headline="Modern Tracking, Upgraded"
-            subheadline="Everything FatSecret does, plus AI scanning, voice logging, streaks, and community. Available now."
+            subheadline="Core tracking and community free — like FatSecret, but modern. Add AI scanning, voice logging, and coaching with AI Pro at $9.99/mo."
           />
         </div>
       </article>

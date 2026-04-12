@@ -26,7 +26,7 @@ const faqs = [
   {
     question: "What is the best alternative to Cal AI?",
     answer:
-      "Macro Maxxing is the best alternative to Cal AI for anyone who wants more than just calorie counting. It offers AI photo scanning and voice logging like Cal AI, plus full macro tracking (protein, carbs, fat), an AI meal planner, AI nutrition coach, daily streaks, leaderboards, and a social community.",
+      "Macro Maxxing is the best alternative to Cal AI for anyone who wants more than just calorie counting. Core features like full macro tracking, streaks, leaderboards, and community are free to download. AI-powered features (photo scanning, voice logging, meal planner, nutrition coach) are available through AI Pro at $9.99/month with transparent pricing.",
   },
   {
     question: "Is Macro Maxxing more accurate than Cal AI?",
@@ -169,6 +169,11 @@ export default function CalAIAlternativePage() {
             <ComparisonTable
               features={[
                 {
+                  name: "Price",
+                  macroMaxxing: "Free / $9.99/mo AI Pro",
+                  others: "Subscription required",
+                },
+                {
                   name: "AI photo food scanning",
                   macroMaxxing: true,
                   others: true,
@@ -185,12 +190,12 @@ export default function CalAIAlternativePage() {
                 },
                 {
                   name: "AI meal planner",
-                  macroMaxxing: true,
+                  macroMaxxing: "AI Pro ($9.99/mo)",
                   others: false,
                 },
                 {
                   name: "AI nutrition coach",
-                  macroMaxxing: true,
+                  macroMaxxing: "AI Pro ($9.99/mo)",
                   others: false,
                 },
                 {
@@ -225,7 +230,7 @@ export default function CalAIAlternativePage() {
                 },
                 {
                   name: "Transparent pricing",
-                  macroMaxxing: true,
+                  macroMaxxing: "Free core + $9.99/mo AI Pro",
                   others: "Hidden until onboarding",
                 },
               ]}
@@ -398,7 +403,7 @@ export default function CalAIAlternativePage() {
         <div id="download">
           <DownloadCTA
             headline="More Than Calorie Counting"
-            subheadline="AI photo scanning, voice logging, meal planner, nutrition coach, streaks, and community. Download Macro Maxxing."
+            subheadline="Core tracking and community free. AI scanning, voice logging, and coaching at $9.99/mo with transparent pricing. Download Macro Maxxing."
           />
         </div>
       </article>

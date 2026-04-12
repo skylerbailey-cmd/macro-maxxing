@@ -7,7 +7,7 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 export const metadata: Metadata = {
   title: "Best Lose It! Alternative 2026 — Macro Maxxing vs Lose It",
   description:
-    "Looking for a Lose It! alternative with better macro tracking? Macro Maxxing offers AI photo scanning, voice logging, detailed macros, streaks, leaderboards, and community — all included.",
+    "Looking for a Lose It! alternative with better macro tracking? Macro Maxxing offers AI photo scanning, voice logging, detailed macros, streaks, leaderboards, and community — core features free, AI Pro at $9.99/mo.",
   keywords: [
     "Lose It alternative",
     "Lose It app alternative",
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "What is the best alternative to Lose It?",
-    answer: "Macro Maxxing is the best alternative to Lose It! for anyone serious about their macros. It offers detailed macro tracking (not just calories), AI photo scanning, voice logging, daily streaks, leaderboards, and a social community — all available to download.",
+    answer: "Macro Maxxing is the best alternative to Lose It! for anyone serious about their macros. It offers detailed macro tracking (not just calories), AI photo scanning, voice logging, daily streaks, leaderboards, and a social community — with core features free and AI Pro at $9.99/month.",
   },
   {
     question: "Is Macro Maxxing better than Lose It for weight loss?",
@@ -37,7 +37,7 @@ const faqs = [
   },
   {
     question: "Is Macro Maxxing available to download?",
-    answer: "Yes. Every feature in Macro Maxxing is available to download — AI scanning, voice logging, macro tracking, streaks, leaderboards, and the social community. There is no premium tier. Lose It! charges $40/year for premium features.",
+    answer: "Macro Maxxing is free to download with full macro tracking, streaks, leaderboards, and community included. AI-powered features (photo scanning, voice logging, meal planner, nutrition coach) are available for $9.99/month through AI Pro. Lose It! charges $40/year for basic premium features that still don't include AI scanning or voice logging.",
   },
 ];
 
@@ -73,7 +73,7 @@ export default function LoseItAlternativePage() {
               calorie counting with detailed macro tracking (protein, carbs,
               fat), AI photo scanning, and voice logging. It includes gamified
               streaks, leaderboards, and a social community for accountability —
-              all included versus Lose It! Premium at $40/year.
+              with core features free and AI Pro at $9.99/month — while Lose It! charges $40/year for fewer features.
             </p>
             <p className="text-gray-500 text-sm mb-8">Last updated: March 2026</p>
             <a
@@ -91,7 +91,7 @@ export default function LoseItAlternativePage() {
             <h2 className="text-sm font-semibold text-brand-orange uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
               <strong className="text-white">Macro Maxxing is the best Lose It! alternative for anyone who wants detailed macro tracking, not just calorie counting.</strong>{" "}
-              It offers AI photo scanning, voice logging, gamified streaks, and a social community — all included versus Lose It! Premium at $40/year. The trade-off: Lose It! has a clean calorie-focused design and basic challenges that some users prefer for simple weight loss tracking.
+              It offers AI photo scanning, voice logging, gamified streaks, and a social community — with core features free and AI Pro at $9.99/month versus Lose It! Premium at $40/year (which lacks AI scanning and voice logging). The trade-off: Lose It! has a clean calorie-focused design and basic challenges that some users prefer for simple weight loss tracking.
             </p>
           </div>
         </section>
@@ -149,14 +149,14 @@ export default function LoseItAlternativePage() {
                 { name: "AI photo food scanning", macroMaxxing: true, others: "Basic" },
                 { name: "Voice meal logging", macroMaxxing: true, others: false },
                 { name: "Full macro tracking (P/C/F)", macroMaxxing: true, others: "Premium only" },
-                { name: "Available now", macroMaxxing: true, others: "Freemium ($40/yr)" },
+                { name: "Price", macroMaxxing: "Free / $9.99/mo AI Pro", others: "Freemium ($40/yr)" },
                 { name: "Daily streaks", macroMaxxing: true, others: false },
                 { name: "Leaderboards & XP", macroMaxxing: true, others: false },
                 { name: "Social community feed", macroMaxxing: true, others: false },
                 { name: "Workout macro adjustments", macroMaxxing: true, others: false },
                 { name: "Intermittent fasting timer", macroMaxxing: true, others: false },
-                { name: "AI meal planner", macroMaxxing: true, others: false },
-                { name: "AI nutrition coach", macroMaxxing: true, others: false },
+                { name: "AI meal planner", macroMaxxing: "AI Pro ($9.99/mo)", others: false },
+                { name: "AI nutrition coach", macroMaxxing: "AI Pro ($9.99/mo)", others: false },
                 { name: "Saved meal templates", macroMaxxing: true, others: "Premium only" },
               ]}
             />
@@ -220,7 +220,7 @@ export default function LoseItAlternativePage() {
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want AI photo scanning and voice logging for faster entry</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Are motivated by streaks, XP, and leaderboard competition</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want social accountability from a real community</li>
-                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Don&apos;t want to pay $40/year for premium features</li>
+                <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want better value — free core features plus AI Pro at $9.99/month with more than Lose It! Premium offers</li>
               </ul>
             </div>
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
@@ -280,7 +280,7 @@ export default function LoseItAlternativePage() {
         <div id="download">
           <DownloadCTA
             headline="Go Beyond Calorie Counting"
-            subheadline="Full macro tracking, AI scanning, voice logging, and gamified accountability. Download now."
+            subheadline="Core macro tracking and community free. AI scanning, voice logging, and coaching at $9.99/mo — more features than Lose It! Premium."
           />
         </div>
       </article>
