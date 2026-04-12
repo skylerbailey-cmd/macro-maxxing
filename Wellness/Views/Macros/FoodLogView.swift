@@ -93,6 +93,21 @@ struct FoodLogView: View {
             .sheet(isPresented: $showingProfile) {
                 profileSheet
             }
+            // Surfaces the first sync failure of the session (once).
+            // The per-row badge keeps signalling stranded meals after
+            // the alert is dismissed, so the user can still act.
+            .alert(
+                "Couldn't sync meal",
+                isPresented: Binding(
+                    get: { viewModel.syncFailureAlert != nil },
+                    set: { if !$0 { viewModel.syncFailureAlert = nil } }
+                ),
+                presenting: viewModel.syncFailureAlert
+            ) { _ in
+                Button("OK", role: .cancel) { viewModel.syncFailureAlert = nil }
+            } message: { message in
+                Text(message)
+            }
             .onAppear(perform: handleOnAppear)
             .onReceive(NotificationCenter.default.publisher(for: .init("FoodEntryAdded"))) { _ in
                 Task { await viewModel.loadTodayEntries() }
@@ -284,7 +299,9 @@ struct FoodLogView: View {
                              onEdit:      isEditableDate ? { editingEntry = entry } : {},
                              onDelete:    { viewModel.deleteEntry(entry) },
                              onDuplicate: isEditableDate ? { viewModel.duplicateEntry(entry) } : nil,
-                             canEdit:     isEditableDate)
+                             canEdit:     isEditableDate,
+                             syncState:   viewModel.syncState(for: entry),
+                             onRetry:     { viewModel.retrySync(entry) })
             }
         }
     }
@@ -1435,20 +1452,50 @@ private struct FoodEntryRow: View {
     let onDelete:    () -> Void
     var onDuplicate: (() -> Void)? = nil
     var canEdit:     Bool = true
+    /// Sync status for the row — .failed gets a visible warning badge and
+    /// an action sheet offering "Try again" / "Delete". .pending and
+    /// .synced render identically (no visible badge for pending — the
+    /// user doesn't need to know about in-flight retries).
+    var syncState:   FoodEntrySyncState = .synced
+    var onRetry:     (() -> Void)? = nil
 
     @State private var showScoreInfo = false
+    @State private var showingSyncFailureActions = false
 
     var body: some View {
         if canEdit {
             rowContent
                 .contentShape(Rectangle())
-                .onTapGesture { onEdit() }
+                .onTapGesture {
+                    if syncState == .failed {
+                        showingSyncFailureActions = true
+                    } else {
+                        onEdit()
+                    }
+                }
                 .contextMenu {
                     Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
                     if let onDuplicate {
                         Button { onDuplicate() } label: { Label("Duplicate", systemImage: "doc.on.doc") }
                     }
+                    if syncState == .failed, let onRetry {
+                        Button { onRetry() } label: { Label("Retry upload", systemImage: "arrow.clockwise") }
+                    }
                     Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
+                }
+                .confirmationDialog(
+                    "This meal didn't upload",
+                    isPresented: $showingSyncFailureActions,
+                    titleVisibility: .visible
+                ) {
+                    if let onRetry {
+                        Button("Try again") { onRetry() }
+                    }
+                    Button("Edit details") { onEdit() }
+                    Button("Delete meal", role: .destructive) { onDelete() }
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("The meal is saved on this device but didn't sync to the cloud. Try again when you have a stable connection.")
                 }
         } else {
             rowContent
@@ -1492,6 +1539,15 @@ private struct FoodEntryRow: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white)
                         .lineLimit(1)
+                    if syncState == .failed {
+                        // Tappable warning badge — makes a stranded meal
+                        // obvious at a glance. Tapping the row surfaces
+                        // the Retry / Delete action sheet.
+                        Image(systemName: "exclamationmark.icloud.fill")
+                            .font(.caption)
+                            .foregroundStyle(Color.orange)
+                            .accessibilityLabel("Not uploaded — tap for options")
+                    }
                     Spacer()
                     scoreCircle
                     Text(entry.loggedAt, style: .time)
