@@ -72,6 +72,13 @@ enum AnalysisTier: Equatable {
     /// Merged into todayEntries on each Firestore fetch to prevent disappearing.
     private var pendingLocalEntries: [FoodEntry] = []
 
+    /// Per-entry flush retry counts, keyed by FoodEntry.id. Bounded by
+    /// `Self.pendingRetryCap` so a broken upload (e.g. stale Storage
+    /// token, exhausted quota) can't hammer Firebase forever. Reset
+    /// whenever the entry successfully syncs or is dropped.
+    private var pendingRetryCounts: [UUID: Int] = [:]
+    private static let pendingRetryCap = 3
+
     private let recognitionManager = FoodRecognitionManager.shared
     private(set) var userID: String
 
@@ -146,6 +153,7 @@ enum AnalysisTier: Equatable {
         // Remove pending entries that now appear in Firestore (synced successfully)
         let firestoreIDs = Set(firestoreEntries.map { $0.id })
         pendingLocalEntries.removeAll { firestoreIDs.contains($0.id) }
+        for id in firestoreIDs { pendingRetryCounts.removeValue(forKey: id) }
 
         // Merge: Firestore entries + any still-pending local entries
         if pendingLocalEntries.isEmpty {
@@ -162,11 +170,17 @@ enum AnalysisTier: Equatable {
 
     /// Attempts to push any still-pending local entries (typically stranded by a
     /// previous photo upload failure) to Firestore. Entries that still fail remain
-    /// in `pendingLocalEntries` so they continue to render from in-memory `imageData`.
+    /// in `pendingLocalEntries` so they continue to render from in-memory `imageData`,
+    /// but each entry is only retried up to `Self.pendingRetryCap` times to avoid
+    /// an unbounded loop when the underlying failure is permanent (e.g. a bucket
+    /// permission issue that will never self-heal).
     private func flushPendingEntries() async {
         // Snapshot so concurrent saveEntry() calls that mutate pendingLocalEntries
         // during awaits don't throw us off.
-        let pending = pendingLocalEntries.filter { $0.firebaseEntryID.isEmpty }
+        let pending = pendingLocalEntries.filter {
+            $0.firebaseEntryID.isEmpty &&
+            (pendingRetryCounts[$0.id] ?? 0) < Self.pendingRetryCap
+        }
         guard !pending.isEmpty else { return }
         for entry in pending {
             let image = entry.imageData.flatMap { UIImage(data: $0) }
@@ -174,8 +188,15 @@ enum AnalysisTier: Equatable {
                 let result = try await FoodEntryService.shared.save(entry: entry, image: image)
                 entry.firebaseEntryID = result.docID
                 entry.photoURL        = result.photoURL
+                pendingRetryCounts.removeValue(forKey: entry.id)
             } catch {
-                AppLogger.log("[FoodLog] Pending entry retry failed: \(error.localizedDescription)")
+                let attempt = (pendingRetryCounts[entry.id] ?? 0) + 1
+                pendingRetryCounts[entry.id] = attempt
+                if attempt >= Self.pendingRetryCap {
+                    AppLogger.log("[FoodLog] Pending entry giving up after \(attempt) attempts: \(error.localizedDescription)")
+                } else {
+                    AppLogger.log("[FoodLog] Pending entry retry \(attempt)/\(Self.pendingRetryCap) failed: \(error.localizedDescription)")
+                }
             }
         }
     }
