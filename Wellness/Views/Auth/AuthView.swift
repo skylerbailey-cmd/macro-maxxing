@@ -400,6 +400,9 @@ struct AuthView: View {
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             }
+            // Match the Apple button's 375pt HIG cap so the two buttons render
+            // at identical widths on all device sizes.
+            .frame(maxWidth: 375)
             .padding(.horizontal, 24)
         }
     }
