@@ -4,6 +4,16 @@
 //
 
 import UIKit
+import Network
+
+/// Per-entry sync status used only by the UI — never persisted. Derived
+/// from pendingLocalEntries + pendingRetryCounts so there's one source
+/// of truth for "is this row actually on the server yet?".
+enum FoodEntrySyncState {
+    case synced   // confirmed in Firestore
+    case pending  // local-only, still in the retry window
+    case failed   // local-only, retries exhausted — user action required
+}
 
 enum AnalysisState: Equatable {
     case idle
@@ -86,6 +96,24 @@ enum AnalysisTier: Equatable {
     private var flushingIDs: Set<UUID> = []
     private static let pendingRetryCap = 3
 
+    // MARK: - Sync failure surface
+
+    /// Alert message for the first sync failure of the session. The view
+    /// binds to this; setting it to nil dismisses the alert. We only set
+    /// it once per session so a flaky network doesn't spam the user —
+    /// the per-row badge (see `syncState(for:)`) keeps surfacing any
+    /// stranded entries until they're resolved.
+    var syncFailureAlert: String? = nil
+    private var hasShownSyncFailureAlertThisSession = false
+
+    // MARK: - Network monitoring (auto-retry on reconnect)
+
+    /// Posts `.satisfied` transitions so we can flush pending uploads
+    /// the moment connectivity returns, instead of waiting for the
+    /// user to switch tabs or change dates.
+    nonisolated(unsafe) private let networkMonitor = NWPathMonitor()
+    nonisolated(unsafe) private var wasOnline = true
+
     private let recognitionManager = FoodRecognitionManager.shared
     var userID: String
 
@@ -131,6 +159,53 @@ enum AnalysisTier: Equatable {
          userID: String = "") {
         self.selectedDate = selectedDate
         self.userID       = userID
+        startNetworkMonitor()
+    }
+
+    deinit {
+        networkMonitor.cancel()
+    }
+
+    /// Watches for .satisfied transitions and triggers a flush of any
+    /// stranded pending entries. Firestore writes auto-queue offline
+    /// via its built-in persistence, but Storage uploads don't —
+    /// flushPendingEntries is our manual offline queue for those.
+    private func startNetworkMonitor() {
+        networkMonitor.pathUpdateHandler = { [weak self] path in
+            guard let self else { return }
+            let nowOnline = path.status == .satisfied
+            let cameBackOnline = nowOnline && !self.wasOnline
+            self.wasOnline = nowOnline
+            guard cameBackOnline else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                // Reset retry counters so previously "gave-up" entries
+                // get another real chance now that we're back online.
+                for id in self.pendingRetryCounts.keys { self.pendingRetryCounts[id] = 0 }
+                await self.flushPendingEntries()
+            }
+        }
+        networkMonitor.start(queue: DispatchQueue(label: "FoodLogViewModel.network"))
+    }
+
+    // MARK: - Sync state API (consumed by FoodLogView)
+
+    /// What the UI should show for a given row: synced, pending retry,
+    /// or permanently-failed-until-user-retries.
+    func syncState(for entry: FoodEntry) -> FoodEntrySyncState {
+        // Anything not in pendingLocalEntries is confirmed synced.
+        guard pendingLocalEntries.contains(where: { $0.id == entry.id }) else {
+            return .synced
+        }
+        let attempts = pendingRetryCounts[entry.id] ?? 0
+        return attempts >= Self.pendingRetryCap ? .failed : .pending
+    }
+
+    /// User-initiated retry: clears the counter and kicks a fresh flush.
+    /// Hooked up to the "Try again" action on a failed row.
+    func retrySync(_ entry: FoodEntry) {
+        pendingRetryCounts[entry.id] = 0
+        Task { await flushPendingEntries() }
     }
 
     func loadTodayEntries() async {
@@ -218,11 +293,33 @@ enum AnalysisTier: Equatable {
             } catch {
                 if attempt >= Self.pendingRetryCap {
                     AppLogger.log("[FoodLog] Pending entry giving up after \(attempt) attempts: \(error.localizedDescription)")
+                    // Surface a one-shot alert the first time a meal gives
+                    // up this session. The red badge on the row keeps
+                    // signalling the problem after the alert is dismissed.
+                    if !hasShownSyncFailureAlertThisSession {
+                        hasShownSyncFailureAlertThisSession = true
+                        syncFailureAlert = Self.userFacingMessage(for: error)
+                    }
                 } else {
                     AppLogger.log("[FoodLog] Pending entry retry \(attempt)/\(Self.pendingRetryCap) failed: \(error.localizedDescription)")
                 }
             }
         }
+    }
+
+    /// Maps a Firebase / networking error to a message the user can act on.
+    /// Offline surfaces differently — Firestore auto-queues offline writes,
+    /// so a connectivity-only failure isn't actually data loss and we say so.
+    private static func userFacingMessage(for error: Error) -> String {
+        let ns = error as NSError
+        let desc = ns.localizedDescription.lowercased()
+        if desc.contains("offline") || desc.contains("network") || desc.contains("internet") {
+            return "You're offline right now. Your meal is saved on this device and will upload automatically when you reconnect."
+        }
+        if desc.contains("permission") || desc.contains("unauthorized") {
+            return "We couldn't upload the photo for your meal. Tap the warning badge on the meal to try again."
+        }
+        return "We couldn't save your meal to the cloud. Tap the warning badge on the meal to try again."
     }
 
     func loadSavedMeals() async {
