@@ -127,14 +127,15 @@ struct WellnessApp: App {
     init() {
         // Configure App Check BEFORE FirebaseApp.configure() so the provider
         // factory is set when Firebase services request App Check tokens.
-        // DEBUG builds use AppCheckDebugProvider (you'll need to register the
-        // debug token printed to the console in Firebase Console → App Check →
-        // your app → Manage debug tokens).
-        // RELEASE builds use DeviceCheckProvider which is transparent to users.
+        // DEBUG builds use AppCheckDebugProvider (register the debug token
+        // printed to the console, or pin one via -FIRAAppCheckDebugToken, in
+        // Firebase Console → App Check → your app → Manage debug tokens).
+        // RELEASE builds use App Attest (hardware-backed, iOS 14+, real devices)
+        // and fall back to DeviceCheck on anything that doesn't support it.
         #if DEBUG
-        let providerFactory = AppCheckDebugProviderFactory()
+        let providerFactory: AppCheckProviderFactory = AppCheckDebugProviderFactory()
         #else
-        let providerFactory = DeviceCheckProviderFactory()
+        let providerFactory: AppCheckProviderFactory = AppAttestWithDeviceCheckFallbackProviderFactory()
         #endif
         AppCheck.setAppCheckProviderFactory(providerFactory)
 
@@ -253,5 +254,18 @@ struct WellnessApp: App {
                 }
             }
         }
+    }
+}
+
+/// Prefers App Attest (hardware-backed, iOS 14+ on real devices) and falls back
+/// to DeviceCheck on devices or environments where App Attest isn't available
+/// (e.g. older hardware, some enterprise-managed devices). Firebase doesn't
+/// ship a built-in App Attest factory, so we build one here.
+final class AppAttestWithDeviceCheckFallbackProviderFactory: NSObject, AppCheckProviderFactory {
+    func createProvider(with app: FirebaseApp) -> AppCheckProvider? {
+        if #available(iOS 14.0, *), let provider = AppAttestProvider(app: app) {
+            return provider
+        }
+        return DeviceCheckProvider(app: app)
     }
 }
