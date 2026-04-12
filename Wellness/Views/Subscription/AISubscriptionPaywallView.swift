@@ -171,13 +171,30 @@ struct AISubscriptionPaywallView: View {
 
     private var priceBox: some View {
         VStack(spacing: 6) {
-            Text("\(store.priceString) / \(store.periodString)")
-                .font(.system(size: 26, weight: .black, design: .rounded))
-                .foregroundStyle(.white)
-            Text("Auto-renews monthly. Cancel anytime in Settings.")
-                .font(.system(size: 12))
-                .foregroundStyle(.white.opacity(0.50))
-                .multilineTextAlignment(.center)
+            if store.isEligibleForIntroOffer {
+                Text("7 DAYS FREE")
+                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                    .tracking(1.5)
+                    .foregroundStyle(gold)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(gold.opacity(0.15), in: Capsule())
+                Text("then \(store.priceString) / \(store.periodString)")
+                    .font(.system(size: 22, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("You won't be charged until your trial ends. Cancel anytime.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .multilineTextAlignment(.center)
+            } else {
+                Text("\(store.priceString) / \(store.periodString)")
+                    .font(.system(size: 26, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("Auto-renews monthly. Cancel anytime in Settings.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.50))
+                    .multilineTextAlignment(.center)
+            }
         }
         .padding(.vertical, 16)
         .frame(maxWidth: .infinity)
@@ -202,7 +219,7 @@ struct AISubscriptionPaywallView: View {
                     if store.isPurchasing {
                         ProgressView().tint(.white)
                     } else {
-                        Text("Subscribe — \(store.priceString)/mo")
+                        Text(store.ctaString)
                             .font(.system(size: 16, weight: .bold))
                             .foregroundStyle(.white)
                     }
@@ -229,7 +246,7 @@ struct AISubscriptionPaywallView: View {
 
     private var legalFooter: some View {
         VStack(spacing: 6) {
-            Text("Payment charged to your Apple ID. Subscription auto-renews unless canceled at least 24 hours before the end of the current period. Manage or cancel in your Apple ID settings.")
+            Text(legalFooterText)
                 .font(.system(size: 11))
                 .foregroundStyle(.white.opacity(0.38))
                 .multilineTextAlignment(.center)
@@ -256,6 +273,16 @@ struct AISubscriptionPaywallView: View {
                 }
             }
         }
+    }
+
+    /// Apple requires the subscription terms disclosure on any paywall that
+    /// includes a free trial — including length, price after trial, and the
+    /// fact that it auto-renews. Reviewers reject paywalls that omit it.
+    private var legalFooterText: String {
+        if store.isEligibleForIntroOffer {
+            return "Your 7-day free trial begins after purchase. You won't be charged during the trial. After 7 days your subscription auto-renews at \(store.priceString)/\(store.periodString) and is charged to your Apple ID. Cancel anytime at least 24 hours before the end of the current period in your Apple ID settings — otherwise it renews automatically."
+        }
+        return "Payment charged to your Apple ID. Subscription auto-renews at \(store.priceString)/\(store.periodString) unless canceled at least 24 hours before the end of the current period. Manage or cancel in your Apple ID settings."
     }
 
     private var closeButton: some View {

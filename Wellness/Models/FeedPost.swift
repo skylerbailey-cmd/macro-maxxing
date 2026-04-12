@@ -79,6 +79,9 @@ struct FeedPost: Codable, Identifiable, Hashable {
     /// Macro streak at time of posting.
     var streak: Int = 0
 
+    /// True if the author had an active AI subscription when the post was created.
+    var isProSubscriber: Bool = false
+
     /// Meme badge key (e.g. "sigma", "gigachad", "roman"). Matches asset names.
     var memeType: String = ""
 
@@ -311,6 +314,7 @@ extension FeedPost {
         if data["fuelLogItems"]        == nil { data["fuelLogItems"]        = [[String: Any]]() }
         if data["workoutItems"]        == nil { data["workoutItems"]        = [[String: Any]]() }
         if data["isPublic"]            == nil { data["isPublic"]            = true }
+        if data["isProSubscriber"]     == nil { data["isProSubscriber"]     = false }
 
         // Pull Timestamps out before decoding (Firestore.Decoder can't map Timestamp→Date)
         let createdAtTs = data.removeValue(forKey: "createdAt") as? Timestamp

@@ -481,6 +481,47 @@ enum AnalysisTier: Equatable {
         Task { await FoodEntryService.shared.delete(entryID: entryID, userID: uid) }
     }
 
+    /// Creates a duplicate of the given entry with a fresh ID and the current
+    /// timestamp, inserts it at the top of today's log, and syncs to Firestore.
+    func duplicateEntry(_ entry: FoodEntry) {
+        let calendar = Calendar.current
+        var comps    = calendar.dateComponents([.year, .month, .day], from: selectedDate)
+        let now      = Date()
+        comps.hour   = calendar.component(.hour,   from: now)
+        comps.minute = calendar.component(.minute, from: now)
+        comps.second = calendar.component(.second, from: now)
+        let loggedAt = calendar.date(from: comps) ?? now
+
+        let dupe = FoodEntry(
+            loggedAt:  loggedAt,
+            userID:    entry.userID,
+            foodName:  entry.foodName,
+            calories:  entry.calories,
+            protein:   entry.protein,
+            carbs:     entry.carbs,
+            fat:       entry.fat,
+            imageData: entry.imageData
+        )
+        dupe.photoURL    = entry.photoURL
+        dupe.isSavedMeal = entry.isSavedMeal
+
+        todayEntries.insert(dupe, at: 0)
+        pendingLocalEntries.append(dupe)
+
+        NotificationCenter.default.post(name: FuelLogService.mealChangedNotification, object: nil)
+
+        Task {
+            do {
+                let result = try await FoodEntryService.shared.save(entry: dupe, image: nil)
+                dupe.firebaseEntryID = result.docID
+                if let url = result.photoURL, !url.isEmpty { dupe.photoURL = url }
+                pendingLocalEntries.removeAll { $0.id == dupe.id }
+            } catch {
+                AppLogger.log("[FoodLog] Duplicate save failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
     func deleteSavedMeal(_ meal: FoodEntry) {
         savedMeals.removeAll { $0.id == meal.id }
         let entryID = meal.firebaseEntryID

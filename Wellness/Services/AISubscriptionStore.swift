@@ -63,6 +63,11 @@ final class AISubscriptionStore {
     /// When the current subscription expires (if any). Nil when not subscribed.
     var expirationDate: Date? = nil
 
+    /// True when this Apple ID has never purchased anything in the subscription
+    /// group, so the App Store will honor the introductory offer (free trial)
+    /// on their next purchase. Refreshed alongside `loadProduct()`.
+    var isEligibleForIntroOffer: Bool = false
+
     // MARK: - Private
 
     private var updatesTask: Task<Void, Never>? = nil
@@ -86,16 +91,32 @@ final class AISubscriptionStore {
     /// Loads the subscription product from the App Store. Safe to call more
     /// than once — subsequent calls are no-ops once the product is cached.
     func loadProduct() async {
-        guard product == nil else { return }
-        do {
-            let results = try await Product.products(for: [Self.productID])
-            product = results.first
-            if product == nil {
-                AppLogger.log("[AISubscriptionStore] Product not found — check App Store Connect configuration")
+        if product == nil {
+            do {
+                let results = try await Product.products(for: [Self.productID])
+                product = results.first
+                if product == nil {
+                    AppLogger.log("[AISubscriptionStore] Product not found — check App Store Connect configuration")
+                }
+            } catch {
+                AppLogger.log("[AISubscriptionStore] Failed to load product: \(error)")
             }
-        } catch {
-            AppLogger.log("[AISubscriptionStore] Failed to load product: \(error)")
         }
+        // Eligibility can change (e.g. user upgrades to a new Apple ID) so we
+        // re-check every time the paywall appears, not just on first load.
+        await refreshIntroEligibility()
+    }
+
+    /// Refreshes whether the current Apple ID is eligible for the introductory
+    /// offer (7-day free trial). Apple enforces this server-side — we mirror
+    /// it locally so the paywall can display the right copy.
+    func refreshIntroEligibility() async {
+        guard let subscription = product?.subscription else {
+            isEligibleForIntroOffer = false
+            return
+        }
+        let eligible = await subscription.isEligibleForIntroOffer
+        isEligibleForIntroOffer = eligible && subscription.introductoryOffer != nil
     }
 
     /// Recomputes `isSubscribed` / `expirationDate` from the user's current
@@ -207,6 +228,41 @@ final class AISubscriptionStore {
         case .month: return "month"
         case .year:  return "year"
         @unknown default: return "month"
+        }
+    }
+
+    /// Short headline shown on the paywall price box (e.g. "7 days free, then
+    /// $9.99/month" when a trial is available, otherwise "$9.99 / month").
+    var headlineString: String {
+        if isEligibleForIntroOffer,
+           let offer = product?.subscription?.introductoryOffer,
+           offer.paymentMode == .freeTrial {
+            let days = trialDayCount(offer.period)
+            return "\(days) days free, then \(priceString)/\(periodString)"
+        }
+        return "\(priceString) / \(periodString)"
+    }
+
+    /// Headline for the CTA button (e.g. "Start Free Trial" / "Subscribe —
+    /// $9.99/mo").
+    var ctaString: String {
+        if isEligibleForIntroOffer,
+           let offer = product?.subscription?.introductoryOffer,
+           offer.paymentMode == .freeTrial {
+            return "Start Free Trial"
+        }
+        return "Subscribe — \(priceString)/mo"
+    }
+
+    /// Converts a SubscriptionPeriod (e.g. 1 week) into an integer day count
+    /// for display ("7 days free" reads better than "1 week free").
+    private func trialDayCount(_ period: Product.SubscriptionPeriod) -> Int {
+        switch period.unit {
+        case .day:   return period.value
+        case .week:  return period.value * 7
+        case .month: return period.value * 30
+        case .year:  return period.value * 365
+        @unknown default: return period.value
         }
     }
 

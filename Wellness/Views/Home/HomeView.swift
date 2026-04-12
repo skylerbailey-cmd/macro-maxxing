@@ -774,8 +774,10 @@ struct HomeView: View {
             } label: {
                 HStack(spacing: 6) {
                     if !aiSubscription.isSubscribed {
-                        Image(systemName: "lock.fill")
-                        Text("Unlock AI Meal Planner")
+                        Image(systemName: "sparkles")
+                        Text(aiSubscription.isEligibleForIntroOffer
+                             ? "Try AI Free for 7 Days"
+                             : "Unlock AI Meal Planner")
                     } else if viewModel.userSettings.brainstormLimitReached {
                         Image(systemName: "xmark.circle.fill")
                         Text("Daily limit reached (2/2)")

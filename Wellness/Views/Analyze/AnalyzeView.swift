@@ -129,11 +129,13 @@ struct AnalyzeView: View {
             }
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: aiSubscription.isSubscribed ? "wand.and.stars" : "lock.fill")
+                Image(systemName: aiSubscription.isSubscribed ? "wand.and.stars" : "sparkles")
                     .font(.system(size: 16, weight: .semibold))
                 Text(aiSubscription.isSubscribed
                      ? (viewModel.state == .idle ? "Analyze" : "Re-Analyze")
-                     : "Unlock AI Nutrition Coach")
+                     : (aiSubscription.isEligibleForIntroOffer
+                        ? "Try AI Free for 7 Days"
+                        : "Unlock AI Nutrition Coach"))
                     .font(.headline)
             }
             .frame(maxWidth: .infinity)
