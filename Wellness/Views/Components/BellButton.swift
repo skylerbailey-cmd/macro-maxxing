@@ -54,5 +54,8 @@ struct BellButton: View {
         .onChange(of: notificationState.unreadCount) { _, count in
             if count > 0 { ringTrigger += 1 }
         }
+        .accessibilityLabel("Notifications")
+        .accessibilityValue(hasUnread ? "\(notificationState.unreadCount) unread" : "No unread notifications")
+        .accessibilityHint("Opens your notifications")
     }
 }
