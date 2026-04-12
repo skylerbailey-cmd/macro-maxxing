@@ -508,7 +508,7 @@ private struct SavedMealsSheet: View {
         entry.photoURL = meal.photoURL
 
         Task {
-            _ = try? await FoodEntryService.shared.save(entry: entry, image: nil, existingPhotoURL: meal.photoURL)
+            _ = try? await FoodEntryService.shared.save(entry: entry, imageData: nil, existingPhotoURL: meal.photoURL)
             // Post notification so FoodLogView refreshes
             NotificationCenter.default.post(name: .init("FoodEntryAdded"), object: nil)
         }
