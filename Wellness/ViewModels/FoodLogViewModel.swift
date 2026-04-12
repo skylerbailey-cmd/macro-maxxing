@@ -77,6 +77,13 @@ enum AnalysisTier: Equatable {
     /// token, exhausted quota) can't hammer Firebase forever. Reset
     /// whenever the entry successfully syncs or is dropped.
     private var pendingRetryCounts: [UUID: Int] = [:]
+    /// Entries with an in-flight flush attempt. Used to prevent two
+    /// overlapping `flushPendingEntries` calls (e.g. from tab refresh
+    /// + subscription refresh firing `loadTodayEntries` concurrently)
+    /// from both racing on the same entry — which would bypass the
+    /// retry cap because neither had incremented the counter before
+    /// the other filtered.
+    private var flushingIDs: Set<UUID> = []
     private static let pendingRetryCap = 3
 
     private let recognitionManager = FoodRecognitionManager.shared
@@ -176,13 +183,30 @@ enum AnalysisTier: Equatable {
     /// permission issue that will never self-heal).
     private func flushPendingEntries() async {
         // Snapshot so concurrent saveEntry() calls that mutate pendingLocalEntries
-        // during awaits don't throw us off.
+        // during awaits don't throw us off. Exclude anything that's already at
+        // the retry cap or currently being flushed by a concurrent call (two
+        // loadTodayEntries() tasks can overlap around the `await save` point).
         let pending = pendingLocalEntries.filter {
             $0.firebaseEntryID.isEmpty &&
-            (pendingRetryCounts[$0.id] ?? 0) < Self.pendingRetryCap
+            (pendingRetryCounts[$0.id] ?? 0) < Self.pendingRetryCap &&
+            !flushingIDs.contains($0.id)
         }
         guard !pending.isEmpty else { return }
+
+        // Reserve each entry AND pre-increment the retry counter before the
+        // await. If another flush runs concurrently, it'll see the bumped
+        // count / flushingIDs entry and skip — so a failing entry can never
+        // exceed `pendingRetryCap` total attempts across overlapping tasks.
         for entry in pending {
+            flushingIDs.insert(entry.id)
+        }
+        defer {
+            for entry in pending { flushingIDs.remove(entry.id) }
+        }
+
+        for entry in pending {
+            let attempt = (pendingRetryCounts[entry.id] ?? 0) + 1
+            pendingRetryCounts[entry.id] = attempt
             let image = entry.imageData.flatMap { UIImage(data: $0) }
             do {
                 let result = try await FoodEntryService.shared.save(entry: entry, image: image)
@@ -190,8 +214,6 @@ enum AnalysisTier: Equatable {
                 entry.photoURL        = result.photoURL
                 pendingRetryCounts.removeValue(forKey: entry.id)
             } catch {
-                let attempt = (pendingRetryCounts[entry.id] ?? 0) + 1
-                pendingRetryCounts[entry.id] = attempt
                 if attempt >= Self.pendingRetryCap {
                     AppLogger.log("[FoodLog] Pending entry giving up after \(attempt) attempts: \(error.localizedDescription)")
                 } else {
@@ -494,6 +516,7 @@ enum AnalysisTier: Equatable {
     func deleteEntry(_ entry: FoodEntry) {
         todayEntries.removeAll { $0.id == entry.id }
         pendingLocalEntries.removeAll { $0.id == entry.id }
+        pendingRetryCounts.removeValue(forKey: entry.id)
 
         NotificationCenter.default.post(name: FuelLogService.mealChangedNotification, object: nil)
 
