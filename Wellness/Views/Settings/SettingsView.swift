@@ -466,12 +466,21 @@ struct SettingsView: View {
                         showingAIPaywall = true
                     } label: {
                         HStack {
-                            Label("Unlock AI Features", systemImage: "sparkles")
-                                .foregroundStyle(.primary)
+                            Label(
+                                aiSubscription.isEligibleForIntroOffer
+                                    ? "Try AI Free for 7 Days"
+                                    : "Unlock AI Features",
+                                systemImage: "sparkles"
+                            )
+                            .foregroundStyle(.primary)
                             Spacer()
-                            Text(aiSubscription.priceString + "/mo")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(Color.purpleHi)
+                            Text(
+                                aiSubscription.isEligibleForIntroOffer
+                                    ? "Free trial"
+                                    : aiSubscription.priceString + "/mo"
+                            )
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color.purpleHi)
                         }
                     }
                     .buttonStyle(.plain)

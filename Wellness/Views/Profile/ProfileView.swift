@@ -320,9 +320,27 @@ struct ProfileView: View {
 
                 // Name + handle
                 VStack(spacing: 3) {
-                    Text(displayName)
-                        .font(.system(size: 24, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
+                    HStack(spacing: 8) {
+                        Text(displayName)
+                            .font(.system(size: 24, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
+                        if isOwnProfile && AISubscriptionStore.shared.isSubscribed {
+                            Text("PRO")
+                                .font(.system(size: 10, weight: .black, design: .rounded))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(
+                                    LinearGradient(
+                                        colors: [Color(red: 0.65, green: 0.45, blue: 1.00),
+                                                 Color(red: 0.45, green: 0.30, blue: 0.95)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    ),
+                                    in: Capsule()
+                                )
+                        }
+                    }
 
                     HStack(spacing: 6) {
                         if !profileUsername.isEmpty {

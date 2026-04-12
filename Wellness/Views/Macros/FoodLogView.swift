@@ -295,9 +295,10 @@ struct FoodLogView: View {
             
             ForEach(viewModel.todayEntries) { entry in
                 FoodEntryRow(entry: entry,
-                             onEdit:   isEditableDate ? { editingEntry = entry } : {},
-                             onDelete: { viewModel.deleteEntry(entry) },
-                             canEdit:  isEditableDate)
+                             onEdit:      isEditableDate ? { editingEntry = entry } : {},
+                             onDelete:    { viewModel.deleteEntry(entry) },
+                             onDuplicate: isEditableDate ? { viewModel.duplicateEntry(entry) } : nil,
+                             canEdit:     isEditableDate)
             }
         }
     }
@@ -352,7 +353,9 @@ struct FoodLogView: View {
                                   loggedAt: time)
         }, onDelete: {
             viewModel.deleteEntry(entry)
-        })
+        }, onDuplicate: isEditableDate ? {
+            viewModel.duplicateEntry(entry)
+        } : nil)
         .presentationDetents([.medium])
     }
     
@@ -588,8 +591,10 @@ struct FoodLogView: View {
             } label: {
                 HStack(spacing: 6) {
                     if !aiSubscription.isSubscribed {
-                        Image(systemName: "lock.fill")
-                        Text("Unlock AI Nutrition Coach")
+                        Image(systemName: "sparkles")
+                        Text(aiSubscription.isEligibleForIntroOffer
+                             ? "Try AI Free for 7 Days"
+                             : "Unlock AI Nutrition Coach")
                     } else if analyzeVM.hasRunToday {
                         Image(systemName: "checkmark.circle.fill")
                         Text("Done for Today")
@@ -1378,10 +1383,11 @@ private struct AnalysisSheet: View {
 // MARK: - Food Entry Row
 
 private struct FoodEntryRow: View {
-    let entry:    FoodEntry
-    let onEdit:   () -> Void
-    let onDelete: () -> Void
-    var canEdit:  Bool = true
+    let entry:       FoodEntry
+    let onEdit:      () -> Void
+    let onDelete:    () -> Void
+    var onDuplicate: (() -> Void)? = nil
+    var canEdit:     Bool = true
 
     @State private var showScoreInfo = false
 
@@ -1392,6 +1398,9 @@ private struct FoodEntryRow: View {
                 .onTapGesture { onEdit() }
                 .contextMenu {
                     Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
+                    if let onDuplicate {
+                        Button { onDuplicate() } label: { Label("Duplicate", systemImage: "doc.on.doc") }
+                    }
                     Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
                 }
         } else {
@@ -1679,6 +1688,7 @@ private struct EditEntrySheet: View {
     let entry: FoodEntry
     let onSave: (String, Double, Double, Double, Double, Date) -> Void
     var onDelete: (() -> Void)? = nil
+    var onDuplicate: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focus: Field?
 
@@ -1754,15 +1764,29 @@ private struct EditEntrySheet: View {
                         .font(.caption)
                     }
                 }
-                if onDelete != nil {
+                if onDuplicate != nil || onDelete != nil {
                     Section {
-                        Button(role: .destructive) {
-                            showDeleteConfirm = true
-                        } label: {
-                            HStack {
-                                Spacer()
-                                Text("Delete Entry")
-                                Spacer()
+                        if let onDuplicate {
+                            Button {
+                                onDuplicate()
+                                dismiss()
+                            } label: {
+                                HStack {
+                                    Spacer()
+                                    Label("Duplicate Meal", systemImage: "doc.on.doc")
+                                    Spacer()
+                                }
+                            }
+                        }
+                        if onDelete != nil {
+                            Button(role: .destructive) {
+                                showDeleteConfirm = true
+                            } label: {
+                                HStack {
+                                    Spacer()
+                                    Text("Delete Entry")
+                                    Spacer()
+                                }
                             }
                         }
                     }
@@ -2107,7 +2131,8 @@ private struct FuelLogPostSheet: View {
             auraTitle:           userSettings.auraTitle,
             streak:              userSettings.macroStreak,
             memeType:            "",
-            isPublic:            !userSettings.isPrivateAccount
+            isPublic:            !userSettings.isPrivateAccount,
+            isProSubscriber:     AISubscriptionStore.shared.isSubscribed
         )
         let firestoreFuelItems = entries.enumerated().map { i, e in
             FeedFuelLogItem(

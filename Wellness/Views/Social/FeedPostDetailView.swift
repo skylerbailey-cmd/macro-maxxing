@@ -206,9 +206,27 @@ struct FeedPostDetailView: View {
             .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(post.whoName.isEmpty ? post.username : post.whoName)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
+                HStack(spacing: 5) {
+                    Text(post.whoName.isEmpty ? post.username : post.whoName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                    if post.isProSubscriber {
+                        Text("PRO")
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color(red: 0.65, green: 0.45, blue: 1.00),
+                                             Color(red: 0.45, green: 0.30, blue: 0.95)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                in: Capsule()
+                            )
+                    }
+                }
                 Text("@\(post.username) · \(timeAgo(from: post.createdAtDate ?? Date()))")
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.35))

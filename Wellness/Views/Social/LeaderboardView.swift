@@ -408,7 +408,8 @@ struct LeaderboardView: View {
             auraTitle:           userSettings.auraTitle,
             streak:              userSettings.macroStreak,
             memeType:            "",
-            isPublic:            !userSettings.isPrivateAccount
+            isPublic:            !userSettings.isPrivateAccount,
+            isProSubscriber:     AISubscriptionStore.shared.isSubscribed
         )
         Task {
             do {

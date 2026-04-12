@@ -377,6 +377,23 @@ struct FeedPostCard: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white)
 
+                    if post.isProSubscriber {
+                        Text("PRO")
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color(red: 0.65, green: 0.45, blue: 1.00),
+                                             Color(red: 0.45, green: 0.30, blue: 0.95)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                in: Capsule()
+                            )
+                    }
+
                     if post.auraPoints > 0 {
                         Text("⭐ Lv \(post.auraLevel)")
                             .font(.system(size: 10, weight: .bold, design: .rounded))

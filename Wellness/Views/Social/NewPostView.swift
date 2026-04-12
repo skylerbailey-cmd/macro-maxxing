@@ -840,7 +840,8 @@ struct NewPostView: View {
             auraTitle:           userSettings.auraTitle,
             streak:              userSettings.macroStreak,
             memeType:            "",
-            isPublic:            !userSettings.isPrivateAccount
+            isPublic:            !userSettings.isPrivateAccount,
+            isProSubscriber:     AISubscriptionStore.shared.isSubscribed
         )
 
         let postCompletedCallback = onPostCompleted
