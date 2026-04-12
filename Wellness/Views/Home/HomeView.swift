@@ -28,9 +28,6 @@ struct HomeView: View {
     @State private var showingCheatDay       = false
     @State private var showingStreakExtension = false
     @State private var showingAIPaywall       = false
-    #if DEBUG
-    @State private var debugShowingStreakShield = false
-    #endif
     @State private var aiSubscription = AISubscriptionStore.shared
 
     private enum BrainstormAlert: Identifiable {
@@ -180,15 +177,6 @@ struct HomeView: View {
                     }
                 )
             }
-            #if DEBUG
-            .sheet(isPresented: $debugShowingStreakShield) {
-                StreakShieldView(
-                    brokenStreak: max(viewModel.macroStreak, 7),
-                    onRestore:  { debugShowingStreakShield = false },
-                    onDismiss:  { debugShowingStreakShield = false }
-                )
-            }
-            #endif
             .sheet(isPresented: $showingAIPaywall) {
                 AISubscriptionPaywallView(
                     onSubscribed: {
@@ -279,15 +267,6 @@ struct HomeView: View {
                                 .foregroundStyle(.white.opacity(0.65))
                         }
                         .buttonStyle(.plain)
-                        #if DEBUG
-                        Button { debugShowingStreakShield = true } label: {
-                            Image(systemName: "ladybug.fill")
-                                .font(.system(size: 20))
-                                .foregroundStyle(.white.opacity(0.65))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Debug: Present Streak Shield")
-                        #endif
                         BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
                         Button { showingProfile = true } label: {
                             profileAvatarIcon
