@@ -1,0 +1,96 @@
+{
+  "identifier" : "4F2B8A1C-9E7D-4C3F-B1A2-5D6E8F9A0B1C",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "CheatDayProduct01",
+      "localizations" : [
+        {
+          "description" : "Skip logging today without breaking your streak.",
+          "displayName" : "Cheat Day",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.sbailey.Wellness.cheatDay",
+      "referenceName" : "Cheat Day",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "StreakExtensionProduct01",
+      "localizations" : [
+        {
+          "description" : "Extend your macro streak for 7 days without logging.",
+          "displayName" : "7-Day Streak Extension",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.sbailey.Wellness.streakExtension",
+      "referenceName" : "Streak Extension",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "StreakShieldProduct01",
+      "localizations" : [
+        {
+          "description" : "Restore a broken streak once.",
+          "displayName" : "Streak Shield",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.sbailey.Wellness.streakRestore",
+      "referenceName" : "Streak Shield",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "AIFeaturesGroup01",
+      "localizations" : [
+
+      ],
+      "name" : "AI Features",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "AIMonthlySubscription01",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlocks AI Meal Planner, AI Nutrition Coach, AI meal logging, and AI workout logging.",
+              "displayName" : "AI Features Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.sbailey.Wellness.aiMonthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "AI Monthly",
+          "subscriptionGroupID" : "AIFeaturesGroup01",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

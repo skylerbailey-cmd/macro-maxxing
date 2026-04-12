@@ -33,6 +33,8 @@ struct LogWorkoutSheet: View {
     @State private var speechRecognizer = SpeechRecognizer()
     @State private var aiState: AIState = .idle
     @State private var editableTranscript = ""
+    @State private var aiSubscription = AISubscriptionStore.shared
+    @State private var showingAIPaywall = false
 
     // Saved templates
     @State private var savedWorkouts: [SavedWorkout] = []
@@ -149,7 +151,22 @@ struct LogWorkoutSheet: View {
                 }
             }
             .preferredColorScheme(.dark)
-            .onAppear { savedWorkouts = WorkoutService.shared.savedWorkouts }
+            .onAppear {
+                savedWorkouts = WorkoutService.shared.savedWorkouts
+                Task {
+                    await aiSubscription.loadProduct()
+                    await aiSubscription.refreshEntitlement()
+                }
+            }
+            .sheet(isPresented: $showingAIPaywall) {
+                AISubscriptionPaywallView(
+                    onSubscribed: {
+                        showingAIPaywall = false
+                        Task { await analyzeTranscript() }
+                    },
+                    onDismiss: { showingAIPaywall = false }
+                )
+            }
             .alert("Delete Saved Workout?", isPresented: Binding(
                 get: { workoutToDelete != nil },
                 set: { if !$0 { workoutToDelete = nil } }
@@ -355,11 +372,24 @@ struct LogWorkoutSheet: View {
     }
 
     private var analyzeButton: some View {
-        Button { Task { await analyzeTranscript() } } label: {
+        Button {
+            if aiSubscription.isSubscribed {
+                Task { await analyzeTranscript() }
+            } else {
+                showingAIPaywall = true
+            }
+        } label: {
             HStack(spacing: 8) {
-                if aiState == .analyzing { ProgressView().tint(accent) }
-                else { Image(systemName: "sparkles") }
-                Text(aiState == .analyzing ? "Analyzing…" : "Generate with AI")
+                if aiState == .analyzing {
+                    ProgressView().tint(accent)
+                } else if aiSubscription.isSubscribed {
+                    Image(systemName: "sparkles")
+                } else {
+                    Image(systemName: "lock.fill")
+                }
+                Text(aiState == .analyzing
+                     ? "Analyzing…"
+                     : (aiSubscription.isSubscribed ? "Generate with AI" : "Unlock AI Workout Logging"))
             }
             .font(.system(size: 15, weight: .semibold))
             .foregroundStyle(aiState == .analyzing ? .white.opacity(0.45) : .black)

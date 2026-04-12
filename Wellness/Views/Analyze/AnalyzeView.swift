@@ -12,6 +12,8 @@ struct AnalyzeView: View {
     @State private var viewModel: AnalyzeViewModel
     @Binding var selectedDate: Date
     @Environment(SessionManager.self) private var sessionManager
+    @State private var aiSubscription = AISubscriptionStore.shared
+    @State private var showingPaywall = false
 
     init(selectedDate: Binding<Date>) {
         _selectedDate = selectedDate
@@ -68,10 +70,25 @@ struct AnalyzeView: View {
             if let userID = sessionManager.currentUID {
                 viewModel = AnalyzeViewModel(userID: userID, selectedDate: selectedDate)
             }
+            // Kick off product/entitlement load so the Analyze button reflects
+            // the correct subscription state on first render.
+            Task {
+                await aiSubscription.loadProduct()
+                await aiSubscription.refreshEntitlement()
+            }
         }
         .onChange(of: selectedDate) { _, newDate in
             viewModel.selectedDate = newDate
             viewModel.reset()
+        }
+        .sheet(isPresented: $showingPaywall) {
+            AISubscriptionPaywallView(
+                onSubscribed: {
+                    showingPaywall = false
+                    Task { await viewModel.analyze() }
+                },
+                onDismiss: { showingPaywall = false }
+            )
         }
     }
 
@@ -105,12 +122,18 @@ struct AnalyzeView: View {
 
     private var analyzeButton: some View {
         Button {
-            Task { await viewModel.analyze() }
+            if aiSubscription.isSubscribed {
+                Task { await viewModel.analyze() }
+            } else {
+                showingPaywall = true
+            }
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: "wand.and.stars")
+                Image(systemName: aiSubscription.isSubscribed ? "wand.and.stars" : "lock.fill")
                     .font(.system(size: 16, weight: .semibold))
-                Text(viewModel.state == .idle ? "Analyze" : "Re-Analyze")
+                Text(aiSubscription.isSubscribed
+                     ? (viewModel.state == .idle ? "Analyze" : "Re-Analyze")
+                     : "Unlock AI Nutrition Coach")
                     .font(.headline)
             }
             .frame(maxWidth: .infinity)

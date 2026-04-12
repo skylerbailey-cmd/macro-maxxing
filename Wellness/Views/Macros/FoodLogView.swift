@@ -26,6 +26,10 @@ struct FoodLogView: View {
     // Single active-sheet enum for the meal-logging flow
     @State private var activeMealSheet: MealSheet? = nil
     @State private var showingAIConsent = false
+    @State private var showingAIPaywall = false
+    @State private var aiSubscription = AISubscriptionStore.shared
+    /// Pending meal sheet kind to open once the user subscribes (camera / photoLibrary).
+    @State private var pendingMealSheetAfterSubscribe: MealSheet? = nil
 
     enum MealSheet: Identifiable {
         case camera
@@ -96,7 +100,11 @@ struct FoodLogView: View {
             .onChange(of: selectedDate, handleDateChange)
             .onChange(of: viewModel.selectedImage) { _, newValue in
                 guard newValue != nil else { return }
-                if userSettings.aiConsentGiven {
+                // AI meal logging is a paid feature — gate before the consent
+                // sheet or the analysis sheet.
+                if !aiSubscription.isSubscribed {
+                    showingAIPaywall = true
+                } else if userSettings.aiConsentGiven {
                     activeMealSheet = .analysis
                 } else {
                     showingAIConsent = true
@@ -148,6 +156,29 @@ struct FoodLogView: View {
                     onDecline: {
                         // Switch to manual entry mode — user can still log food without AI
                         viewModel.analysisState = .result
+                    }
+                )
+            }
+            .sheet(isPresented: $showingAIPaywall) {
+                AISubscriptionPaywallView(
+                    onSubscribed: {
+                        showingAIPaywall = false
+                        // Resume whatever AI action the user was trying to take.
+                        if viewModel.selectedImage != nil {
+                            if userSettings.aiConsentGiven {
+                                activeMealSheet = .analysis
+                            } else {
+                                showingAIConsent = true
+                            }
+                        }
+                    },
+                    onDismiss: {
+                        showingAIPaywall = false
+                        // If they had selected an image for AI analysis, drop it
+                        // — they can still log manually with a different flow.
+                        if viewModel.selectedImage != nil {
+                            viewModel.discardEntry()
+                        }
                     }
                 )
             }
@@ -395,6 +426,11 @@ struct FoodLogView: View {
         wStartMin  = UserDefaults.standard.integer(forKey: "windowStartMinute")
         let d = UserDefaults.standard.integer(forKey: "windowDurationHours")
         wDuration  = d > 0 ? d : 16
+        // Refresh AI subscription state so paid/locked buttons render correctly.
+        Task {
+            await aiSubscription.loadProduct()
+            await aiSubscription.refreshEntitlement()
+        }
     }
     
     private func handleDateChange(_ oldDate: Date, _ newDate: Date) {
@@ -542,23 +578,33 @@ struct FoodLogView: View {
 
             // Button
             Button {
-                if !userSettings.aiConsentGiven {
+                if !aiSubscription.isSubscribed {
+                    showingAIPaywall = true
+                } else if !userSettings.aiConsentGiven {
                     showingAIConsent = true
                 } else {
                     showLogMealsConfirm = true
                 }
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: analyzeVM.hasRunToday ? "checkmark.circle.fill" : "wand.and.stars")
-                    Text(analyzeVM.hasRunToday ? "Done for Today" : "Get My Recommendation")
+                    if !aiSubscription.isSubscribed {
+                        Image(systemName: "lock.fill")
+                        Text("Unlock AI Nutrition Coach")
+                    } else if analyzeVM.hasRunToday {
+                        Image(systemName: "checkmark.circle.fill")
+                        Text("Done for Today")
+                    } else {
+                        Image(systemName: "wand.and.stars")
+                        Text("Get My Recommendation")
+                    }
                 }
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
             }
             .buttonStyle(.borderedProminent)
-            .tint(analyzeVM.hasRunToday ? .gray : Color.purpleHi)
-            .disabled(analyzeVM.state == .analyzing || analyzeVM.hasRunToday)
+            .tint(analyzeVM.hasRunToday && aiSubscription.isSubscribed ? .gray : Color.purpleHi)
+            .disabled(aiSubscription.isSubscribed && (analyzeVM.state == .analyzing || analyzeVM.hasRunToday))
             .alert("Get My Recommendation?", isPresented: $showLogMealsConfirm) {
                 Button("Let's Go", role: .none) {
                     let doAnalyze = { Task { await analyzeVM.analyze() } }

@@ -27,6 +27,8 @@ struct HomeView: View {
     @State private var showingNotifications = false
     @State private var showingCheatDay       = false
     @State private var showingStreakExtension = false
+    @State private var showingAIPaywall       = false
+    @State private var aiSubscription = AISubscriptionStore.shared
 
     private enum BrainstormAlert: Identifiable {
         case confirm, limitReached
@@ -173,6 +175,22 @@ struct HomeView: View {
                     onDismiss: {
                         showingStreakExtension = false
                     }
+                )
+            }
+            .sheet(isPresented: $showingAIPaywall) {
+                AISubscriptionPaywallView(
+                    onSubscribed: {
+                        // Re-enter the brainstorm flow now that access is unlocked.
+                        showingAIPaywall = false
+                        if !viewModel.userSettings.aiConsentGiven {
+                            showingAIConsent = true
+                        } else if viewModel.userSettings.brainstormLimitReached {
+                            brainstormAlert = .limitReached
+                        } else {
+                            brainstormAlert = .confirm
+                        }
+                    },
+                    onDismiss: { showingAIPaywall = false }
                 )
             }
     }
@@ -508,6 +526,12 @@ struct HomeView: View {
         Task { viewModel.loadTodayTotals() }
         // lockPastWindows is now called once at app launch (ContentView.onAppear)
         // instead of every time this view appears, to avoid expensive batch writes.
+        // Load the AI subscription product + entitlement so the brainstorm
+        // button reflects the correct locked/unlocked state on first render.
+        Task {
+            await aiSubscription.loadProduct()
+            await aiSubscription.refreshEntitlement()
+        }
     }
     
     private func handleDateChange(_ newDate: Date) {
@@ -738,7 +762,9 @@ struct HomeView: View {
             }
 
             Button {
-                if !viewModel.userSettings.aiConsentGiven {
+                if !aiSubscription.isSubscribed {
+                    showingAIPaywall = true
+                } else if !viewModel.userSettings.aiConsentGiven {
                     showingAIConsent = true
                 } else if viewModel.userSettings.brainstormLimitReached {
                     brainstormAlert = .limitReached
@@ -747,10 +773,14 @@ struct HomeView: View {
                 }
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: viewModel.userSettings.brainstormLimitReached ? "xmark.circle.fill" : "lightbulb.fill")
-                    if viewModel.userSettings.brainstormLimitReached {
+                    if !aiSubscription.isSubscribed {
+                        Image(systemName: "lock.fill")
+                        Text("Unlock AI Meal Planner")
+                    } else if viewModel.userSettings.brainstormLimitReached {
+                        Image(systemName: "xmark.circle.fill")
                         Text("Daily limit reached (2/2)")
                     } else {
+                        Image(systemName: "lightbulb.fill")
                         Text(viewModel.brainstormState == .idle ? "Brainstorm next meal" : "Re-Brainstorm")
                         Text("(\(viewModel.userSettings.brainstormUsesRemaining) left today)")
                             .opacity(0.65)
@@ -761,9 +791,11 @@ struct HomeView: View {
                 .padding(.vertical, 11)
             }
             .buttonStyle(.borderedProminent)
-            .tint(viewModel.userSettings.brainstormLimitReached
-                  ? Color.gray
-                  : Color(red: 0.65, green: 0.45, blue: 1.0))
+            .tint(
+                aiSubscription.isSubscribed && viewModel.userSettings.brainstormLimitReached
+                ? Color.gray
+                : Color(red: 0.65, green: 0.45, blue: 1.0)
+            )
             .disabled(viewModel.brainstormState == .loading)
             .alert(item: $brainstormAlert) { alert in
                 switch alert {

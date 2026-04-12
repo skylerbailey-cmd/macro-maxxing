@@ -130,6 +130,11 @@ struct SettingsView: View {
     @State private var usernameState: UsernameState = .idle
     @State private var usernameCheckTask: Task<Void, Never>? = nil
 
+    // Subscription
+    @State private var aiSubscription = AISubscriptionStore.shared
+    @State private var showingAIPaywall = false
+    @State private var subscriptionStatusMessage: String? = nil
+
     /// Two-way binding that converts the hour/minute ints on UserSettings to a Date for DatePicker.
     private var mealReminderTimeBinding: Binding<Date> {
         Binding<Date>(
@@ -420,6 +425,87 @@ struct SettingsView: View {
                 }
             }
 
+            // MARK: Subscription
+            Section {
+                if aiSubscription.isSubscribed {
+                    HStack {
+                        Label("AI Features", systemImage: "checkmark.seal.fill")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text("Active")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.green)
+                    }
+                    if let expires = aiSubscription.expirationDate {
+                        HStack {
+                            Label("Renews", systemImage: "calendar")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Text(expires, style: .date)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Button {
+                        if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                            UIApplication.shared.open(url)
+                        }
+                    } label: {
+                        HStack {
+                            Label("Manage Subscription", systemImage: "creditcard.fill")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Button {
+                        showingAIPaywall = true
+                    } label: {
+                        HStack {
+                            Label("Unlock AI Features", systemImage: "sparkles")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Text(aiSubscription.priceString + "/mo")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Color.purpleHi)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button {
+                    Task {
+                        let ok = await aiSubscription.restore()
+                        subscriptionStatusMessage = ok
+                            ? "Subscription restored."
+                            : (aiSubscription.errorMessage ?? "No active subscription found.")
+                    }
+                } label: {
+                    HStack {
+                        Label("Restore Purchases", systemImage: "arrow.clockwise")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if aiSubscription.isRestoring {
+                            ProgressView().scaleEffect(0.7)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(aiSubscription.isRestoring)
+            } header: {
+                Text("Subscription")
+            } footer: {
+                if let msg = subscriptionStatusMessage {
+                    Text(msg)
+                } else {
+                    Text("One subscription unlocks the AI Meal Planner, AI Nutrition Coach, AI meal logging from photos, and AI workout logging from voice.")
+                }
+            }
+
             // MARK: Privacy & Data
             Section {
                 Button {
@@ -585,6 +671,15 @@ struct SettingsView: View {
                 ShareSheet(activityItems: [url])
             }
         }
+        .sheet(isPresented: $showingAIPaywall) {
+            AISubscriptionPaywallView(
+                onSubscribed: {
+                    showingAIPaywall = false
+                    subscriptionStatusMessage = "Subscription active — AI features unlocked."
+                },
+                onDismiss: { showingAIPaywall = false }
+            )
+        }
         .alert("Export Failed", isPresented: .init(
             get: { exportError != nil },
             set: { if !$0 { exportError = nil } }
@@ -592,6 +687,10 @@ struct SettingsView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(exportError ?? "")
+        }
+        .task {
+            await aiSubscription.loadProduct()
+            await aiSubscription.refreshEntitlement()
         }
     }
 
