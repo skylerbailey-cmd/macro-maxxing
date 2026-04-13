@@ -46,6 +46,16 @@ final class SessionManager {
     /// finishes the onboarding flow.
     var needsOnboarding = false
 
+    /// Set by OnboardingView right before flipping `needsOnboarding=false`.
+    /// ContentView reads this on mount to present the AI subscription paywall
+    /// before any tutorial overlays kick in. Cleared once the paywall is
+    /// dismissed.
+    var showPostOnboardPaywall = false
+
+    /// Optional promo code captured during onboarding. Forwarded to the
+    /// post-onboarding paywall via `prefilledPromoCode`. nil = user skipped.
+    var pendingOnboardingPromoCode: String? = nil
+
     // MARK: - UserSettings wire-up
 
     /// Set by WellnessApp immediately after init.
