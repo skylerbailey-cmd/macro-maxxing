@@ -782,7 +782,7 @@ struct HomeView: View {
                     if !aiSubscription.isSubscribed {
                         Image(systemName: "sparkles")
                         Text(aiSubscription.isEligibleForIntroOffer
-                             ? "Try AI Free for 7 Days"
+                             ? "Try AI Free for 3 Days"
                              : "Unlock AI Meal Planner")
                     } else if viewModel.userSettings.brainstormLimitReached {
                         Image(systemName: "xmark.circle.fill")

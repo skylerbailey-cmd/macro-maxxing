@@ -597,7 +597,7 @@ struct FoodLogView: View {
                     if !aiSubscription.isSubscribed {
                         Image(systemName: "sparkles")
                         Text(aiSubscription.isEligibleForIntroOffer
-                             ? "Try AI Free for 7 Days"
+                             ? "Try AI Free for 3 Days"
                              : "Unlock AI Nutrition Coach")
                     } else if analyzeVM.hasRunToday {
                         Image(systemName: "checkmark.circle.fill")

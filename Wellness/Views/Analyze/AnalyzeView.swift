@@ -134,7 +134,7 @@ struct AnalyzeView: View {
                 Text(aiSubscription.isSubscribed
                      ? (viewModel.state == .idle ? "Analyze" : "Re-Analyze")
                      : (aiSubscription.isEligibleForIntroOffer
-                        ? "Try AI Free for 7 Days"
+                        ? "Try AI Free for 3 Days"
                         : "Unlock AI Nutrition Coach"))
                     .font(.headline)
             }

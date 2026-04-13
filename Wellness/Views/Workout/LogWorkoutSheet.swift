@@ -390,7 +390,7 @@ struct LogWorkoutSheet: View {
                      : (aiSubscription.isSubscribed
                         ? "Generate with AI"
                         : (aiSubscription.isEligibleForIntroOffer
-                           ? "Try AI Free for 7 Days"
+                           ? "Try AI Free for 3 Days"
                            : "Unlock AI Workout Logging")))
             }
             .font(.system(size: 15, weight: .semibold))
