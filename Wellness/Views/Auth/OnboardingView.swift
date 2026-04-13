@@ -52,6 +52,9 @@ struct OnboardingView: View {
     // Health disclaimer
     @State private var healthDisclaimerAgreed = false
 
+    // Validation: user tapped Next on the weight page without selecting Sex
+    @State private var showSexRequiredError = false
+
     // Saving state
     @State private var isSaving = false
     @State private var saveError: String? = nil
@@ -227,6 +230,14 @@ struct OnboardingView: View {
     }
 
     private func advance() {
+        // Page 4 (weight/baseline) requires Sex to be selected. We allow the
+        // tap to register so we can surface an inline error rather than
+        // silently leaving the Next button disabled.
+        if page == 4 && gender.isEmpty {
+            withAnimation { showSexRequiredError = true }
+            return
+        }
+
         if page < totalPages - 1 {
             var next = page + 1
             // Skip username page if already set from sign-up
@@ -529,13 +540,31 @@ struct OnboardingView: View {
                 genderButton(label: "Male", value: "male")
                 genderButton(label: "Female", value: "female")
             }
+            if showSexRequiredError && gender.isEmpty {
+                Text("Please select your sex to continue.")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color(red: 1.0, green: 0.45, blue: 0.45))
+                    .transition(.opacity)
+            }
         }
         .padding(16)
         .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(
+                    (showSexRequiredError && gender.isEmpty)
+                        ? Color(red: 1.0, green: 0.45, blue: 0.45).opacity(0.7)
+                        : Color.clear,
+                    lineWidth: 1
+                )
+        )
     }
 
     private func genderButton(label: String, value: String) -> some View {
-        Button { gender = value } label: {
+        Button {
+            gender = value
+            withAnimation { showSexRequiredError = false }
+        } label: {
             Text(label)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(gender == value ? .black : .white.opacity(0.55))
