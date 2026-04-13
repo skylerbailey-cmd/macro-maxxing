@@ -35,6 +35,15 @@ struct OnboardingView: View {
     @State private var goalWeight:      Double   = 160
     @State private var isPrivate:       Bool     = true
 
+    // Optional promo code captured on the final onboarding page. If filled
+    // in, we hand it to the AI subscription paywall sheet that pops up
+    // immediately after onboarding completes so the discount is applied
+    // (or rejected with an inline error) before the user does anything.
+    @State private var onboardingPromoCode: String = ""
+
+    // Drives the post-onboarding paywall sheet.
+    @State private var showPostOnboardPaywall = false
+
     // Photo picker state
     @State private var showingPhotoPicker  = false
     @State private var showingCamera       = false
@@ -66,7 +75,7 @@ struct OnboardingView: View {
     @State private var didUploadPhoto        = false
     @State private var didWritePublicFields  = false
 
-    private let totalPages = 7
+    private let totalPages = 8
     private let purpl    = Color(red: 0.65, green: 0.45, blue: 1.00)
     // Matches TutorialOverlayView: pure black dim behind a floating purple-bordered card.
     private let backdrop = Color.black.opacity(0.85)
@@ -123,6 +132,23 @@ struct OnboardingView: View {
             .padding(.horizontal, 16)
         }
         .animation(.easeInOut(duration: 0.3), value: page)
+        .fullScreenCover(isPresented: $showPostOnboardPaywall) {
+            // After dismissal — whether the user subscribed, declined, or
+            // closed — we hand them off to the main app.
+            dismissOnboarding()
+        } content: {
+            AISubscriptionPaywallView(
+                onSubscribed: {
+                    showPostOnboardPaywall = false
+                },
+                onDismiss: {
+                    showPostOnboardPaywall = false
+                },
+                prefilledPromoCode: onboardingPromoCode
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .isEmpty ? nil : onboardingPromoCode
+            )
+        }
         .onAppear {
             // Pre-fill from whatever was collected at sign-up
             name     = userSettings.name
@@ -146,6 +172,7 @@ struct OnboardingView: View {
         case 4: weightPage
         case 5: healthDisclaimerPage
         case 6: privacyPage
+        case 7: promoCodePage
         default: EmptyView()
         }
     }
@@ -225,6 +252,7 @@ struct OnboardingView: View {
         case 4: return currentWeight > 0 && goalWeight > 0
         case 5: return healthDisclaimerAgreed
         case 6: return true
+        case 7: return true   // promo code is optional
         default: return true
         }
     }
@@ -799,6 +827,32 @@ struct OnboardingView: View {
         }
     }
 
+    // Page 7: Promo Code (optional)
+    private var promoCodePage: some View {
+        OnboardingPageShell(
+            emoji: "🎁",
+            title: "Got a promo code?",
+            subtitle: "Have a code from an affiliate or partner? Drop it in below and we'll apply your discount on the next screen. Skip if you don't have one."
+        ) {
+            VStack(spacing: 12) {
+                TextField("ENTER CODE", text: $onboardingPromoCode)
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
+                    .font(.system(size: 18, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.white)
+                    .padding(16)
+                    .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+
+                Text("This is optional — you can subscribe with or without a code on the next screen.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 4)
+            }
+        }
+    }
+
     // MARK: - Finish
 
     private func finishOnboarding() async {
@@ -903,6 +957,17 @@ struct OnboardingView: View {
         UserDefaults.standard.set(max(carbs,      50), forKey: "goalCarbs")
         UserDefaults.standard.set(max(fat,        20), forKey: "goalFat")
 
+        // Profile is saved — present the AI subscription paywall before
+        // handing the user off to the main app. The paywall receives the
+        // promo code (if any) the user typed on the previous page and runs
+        // its own validation. We hold off on `needsOnboarding = false`
+        // until the paywall is dismissed so the underlying view doesn't
+        // animate away mid-presentation.
+        showPostOnboardPaywall = true
+        isSaving = false
+    }
+
+    private func dismissOnboarding() {
         session.needsOnboarding = false
     }
 }
