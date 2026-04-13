@@ -161,7 +161,7 @@ export default function VoiceFoodLogging() {
             a tiny search bar.
           </p>
           <p className="text-gray-400 leading-relaxed">
-            Just say it. Macro Maxxing handles the rest. That&apos;s what voice
+            Just say it. Macromaxxing handles the rest. That&apos;s what voice
             logging was built for.
           </p>
         </div>
@@ -169,7 +169,7 @@ export default function VoiceFoodLogging() {
 
       <DownloadCTA
         headline="Log meals without lifting a finger."
-        subheadline="Download Macro Maxxing and start voice-logging your nutrition."
+        subheadline="Download Macromaxxing and start voice-logging your nutrition."
       />
     </>
   );

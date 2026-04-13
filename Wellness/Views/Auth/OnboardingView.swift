@@ -52,9 +52,19 @@ struct OnboardingView: View {
     // Health disclaimer
     @State private var healthDisclaimerAgreed = false
 
+    // Validation: user tapped Next on the weight page without selecting Sex
+    @State private var showSexRequiredError = false
+
     // Saving state
     @State private var isSaving = false
     @State private var saveError: String? = nil
+
+    // Per-step save progress — so a retry after a partial failure doesn't
+    // re-run work that already succeeded (e.g. re-upload a photo whose
+    // Firestore URL we already wrote).
+    @State private var didWritePrivateFields = false
+    @State private var didUploadPhoto        = false
+    @State private var didWritePublicFields  = false
 
     private let totalPages = 7
     private let purpl    = Color(red: 0.65, green: 0.45, blue: 1.00)
@@ -220,6 +230,14 @@ struct OnboardingView: View {
     }
 
     private func advance() {
+        // Page 4 (weight/baseline) requires Sex to be selected. We allow the
+        // tap to register so we can surface an inline error rather than
+        // silently leaving the Next button disabled.
+        if page == 4 && gender.isEmpty {
+            withAnimation { showSexRequiredError = true }
+            return
+        }
+
         if page < totalPages - 1 {
             var next = page + 1
             // Skip username page if already set from sign-up
@@ -390,7 +408,7 @@ struct OnboardingView: View {
         OnboardingPageShell(
             emoji: "🎂",
             title: "When's your birthday?",
-            subtitle: "You must be at least 18 years old to use Macro Maxxing. Not shown publicly."
+            subtitle: "You must be at least 18 years old to use Macromaxxing. Not shown publicly."
         ) {
             VStack(spacing: 16) {
                 // On iOS 26+, try Apple's Declared Age Range API first
@@ -455,7 +473,7 @@ struct OnboardingView: View {
         case .verified:
             ageVerified = true
         case .underage:
-            saveError = "You must be at least 18 years old to use Macro Maxxing."
+            saveError = "You must be at least 18 years old to use Macromaxxing."
         case .declined:
             ageCheckDeclined = true
         case .unavailable:
@@ -515,20 +533,38 @@ struct OnboardingView: View {
 
     private var genderPicker: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Gender")
+            Text("Sex")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.65))
             HStack(spacing: 12) {
                 genderButton(label: "Male", value: "male")
                 genderButton(label: "Female", value: "female")
             }
+            if showSexRequiredError && gender.isEmpty {
+                Text("Please select your sex to continue.")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color(red: 1.0, green: 0.45, blue: 0.45))
+                    .transition(.opacity)
+            }
         }
         .padding(16)
         .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(
+                    (showSexRequiredError && gender.isEmpty)
+                        ? Color(red: 1.0, green: 0.45, blue: 0.45).opacity(0.7)
+                        : Color.clear,
+                    lineWidth: 1
+                )
+        )
     }
 
     private func genderButton(label: String, value: String) -> some View {
-        Button { gender = value } label: {
+        Button {
+            gender = value
+            withAnimation { showSexRequiredError = false }
+        } label: {
             Text(label)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(gender == value ? .black : .white.opacity(0.55))
@@ -813,34 +849,61 @@ struct OnboardingView: View {
             "isPrivateAccount": isPrivate,
         ]
 
-        do {
-            // Write the private subcollection FIRST. Both `updateProfilePhoto`
-            // and `updateProfile` call `fetchAndApplyProfile` internally, and
-            // that call trips the onboarding gate in `SessionManager` if the
-            // private doc still holds empty `dateOfBirth` / `heightInches`.
-            // Getting the private doc right up front also keeps `populate`
-            // from briefly overwriting UserSettings with stale empty values.
-            try await UserProfileService.shared.updatePrivateProfile(
-                userID: uid, fields: privateFields)
-
-            // Upload profile photo if one was selected
-            if let image = profileImage {
-                try await session.updateProfilePhoto(image: image)
+        // Write the private subcollection FIRST. Both `updateProfilePhoto`
+        // and `updateProfile` call `fetchAndApplyProfile` internally, and
+        // that call trips the onboarding gate in `SessionManager` if the
+        // private doc still holds empty `dateOfBirth` / `heightInches`.
+        // Getting the private doc right up front also keeps `populate`
+        // from briefly overwriting UserSettings with stale empty values.
+        if !didWritePrivateFields {
+            do {
+                try await UserProfileService.shared.updatePrivateProfile(
+                    userID: uid, fields: privateFields)
+                didWritePrivateFields = true
+            } catch {
+                AppLogger.log("[OnboardingView] updatePrivateProfile failed: \(error.localizedDescription)")
+                saveError = "Couldn't save your profile (\(error.localizedDescription)). Please try again."
+                isSaving = false
+                return
             }
-
-            try await session.updateProfile(fields: publicFields)
-
-            // Update local macro goals to match the goal weight
-            UserDefaults.standard.set(max(cals,    1200), forKey: "goalCalories")
-            UserDefaults.standard.set(max(protein,    50), forKey: "goalProtein")
-            UserDefaults.standard.set(max(carbs,      50), forKey: "goalCarbs")
-            UserDefaults.standard.set(max(fat,        20), forKey: "goalFat")
-
-            session.needsOnboarding = false
-        } catch {
-            saveError = "Couldn't save your profile. Please try again."
-            isSaving = false
         }
+
+        // Upload profile photo if one was selected. A photo upload failure
+        // is NOT fatal — the user can always set/change their photo later
+        // from Settings, and blocking onboarding here has been stranding
+        // TestFlight users on the final screen with no recoverable action.
+        // We log the failure, surface a gentle note in the UI, and let
+        // them continue.
+        if let image = profileImage, !didUploadPhoto {
+            do {
+                try await session.updateProfilePhoto(image: image)
+                didUploadPhoto = true
+            } catch {
+                AppLogger.log("[OnboardingView] updateProfilePhoto failed (non-fatal): \(error.localizedDescription)")
+                didUploadPhoto = true // don't retry the photo on subsequent taps
+                profileImage   = nil  // clear local state so we don't retry
+            }
+        }
+
+        if !didWritePublicFields {
+            do {
+                try await session.updateProfile(fields: publicFields)
+                didWritePublicFields = true
+            } catch {
+                AppLogger.log("[OnboardingView] updateProfile (public) failed: \(error.localizedDescription)")
+                saveError = "Couldn't save your profile (\(error.localizedDescription)). Please try again."
+                isSaving = false
+                return
+            }
+        }
+
+        // Update local macro goals to match the goal weight
+        UserDefaults.standard.set(max(cals,    1200), forKey: "goalCalories")
+        UserDefaults.standard.set(max(protein,    50), forKey: "goalProtein")
+        UserDefaults.standard.set(max(carbs,      50), forKey: "goalCarbs")
+        UserDefaults.standard.set(max(fat,        20), forKey: "goalFat")
+
+        session.needsOnboarding = false
     }
 }
 

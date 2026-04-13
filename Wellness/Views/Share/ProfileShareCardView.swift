@@ -132,7 +132,7 @@ struct ProfileShareCardView: View {
                     Text("Follow me on")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.white.opacity(0.40))
-                    Text("Macro Maxxing")
+                    Text("Macromaxxing")
                         .font(.system(size: 18, weight: .black, design: .rounded))
                         .foregroundStyle(purpl)
                 }

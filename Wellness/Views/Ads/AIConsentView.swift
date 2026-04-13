@@ -45,7 +45,7 @@ struct AIConsentSheet: View {
                 VStack(alignment: .leading, spacing: 12) {
                     disclosureRow(
                         icon: "camera.fill",
-                        text: "Macro Maxxing sends your food photos to Anthropic's Claude AI to estimate nutritional content."
+                        text: "Macromaxxing sends your food photos to Anthropic's Claude AI to estimate nutritional content."
                     )
                     disclosureRow(
                         icon: "lock.shield.fill",

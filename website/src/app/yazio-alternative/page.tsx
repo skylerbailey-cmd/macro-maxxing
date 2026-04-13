@@ -5,9 +5,9 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
-  title: "Best YAZIO Alternative 2026 — Macro Maxxing vs YAZIO",
+  title: "Best YAZIO Alternative 2026 — Macromaxxing vs YAZIO",
   description:
-    "Looking for an YAZIO alternative without aggressive upsells? Macro Maxxing offers AI photo scanning, voice logging, accurate macros, streaks, leaderboards, and community — Core features free, AI Pro at $9.99/mo — no aggressive upsells.",
+    "Looking for an YAZIO alternative without aggressive upsells? Macromaxxing offers AI photo scanning, voice logging, accurate macros, streaks, leaderboards, and community — Core features free, AI Pro at $9.99/mo — no aggressive upsells.",
   keywords: [
     "YAZIO alternative",
     "YAZIO replacement",
@@ -25,19 +25,19 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "What is the best alternative to YAZIO?",
-    answer: "Macro Maxxing is the best alternative to YAZIO. It offers accurate Claude AI photo scanning, voice meal logging, customizable fasting timers, gamified streaks, leaderboards, and a social community — with core features free and AI Pro at $9.99/month — no aggressive upsells or pop-ups like YAZIO.",
+    answer: "Macromaxxing is the best alternative to YAZIO. It offers accurate Claude AI photo scanning, voice meal logging, customizable fasting timers, gamified streaks, leaderboards, and a social community — with core features free and AI Pro at $9.99/month — no aggressive upsells or pop-ups like YAZIO.",
   },
   {
-    question: "Is Macro Maxxing more accurate than YAZIO?",
-    answer: "Yes. Macro Maxxing uses Claude AI (Haiku and Sonnet models) for accurate nutrition estimates. YAZIO users frequently report inaccurate food entries with wildly wrong calorie counts. Accuracy is a core priority for Macro Maxxing.",
+    question: "Is Macromaxxing more accurate than YAZIO?",
+    answer: "Yes. Macromaxxing uses Claude AI (Haiku and Sonnet models) for accurate nutrition estimates. YAZIO users frequently report inaccurate food entries with wildly wrong calorie counts. Accuracy is a core priority for Macromaxxing.",
   },
   {
-    question: "Does Macro Maxxing have a fasting timer like YAZIO?",
-    answer: "Yes. Macro Maxxing includes a fully customizable intermittent fasting timer supporting 16:8, 18:6, 20:4, OMAD, and any custom window. Unlike YAZIO's fasting feature which users report as inflexible, Macro Maxxing lets you set any schedule you want.",
+    question: "Does Macromaxxing have a fasting timer like YAZIO?",
+    answer: "Yes. Macromaxxing includes a fully customizable intermittent fasting timer supporting 16:8, 18:6, 20:4, OMAD, and any custom window. Unlike YAZIO's fasting feature which users report as inflexible, Macromaxxing lets you set any schedule you want.",
   },
   {
-    question: "Does Macro Maxxing have upsells?",
-    answer: "Macro Maxxing is free to download with core tracking, fasting timer, streaks, leaderboards, and community included. AI-powered features (photo scanning, voice logging, meal planner, nutrition coach) are available through an optional AI Pro subscription at $9.99/month. There are no aggressive pop-ups or upsells — you upgrade on your terms.",
+    question: "Does Macromaxxing have upsells?",
+    answer: "Macromaxxing is free to download with core tracking, fasting timer, streaks, leaderboards, and community included. AI-powered features (photo scanning, voice logging, meal planner, nutrition coach) are available through an optional AI Pro subscription at $9.99/month. There are no aggressive pop-ups or upsells — you upgrade on your terms.",
   },
 ];
 
@@ -45,8 +45,8 @@ export default function YazioAlternativePage() {
   return (
     <>
       <ArticleJsonLd
-        title="Best YAZIO Alternative 2026 — Macro Maxxing"
-        description="Macro Maxxing is the best YAZIO alternative with accurate AI scanning, no upsells, and gamified accountability."
+        title="Best YAZIO Alternative 2026 — Macromaxxing"
+        description="Macromaxxing is the best YAZIO alternative with accurate AI scanning, no upsells, and gamified accountability."
         url="https://macromaxxing.app/yazio-alternative"
       />
       <FAQPageJsonLd faqs={faqs} />
@@ -69,7 +69,7 @@ export default function YazioAlternativePage() {
               <span className="text-gradient">Zero Upsells</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              Macro Maxxing is an YAZIO alternative that provides accurate
+              Macromaxxing is an YAZIO alternative that provides accurate
               AI-powered macro tracking without the aggressive upsells, pop-ups,
               or inaccurate food data that YAZIO users report. It includes
               gamified streaks, leaderboards, and a social community — with core features free and an optional AI Pro subscription at $9.99/month — no aggressive upsells.
@@ -79,7 +79,7 @@ export default function YazioAlternativePage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-mint hover:bg-brand-mint/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Switch to Macro Maxxing 
+              Switch to Macromaxxing 
             </a>
           </div>
         </section>
@@ -89,7 +89,7 @@ export default function YazioAlternativePage() {
           <div className="bg-brand-mint/5 border border-brand-mint/20 rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-mint uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
-              <strong className="text-white">Macro Maxxing is the best YAZIO alternative with accurate data and zero upsells.</strong>{" "}
+              <strong className="text-white">Macromaxxing is the best YAZIO alternative with accurate data and zero upsells.</strong>{" "}
               It provides Claude AI photo scanning, voice logging, a customizable fasting timer, and gamified accountability — with core features free and AI Pro at $9.99/month — no ads or pop-ups. The trade-off: YAZIO has a larger international food database (especially for European foods) and offers structured meal plans, which some users prefer for guided nutrition.
             </p>
           </div>
@@ -140,7 +140,7 @@ export default function YazioAlternativePage() {
         <section className="py-16 md:py-20 bg-white/[0.02]">
           <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-8">
-              Macro Maxxing vs YAZIO
+              Macromaxxing vs YAZIO
             </h2>
             <ComparisonTable
               features={[
@@ -163,7 +163,7 @@ export default function YazioAlternativePage() {
 
         <section className="py-16 md:py-20 max-w-5xl mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            What Macro Maxxing Does Better
+            What Macromaxxing Does Better
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
             <FeatureCard
@@ -212,7 +212,7 @@ export default function YazioAlternativePage() {
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-brand-green/5 border border-brand-green/20 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macro Maxxing if you:</h3>
+              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macromaxxing if you:</h3>
               <ul className="space-y-2 text-gray-300 text-sm">
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Are frustrated by YAZIO&apos;s constant subscription pop-ups</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Have experienced inaccurate food data in YAZIO</li>
@@ -227,7 +227,7 @@ export default function YazioAlternativePage() {
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need a large European food database</li>
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Want structured meal plans and recipes</li>
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Prefer a guided nutrition program over self-directed tracking</li>
-                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macro Maxxing is iOS only)</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macromaxxing is iOS only)</li>
               </ul>
             </div>
           </div>
@@ -240,7 +240,7 @@ export default function YazioAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-mint font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. Core features included immediately.</p>
+                <p className="text-gray-400 text-sm">Get Macromaxxing free from the App Store. Core features included immediately.</p>
               </div>
               <div>
                 <p className="text-brand-mint font-bold text-lg mb-1">2. Set Goals</p>

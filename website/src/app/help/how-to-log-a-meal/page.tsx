@@ -8,25 +8,25 @@ import {
 } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: "How to Log a Meal in Macro Maxxing — Step-by-Step Guide",
+  title: "How to Log a Meal in Macromaxxing — Step-by-Step Guide",
   description:
-    "Learn how to log meals in Macro Maxxing using AI photo scanning, voice logging, or manual entry. Get instant macro estimates for calories, protein, carbs, and fat. See your meal score and full breakdown.",
+    "Learn how to log meals in Macromaxxing using AI photo scanning, voice logging, or manual entry. Get instant macro estimates for calories, protein, carbs, and fat. See your meal score and full breakdown.",
   keywords: [
-    "how to log a meal macro maxxing",
-    "macro maxxing food log",
+    "how to log a meal macromaxxing",
+    "macromaxxing food log",
     "AI food scanner macro tracker",
     "voice food logging app",
     "photo macro tracking",
     "log calories with photo",
     "AI meal analysis app",
-    "macro maxxing help",
+    "macromaxxing help",
     "food photo calorie counter",
     "meal score macro tracker",
     "log food with voice",
     "macro tracking app iOS",
   ],
   openGraph: {
-    title: "How to Log a Meal in Macro Maxxing — Step-by-Step Guide",
+    title: "How to Log a Meal in Macromaxxing — Step-by-Step Guide",
     description:
       "Log meals with AI photo analysis, voice, or manual entry. Get instant macro breakdowns, meal scores, and portion size adjustments.",
     url: "https://macromaxxing.app/help/how-to-log-a-meal",
@@ -39,44 +39,44 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    question: "How do I log a meal in Macro Maxxing?",
+    question: "How do I log a meal in Macromaxxing?",
     answer:
-      "Open Macro Maxxing, tap the yellow + button on the Hub screen, then select 'Log a Meal.' You can log using three modes: Photo (snap or upload a picture and let AI estimate macros), Voice (describe what you ate and AI fills in the details), or Manual (type in the food name, calories, protein, carbs, and fat yourself).",
+      "Open Macromaxxing, tap the yellow + button on the Hub screen, then select 'Log a Meal.' You can log using three modes: Photo (snap or upload a picture and let AI estimate macros), Voice (describe what you ate and AI fills in the details), or Manual (type in the food name, calories, protein, carbs, and fat yourself).",
   },
   {
-    question: "How does AI photo food scanning work in Macro Maxxing?",
+    question: "How does AI photo food scanning work in Macromaxxing?",
     answer:
       "In Photo mode, take a picture of your meal or choose one from your library. Optionally add details like '2 eggs with toast' for better accuracy. Tap 'Analyze Photo' and Claude AI identifies each food item, estimates portion sizes, and calculates calories, protein, carbs, and fat. You can review and edit the results before logging.",
   },
   {
-    question: "Can I log food with my voice in Macro Maxxing?",
+    question: "Can I log food with my voice in Macromaxxing?",
     answer:
       "Yes. On the Log Food screen, tap the Voice tab, then tap the microphone and describe what you ate in natural language — for example, 'chicken curry with white rice.' The AI will process your description and estimate the macros automatically.",
   },
   {
-    question: "What is the Meal Score in Macro Maxxing?",
+    question: "What is the Meal Score in Macromaxxing?",
     answer:
       "The Meal Score is a number from 0 to 100 that measures how closely a meal's macro distribution (protein, carbs, fat) matches your personal goals. A score of 100 means the meal's caloric ratio perfectly matches your target percentages. Tap any meal in the Fuel Log to see its score and a breakdown showing how each macro compares to your goal. Scores are shown for meals over 300 calories.",
   },
   {
-    question: "Can I adjust portion size after AI analysis in Macro Maxxing?",
+    question: "Can I adjust portion size after AI analysis in Macromaxxing?",
     answer:
       "Yes. On the Confirm Food screen after AI analysis, use the Portion Size slider to scale between 0.5x and 3x. All macros and calories update in real time as you adjust. You can also tap 'Edit Macros' to manually change any value.",
   },
   {
-    question: "Can I save meals as templates in Macro Maxxing?",
+    question: "Can I save meals as templates in Macromaxxing?",
     answer:
       "Yes. When logging a meal (in any mode), toggle on 'Save as Saved Meal' to save it as a template. Your saved meals appear at the top of the Log Food screen so you can quickly re-log them with a single tap.",
   },
   {
-    question: "Where do I see my logged meals in Macro Maxxing?",
+    question: "Where do I see my logged meals in Macromaxxing?",
     answer:
       "Go to the Log tab and make sure the 'Fuel' tab is selected. You'll see your eating window, all logged meals with their photos, macro summaries, and meal scores. Tap any meal to see the full breakdown and score details.",
   },
   {
-    question: "What AI models does Macro Maxxing use for food scanning?",
+    question: "What AI models does Macromaxxing use for food scanning?",
     answer:
-      "Macro Maxxing uses Claude AI by Anthropic. Simple, single-ingredient foods are handled by the fast Claude Haiku model, while complex meals with multiple items get the full power of Claude Sonnet for more detailed analysis.",
+      "Macromaxxing uses Claude AI by Anthropic. Simple, single-ingredient foods are handled by the fast Claude Haiku model, while complex meals with multiple items get the full power of Claude Sonnet for more detailed analysis.",
   },
 ];
 
@@ -84,14 +84,14 @@ function HowToJsonLd() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "HowTo",
-    name: "How to Log a Meal in Macro Maxxing",
+    name: "How to Log a Meal in Macromaxxing",
     description:
-      "Step-by-step guide to logging meals in the Macro Maxxing iOS app using AI photo scanning, voice logging, or manual entry.",
+      "Step-by-step guide to logging meals in the Macromaxxing iOS app using AI photo scanning, voice logging, or manual entry.",
     totalTime: "PT1M",
     tool: [
       {
         "@type": "HowToTool",
-        name: "Macro Maxxing iOS app",
+        name: "Macromaxxing iOS app",
       },
     ],
     step: [
@@ -141,8 +141,8 @@ export default function HowToLogAMeal() {
     <>
       <HowToJsonLd />
       <ArticleJsonLd
-        title="How to Log a Meal in Macro Maxxing"
-        description="Step-by-step guide to logging meals in Macro Maxxing using AI photo scanning, voice logging, or manual entry with instant macro estimates."
+        title="How to Log a Meal in Macromaxxing"
+        description="Step-by-step guide to logging meals in Macromaxxing using AI photo scanning, voice logging, or manual entry with instant macro estimates."
         url="https://macromaxxing.app/help/how-to-log-a-meal"
         datePublished="2026-04-09"
         dateModified="2026-04-09"
@@ -177,7 +177,7 @@ export default function HowToLogAMeal() {
             How to Log a Meal
           </h1>
           <p className="text-gray-300 text-lg leading-relaxed mb-4">
-            Macro Maxxing gives you three ways to log meals: snap a photo and
+            Macromaxxing gives you three ways to log meals: snap a photo and
             let AI estimate your macros, describe what you ate with your voice,
             or type it in manually. Every meal gets a detailed breakdown of
             calories, protein, carbs, and fat &mdash; plus a Meal Score showing

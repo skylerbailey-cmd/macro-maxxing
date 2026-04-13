@@ -8,23 +8,23 @@ import {
 } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: "How to Log a Workout in Macro Maxxing — Step-by-Step Guide",
+  title: "How to Log a Workout in Macromaxxing — Step-by-Step Guide",
   description:
-    "Learn how to log workouts in Macro Maxxing using manual entry or voice logging with AI. Track duration, calories burned, workout type, and get automatic macro goal adjustments. Earn aura points for every workout you log.",
+    "Learn how to log workouts in Macromaxxing using manual entry or voice logging with AI. Track duration, calories burned, workout type, and get automatic macro goal adjustments. Earn aura points for every workout you log.",
   keywords: [
-    "how to log a workout macro maxxing",
-    "macro maxxing workout tracker",
+    "how to log a workout macromaxxing",
+    "macromaxxing workout tracker",
     "voice workout logging",
     "AI workout tracker",
     "log exercise macro tracker",
     "workout macro adjustments",
     "track calories burned workout",
     "fitness app workout log",
-    "macro maxxing help",
+    "macromaxxing help",
     "workout tracking app iOS",
   ],
   openGraph: {
-    title: "How to Log a Workout in Macro Maxxing — Step-by-Step Guide",
+    title: "How to Log a Workout in Macromaxxing — Step-by-Step Guide",
     description:
       "Log workouts manually or with your voice. Get AI-powered macro adjustments and earn aura points. Full step-by-step guide.",
     url: "https://macromaxxing.app/help/how-to-log-a-workout",
@@ -37,37 +37,37 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    question: "How do I log a workout in Macro Maxxing?",
+    question: "How do I log a workout in Macromaxxing?",
     answer:
-      "Open Macro Maxxing, tap the yellow + button on the Hub screen, then select 'Log a Workout.' You can log manually by filling in the workout name, duration, calories burned, and workout type, or use Voice mode to describe your workout and let AI fill in the details automatically.",
+      "Open Macromaxxing, tap the yellow + button on the Hub screen, then select 'Log a Workout.' You can log manually by filling in the workout name, duration, calories burned, and workout type, or use Voice mode to describe your workout and let AI fill in the details automatically.",
   },
   {
-    question: "Does Macro Maxxing adjust my macros after a workout?",
+    question: "Does Macromaxxing adjust my macros after a workout?",
     answer:
-      "Yes. When you enable 'Apply macro adjustments,' Macro Maxxing automatically adjusts your daily macro goals based on the workout type, duration, and calories burned. For example, a 45-minute strength workout might add +140 kcal, +23g carbs, and +12g protein to your daily targets. These adjustments follow ISSN and ACSM guidelines.",
+      "Yes. When you enable 'Apply macro adjustments,' Macromaxxing automatically adjusts your daily macro goals based on the workout type, duration, and calories burned. For example, a 45-minute strength workout might add +140 kcal, +23g carbs, and +12g protein to your daily targets. These adjustments follow ISSN and ACSM guidelines.",
   },
   {
-    question: "Can I log a workout with my voice in Macro Maxxing?",
+    question: "Can I log a workout with my voice in Macromaxxing?",
     answer:
       "Yes. On the Log a Workout screen, tap the 'Voice' tab, then tap the microphone to start recording. Describe your workout naturally — for example, 'I did five shoulder workouts, three sets each with 10 reps, then 15 minutes of jump rope, and 10 minutes of abs.' Tap to stop, then tap 'Generate with AI' and the app will fill in the workout name, duration, calories burned, and type automatically.",
   },
   {
-    question: "What workout types does Macro Maxxing support?",
+    question: "What workout types does Macromaxxing support?",
     answer:
-      "Macro Maxxing supports six workout types: Strength, Cardio, HIIT, Flex/Yoga, Rest Day, and Other. Each type affects how your macro goals are adjusted after logging.",
+      "Macromaxxing supports six workout types: Strength, Cardio, HIIT, Flex/Yoga, Rest Day, and Other. Each type affects how your macro goals are adjusted after logging.",
   },
   {
-    question: "Can I save a workout as a template in Macro Maxxing?",
+    question: "Can I save a workout as a template in Macromaxxing?",
     answer:
       "Yes. When logging a workout, toggle on 'Save as Saved Workout' to save it as a template. The next time you log a workout, you can quickly select it from your saved workouts instead of entering everything from scratch.",
   },
   {
-    question: "Do I earn points for logging workouts in Macro Maxxing?",
+    question: "Do I earn points for logging workouts in Macromaxxing?",
     answer:
       "Yes. Logging workouts and sharing them with the Workout post label earns you aura points. These contribute to your XP, level, and daily streak displayed on the Hub screen.",
   },
   {
-    question: "Where can I see my logged workouts in Macro Maxxing?",
+    question: "Where can I see my logged workouts in Macromaxxing?",
     answer:
       "Go to the Log tab and tap 'Duel' to see all your workouts for the day. You'll see total calories burned, total workout time, macro goal adjustments, and each individual workout entry with its details. Tap any workout to edit it.",
   },
@@ -77,14 +77,14 @@ function HowToJsonLd() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "HowTo",
-    name: "How to Log a Workout in Macro Maxxing",
+    name: "How to Log a Workout in Macromaxxing",
     description:
-      "Step-by-step guide to logging workouts in the Macro Maxxing iOS app using manual entry or AI-powered voice logging.",
+      "Step-by-step guide to logging workouts in the Macromaxxing iOS app using manual entry or AI-powered voice logging.",
     totalTime: "PT2M",
     tool: [
       {
         "@type": "HowToTool",
-        name: "Macro Maxxing iOS app",
+        name: "Macromaxxing iOS app",
       },
     ],
     step: [
@@ -134,8 +134,8 @@ export default function HowToLogAWorkout() {
     <>
       <HowToJsonLd />
       <ArticleJsonLd
-        title="How to Log a Workout in Macro Maxxing"
-        description="Step-by-step guide to logging workouts in Macro Maxxing using manual entry or AI voice logging, with automatic macro goal adjustments."
+        title="How to Log a Workout in Macromaxxing"
+        description="Step-by-step guide to logging workouts in Macromaxxing using manual entry or AI voice logging, with automatic macro goal adjustments."
         url="https://macromaxxing.app/help/how-to-log-a-workout"
         datePublished="2026-04-09"
         dateModified="2026-04-09"
@@ -170,7 +170,7 @@ export default function HowToLogAWorkout() {
             How to Log a Workout
           </h1>
           <p className="text-gray-300 text-lg leading-relaxed mb-4">
-            Macro Maxxing lets you log workouts manually or by describing them
+            Macromaxxing lets you log workouts manually or by describing them
             with your voice. When you log a workout, the app can automatically
             adjust your daily macro goals based on the exercise type, duration,
             and calories burned &mdash; so your nutrition stays aligned with your
@@ -194,7 +194,7 @@ export default function HowToLogAWorkout() {
             <div className="bg-brand-card rounded-xl p-4 border border-white/5 flex justify-center">
               <Image
                 src="/help/Home Screen.png"
-                alt="Macro Maxxing Hub screen showing the yellow plus button in the bottom-right corner"
+                alt="Macromaxxing Hub screen showing the yellow plus button in the bottom-right corner"
                 width={300}
                 height={650}
                 className="rounded-lg"
@@ -358,7 +358,7 @@ export default function HowToLogAWorkout() {
                 <strong className="text-brand-gold">
                   Generate with AI
                 </strong>{" "}
-                and Macro Maxxing will automatically fill in the workout name,
+                and Macromaxxing will automatically fill in the workout name,
                 duration, calories burned, and workout type based on what you
                 said.
               </p>

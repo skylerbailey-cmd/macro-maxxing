@@ -3,9 +3,9 @@ import { ArticleJsonLd } from "@/components/JsonLd";
 import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
-  title: "TDEE Calculator & Macro Tracker — Know Your Numbers | Macro Maxxing",
+  title: "TDEE Calculator & Macro Tracker — Know Your Numbers | Macromaxxing",
   description:
-    "Calculate your TDEE (Total Daily Energy Expenditure) and track macros with AI. Macro Maxxing helps you find your maintenance calories, set the right deficit or surplus, and stay on track with streaks and leaderboards.",
+    "Calculate your TDEE (Total Daily Energy Expenditure) and track macros with AI. Macromaxxing helps you find your maintenance calories, set the right deficit or surplus, and stay on track with streaks and leaderboards.",
   keywords: [
     "TDEE calculator",
     "TDEE calculator app",
@@ -42,7 +42,7 @@ export default function TDEECalculatorPage() {
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
               Your TDEE (Total Daily Energy Expenditure) is the foundation of
-              any nutrition plan. Macro Maxxing helps you calculate it, set the
+              any nutrition plan. Macromaxxing helps you calculate it, set the
               right calorie target, and track with AI precision — all with
               streaks and leaderboards to keep you consistent.
             </p>
@@ -162,7 +162,7 @@ export default function TDEECalculatorPage() {
             tracking is too tedious.
           </p>
           <p className="text-gray-300 text-lg mb-8">
-            Macro Maxxing bridges this gap with AI food scanning (photo and
+            Macromaxxing bridges this gap with AI food scanning (photo and
             voice), saved meal templates, and gamified accountability. Once you
             know your TDEE, set your daily target in the app and let AI handle
             the tracking.
@@ -205,15 +205,15 @@ export default function TDEECalculatorPage() {
                 },
                 {
                   q: "What is the best TDEE calculator app?",
-                  a: "Macro Maxxing helps you determine your calorie needs and then track your food intake with AI-powered photo and voice scanning. Unlike standalone calculators, it combines TDEE-based targets with effortless daily tracking, streaks, leaderboards, and a social community for accountability.",
+                  a: "Macromaxxing helps you determine your calorie needs and then track your food intake with AI-powered photo and voice scanning. Unlike standalone calculators, it combines TDEE-based targets with effortless daily tracking, streaks, leaderboards, and a social community for accountability.",
                 },
                 {
                   q: "How many calories should I eat to lose weight?",
-                  a: "To lose weight, eat 300-500 calories below your TDEE. This creates a sustainable calorie deficit that results in approximately 0.5-1 lb of fat loss per week. Use Macro Maxxing to set your target and track your intake with AI food scanning.",
+                  a: "To lose weight, eat 300-500 calories below your TDEE. This creates a sustainable calorie deficit that results in approximately 0.5-1 lb of fat loss per week. Use Macromaxxing to set your target and track your intake with AI food scanning.",
                 },
                 {
                   q: "How accurate are TDEE calculators?",
-                  a: "TDEE calculators provide an estimate, typically within 10-15% of actual expenditure. The best approach is to use a calculator as a starting point, track your food consistently for 2-3 weeks, and adjust based on actual weight changes. Macro Maxxing makes this tracking process effortless.",
+                  a: "TDEE calculators provide an estimate, typically within 10-15% of actual expenditure. The best approach is to use a calculator as a starting point, track your food consistently for 2-3 weeks, and adjust based on actual weight changes. Macromaxxing makes this tracking process effortless.",
                 },
               ].map((faq) => (
                 <div

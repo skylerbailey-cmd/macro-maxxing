@@ -5,9 +5,9 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
-  title: "Best MacroFactor Alternative 2026 — Macro Maxxing vs MacroFactor",
+  title: "Best MacroFactor Alternative 2026 — Macromaxxing vs MacroFactor",
   description:
-    "Looking for an MacroFactor alternative? Macro Maxxing offers AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — core features free, AI Pro at $9.99/mo — less than MacroFactor's $12/month with more features.",
+    "Looking for an MacroFactor alternative? Macromaxxing offers AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — core features free, AI Pro at $9.99/mo — less than MacroFactor's $12/month with more features.",
   keywords: [
     "MacroFactor alternative",
     "MacroFactor replacement",
@@ -25,18 +25,18 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "What is the best alternative to MacroFactor?",
-    answer: "Macro Maxxing is the best alternative to MacroFactor. It offers AI photo scanning and voice logging (which MacroFactor lacks), gamified streaks and leaderboards, and a social community — with core features free and AI Pro at $9.99/month. MacroFactor costs $12/month with no free tier.",
+    answer: "Macromaxxing is the best alternative to MacroFactor. It offers AI photo scanning and voice logging (which MacroFactor lacks), gamified streaks and leaderboards, and a social community — with core features free and AI Pro at $9.99/month. MacroFactor costs $12/month with no free tier.",
   },
   {
-    question: "Is Macro Maxxing as accurate as MacroFactor?",
-    answer: "Both apps prioritize accuracy. Macro Maxxing uses Claude AI (Haiku and Sonnet models) for nutrition estimation. The main difference is input method — Macro Maxxing uses AI scanning and voice, while MacroFactor uses manual database searching.",
+    question: "Is Macromaxxing as accurate as MacroFactor?",
+    answer: "Both apps prioritize accuracy. Macromaxxing uses Claude AI (Haiku and Sonnet models) for nutrition estimation. The main difference is input method — Macromaxxing uses AI scanning and voice, while MacroFactor uses manual database searching.",
   },
   {
-    question: "Does Macro Maxxing have algorithm-based coaching like MacroFactor?",
-    answer: "Macro Maxxing focuses on AI-powered food logging and gamified accountability rather than algorithm-based calorie coaching. If auto-adjusting calorie targets based on weight trends is your top priority, MacroFactor's algorithm is unique. For everything else, Macro Maxxing offers more features — core tracking is free and AI Pro at $9.99/month is still less than MacroFactor.",
+    question: "Does Macromaxxing have algorithm-based coaching like MacroFactor?",
+    answer: "Macromaxxing focuses on AI-powered food logging and gamified accountability rather than algorithm-based calorie coaching. If auto-adjusting calorie targets based on weight trends is your top priority, MacroFactor's algorithm is unique. For everything else, Macromaxxing offers more features — core tracking is free and AI Pro at $9.99/month is still less than MacroFactor.",
   },
   {
-    question: "Why switch from MacroFactor to Macro Maxxing?",
+    question: "Why switch from MacroFactor to Macromaxxing?",
     answer: "For $9.99/month (less than MacroFactor's $12/month), get AI photo scanning and voice logging (faster than manual entry), enjoy gamified streaks and leaderboards for motivation, and join a social community for accountability — plus core features are free even without subscribing. The only feature you'd lose is MacroFactor's auto-adjusting calorie algorithm.",
   },
 ];
@@ -45,8 +45,8 @@ export default function MacroFactorAlternativePage() {
   return (
     <>
       <ArticleJsonLd
-        title="Best MacroFactor Alternative 2026 — Macro Maxxing"
-        description="Macro Maxxing is the best MacroFactor alternative with AI scanning and gamified accountability."
+        title="Best MacroFactor Alternative 2026 — Macromaxxing"
+        description="Macromaxxing is the best MacroFactor alternative with AI scanning and gamified accountability."
         url="https://macromaxxing.app/macrofactor-alternative"
       />
       <FAQPageJsonLd faqs={faqs} />
@@ -69,7 +69,7 @@ export default function MacroFactorAlternativePage() {
               <span className="text-gradient-gold">Better Value</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              Macro Maxxing is an MacroFactor alternative that provides
+              Macromaxxing is an MacroFactor alternative that provides
               AI-powered macro tracking with photo scanning and voice logging —
               features MacroFactor doesn&apos;t offer at any price. It includes
               gamified streaks, leaderboards, and a social community,
@@ -90,7 +90,7 @@ export default function MacroFactorAlternativePage() {
           <div className="bg-brand-gold/5 border border-brand-gold/20 rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-gold uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
-              <strong className="text-white">Macro Maxxing is the best MacroFactor alternative with AI features MacroFactor doesn&apos;t offer.</strong>{" "}
+              <strong className="text-white">Macromaxxing is the best MacroFactor alternative with AI features MacroFactor doesn&apos;t offer.</strong>{" "}
               It provides photo scanning, voice logging, gamified streaks, leaderboards, and a social community with core features free and AI Pro at $9.99/month (less than MacroFactor&apos;s $12/month). The trade-off: MacroFactor has a unique algorithm that auto-adjusts your calorie targets weekly based on weight trends — if fully automated coaching is your priority, MacroFactor&apos;s algorithm is unmatched.
             </p>
           </div>
@@ -142,7 +142,7 @@ export default function MacroFactorAlternativePage() {
         <section className="py-16 md:py-20 bg-white/[0.02]">
           <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-8">
-              Macro Maxxing vs MacroFactor
+              Macromaxxing vs MacroFactor
             </h2>
             <ComparisonTable
               features={[
@@ -166,7 +166,7 @@ export default function MacroFactorAlternativePage() {
 
         <section className="py-16 md:py-20 max-w-5xl mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            Why Choose Macro Maxxing Over MacroFactor
+            Why Choose Macromaxxing Over MacroFactor
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
             <FeatureCard
@@ -216,7 +216,7 @@ export default function MacroFactorAlternativePage() {
             </h2>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-brand-green/5 border border-brand-green/20 rounded-2xl p-6">
-                <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macro Maxxing if you:</h3>
+                <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macromaxxing if you:</h3>
                 <ul className="space-y-2 text-gray-300 text-sm">
                   <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want faster food logging with AI scanning and voice input</li>
                   <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want a free core experience plus AI Pro at $9.99/month — less than MacroFactor with more features</li>
@@ -231,7 +231,7 @@ export default function MacroFactorAlternativePage() {
                   <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Want fully automated calorie adjustments based on weight trends</li>
                   <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Prefer algorithm-driven coaching over self-directed tracking</li>
                   <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Value the Stronger By Science research-backed methodology</li>
-                  <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macro Maxxing is iOS only)</li>
+                  <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macromaxxing is iOS only)</li>
                 </ul>
               </div>
             </div>
@@ -245,7 +245,7 @@ export default function MacroFactorAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-gold font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. Core features included immediately.</p>
+                <p className="text-gray-400 text-sm">Get Macromaxxing free from the App Store. Core features included immediately.</p>
               </div>
               <div>
                 <p className="text-brand-gold font-bold text-lg mb-1">2. Set Your Targets</p>

@@ -314,7 +314,7 @@ struct SettingsView: View {
                 pickerRow(label: "Height", display: heightInchesVal > 0 ? Self.formatHeight(heightInchesVal) : "Not set") {
                     activePicker = .height
                 }
-                Picker("Gender", selection: $userSettings.gender) {
+                Picker("Sex", selection: $userSettings.gender) {
                     Text("Not set").tag("")
                     Text("Male").tag("male")
                     Text("Female").tag("female")
@@ -322,7 +322,7 @@ struct SettingsView: View {
             } header: {
                 Text("Body")
             } footer: {
-                Text("Gender is used to calculate your daily calorie goal more accurately. Goal weight is limited to 5 lbs from your current weight — aim for 1–2 lbs per week.")
+                Text("Sex is used to calculate your daily calorie goal more accurately. Goal weight is limited to 5 lbs from your current weight — aim for 1–2 lbs per week.")
             }
 
             // MARK: Nutrition

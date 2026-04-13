@@ -5,9 +5,9 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title:
-    "Social Fitness Community & Accountability Feed | Macro Maxxing",
+    "Social Fitness Community & Accountability Feed | Macromaxxing",
   description:
-    "Join a social fitness community built into your macro tracker. Share meals, celebrate streaks, follow friends, and stay accountable with Macro Maxxing's social feed and community features.",
+    "Join a social fitness community built into your macro tracker. Share meals, celebrate streaks, follow friends, and stay accountable with Macromaxxing's social feed and community features.",
   keywords: [
     "social fitness app",
     "fitness community app",
@@ -44,7 +44,7 @@ export default function SocialFitnessCommunityPage() {
               <span className="text-gradient">Why You Quit</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
-              Macro Maxxing has a built-in social feed and community that turns
+              Macromaxxing has a built-in social feed and community that turns
               nutrition tracking into a shared experience. Follow friends, share
               meals, compete on leaderboards, and hold each other accountable.
             </p>
@@ -70,7 +70,7 @@ export default function SocialFitnessCommunityPage() {
             are the two biggest predictors of long-term diet success.
           </p>
           <p className="text-gray-300 text-lg">
-            That&apos;s why Macro Maxxing includes a social feed, community
+            That&apos;s why Macromaxxing includes a social feed, community
             features, and public streaks — not as an afterthought, but as a core
             part of the app. Your nutrition journey shouldn&apos;t be a lonely one.
           </p>
@@ -172,7 +172,7 @@ export default function SocialFitnessCommunityPage() {
               Social, But Private When You Want
             </h2>
             <p className="text-gray-300 text-lg mb-6">
-              Not everything needs to be shared. Macro Maxxing gives you full
+              Not everything needs to be shared. Macromaxxing gives you full
               control over your privacy. Your detailed macros, weight, and
               personal data are always private. You choose what to share on the
               feed — individual meals, streak milestones, or nothing at all.
@@ -194,19 +194,19 @@ export default function SocialFitnessCommunityPage() {
             {[
               {
                 q: "What is the best social fitness community app?",
-                a: "Macro Maxxing is an macro tracking app with a built-in social fitness community. It features a social feed for sharing meals and milestones, public streaks, competitive leaderboards, and Aura XP — combining nutrition tracking with community accountability.",
+                a: "Macromaxxing is an macro tracking app with a built-in social fitness community. It features a social feed for sharing meals and milestones, public streaks, competitive leaderboards, and Aura XP — combining nutrition tracking with community accountability.",
               },
               {
-                q: "Can I use Macro Maxxing with friends?",
-                a: "Yes. You can follow friends in Macro Maxxing to see their meals, streaks, and leaderboard rankings in your feed. It's designed to make nutrition tracking a shared experience so you can hold each other accountable.",
+                q: "Can I use Macromaxxing with friends?",
+                a: "Yes. You can follow friends in Macromaxxing to see their meals, streaks, and leaderboard rankings in your feed. It's designed to make nutrition tracking a shared experience so you can hold each other accountable.",
               },
               {
                 q: "Is the social feed required?",
-                a: "No. The social feed is completely optional. You can use Macro Maxxing purely as a private macro tracker without engaging with any social features. The community is there when you want it.",
+                a: "No. The social feed is completely optional. You can use Macromaxxing purely as a private macro tracker without engaging with any social features. The community is there when you want it.",
               },
               {
                 q: "How does accountability help with dieting?",
-                a: "Research shows that social accountability increases diet adherence by 3x over 6 months. When friends can see your streak and you can see theirs, you're far more likely to stay consistent. Macro Maxxing builds this accountability directly into the tracking experience.",
+                a: "Research shows that social accountability increases diet adherence by 3x over 6 months. When friends can see your streak and you can see theirs, you're far more likely to stay consistent. Macromaxxing builds this accountability directly into the tracking experience.",
               },
             ].map((faq) => (
               <div

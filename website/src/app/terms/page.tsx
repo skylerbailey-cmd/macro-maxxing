@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Terms of Service & End User License Agreement",
   description:
-    "Macro Maxxing terms of service and end user license agreement (EULA). Read the terms governing your use of the Macro Maxxing app and website.",
+    "Macromaxxing terms of service and end user license agreement (EULA). Read the terms governing your use of the Macromaxxing app and website.",
 };
 
 export default function TermsPage() {
@@ -25,12 +25,12 @@ export default function TermsPage() {
               This End User License Agreement (&ldquo;Agreement&rdquo; or
               &ldquo;EULA&rdquo;) is a legally binding contract between you
               (&ldquo;User&rdquo; or &ldquo;you&rdquo;) and GRND Labs LLC, a
-              Florida limited liability company doing business as Macro Maxxing
+              Florida limited liability company doing business as Macromaxxing
               (&ldquo;Company,&rdquo; &ldquo;we,&rdquo; &ldquo;our,&rdquo; or
               &ldquo;us&rdquo;).
             </p>
             <p className="mb-3">
-              This Agreement governs your access to and use of the Macro Maxxing
+              This Agreement governs your access to and use of the Macromaxxing
               mobile application (the &ldquo;App&rdquo;), the website located at
               macromaxxing.app (the &ldquo;Website&rdquo;), and all related
               services, content, features, and functionality (collectively, the
@@ -385,7 +385,7 @@ export default function TermsPage() {
               other intellectual property laws.
             </p>
             <p className="mb-3">
-              &ldquo;Macro Maxxing,&rdquo; the Macro Maxxing logo, &ldquo;Aura
+              &ldquo;Macromaxxing,&rdquo; the Macromaxxing logo, &ldquo;Aura
               XP,&rdquo; &ldquo;Mog Board,&rdquo; and all related names,
               logos, product and service names, designs, and slogans are
               trademarks of GRND Labs LLC. You may not use such marks without
