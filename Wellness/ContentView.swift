@@ -47,7 +47,12 @@ struct ContentView: View {
     @State private var fabSelectedImage: UIImage? = nil
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        // Convert the @Environment-bound SessionManager into a @Bindable so
+        // we can build proper $-bindings against its observable properties
+        // (e.g. for the post-onboarding paywall fullScreenCover).
+        @Bindable var auth = auth
+
+        return ZStack(alignment: .bottomTrailing) {
             Color.pageBg.ignoresSafeArea()
 
             // Email verification nudge — full-width gold bar at the top until dismissed
@@ -121,10 +126,7 @@ struct ContentView: View {
                     }
                 }
             }
-            .fullScreenCover(isPresented: Binding(
-                get: { auth.showPostOnboardPaywall },
-                set: { auth.showPostOnboardPaywall = $0 }
-            )) {
+            .fullScreenCover(isPresented: $auth.showPostOnboardPaywall) {
                 AISubscriptionPaywallView(
                     onSubscribed: {
                         auth.showPostOnboardPaywall      = false
