@@ -342,7 +342,7 @@ struct SettingsView: View {
             } header: {
                 Text("Nutrition")
             } footer: {
-                Text("Grams of protein per pound of goal body weight. General fitness: 0.7–0.8 g/lb. Strength training: 0.8–1.0 g/lb.\n\nWhen auto-adjust is on, the \"Apply macro adjustments\" toggle in the workout log sheet will default to ON, automatically updating your daily macro targets based on the type of workout logged.\n\nDietary exclusions are used by the AI meal planner to avoid suggesting meals with dairy or gluten.")
+                Text("Grams of protein per pound of goal body weight. General fitness: 0.7–0.8 g/lb. Strength training: 0.8–1.0 g/lb.\n\nWhen auto-adjust is on, the \"Apply macro adjustments\" toggle in the workout log sheet will default to ON, automatically updating your daily macro targets based on the type of workout logged.\n\nDietary exclusions are used by the AI meal planner to avoid suggesting meals with dairy or gluten, and by the photo macro scanner — a bowl of pasta will be assumed gluten-free, a glass of milk will be assumed a plant-based alternative, etc.")
             }
 
             // MARK: Blocked Users
