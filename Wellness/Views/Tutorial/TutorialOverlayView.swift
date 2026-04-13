@@ -12,20 +12,26 @@ struct TutorialStep {
     let body: String
     /// App-tour only: switch to this tab index before showing the step.
     let tabIndex: Int?
-    /// ID passed to `.tutorialAnchor(_:)` on the element to spotlight.
+    /// Primary anchor ID — drives card positioning and the spotlight cutout.
     /// Nil = full-screen dim with no cutout.
     let anchorID: String?
+    /// Extra anchor IDs to include in the spotlight when a single card needs
+    /// to highlight multiple elements at once (e.g. the combined Feed step
+    /// that calls out the aura stream, scope picker, and label chips together).
+    let additionalAnchorIDs: [String]
     /// Optional inline icon view shown between the body and navigation buttons.
     let icon: TutorialIcon?
 
     init(title: String, body: String,
          tabIndex: Int? = nil,
          anchorID: String? = nil,
+         additionalAnchorIDs: [String] = [],
          icon: TutorialIcon? = nil) {
         self.title    = title
         self.body     = body
         self.tabIndex = tabIndex
         self.anchorID = anchorID
+        self.additionalAnchorIDs = additionalAnchorIDs
         self.icon     = icon
     }
 }
@@ -39,34 +45,93 @@ enum TutorialIcon {
 
 enum TutorialSteps {
 
-    // MARK: Full App Tour (combines per-tab steps with tab switching + highlighting)
+    // MARK: Full App Tour (shortened, hand-authored)
     //
-    // The per-tab step collections (`hub`, `log`, `feed`, `board`) are the single
-    // source of truth for tutorial content. The first-time app tour simply
-    // re-wraps them with a `tabIndex` so the overlay can switch tabs between
-    // steps. Always forward every field (including `icon`) so the two entry
-    // points — first launch and tapping the ? icon — display identical cards.
-    static let appTour: [TutorialStep] = {
-        var steps: [TutorialStep] = []
-        steps.append(.init(
+    // The first-time tour intentionally combines and trims steps from the
+    // per-tab tutorials so a brand-new user gets a faster onboarding pass
+    // without losing context. The per-tab collections below (`hub`, `log`,
+    // `feed`, `board`, `profile`) remain the source of truth for the help
+    // icons in each tab — editing this array does NOT change those.
+    static let appTour: [TutorialStep] = [
+        .init(
             title: "Welcome to Macromaxxing",
             body: "Let's walk you through the app. This quick tour covers each tab so you know where everything is.\n\nYou can revisit this tutorial anytime — just tap the ? icon at the top of any tab.",
             anchorID: nil
-        ))
-        for s in hub {
-            steps.append(.init(title: s.title, body: s.body, tabIndex: 0, anchorID: s.anchorID, icon: s.icon))
-        }
-        for s in log {
-            steps.append(.init(title: s.title, body: s.body, tabIndex: 1, anchorID: s.anchorID, icon: s.icon))
-        }
-        for s in feed {
-            steps.append(.init(title: s.title, body: s.body, tabIndex: 2, anchorID: s.anchorID, icon: s.icon))
-        }
-        for s in board {
-            steps.append(.init(title: s.title, body: s.body, tabIndex: 3, anchorID: s.anchorID, icon: s.icon))
-        }
-        return steps
-    }()
+        ),
+
+        // ── Hub ────────────────────────────────────────────────────────
+        .init(
+            title: "Stats at a Glance",
+            body: "Your streak count and aura level are pinned at the top, alongside the bell icon for in-app notifications and your profile picture for editing your profile. Streaks grow each day you hit all four macro goals; aura XP stacks from streaks, posts, and achievements to level you up over time.",
+            tabIndex: 0,
+            anchorID: "hub.header"
+        ),
+        .init(
+            title: "Macro Goal Bars",
+            body: "Each bar shows your actual vs. target for calories, protein, carbs, and fat. Tap any bar to see a 30-day history chart.",
+            tabIndex: 0,
+            anchorID: "hub.macros"
+        ),
+        .init(
+            title: "AI Meal Planner",
+            body: "Tap 'Brainstorm next meal' and AI will suggest specific meals or snacks tailored to your remaining macro gaps for the day. You get 2 suggestions per day — use them wisely.",
+            tabIndex: 0,
+            anchorID: "hub.mealPlanner"
+        ),
+
+        // ── Log ────────────────────────────────────────────────────────
+        .init(
+            title: "Fuel / Duel Tabs",
+            body: "Fuel is your daily food log. Duel is where you log workouts — track exercises, duration, and calories burned. Tap the gold + button anywhere in the app to log a meal or workout.",
+            tabIndex: 1,
+            anchorID: "log.tabBar",
+            icon: .goldPlus
+        ),
+        .init(
+            title: "Meal Score Circle",
+            body: "Each logged entry shows a small circle score (0–100) based on how well that meal's macro ratio aligns with your personal goals. Tap it to see the full breakdown.",
+            tabIndex: 1,
+            anchorID: nil,
+            icon: .mealScore
+        ),
+        .init(
+            title: "AI Nutrition Coach",
+            body: "Scroll to the bottom of your food log to find the AI Nutrition Coach. It reviews your full day — every meal, macro distribution, and workout timing — then gives you a personalized nutritionist-level debrief with actionable advice. Available once per day.",
+            tabIndex: 1,
+            anchorID: "log.nutritionCoach"
+        ),
+
+        // ── Feed ───────────────────────────────────────────────────────
+        .init(
+            title: "Your Feed",
+            body: "The Aura Stream is your community feed — logging meals, hitting streaks, and sharing progress builds your standing. Use the scope picker to switch between Arena (everyone), Team (friends), Following, and Local. Tap any label chip — Fuel Log, Workout, Transformation, Goal — to filter the feed to exactly what you want to see.",
+            tabIndex: 2,
+            anchorID: "feed.header",
+            additionalAnchorIDs: ["feed.scopePicker", "feed.labelChips"]
+        ),
+        .init(
+            title: "Create a Post",
+            body: "Tap the + floating button in the bottom right to create a new post. Pick a label to pre-fill the title and body, then make it yours.",
+            tabIndex: 2,
+            anchorID: nil,
+            icon: .goldPlus
+        ),
+
+        // ── Board ──────────────────────────────────────────────────────
+        .init(
+            title: "Mog Board",
+            body: "The weekly leaderboard resets every Sunday at 8 PM ET. Your rank is based on the aura XP you earn during the week — hit your macro goals daily, keep your streak alive, and stay active to climb. Use the scope selector to compare yourself within your Team, your Local area, or across the full Arena.",
+            tabIndex: 3,
+            anchorID: "board.header",
+            additionalAnchorIDs: ["board.scopePicker"]
+        ),
+        .init(
+            title: "Your Standing",
+            body: "Your row is always highlighted so you can find your rank at a glance. Pull down to refresh the board with the latest data.",
+            tabIndex: 3,
+            anchorID: "board.rows"
+        ),
+    ]
 
     // MARK: Profile
     static let profile: [TutorialStep] = [
@@ -211,38 +276,53 @@ struct TutorialOverlayView: View {
 
     var body: some View {
         GeometryReader { geo in
-            // Resolve the anchor for the current step into a real CGRect
-            let highlightRect: CGRect? = step.anchorID.flatMap { id in
+            // Resolve every anchor for the current step (primary + extras)
+            // into real CGRects. Most steps have a single anchor; the
+            // combined Feed step uses several so the spotlight covers the
+            // aura stream, scope picker, and label chips together.
+            let allAnchorIDs: [String] =
+                (step.anchorID.map { [$0] } ?? []) + step.additionalAnchorIDs
+            let highlightRects: [CGRect] = allAnchorIDs.compactMap { id in
                 anchors[id].map { geo[$0] }
             }
-            // If highlight is in the lower half of the screen, put the card at the top
-            let cardAtTop = (highlightRect?.midY ?? 0) > geo.size.height * 0.45
+            // Card positioning is driven by the primary (first) rect.
+            let primaryRect = highlightRects.first
+            // If primary highlight is in the lower half, put the card at the top
+            let cardAtTop = (primaryRect?.midY ?? 0) > geo.size.height * 0.45
 
             ZStack {
                 // ── Spotlight layer ──────────────────────────────────────────
-                if let rect = highlightRect {
+                if !highlightRects.isEmpty {
                     Color.black.opacity(0.72)
                         .overlay(
-                            // Punch a transparent hole over the target element
-                            RoundedRectangle(cornerRadius: 14)
-                                .frame(width: rect.width  + 8,
-                                       height: rect.height + 8)
-                                .position(x: rect.midX, y: rect.midY)
-                                .blendMode(.destinationOut)
+                            // Punch a transparent hole over each target element
+                            ZStack {
+                                ForEach(highlightRects.indices, id: \.self) { i in
+                                    let rect = highlightRects[i]
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .frame(width: rect.width  + 8,
+                                               height: rect.height + 8)
+                                        .position(x: rect.midX, y: rect.midY)
+                                        .blendMode(.destinationOut)
+                                }
+                            }
                         )
                         .drawingGroup()
                         .allowsHitTesting(false)
 
-                    // Purple highlight ring on top of the hole
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color(red: 0.65, green: 0.45, blue: 1.00).opacity(0.85),
-                                lineWidth: 2)
-                        .frame(width: rect.width  + 8,
-                               height: rect.height + 8)
-                        .position(x: rect.midX, y: rect.midY)
-                        .shadow(color: Color(red: 0.65, green: 0.45, blue: 1.00).opacity(0.45),
-                                radius: 10)
-                        .allowsHitTesting(false)
+                    // Purple highlight ring on top of each hole
+                    ForEach(highlightRects.indices, id: \.self) { i in
+                        let rect = highlightRects[i]
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color(red: 0.65, green: 0.45, blue: 1.00).opacity(0.85),
+                                    lineWidth: 2)
+                            .frame(width: rect.width  + 8,
+                                   height: rect.height + 8)
+                            .position(x: rect.midX, y: rect.midY)
+                            .shadow(color: Color(red: 0.65, green: 0.45, blue: 1.00).opacity(0.45),
+                                    radius: 10)
+                            .allowsHitTesting(false)
+                    }
                 } else {
                     Color.black.opacity(0.65).allowsHitTesting(false)
                 }
