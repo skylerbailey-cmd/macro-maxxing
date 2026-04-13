@@ -8,9 +8,9 @@
 //    • AI when logging a meal (food photo analysis)
 //    • AI when logging a workout (voice → workout parser)
 //
-//  Two tiers (annual primary, monthly anchor), an optional "skip free trial"
-//  toggle, and a "Have a promo code?" entry point that opens Apple's native
-//  offer-code redemption sheet for affiliate discounts.
+//  Two tiers (annual primary, monthly anchor) and a "Have a promo code?"
+//  entry point that opens Apple's native offer-code redemption sheet for
+//  affiliate discounts.
 //
 
 import SwiftUI
@@ -28,7 +28,6 @@ struct AISubscriptionPaywallView: View {
 
     @State private var store = AISubscriptionStore.shared
     @State private var selectedProductID: String = AISubscriptionStore.annualProductID
-    @State private var skipFreeTrial: Bool = false
     @State private var showError = false
 
     @State private var showPromoSheet = false
@@ -51,7 +50,6 @@ struct AISubscriptionPaywallView: View {
                     header
                     featuresCard
                     tierPicker
-                    trialToggle
                     ctaButtons
                     promoCodeRow
                     legalFooter
@@ -237,7 +235,7 @@ struct AISubscriptionPaywallView: View {
 
     private var annualHeadline: String {
         let price = store.displayPrice(for: AISubscriptionStore.annualProductID)
-        if store.isEligibleForIntroOffer && !skipFreeTrial {
+        if store.isEligibleForIntroOffer {
             return "\(store.trialDayCount) days free, then \(price)/year"
         }
         return "\(price) / year"
@@ -252,7 +250,7 @@ struct AISubscriptionPaywallView: View {
 
     private var monthlyHeadline: String {
         let price = store.displayPrice(for: AISubscriptionStore.monthlyProductID)
-        if store.isEligibleForIntroOffer && !skipFreeTrial {
+        if store.isEligibleForIntroOffer {
             return "\(store.trialDayCount) days free, then \(price)/month"
         }
         return "\(price) / month"
@@ -260,29 +258,6 @@ struct AISubscriptionPaywallView: View {
 
     private var monthlySubline: String {
         "Cancel anytime"
-    }
-
-    // MARK: - Trial opt-out
-
-    @ViewBuilder
-    private var trialToggle: some View {
-        // The skip-trial path is backed by a dedicated no-trial annual
-        // product (Apple has no client-side way to refuse an intro offer),
-        // so we only offer the toggle when annual is selected.
-        if store.isEligibleForIntroOffer && selectedProductID == AISubscriptionStore.annualProductID {
-            Toggle(isOn: $skipFreeTrial) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Skip free trial")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.85))
-                    Text("Start your annual subscription immediately — no 3-day trial.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.5))
-                }
-            }
-            .tint(accent)
-            .padding(.horizontal, 4)
-        }
     }
 
     // MARK: - CTA
@@ -331,7 +306,7 @@ struct AISubscriptionPaywallView: View {
     }
 
     private var ctaText: String {
-        if store.isEligibleForIntroOffer && !skipFreeTrial {
+        if store.isEligibleForIntroOffer {
             return "Start 3-Day Free Trial"
         }
         let price = store.displayPrice(for: selectedProductID)
@@ -468,7 +443,7 @@ struct AISubscriptionPaywallView: View {
     private var legalFooterText: String {
         let price  = store.displayPrice(for: selectedProductID)
         let period = store.period(for: selectedProductID)
-        if store.isEligibleForIntroOffer && !skipFreeTrial {
+        if store.isEligibleForIntroOffer {
             return "Your \(store.trialDayCount)-day free trial begins after purchase. You won't be charged during the trial. After \(store.trialDayCount) days your subscription auto-renews at \(price)/\(period) and is charged to your Apple ID. Cancel anytime at least 24 hours before the end of the current period in your Apple ID settings — otherwise it renews automatically."
         }
         return "Payment charged to your Apple ID on confirmation. Subscription auto-renews at \(price)/\(period) unless canceled at least 24 hours before the end of the current period. Manage or cancel in your Apple ID settings."
@@ -497,17 +472,7 @@ struct AISubscriptionPaywallView: View {
     // MARK: - Actions
 
     private func handlePurchase() async {
-        // If the user picked annual and toggled "skip free trial", buy the
-        // dedicated no-trial annual product so Apple does not auto-apply the
-        // intro offer. Monthly and standard annual go through as-is.
-        let productID: String = {
-            if selectedProductID == AISubscriptionStore.annualProductID && skipFreeTrial {
-                return AISubscriptionStore.annualNoTrialProductID
-            }
-            return selectedProductID
-        }()
-        let success = await store.purchase(productID: productID,
-                                           skipFreeTrial: skipFreeTrial)
+        let success = await store.purchase(productID: selectedProductID)
         if success {
             onSubscribed()
             dismiss()
