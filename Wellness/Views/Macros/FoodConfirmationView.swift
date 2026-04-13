@@ -25,6 +25,12 @@ struct FoodConfirmationView: View {
     @State private var carbsText:   String = ""
     @State private var fatText:     String = ""
 
+    // Target calories captured on entry to edit mode; sliders redistribute macros
+    // to keep total calories aligned with this value (4 kcal/g P & C, 9 kcal/g F).
+    @State private var targetCalories: Double = 0
+
+    private enum MacroKind { case protein, carbs, fat }
+
     private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
     private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
     private let accent = Color(red: 0.65, green: 0.45, blue: 1.00)
@@ -151,12 +157,12 @@ struct FoodConfirmationView: View {
     private var macroCard: some View {
         VStack(spacing: 12) {
             if editingMacros {
-                // Editable mode
+                // Editable mode — sliders redistribute other macros to preserve calories
                 editableMacroRow(label: "Calories", unit: "kcal", text: $calText)
                 Divider().background(.white.opacity(0.10))
-                editableMacroRow(label: "Protein", unit: "g", text: $proteinText)
-                editableMacroRow(label: "Carbs", unit: "g", text: $carbsText)
-                editableMacroRow(label: "Fat", unit: "g", text: $fatText)
+                editableMacroRow(label: "Protein", unit: "g", text: $proteinText, kind: .protein)
+                editableMacroRow(label: "Carbs",   unit: "g", text: $carbsText,   kind: .carbs)
+                editableMacroRow(label: "Fat",     unit: "g", text: $fatText,     kind: .fat)
             } else {
                 // Display mode
                 HStack {
@@ -192,6 +198,7 @@ struct FoodConfirmationView: View {
                     proteinText = String(format: "%.1f", scaledProtein)
                     carbsText   = String(format: "%.1f", scaledCarbs)
                     fatText     = String(format: "%.1f", scaledFat)
+                    targetCalories = Double(scaledCalories)
                 }
                 withAnimation(.spring(duration: 0.2)) { editingMacros.toggle() }
             } label: {
@@ -210,22 +217,134 @@ struct FoodConfirmationView: View {
         .cornerRadius(14)
     }
 
-    private func editableMacroRow(label: String, unit: String, text: Binding<String>) -> some View {
-        HStack {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.70))
-            Spacer()
-            TextField("0", text: text)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .font(.system(size: 17, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .frame(width: 80)
-            Text(unit)
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.45))
+    private func editableMacroRow(label: String, unit: String, text: Binding<String>, kind: MacroKind? = nil) -> some View {
+        VStack(spacing: 8) {
+            HStack {
+                Text(label)
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.70))
+                Spacer()
+                TextField("0", text: text)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .frame(width: 80)
+                    .onChange(of: text.wrappedValue) { _, _ in
+                        if kind == nil {
+                            // User edited calories field directly — retarget.
+                            if let newCal = Double(calText), newCal > 0 {
+                                targetCalories = newCal
+                            }
+                        }
+                    }
+                Text(unit)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.45))
+            }
+
+            if let kind {
+                macroSlider(kind: kind)
+            }
         }
+    }
+
+    // MARK: - Macro Slider (auto-redistributes other macros to preserve target calories)
+
+    private func macroSlider(kind: MacroKind) -> some View {
+        let current = currentValue(for: kind)
+        let maxVal  = maxValue(for: kind)
+        let tint: Color = {
+            switch kind {
+            case .protein: return .blue
+            case .carbs:   return .green
+            case .fat:     return .orange
+            }
+        }()
+        let upper = max(maxVal, 0.1)
+        return Slider(
+            value: Binding(
+                get: { min(max(0, current), upper) },
+                set: { adjustMacro(kind: kind, newValue: $0) }
+            ),
+            in: 0...upper
+        )
+        .tint(tint)
+    }
+
+    private func currentValue(for kind: MacroKind) -> Double {
+        switch kind {
+        case .protein: return Double(proteinText) ?? 0
+        case .carbs:   return Double(carbsText)   ?? 0
+        case .fat:     return Double(fatText)     ?? 0
+        }
+    }
+
+    /// Max grams this macro could hit if every calorie came from it.
+    private func maxValue(for kind: MacroKind) -> Double {
+        let target = targetCalories > 0 ? targetCalories : (Double(calText) ?? 0)
+        guard target > 0 else { return 100 }
+        switch kind {
+        case .protein, .carbs: return target / 4
+        case .fat:             return target / 9
+        }
+    }
+
+    /// Adjusts the given macro to `newValue` grams and redistributes the other
+    /// two macros proportionally so that total calories equal `targetCalories`.
+    private func adjustMacro(kind: MacroKind, newValue: Double) {
+        let target = targetCalories > 0 ? targetCalories : (Double(calText) ?? 0)
+        guard target > 0 else { return }
+
+        let p = Double(proteinText) ?? 0
+        let c = Double(carbsText)   ?? 0
+        let f = Double(fatText)     ?? 0
+
+        var newP = p, newC = c, newF = f
+
+        switch kind {
+        case .protein:
+            newP = newValue
+            let remaining = max(0, target - 4 * newP)
+            let other = 4 * c + 9 * f
+            if other > 0.01 {
+                let scale = remaining / other
+                newC = c * scale
+                newF = f * scale
+            } else {
+                // Split remaining evenly (by calories) between carbs and fat.
+                newC = (remaining / 2) / 4
+                newF = (remaining / 2) / 9
+            }
+        case .carbs:
+            newC = newValue
+            let remaining = max(0, target - 4 * newC)
+            let other = 4 * p + 9 * f
+            if other > 0.01 {
+                let scale = remaining / other
+                newP = p * scale
+                newF = f * scale
+            } else {
+                newP = (remaining / 2) / 4
+                newF = (remaining / 2) / 9
+            }
+        case .fat:
+            newF = newValue
+            let remaining = max(0, target - 9 * newF)
+            let other = 4 * p + 4 * c
+            if other > 0.01 {
+                let scale = remaining / other
+                newP = p * scale
+                newC = c * scale
+            } else {
+                newP = (remaining / 2) / 4
+                newC = (remaining / 2) / 4
+            }
+        }
+
+        proteinText = String(format: "%.1f", newP)
+        carbsText   = String(format: "%.1f", newC)
+        fatText     = String(format: "%.1f", newF)
     }
 
     private func applyManualEdits() {
