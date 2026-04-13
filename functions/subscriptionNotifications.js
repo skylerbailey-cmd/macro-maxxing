@@ -31,10 +31,9 @@ const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestor
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
-// Our three entitlement-granting product IDs.
+// Entitlement-granting product IDs.
 const ENTITLEMENT_PRODUCT_IDS = new Set([
   "com.sbailey.Wellness.aiAnnual",
-  "com.sbailey.Wellness.aiAnnualNoTrial",
   "com.sbailey.Wellness.aiMonthly",
 ]);
 

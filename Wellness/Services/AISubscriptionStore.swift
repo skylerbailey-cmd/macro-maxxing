@@ -39,9 +39,8 @@ final class AISubscriptionStore {
 
     // MARK: - Product config
 
-    static let annualProductID        = "com.sbailey.Wellness.aiAnnual"
-    static let annualNoTrialProductID = "com.sbailey.Wellness.aiAnnualNoTrial"
-    static let monthlyProductID       = "com.sbailey.Wellness.aiMonthly"
+    static let annualProductID  = "com.sbailey.Wellness.aiAnnual"
+    static let monthlyProductID = "com.sbailey.Wellness.aiMonthly"
 
     /// Legacy accessor — defaults to the monthly product so older call sites
     /// that read `AISubscriptionStore.productID` keep compiling. New code
@@ -49,7 +48,7 @@ final class AISubscriptionStore {
     static let productID = monthlyProductID
 
     static var allProductIDs: [String] {
-        [annualProductID, annualNoTrialProductID, monthlyProductID]
+        [annualProductID, monthlyProductID]
     }
 
     /// Products that grant AI entitlements. Used by the notification webhook
@@ -180,15 +179,12 @@ final class AISubscriptionStore {
 
     // MARK: - Purchase
 
-    /// Initiates the App Store purchase flow for the given product. When
-    /// `skipFreeTrial` is true we flag the transaction with an app-account
-    /// token so we can suppress the "you're in the trial period" copy later
-    /// — Apple still applies the intro offer to eligible Apple IDs (the
-    /// App Store does not expose a client-side toggle to refuse it), but
-    /// users who chose this path have explicitly acknowledged they're
-    /// happy to be billed at the end of the trial.
+    /// Initiates the App Store purchase flow for the given product. Apple
+    /// auto-applies the 3-day intro offer to eligible Apple IDs; we pass an
+    /// appAccountToken so later notifications can be attributed back to the
+    /// right Firebase UID.
     @discardableResult
-    func purchase(productID: String, skipFreeTrial: Bool = false) async -> Bool {
+    func purchase(productID: String) async -> Bool {
         guard let product = products[productID] else {
             errorMessage = "Subscription unavailable. Please try again later."
             return false
@@ -197,9 +193,6 @@ final class AISubscriptionStore {
         defer { isPurchasing = false }
 
         do {
-            // We pass an appAccountToken so we can tell later which purchases
-            // came from the "skip free trial" CTA. Apple handles the actual
-            // intro-offer eligibility server-side.
             let options: Set<Product.PurchaseOption> = [
                 .appAccountToken(UUID())
             ]
@@ -210,7 +203,7 @@ final class AISubscriptionStore {
                 switch verification {
                 case .verified(let transaction):
                     await transaction.finish()
-                    AppLogger.log("[AISubscriptionStore] Purchase verified — \(transaction.productID) tx=\(transaction.id) skipTrial=\(skipFreeTrial)")
+                    AppLogger.log("[AISubscriptionStore] Purchase verified — \(transaction.productID) tx=\(transaction.id)")
                     await refreshEntitlement()
                     await refreshIntroEligibility()
                     return isSubscribed
@@ -234,7 +227,7 @@ final class AISubscriptionStore {
     }
 
     /// Legacy single-product purchase — defaults to monthly. New code should
-    /// call `purchase(productID:skipFreeTrial:)`.
+    /// call `purchase(productID:)`.
     @discardableResult
     func purchase() async -> Bool {
         await purchase(productID: Self.monthlyProductID)
