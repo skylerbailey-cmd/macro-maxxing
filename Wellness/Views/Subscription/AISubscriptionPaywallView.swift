@@ -37,6 +37,13 @@ struct AISubscriptionPaywallView: View {
     @State private var showPromoField: Bool = false
     @State private var isRedeemingPromo = false
 
+    /// Currently-highlighted AI feature in the interactive row. Starts on the
+    /// Meal Planner so the user lands on a pulsing gold outline that draws
+    /// the eye to the most valuable feature in the bundle.
+    @State private var selectedFeatureID: String = "mealPlanner"
+    /// Drives the pulsing opacity on the selected feature's gold ring.
+    @State private var featurePulse: Bool = false
+
     @Environment(\.dismiss) private var dismiss
 
     private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
@@ -116,42 +123,137 @@ struct AISubscriptionPaywallView: View {
 
     // MARK: - Compact features row
 
+    /// The four AI features shown as interactive pills. Tapping one swaps
+    /// the description box below the row and moves the pulsing gold outline
+    /// onto the tapped pill.
+    private struct AIFeatureCopy: Identifiable {
+        let id: String
+        let icon: String
+        let color: Color
+        let title: String
+        let description: String
+    }
+
+    private var features: [AIFeatureCopy] {
+        [
+            AIFeatureCopy(
+                id: "mealPlanner",
+                icon: "lightbulb.fill",
+                color: gold,
+                title: "Meal Planner",
+                description: "Tell the AI what you've eaten today and it suggests specific meals to close your remaining protein, carb, and fat gaps — tailored to your diet, calorie budget, and taste."
+            ),
+            AIFeatureCopy(
+                id: "coach",
+                icon: "wand.and.stars",
+                color: accent,
+                title: "Coach",
+                description: "End-of-day debrief from a nutritionist-level AI: grades your meals, macros, workout timing, and tells you exactly what to adjust tomorrow."
+            ),
+            AIFeatureCopy(
+                id: "foodScan",
+                icon: "camera.fill",
+                color: Color(red: 0.20, green: 0.85, blue: 0.75),
+                title: "Food Scan",
+                description: "Snap a photo of any meal and the AI estimates calories, protein, carbs, and fat in seconds — no manual lookup, no barcode hunting."
+            ),
+            AIFeatureCopy(
+                id: "workouts",
+                icon: "figure.run",
+                color: Color(red: 0.30, green: 0.90, blue: 0.55),
+                title: "Workouts",
+                description: "Describe your workout out loud and the AI fills in the exercise name, duration, and calories burned — log a whole session in under 10 seconds."
+            ),
+        ]
+    }
+
     private var compactFeaturesRow: some View {
-        // A single pill row of four AI features — way more compact than the
-        // previous stacked card.
-        HStack(spacing: 8) {
-            featurePill(icon: "lightbulb.fill", color: gold,
-                        title: "Meal Planner")
-            featurePill(icon: "wand.and.stars", color: accent,
-                        title: "Coach")
-            featurePill(icon: "camera.fill",
-                        color: Color(red: 0.20, green: 0.85, blue: 0.75),
-                        title: "Food Scan")
-            featurePill(icon: "figure.run",
-                        color: Color(red: 0.30, green: 0.90, blue: 0.55),
-                        title: "Workouts")
+        VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                ForEach(features) { feature in
+                    featurePill(feature: feature)
+                }
+            }
+            featureDescriptionBox
+        }
+        .onAppear {
+            // Kick off the pulsing animation on the initially-selected pill.
+            withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+                featurePulse = true
+            }
         }
     }
 
-    private func featurePill(icon: String, color: Color, title: String) -> some View {
-        VStack(spacing: 6) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(color.opacity(0.18))
-                    .frame(width: 38, height: 38)
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(color)
+    private func featurePill(feature: AIFeatureCopy) -> some View {
+        let isSelected = feature.id == selectedFeatureID
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedFeatureID = feature.id
             }
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.82))
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+        } label: {
+            VStack(spacing: 6) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(feature.color.opacity(0.18))
+                        .frame(width: 38, height: 38)
+                    Image(systemName: feature.icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(feature.color)
+                }
+                Text(feature.title)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(isSelected ? 1.0 : 0.78))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(
+                cardBg.opacity(isSelected ? 0.95 : 0.6),
+                in: RoundedRectangle(cornerRadius: 12)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        isSelected ? gold.opacity(featurePulse ? 1.0 : 0.35)
+                                   : Color.white.opacity(0.04),
+                        lineWidth: isSelected ? 2 : 1
+                    )
+            )
+            // Subtle lift on the selected pill so the gold ring pops.
+            .shadow(
+                color: isSelected ? gold.opacity(featurePulse ? 0.45 : 0.15) : .clear,
+                radius: isSelected ? 8 : 0,
+                x: 0, y: 0
+            )
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(cardBg.opacity(0.6), in: RoundedRectangle(cornerRadius: 12))
+        .buttonStyle(.plain)
+    }
+
+    /// Description box that sits directly below the feature row. Updates
+    /// whenever the user taps a different pill. Content transitions with a
+    /// crossfade so the change feels intentional.
+    private var featureDescriptionBox: some View {
+        let feature = features.first { $0.id == selectedFeatureID } ?? features[0]
+        return HStack(alignment: .top, spacing: 10) {
+            Image(systemName: feature.icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(feature.color)
+                .frame(width: 20, alignment: .leading)
+            Text(feature.description)
+                .font(.system(size: 12))
+                .foregroundStyle(.white.opacity(0.78))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(cardBg.opacity(0.55), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(feature.color.opacity(0.22), lineWidth: 1)
+        )
+        .id(feature.id) // forces the transition on selection change
+        .transition(.opacity)
     }
 
     // MARK: - Promo code (inline, prominent)
