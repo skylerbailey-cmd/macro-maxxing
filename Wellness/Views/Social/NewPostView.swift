@@ -122,6 +122,13 @@ struct NewPostView: View {
     private var statusPrompt: String { dailyStatusPrompts[dailyIndex(for: dailyStatusPrompts)] }
     private var bodyPrompt:   String { dailyBodyPrompts[dailyIndex(for: dailyBodyPrompts)] }
 
+    /// A post can be submitted if a label is selected, or if a title has been entered.
+    /// Title is only required when no label is selected.
+    private var hasPostableContent: Bool {
+        if selectedLabel != nil { return true }
+        return !titleText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -234,7 +241,7 @@ struct NewPostView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Post") { Task { await submit() } }
                         .fontWeight(.bold)
-                        .disabled(titleText.trimmingCharacters(in: .whitespaces).isEmpty && selectedLabel == nil)
+                        .disabled(!hasPostableContent)
                 }
             }
         }
@@ -706,7 +713,7 @@ struct NewPostView: View {
     @MainActor
     private func submit() async {
         let t = titleText.trimmingCharacters(in: .whitespaces)
-        guard !t.isEmpty else { return }
+        guard hasPostableContent else { return }
 
         // 1. Save locally to SwiftData so the Aura Stream tab updates immediately
         let fbPostID = UUID().uuidString   // shared ID for SwiftData ↔ Firestore link
