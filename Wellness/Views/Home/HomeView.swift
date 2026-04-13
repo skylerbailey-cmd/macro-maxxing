@@ -509,8 +509,12 @@ struct HomeView: View {
     }
 
     private func macroHistorySheet(macro: MacroType) -> some View {
-        MacroHistorySheet(macro: macro, goalValue: goalForMacro(macro))
-            .presentationDetents([.medium, .large])
+        MacroHistorySheet(
+            macro:     macro,
+            goalValue: goalForMacro(macro),
+            userID:    viewModel.userSettings.userID
+        )
+        .presentationDetents([.medium, .large])
     }
     
     private func handleAppear() {
