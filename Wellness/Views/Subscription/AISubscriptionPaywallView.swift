@@ -266,13 +266,16 @@ struct AISubscriptionPaywallView: View {
 
     @ViewBuilder
     private var trialToggle: some View {
-        if store.isEligibleForIntroOffer {
+        // The skip-trial path is backed by a dedicated no-trial annual
+        // product (Apple has no client-side way to refuse an intro offer),
+        // so we only offer the toggle when annual is selected.
+        if store.isEligibleForIntroOffer && selectedProductID == AISubscriptionStore.annualProductID {
             Toggle(isOn: $skipFreeTrial) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Skip free trial")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.85))
-                    Text("Start your subscription immediately, no trial period.")
+                    Text("Start your annual subscription immediately — no 3-day trial.")
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.5))
                 }
@@ -494,7 +497,16 @@ struct AISubscriptionPaywallView: View {
     // MARK: - Actions
 
     private func handlePurchase() async {
-        let success = await store.purchase(productID: selectedProductID,
+        // If the user picked annual and toggled "skip free trial", buy the
+        // dedicated no-trial annual product so Apple does not auto-apply the
+        // intro offer. Monthly and standard annual go through as-is.
+        let productID: String = {
+            if selectedProductID == AISubscriptionStore.annualProductID && skipFreeTrial {
+                return AISubscriptionStore.annualNoTrialProductID
+            }
+            return selectedProductID
+        }()
+        let success = await store.purchase(productID: productID,
                                            skipFreeTrial: skipFreeTrial)
         if success {
             onSubscribed()

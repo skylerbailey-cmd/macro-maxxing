@@ -757,3 +757,16 @@ exports.migratePrivateFields = onCall(async (request) => {
   console.log(`[migratePrivateFields] Migrated ${migrated} / ${usersSnap.size} users`);
   return { migrated, total: usersSnap.size };
 });
+
+// ---------------------------------------------------------------------------
+// Subscription notifications & affiliate commissions
+// ---------------------------------------------------------------------------
+// See subscriptionNotifications.js and commissionExport.js for full docs.
+
+const subscriptionNotifications = require("./subscriptionNotifications");
+const commissionExport          = require("./commissionExport");
+
+exports.appStoreNotifications     = subscriptionNotifications.appStoreNotifications;
+exports.affiliateCommissionReport = commissionExport.affiliateCommissionReport;
+exports.affiliateCommissionCSV    = commissionExport.affiliateCommissionCSV;
+

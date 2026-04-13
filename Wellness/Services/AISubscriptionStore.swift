@@ -39,15 +39,22 @@ final class AISubscriptionStore {
 
     // MARK: - Product config
 
-    static let annualProductID  = "com.sbailey.Wellness.aiAnnual"
-    static let monthlyProductID = "com.sbailey.Wellness.aiMonthly"
+    static let annualProductID        = "com.sbailey.Wellness.aiAnnual"
+    static let annualNoTrialProductID = "com.sbailey.Wellness.aiAnnualNoTrial"
+    static let monthlyProductID       = "com.sbailey.Wellness.aiMonthly"
 
     /// Legacy accessor — defaults to the monthly product so older call sites
     /// that read `AISubscriptionStore.productID` keep compiling. New code
-    /// should reference `annualProductID` / `monthlyProductID` explicitly.
+    /// should reference the explicit IDs.
     static let productID = monthlyProductID
 
-    static var allProductIDs: [String] { [annualProductID, monthlyProductID] }
+    static var allProductIDs: [String] {
+        [annualProductID, annualNoTrialProductID, monthlyProductID]
+    }
+
+    /// Products that grant AI entitlements. Used by the notification webhook
+    /// and commission export to determine which transactions matter.
+    static var entitlementProductIDs: Set<String> { Set(allProductIDs) }
 
     /// Known affiliate offer IDs — mirror what is configured in App Store
     /// Connect. Kept here so the store can classify transactions without a
@@ -343,15 +350,30 @@ final class AISubscriptionStore {
         guard case .verified(let transaction) = verification else { return }
         guard Self.allProductIDs.contains(transaction.productID) else { return }
 
+        // Record the user ↔ subscription mapping on the user doc so the
+        // App Store Server Notifications webhook can resolve events for
+        // this sub without scanning collections.
+        await PromoCodeTrackingService.shared.recordSubscriptionStart(
+            productID:             transaction.productID,
+            transactionID:         String(transaction.id),
+            originalTransactionID: String(transaction.originalID),
+            appAccountToken:       transaction.appAccountToken?.uuidString,
+            offerID:               transaction.offerID,
+            purchaseDate:          transaction.purchaseDate,
+            originalPurchaseDate:  transaction.originalPurchaseDate
+        )
+
         // Detect affiliate offer-code redemptions and write to Firestore.
         if let offerID = transaction.offerID,
            let offer = AffiliateOffer(rawValue: offerID) {
             let stashed = PromoCodeTrackingService.shared.consumePendingCode()
             await PromoCodeTrackingService.shared.recordRedemption(
-                productID:     transaction.productID,
-                offerID:       offer.rawValue,
-                transactionID: String(transaction.id),
-                code:          stashed
+                productID:             transaction.productID,
+                offerID:               offer.rawValue,
+                transactionID:         String(transaction.id),
+                originalTransactionID: String(transaction.originalID),
+                originalPurchaseDate:  transaction.originalPurchaseDate,
+                code:                  stashed
             )
         }
 

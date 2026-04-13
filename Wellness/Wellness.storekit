@@ -148,6 +148,30 @@
           "referenceName" : "AI Annual",
           "subscriptionGroupID" : "AIFeaturesGroup01",
           "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "69.99",
+          "familyShareable" : false,
+          "groupNumber" : 3,
+          "internalID" : "AIAnnualNoTrialSubscription01",
+          "localizations" : [
+            {
+              "description" : "Unlocks AI Meal Planner, AI Nutrition Coach, AI meal logging, and AI workout logging. Annual billing, no free trial — starts immediately.",
+              "displayName" : "AI Features Annual (No Trial)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.sbailey.Wellness.aiAnnualNoTrial",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "AI Annual No Trial",
+          "subscriptionGroupID" : "AIFeaturesGroup01",
+          "type" : "RecurringSubscription"
         }
       ]
     }

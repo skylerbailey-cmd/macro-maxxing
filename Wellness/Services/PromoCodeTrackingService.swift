@@ -3,27 +3,20 @@
 //  Wellness
 //
 //  Records affiliate promo-code redemptions in Firestore so we can attribute
-//  subscribers back to the affiliate / campaign that brought them in.
-//
-//  Why Firestore: the redemption happens client-side (Apple owns the
-//  offer-code redemption sheet) and we already have every user's Firebase UID
-//  via SessionManager. Writing a single document per redemption keeps the data
-//  simple to query for commission reports without standing up a new backend.
+//  subscribers back to the affiliate / campaign that brought them in, and
+//  records every successful AI-subscription purchase so the App Store Server
+//  Notifications webhook can resolve events back to a Firebase UID.
 //
 //  Firestore layout:
 //    promoRedemptions/{autoID}
-//      userID:          String     — Firebase UID (nil for anonymous)
-//      productID:       String     — com.sbailey.Wellness.aiAnnual / aiMonthly
-//      offerID:         String     — "affiliate_annual_year1_discount" etc.
-//      transactionID:   String     — StoreKit original transaction ID
-//      code:            String?    — the actual code entered (best-effort; Apple
-//                                   does not always expose the code itself, but
-//                                   when it does — via paywall entry — we log it)
-//      redeemedAt:      Timestamp
+//      userID, productID, offerID, transactionID, originalTransactionID,
+//      originalPurchaseDate, code?, redeemedAt, periodsPaid
 //
-//  We also mirror a marker onto the user doc so `users/{uid}.activePromoOffer`
-//  is easy to read from other parts of the app (e.g. to suppress upsells or to
-//  show "thanks to AFFILIATE" in settings).
+//    users/{uid}.subscription
+//      productID, originalTransactionID, appAccountToken, offerID?,
+//      originalPurchaseDate, lastPurchaseDate, lastUpdatedAt
+//
+//    users/{uid}.activePromoOffer    (convenience mirror, affiliate only)
 //
 
 import Foundation
@@ -37,17 +30,23 @@ final class PromoCodeTrackingService {
 
     private var db: Firestore { FirebaseManager.shared.db }
 
-    /// Writes a new redemption record. Safe to call from any actor.
+    // MARK: - Promo redemptions
+
     func recordRedemption(productID: String,
                           offerID: String,
                           transactionID: String,
+                          originalTransactionID: String,
+                          originalPurchaseDate: Date,
                           code: String?) async {
         let uid = Auth.auth().currentUser?.uid
         var data: [String: Any] = [
-            "productID":     productID,
-            "offerID":       offerID,
-            "transactionID": transactionID,
-            "redeemedAt":    Timestamp(date: Date())
+            "productID":             productID,
+            "offerID":               offerID,
+            "transactionID":         transactionID,
+            "originalTransactionID": originalTransactionID,
+            "originalPurchaseDate":  Timestamp(date: originalPurchaseDate),
+            "redeemedAt":            Timestamp(date: Date()),
+            "periodsPaid":           1
         ]
         if let uid { data["userID"] = uid }
         if let code, !code.isEmpty { data["code"] = code }
@@ -55,7 +54,6 @@ final class PromoCodeTrackingService {
         do {
             _ = try await db.collection("promoRedemptions").addDocument(data: data)
 
-            // Mirror onto user doc so other features can react without scanning.
             if let uid {
                 try await db.collection("users").document(uid).setData([
                     "activePromoOffer":   offerID,
@@ -70,10 +68,51 @@ final class PromoCodeTrackingService {
         }
     }
 
-    /// Stores the code the user typed into the in-app field right before we
-    /// hand off to Apple's redemption sheet. Apple's transaction callback does
-    /// not always echo the raw code back, so we stash it locally and attach it
-    /// to the redemption record once the transaction arrives.
+    // MARK: - Subscription mapping
+    //
+    // Called on EVERY successful AI subscription transaction (affiliate or
+    // not). Writes a denormalised summary onto the user doc so the App Store
+    // Server Notifications webhook can find the user from an incoming
+    // originalTransactionID without scanning other collections.
+
+    func recordSubscriptionStart(productID: String,
+                                 transactionID: String,
+                                 originalTransactionID: String,
+                                 appAccountToken: String?,
+                                 offerID: String?,
+                                 purchaseDate: Date,
+                                 originalPurchaseDate: Date) async {
+        guard let uid = Auth.auth().currentUser?.uid else { return }
+        var subscription: [String: Any] = [
+            "productID":             productID,
+            "originalTransactionID": originalTransactionID,
+            "lastTransactionID":     transactionID,
+            "offerID":               offerID ?? NSNull(),
+            "originalPurchaseDate":  Timestamp(date: originalPurchaseDate),
+            "lastPurchaseDate":      Timestamp(date: purchaseDate),
+            "lastUpdatedAt":         Timestamp(date: Date()),
+            "status":                "active"
+        ]
+        if let token = appAccountToken {
+            subscription["appAccountToken"] = token
+        }
+        do {
+            try await db.collection("users").document(uid).setData(
+                ["subscription": subscription],
+                merge: true
+            )
+            AppLogger.log("[PromoCodeTracking] Recorded subscription start tx=\(transactionID) orig=\(originalTransactionID)")
+        } catch {
+            AppLogger.log("[PromoCodeTracking] Failed to record subscription start: \(error)")
+        }
+    }
+
+    // MARK: - Pending code stash
+    //
+    // Apple's redemption sheet doesn't echo the raw code back on the resulting
+    // transaction, so we stash what the user typed before presenting the
+    // sheet and pair it with the transaction once it arrives.
+
     private var pendingCode: String?
 
     func stashPendingCode(_ code: String?) {
