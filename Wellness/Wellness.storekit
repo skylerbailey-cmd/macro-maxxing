@@ -66,9 +66,23 @@
 
           ],
           "codeOffers" : [
-
+            {
+              "displayPrice" : "9.99",
+              "eligibility" : [
+                "new",
+                "existing",
+                "expired"
+              ],
+              "internalID" : "AIMonthlyAffiliateCodeOffer01",
+              "isStackable" : false,
+              "numberOfPeriods" : 1,
+              "offerID" : "affiliate_monthly_first_discount",
+              "paymentMode" : "payAsYouGo",
+              "referenceName" : "Affiliate Monthly First Month",
+              "subscriptionPeriod" : "P1M"
+            }
           ],
-          "displayPrice" : "9.99",
+          "displayPrice" : "12.99",
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "AIMonthlySubscription01",
@@ -76,7 +90,7 @@
             "displayPrice" : "0",
             "internalID" : "AIMonthlyTrial01",
             "paymentMode" : "free",
-            "subscriptionPeriod" : "P1W"
+            "subscriptionPeriod" : "P3D"
           },
           "localizations" : [
             {
@@ -88,6 +102,50 @@
           "productID" : "com.sbailey.Wellness.aiMonthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "AI Monthly",
+          "subscriptionGroupID" : "AIFeaturesGroup01",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+            {
+              "displayPrice" : "59.00",
+              "eligibility" : [
+                "new",
+                "existing",
+                "expired"
+              ],
+              "internalID" : "AIAnnualAffiliateCodeOffer01",
+              "isStackable" : false,
+              "numberOfPeriods" : 1,
+              "offerID" : "affiliate_annual_year1_discount",
+              "paymentMode" : "payAsYouGo",
+              "referenceName" : "Affiliate Annual First Year",
+              "subscriptionPeriod" : "P1Y"
+            }
+          ],
+          "displayPrice" : "69.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "AIAnnualSubscription01",
+          "introductoryOffer" : {
+            "displayPrice" : "0",
+            "internalID" : "AIAnnualTrial01",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P3D"
+          },
+          "localizations" : [
+            {
+              "description" : "Unlocks AI Meal Planner, AI Nutrition Coach, AI meal logging, and AI workout logging. Billed annually — save 55% vs monthly.",
+              "displayName" : "AI Features Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.sbailey.Wellness.aiAnnual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "AI Annual",
           "subscriptionGroupID" : "AIFeaturesGroup01",
           "type" : "RecurringSubscription"
         }

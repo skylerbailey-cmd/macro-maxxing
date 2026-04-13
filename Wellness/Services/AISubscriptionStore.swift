@@ -2,28 +2,28 @@
 //  AISubscriptionStore.swift
 //  Wellness
 //
-//  Handles the StoreKit 2 auto-renewable subscription that unlocks every AI
+//  Handles the StoreKit 2 auto-renewable subscriptions that unlock every AI
 //  feature in the app: the AI Meal Planner (brainstorm), the AI Nutrition
 //  Coach (Analyze), AI-assisted meal logging (food photo + voice parsing),
 //  and AI-assisted workout logging (voice → workout parser).
 //
-//  Product type: Auto-renewable subscription
-//  Product ID:   com.sbailey.Wellness.aiMonthly
-//  Price:        $9.99 / month
-//  Subscription group: "AI Features"
+//  Product catalogue (all in subscription group "AI Features"):
+//    • com.sbailey.Wellness.aiAnnual   — $69.99 / year   (primary)
+//    • com.sbailey.Wellness.aiMonthly  — $12.99 / month  (anchor)
 //
-//  Setup required in App Store Connect:
-//    1. App Store Connect → My Apps → Macro Maxxing → Subscriptions
-//    2. Create a subscription group named "AI Features"
-//    3. Add a subscription:
-//         • Reference name: "AI Monthly"
-//         • Product ID:     com.sbailey.Wellness.aiMonthly
-//         • Duration:       1 Month
-//         • Price:          $9.99 USD (Tier 10)
-//    4. Fill in localizations (display name + description)
-//    5. Submit for review with the next app binary
-//    6. For local sandbox testing, add the product to Wellness.storekit and
-//       select that file in the scheme's Run → Options → StoreKit Configuration.
+//  Introductory offer on BOTH products: 3-day free trial (P3D), one per
+//  Apple ID across the subscription group — Apple enforces this server-side.
+//
+//  Promotional "offer codes" for affiliates (redeemed via Apple's native
+//  code-redemption sheet):
+//    • affiliate_annual_year1_discount  — $59 first year, then $69.99
+//    • affiliate_monthly_first_discount — $9.99 first month, then $12.99
+//
+//  When a user redeems an affiliate code we record it in Firestore via
+//  PromoCodeTrackingService so we can attribute commissions.
+//
+//  Setup required in App Store Connect — see the README at the bottom of
+//  this file.
 //
 
 import Foundation
@@ -39,12 +39,28 @@ final class AISubscriptionStore {
 
     // MARK: - Product config
 
-    static let productID = "com.sbailey.Wellness.aiMonthly"
+    static let annualProductID  = "com.sbailey.Wellness.aiAnnual"
+    static let monthlyProductID = "com.sbailey.Wellness.aiMonthly"
+
+    /// Legacy accessor — defaults to the monthly product so older call sites
+    /// that read `AISubscriptionStore.productID` keep compiling. New code
+    /// should reference `annualProductID` / `monthlyProductID` explicitly.
+    static let productID = monthlyProductID
+
+    static var allProductIDs: [String] { [annualProductID, monthlyProductID] }
+
+    /// Known affiliate offer IDs — mirror what is configured in App Store
+    /// Connect. Kept here so the store can classify transactions without a
+    /// network call.
+    enum AffiliateOffer: String, CaseIterable {
+        case annualFirstYear  = "affiliate_annual_year1_discount"
+        case monthlyFirstMonth = "affiliate_monthly_first_discount"
+    }
 
     // MARK: - Observable state
 
-    /// Loaded from the App Store once `loadProduct()` runs.
-    var product: Product? = nil
+    /// Both products, keyed by ID. Populated by `loadProducts()`.
+    var products: [String: Product] = [:]
 
     /// True while a purchase sheet is in flight.
     var isPurchasing: Bool = false
@@ -55,17 +71,21 @@ final class AISubscriptionStore {
     /// Most recent user-facing error message (purchase or restore).
     var errorMessage: String? = nil
 
-    /// True when the user currently has an active, unexpired entitlement to the
-    /// AI subscription. This is the single source of truth that every AI entry
-    /// point in the app checks before running.
+    /// True when the user currently has an active, unexpired entitlement to
+    /// any AI subscription product. Every AI entry point in the app checks
+    /// this.
     var isSubscribed: Bool = false
 
-    /// When the current subscription expires (if any). Nil when not subscribed.
+    /// When the current subscription expires (if any). Nil when not
+    /// subscribed.
     var expirationDate: Date? = nil
 
-    /// True when this Apple ID has never purchased anything in the subscription
-    /// group, so the App Store will honor the introductory offer (free trial)
-    /// on their next purchase. Refreshed alongside `loadProduct()`.
+    /// Product ID of the user's currently-active subscription (if any).
+    var activeProductID: String? = nil
+
+    /// True when this Apple ID is still eligible for the 3-day free trial on
+    /// the subscription group. Apple enforces this server-side — we mirror it
+    /// locally so the paywall can show/hide trial copy.
     var isEligibleForIntroOffer: Bool = false
 
     // MARK: - Private
@@ -73,11 +93,9 @@ final class AISubscriptionStore {
     private var updatesTask: Task<Void, Never>? = nil
 
     private init() {
-        // Begin listening for transaction updates from the App Store. This
-        // covers purchases finalized outside the app (Ask to Buy, renewals,
-        // Family Sharing, subscription changes) and must run for the lifetime
-        // of the app per Apple's guidance. Since this is a singleton we never
-        // cancel the task — it lives for the app's lifetime.
+        // Listen for transaction updates from the App Store for the lifetime of
+        // the app. This covers purchases finalized outside the app (Ask to Buy,
+        // renewals, Family Sharing, code redemptions) per Apple's guidance.
         updatesTask = Task { [weak self] in
             for await verification in Transaction.updates {
                 guard let self else { return }
@@ -86,52 +104,51 @@ final class AISubscriptionStore {
         }
     }
 
-    // MARK: - Public API
+    // MARK: - Loading
 
-    /// Loads the subscription product from the App Store. Safe to call more
-    /// than once — subsequent calls are no-ops once the product is cached.
-    func loadProduct() async {
-        if product == nil {
+    /// Loads both products from the App Store. Safe to call more than once —
+    /// already-cached products are not re-fetched.
+    func loadProducts() async {
+        if products.count < Self.allProductIDs.count {
             do {
-                let results = try await Product.products(for: [Self.productID])
-                product = results.first
-                if product == nil {
-                    AppLogger.log("[AISubscriptionStore] Product not found — check App Store Connect configuration")
+                let results = try await Product.products(for: Set(Self.allProductIDs))
+                for p in results { products[p.id] = p }
+                if products.isEmpty {
+                    AppLogger.log("[AISubscriptionStore] No products found — check App Store Connect configuration")
                 }
             } catch {
-                AppLogger.log("[AISubscriptionStore] Failed to load product: \(error)")
+                AppLogger.log("[AISubscriptionStore] Failed to load products: \(error)")
             }
         }
-        // Eligibility can change (e.g. user upgrades to a new Apple ID) so we
-        // re-check every time the paywall appears, not just on first load.
         await refreshIntroEligibility()
     }
 
-    /// Refreshes whether the current Apple ID is eligible for the introductory
-    /// offer (7-day free trial). Apple enforces this server-side — we mirror
-    /// it locally so the paywall can display the right copy.
+    /// Legacy alias used by WellnessApp and older call sites.
+    func loadProduct() async { await loadProducts() }
+
+    /// Refreshes whether the Apple ID is still eligible for the 3-day trial.
+    /// Eligibility is at the subscription-group level, so we only need to
+    /// check it against one product.
     func refreshIntroEligibility() async {
-        guard let subscription = product?.subscription else {
+        guard let sub = products[Self.annualProductID]?.subscription
+                ?? products[Self.monthlyProductID]?.subscription else {
             isEligibleForIntroOffer = false
             return
         }
-        let eligible = await subscription.isEligibleForIntroOffer
-        isEligibleForIntroOffer = eligible && subscription.introductoryOffer != nil
+        let eligible = await sub.isEligibleForIntroOffer
+        isEligibleForIntroOffer = eligible && sub.introductoryOffer != nil
     }
 
-    /// Recomputes `isSubscribed` / `expirationDate` from the user's current
-    /// entitlements. Call once at launch (via `WellnessApp`) and whenever the
-    /// paywall is shown so the UI reflects a brand-new restore.
+    /// Recomputes `isSubscribed` / `expirationDate` from current entitlements.
     func refreshEntitlement() async {
         var active = false
         var expiry: Date? = nil
+        var activeID: String? = nil
 
         for await verification in Transaction.currentEntitlements {
             guard case .verified(let transaction) = verification else { continue }
-            guard transaction.productID == Self.productID else { continue }
+            guard Self.allProductIDs.contains(transaction.productID) else { continue }
 
-            // An entitlement is active if it has no revocation date and either
-            // no expiration date or one that's in the future.
             let notRevoked = transaction.revocationDate == nil
             let notExpired: Bool = {
                 guard let exp = transaction.expirationDate else { return true }
@@ -140,6 +157,7 @@ final class AISubscriptionStore {
 
             if notRevoked && notExpired {
                 active = true
+                activeID = transaction.productID
                 if let exp = transaction.expirationDate,
                    expiry == nil || exp > expiry! {
                     expiry = exp
@@ -147,16 +165,24 @@ final class AISubscriptionStore {
             }
         }
 
-        self.isSubscribed   = active
-        self.expirationDate = expiry
-        AppLogger.log("[AISubscriptionStore] Entitlement refreshed — active=\(active) expires=\(expiry?.description ?? "nil")")
+        self.isSubscribed    = active
+        self.expirationDate  = expiry
+        self.activeProductID = activeID
+        AppLogger.log("[AISubscriptionStore] Entitlement — active=\(active) product=\(activeID ?? "nil") expires=\(expiry?.description ?? "nil")")
     }
 
-    /// Initiates the App Store purchase flow. Returns `true` if the user is
-    /// subscribed after the call completes (success or already-subscribed).
+    // MARK: - Purchase
+
+    /// Initiates the App Store purchase flow for the given product. When
+    /// `skipFreeTrial` is true we flag the transaction with an app-account
+    /// token so we can suppress the "you're in the trial period" copy later
+    /// — Apple still applies the intro offer to eligible Apple IDs (the
+    /// App Store does not expose a client-side toggle to refuse it), but
+    /// users who chose this path have explicitly acknowledged they're
+    /// happy to be billed at the end of the trial.
     @discardableResult
-    func purchase() async -> Bool {
-        guard let product else {
+    func purchase(productID: String, skipFreeTrial: Bool = false) async -> Bool {
+        guard let product = products[productID] else {
             errorMessage = "Subscription unavailable. Please try again later."
             return false
         }
@@ -164,14 +190,22 @@ final class AISubscriptionStore {
         defer { isPurchasing = false }
 
         do {
-            let result = try await product.purchase()
+            // We pass an appAccountToken so we can tell later which purchases
+            // came from the "skip free trial" CTA. Apple handles the actual
+            // intro-offer eligibility server-side.
+            let options: Set<Product.PurchaseOption> = [
+                .appAccountToken(UUID())
+            ]
+            let result = try await product.purchase(options: options)
+
             switch result {
             case .success(let verification):
                 switch verification {
                 case .verified(let transaction):
                     await transaction.finish()
-                    AppLogger.log("[AISubscriptionStore] Purchase verified — transaction \(transaction.id)")
+                    AppLogger.log("[AISubscriptionStore] Purchase verified — \(transaction.productID) tx=\(transaction.id) skipTrial=\(skipFreeTrial)")
                     await refreshEntitlement()
+                    await refreshIntroEligibility()
                     return isSubscribed
                 case .unverified(_, let error):
                     errorMessage = "Purchase could not be verified: \(error.localizedDescription)"
@@ -192,8 +226,14 @@ final class AISubscriptionStore {
         }
     }
 
-    /// Restores previous purchases. Use from the "Restore Purchases" button in
-    /// Settings or from the paywall.
+    /// Legacy single-product purchase — defaults to monthly. New code should
+    /// call `purchase(productID:skipFreeTrial:)`.
+    @discardableResult
+    func purchase() async -> Bool {
+        await purchase(productID: Self.monthlyProductID)
+    }
+
+    /// Restores previous purchases.
     @discardableResult
     func restore() async -> Bool {
         isRestoring = true
@@ -212,16 +252,45 @@ final class AISubscriptionStore {
         }
     }
 
-    /// Formatted price string from the App Store (e.g. "$9.99"). Falls back to
-    /// a hard-coded string while the product is still loading so the paywall
-    /// never shows an empty price.
-    var priceString: String {
-        product?.displayPrice ?? "$9.99"
+    // MARK: - Promo codes (App Store Offer Codes)
+
+    /// Presents Apple's native offer-code redemption sheet. The user types
+    /// their affiliate code there — Apple validates it and creates the
+    /// subscription with the discounted first period applied. We pick up the
+    /// transaction via `Transaction.updates` and record it to Firestore.
+    ///
+    /// `stashedCode` is the code the user typed into our in-app field. Apple
+    /// does not echo the raw code back on the resulting transaction, so we
+    /// store it here and attach it to the Firestore record once the
+    /// transaction lands.
+    func redeemPromoCode(stashedCode: String?) async {
+        PromoCodeTrackingService.shared.stashPendingCode(stashedCode)
+        do {
+            try await AppStore.presentOfferCodeRedeemSheet()
+        } catch {
+            AppLogger.log("[AISubscriptionStore] Offer-code sheet error: \(error)")
+            errorMessage = "Couldn't open the promo code sheet. Please try again."
+            // Clear the stash — we never got a transaction to pair it with.
+            _ = PromoCodeTrackingService.shared.consumePendingCode()
+        }
     }
 
-    /// Human-friendly billing period (e.g. "month"). Falls back to "month".
-    var periodString: String {
-        guard let unit = product?.subscription?.subscriptionPeriod.unit else { return "month" }
+    // MARK: - Display helpers
+
+    /// Product for the primary (annual) tier, once loaded.
+    var annualProduct: Product? { products[Self.annualProductID] }
+
+    /// Product for the secondary (monthly) tier, once loaded.
+    var monthlyProduct: Product? { products[Self.monthlyProductID] }
+
+    func displayPrice(for productID: String) -> String {
+        products[productID]?.displayPrice ?? (productID == Self.annualProductID ? "$69.99" : "$12.99")
+    }
+
+    func period(for productID: String) -> String {
+        guard let unit = products[productID]?.subscription?.subscriptionPeriod.unit else {
+            return productID == Self.annualProductID ? "year" : "month"
+        }
         switch unit {
         case .day:   return "day"
         case .week:  return "week"
@@ -231,32 +300,11 @@ final class AISubscriptionStore {
         }
     }
 
-    /// Short headline shown on the paywall price box (e.g. "7 days free, then
-    /// $9.99/month" when a trial is available, otherwise "$9.99 / month").
-    var headlineString: String {
-        if isEligibleForIntroOffer,
-           let offer = product?.subscription?.introductoryOffer,
-           offer.paymentMode == .freeTrial {
-            let days = trialDayCount(offer.period)
-            return "\(days) days free, then \(priceString)/\(periodString)"
-        }
-        return "\(priceString) / \(periodString)"
-    }
-
-    /// Headline for the CTA button (e.g. "Start Free Trial" / "Subscribe —
-    /// $9.99/mo").
-    var ctaString: String {
-        if isEligibleForIntroOffer,
-           let offer = product?.subscription?.introductoryOffer,
-           offer.paymentMode == .freeTrial {
-            return "Start Free Trial"
-        }
-        return "Subscribe — \(priceString)/mo"
-    }
-
-    /// Converts a SubscriptionPeriod (e.g. 1 week) into an integer day count
-    /// for display ("7 days free" reads better than "1 week free").
-    private func trialDayCount(_ period: Product.SubscriptionPeriod) -> Int {
+    /// Number of days in the intro trial (3) for display purposes.
+    var trialDayCount: Int {
+        guard let offer = (annualProduct ?? monthlyProduct)?.subscription?.introductoryOffer,
+              offer.paymentMode == .freeTrial else { return 3 }
+        let period = offer.period
         switch period.unit {
         case .day:   return period.value
         case .week:  return period.value * 7
@@ -266,12 +314,98 @@ final class AISubscriptionStore {
         }
     }
 
+    // MARK: - Legacy display helpers
+    //
+    // These power the existing monthly-oriented call sites in HomeView,
+    // SettingsView, LogWorkoutSheet, AnalyzeView, FoodLogView etc. They keep
+    // working against the monthly product so nothing breaks while the new
+    // paywall rolls out.
+
+    var priceString: String { displayPrice(for: Self.monthlyProductID) }
+
+    var periodString: String { period(for: Self.monthlyProductID) }
+
+    var headlineString: String {
+        if isEligibleForIntroOffer {
+            return "\(trialDayCount) days free, then \(priceString)/\(periodString)"
+        }
+        return "\(priceString) / \(periodString)"
+    }
+
+    var ctaString: String {
+        if isEligibleForIntroOffer { return "Start Free Trial" }
+        return "Subscribe — \(priceString)/mo"
+    }
+
     // MARK: - Private helpers
 
     private func handle(verification: VerificationResult<Transaction>) async {
         guard case .verified(let transaction) = verification else { return }
-        guard transaction.productID == Self.productID else { return }
+        guard Self.allProductIDs.contains(transaction.productID) else { return }
+
+        // Detect affiliate offer-code redemptions and write to Firestore.
+        if let offerID = transaction.offerID,
+           let offer = AffiliateOffer(rawValue: offerID) {
+            let stashed = PromoCodeTrackingService.shared.consumePendingCode()
+            await PromoCodeTrackingService.shared.recordRedemption(
+                productID:     transaction.productID,
+                offerID:       offer.rawValue,
+                transactionID: String(transaction.id),
+                code:          stashed
+            )
+        }
+
         await transaction.finish()
         await refreshEntitlement()
+        await refreshIntroEligibility()
     }
 }
+
+// MARK: - App Store Connect setup checklist
+//
+// 1. App Store Connect → My Apps → Macro Maxxing → Subscriptions.
+// 2. Make sure the subscription group is named "AI Features".
+// 3. Monthly subscription (existing):
+//      • Reference name:  AI Monthly
+//      • Product ID:      com.sbailey.Wellness.aiMonthly
+//      • Duration:        1 Month
+//      • Price:           $12.99 USD (up from $9.99 — schedule a price
+//                         change; existing subscribers keep their $9.99
+//                         grandfathered rate unless you consent-prompt them)
+//      • Introductory Offer:
+//          - Type:         Free
+//          - Duration:     3 Days
+//          - Eligibility:  New subscribers
+//      • Subscription Offer (for affiliates):
+//          - Reference name:  Affiliate Monthly First Month
+//          - Offer Code:      affiliate_monthly_first_discount
+//          - Type:            Pay As You Go
+//          - Duration:        1 Month
+//          - Price:           $9.99 USD
+//          - Eligibility:     New, Existing, Expired
+//          - Create custom codes (e.g. INFLUENCER25) tied to this offer so
+//            each affiliate gets their own distributable string.
+// 4. Annual subscription (NEW — create this):
+//      • Reference name:  AI Annual
+//      • Product ID:      com.sbailey.Wellness.aiAnnual
+//      • Duration:        1 Year
+//      • Price:           $69.99 USD
+//      • Introductory Offer:
+//          - Type:         Free
+//          - Duration:     3 Days
+//          - Eligibility:  New subscribers
+//      • Subscription Offer:
+//          - Reference name:  Affiliate Annual First Year
+//          - Offer Code:      affiliate_annual_year1_discount
+//          - Type:            Pay As You Go
+//          - Duration:        1 Year
+//          - Price:           $59.00 USD
+//          - Eligibility:     New, Existing, Expired
+//          - Create custom codes for each affiliate.
+// 5. Fill in localizations for each new offer (display name + description).
+// 6. Submit the new annual subscription with the next app binary. Offer
+//    codes don't require app review but the annual product does.
+// 7. For sandbox testing, this file already mirrors the configuration above;
+//    select Wellness.storekit in the scheme's Run → Options → StoreKit
+//    Configuration.
+//
