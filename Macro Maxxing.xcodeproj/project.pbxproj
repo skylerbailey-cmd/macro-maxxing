@@ -303,7 +303,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = MacroMaxxing;
+				INFOPLIST_KEY_CFBundleDisplayName = Macromaxxing;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Macromaxxing uses your camera to photograph food for macro estimation.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Macromaxxing uses your location to show posts and leaderboards from people near you.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Macromaxxing uses your microphone so you can describe what you ate and have the AI estimate your macros from your voice and photo.";
@@ -345,7 +345,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = MacroMaxxing;
+				INFOPLIST_KEY_CFBundleDisplayName = Macromaxxing;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Macromaxxing uses your camera to photograph food for macro estimation.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Macromaxxing uses your location to show posts and leaderboards from people near you.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Macromaxxing uses your microphone so you can describe what you ate and have the AI estimate your macros from your voice and photo.";
