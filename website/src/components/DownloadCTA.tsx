@@ -1,6 +1,6 @@
 export function DownloadCTA({
   headline = "Ready to start maxxing your macros?",
-  subheadline = "Download Macro Maxxing and start tracking with AI today.",
+  subheadline = "Download Macromaxxing and start tracking with AI today.",
 }: {
   headline?: string;
   subheadline?: string;

@@ -5,7 +5,7 @@ import { ArticleJsonLd, BreadcrumbJsonLd } from "@/components/JsonLd";
 export const metadata: Metadata = {
   title: "AI Food Scanner — Snap a Photo, Get Instant Macros",
   description:
-    "Macro Maxxing's AI food scanner uses Claude Haiku and Sonnet to identify food and estimate calories, protein, carbs, and fat from a single photo. Available on iOS.",
+    "Macromaxxing's AI food scanner uses Claude Haiku and Sonnet to identify food and estimate calories, protein, carbs, and fat from a single photo. Available on iOS.",
   keywords: [
     "AI food scanner",
     "AI food recognition app",
@@ -23,7 +23,7 @@ export default function AIFoodScanner() {
     <>
       <ArticleJsonLd
         title="AI Food Scanner — Snap a Photo, Get Instant Macros"
-        description="How Macro Maxxing's AI food recognition powered by Claude Haiku and Sonnet identifies food from photos and estimates macros instantly."
+        description="How Macromaxxing's AI food recognition powered by Claude Haiku and Sonnet identifies food from photos and estimates macros instantly."
         url="https://macromaxxing.app/ai-food-scanner"
       />
       <BreadcrumbJsonLd
@@ -47,7 +47,7 @@ export default function AIFoodScanner() {
             An AI food scanner is a mobile app feature that uses artificial
             intelligence to identify food items from a photo and estimate their
             nutritional content including calories, protein, carbs, and fat.
-            Macro Maxxing&apos;s AI food scanner is powered by Claude AI (Haiku
+            Macromaxxing&apos;s AI food scanner is powered by Claude AI (Haiku
             and Sonnet models) to analyze your food and estimate accurate
             macro data.
           </p>
@@ -55,7 +55,7 @@ export default function AIFoodScanner() {
 
           <h2 className="text-2xl font-bold mb-4">How It Works: AI-Powered Recognition</h2>
           <p className="text-gray-400 leading-relaxed mb-8">
-            Macro Maxxing uses Claude AI models exclusively for food recognition,
+            Macromaxxing uses Claude AI models exclusively for food recognition,
             powered by Anthropic. Simple foods are handled by fast Claude Haiku —
             complex meals get the full power of Claude Sonnet.
           </p>
@@ -149,7 +149,7 @@ export default function AIFoodScanner() {
 
       <DownloadCTA
         headline="Ready to ditch manual food entry?"
-        subheadline="Download Macro Maxxing and start scanning your meals with AI."
+        subheadline="Download Macromaxxing and start scanning your meals with AI."
       />
     </>
   );

@@ -7,24 +7,24 @@ import {
 } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: "How to Delete Your Account — Macro Maxxing Help",
+  title: "How to Delete Your Account — Macromaxxing Help",
   description:
-    "Learn how to permanently delete your Macro Maxxing account and all associated data. Step-by-step guide covering what gets deleted, data rights, and regulatory compliance.",
+    "Learn how to permanently delete your Macromaxxing account and all associated data. Step-by-step guide covering what gets deleted, data rights, and regulatory compliance.",
   keywords: [
-    "macro maxxing delete account",
-    "macro maxxing remove account",
-    "macro maxxing data deletion",
-    "delete macro maxxing data",
-    "macro maxxing account removal",
-    "macro maxxing privacy",
-    "macro maxxing gdpr",
-    "macro maxxing ccpa",
-    "how to delete macro maxxing",
+    "macromaxxing delete account",
+    "macromaxxing remove account",
+    "macromaxxing data deletion",
+    "delete macromaxxing data",
+    "macromaxxing account removal",
+    "macromaxxing privacy",
+    "macromaxxing gdpr",
+    "macromaxxing ccpa",
+    "how to delete macromaxxing",
   ],
   openGraph: {
-    title: "How to Delete Your Account — Macro Maxxing Help",
+    title: "How to Delete Your Account — Macromaxxing Help",
     description:
-      "Step-by-step guide to permanently deleting your Macro Maxxing account and all associated data.",
+      "Step-by-step guide to permanently deleting your Macromaxxing account and all associated data.",
     url: "https://macromaxxing.app/help/how-to-delete-account",
     type: "article",
   },
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    question: "How do I delete my Macro Maxxing account?",
+    question: "How do I delete my Macromaxxing account?",
     answer:
       "Open the app, tap your profile picture in the top-right corner of the Hub screen to go to Account settings, scroll to the very bottom, and tap 'Delete Account.' Confirm the deletion when prompted. Your account and all data will be permanently removed within 30 days.",
   },
@@ -57,7 +57,7 @@ const faqs = [
   {
     question: "What happens to my subscription if I delete my account?",
     answer:
-      "Deleting your Macro Maxxing account does not automatically cancel your Apple App Store subscription. You must cancel your subscription separately in your Apple ID account settings (Settings > Apple ID > Subscriptions) to stop future billing. We recommend canceling your subscription before deleting your account.",
+      "Deleting your Macromaxxing account does not automatically cancel your Apple App Store subscription. You must cancel your subscription separately in your Apple ID account settings (Settings > Apple ID > Subscriptions) to stop future billing. We recommend canceling your subscription before deleting your account.",
   },
   {
     question: "Can I delete my data without deleting my account?",
@@ -71,9 +71,9 @@ const faqs = [
   },
   {
     question:
-      "Is Macro Maxxing compliant with GDPR, CCPA, and other privacy laws?",
+      "Is Macromaxxing compliant with GDPR, CCPA, and other privacy laws?",
     answer:
-      "Yes. Macro Maxxing complies with the EU General Data Protection Regulation (GDPR), the California Consumer Privacy Act and California Privacy Rights Act (CCPA/CPRA), the Washington My Health My Data Act, and other applicable state and international privacy laws. You have the right to access, export, correct, and delete your personal data at any time.",
+      "Yes. Macromaxxing complies with the EU General Data Protection Regulation (GDPR), the California Consumer Privacy Act and California Privacy Rights Act (CCPA/CPRA), the Washington My Health My Data Act, and other applicable state and international privacy laws. You have the right to access, export, correct, and delete your personal data at any time.",
   },
 ];
 
@@ -81,14 +81,14 @@ function HowToJsonLd() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "HowTo",
-    name: "How to Delete Your Macro Maxxing Account",
+    name: "How to Delete Your Macromaxxing Account",
     description:
-      "Step-by-step guide to permanently deleting your Macro Maxxing account and all associated data from the iOS app.",
+      "Step-by-step guide to permanently deleting your Macromaxxing account and all associated data from the iOS app.",
     totalTime: "PT2M",
     tool: [
       {
         "@type": "HowToTool",
-        name: "Macro Maxxing iOS app",
+        name: "Macromaxxing iOS app",
       },
     ],
     step: [
@@ -128,8 +128,8 @@ export default function DeleteAccountPage() {
     <>
       <HowToJsonLd />
       <ArticleJsonLd
-        title="How to Delete Your Account — Macro Maxxing Help"
-        description="Step-by-step guide to permanently deleting your Macro Maxxing account and all associated data, with information on data rights and regulatory compliance."
+        title="How to Delete Your Account — Macromaxxing Help"
+        description="Step-by-step guide to permanently deleting your Macromaxxing account and all associated data, with information on data rights and regulatory compliance."
         url="https://macromaxxing.app/help/how-to-delete-account"
         datePublished="2026-04-12"
         dateModified="2026-04-12"
@@ -164,7 +164,7 @@ export default function DeleteAccountPage() {
             How to Delete Your Account
           </h1>
           <p className="text-gray-300 text-lg leading-relaxed mb-4">
-            You can permanently delete your Macro Maxxing account and all
+            You can permanently delete your Macromaxxing account and all
             associated data at any time from within the app. This guide explains
             exactly how to do it, what gets deleted, and your rights under
             applicable privacy regulations.
@@ -381,7 +381,7 @@ export default function DeleteAccountPage() {
                     If you have an active AI Pro subscription, cancel it in your
                     Apple&nbsp;ID settings (Settings &gt; Apple&nbsp;ID &gt;
                     Subscriptions) before deleting your account. Deleting your
-                    Macro Maxxing account does{" "}
+                    Macromaxxing account does{" "}
                     <strong className="text-white">not</strong> automatically
                     cancel your App Store subscription.
                   </p>
@@ -396,7 +396,7 @@ export default function DeleteAccountPage() {
               Your Data Rights &amp; Regulatory Compliance
             </h2>
             <p className="text-gray-400 leading-relaxed mb-6">
-              Macro Maxxing is committed to protecting your privacy and
+              Macromaxxing is committed to protecting your privacy and
               complying with all applicable data protection regulations. Your
               right to delete your data is guaranteed under multiple
               frameworks:

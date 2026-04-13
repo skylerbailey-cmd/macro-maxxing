@@ -6,7 +6,7 @@ import { ArticleJsonLd, BreadcrumbJsonLd, FAQPageJsonLd } from "@/components/Jso
 export const metadata: Metadata = {
   title: "AI Nutrition Coach — Personalized Daily Macro Reviews",
   description:
-    "Macro Maxxing's AI Nutrition Coach reviews your entire day of eating and training, then gives you a personalized debrief with specific advice on what to change tomorrow. Powered by Claude Haiku AI.",
+    "Macromaxxing's AI Nutrition Coach reviews your entire day of eating and training, then gives you a personalized debrief with specific advice on what to change tomorrow. Powered by Claude Haiku AI.",
   keywords: [
     "AI nutrition coach",
     "AI diet coach",
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    question: "What is the AI Nutrition Coach in Macro Maxxing?",
+    question: "What is the AI Nutrition Coach in Macromaxxing?",
     answer:
       "The AI Nutrition Coach reviews your entire day of eating and training — every meal logged, your macro totals vs. goals, workouts, and fasting window — then delivers a personalized daily debrief. It covers macro accuracy, meal timing and distribution, food quality, and gives you one specific, actionable recommendation for tomorrow.",
   },
@@ -49,7 +49,7 @@ export default function AINutritionCoachPage() {
     <>
       <ArticleJsonLd
         title="AI Nutrition Coach — Personalized Daily Macro Reviews"
-        description="How Macro Maxxing's AI Nutrition Coach reviews your daily eating and training to give personalized, actionable nutrition advice."
+        description="How Macromaxxing's AI Nutrition Coach reviews your daily eating and training to give personalized, actionable nutrition advice."
         url="https://macromaxxing.app/ai-nutrition-coach"
       />
       <FAQPageJsonLd faqs={faqs} />
@@ -75,7 +75,7 @@ export default function AINutritionCoachPage() {
               <span className="text-gradient">Your Daily Debrief</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              The AI Nutrition Coach in Macro Maxxing reviews your entire day of
+              The AI Nutrition Coach in Macromaxxing reviews your entire day of
               eating and training, then delivers a personalized debrief with
               specific advice on macro accuracy, meal timing, food quality, and
               what to change tomorrow. Powered by Claude Haiku AI.
@@ -87,7 +87,7 @@ export default function AINutritionCoachPage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-purple hover:bg-brand-purple/80 text-white font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Download Macro Maxxing
+              Download Macromaxxing
             </a>
           </div>
         </section>
@@ -100,7 +100,7 @@ export default function AINutritionCoachPage() {
             </h2>
             <p className="text-gray-300 text-lg leading-relaxed">
               <strong className="text-white">
-                Macro Maxxing&apos;s AI Nutrition Coach gives you a daily
+                Macromaxxing&apos;s AI Nutrition Coach gives you a daily
                 debrief on how your nutrition went — with specific,
                 data-driven advice.
               </strong>{" "}
@@ -244,7 +244,7 @@ export default function AINutritionCoachPage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-brand-purple/5 border border-brand-purple/20 rounded-2xl p-6">
                 <h3 className="text-lg font-bold text-brand-purple mb-4">
-                  Macro Maxxing AI Coach
+                  Macromaxxing AI Coach
                 </h3>
                 <ul className="space-y-2 text-gray-300 text-sm">
                   <li className="flex items-start gap-2">
@@ -323,7 +323,7 @@ export default function AINutritionCoachPage() {
         <div id="download">
           <DownloadCTA
             headline="Get Your Daily Nutrition Debrief"
-            subheadline="AI reviews your meals, workouts, and macros — then tells you exactly what to change. Download Macro Maxxing."
+            subheadline="AI reviews your meals, workouts, and macros — then tells you exactly what to change. Download Macromaxxing."
           />
         </div>
       </article>

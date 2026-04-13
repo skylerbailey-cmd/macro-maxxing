@@ -125,7 +125,7 @@ struct ShareCardView: View {
                         .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(purpl)
                 }
-                Text("Macro Maxxing")
+                Text("Macromaxxing")
                     .font(.system(size: 16, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
             }
@@ -273,7 +273,7 @@ struct ShareCardView: View {
 
     private var footer: some View {
         HStack {
-            Text("macro maxxing")
+            Text("macromaxxing")
                 .font(.system(size: 11, weight: .bold, design: .rounded))
                 .foregroundStyle(purpl.opacity(0.70))
             Spacer()

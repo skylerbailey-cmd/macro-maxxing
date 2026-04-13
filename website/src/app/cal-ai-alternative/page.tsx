@@ -5,9 +5,9 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
-  title: "Best Cal AI Alternative 2026 — Macro Maxxing vs Cal AI",
+  title: "Best Cal AI Alternative 2026 — Macromaxxing vs Cal AI",
   description:
-    "Looking for a Cal AI alternative with more features? Macro Maxxing offers AI photo scanning, voice logging, an AI meal planner, AI nutrition coach, streaks, leaderboards, and a social community.",
+    "Looking for a Cal AI alternative with more features? Macromaxxing offers AI photo scanning, voice logging, an AI meal planner, AI nutrition coach, streaks, leaderboards, and a social community.",
   keywords: [
     "Cal AI alternative",
     "Cal AI replacement",
@@ -26,22 +26,22 @@ const faqs = [
   {
     question: "What is the best alternative to Cal AI?",
     answer:
-      "Macro Maxxing is the best alternative to Cal AI for anyone who wants more than just calorie counting. Core features like full macro tracking, streaks, leaderboards, and community are free to download. AI-powered features (photo scanning, voice logging, meal planner, nutrition coach) are available through AI Pro at $9.99/month with transparent pricing.",
+      "Macromaxxing is the best alternative to Cal AI for anyone who wants more than just calorie counting. Core features like full macro tracking, streaks, leaderboards, and community are free to download. AI-powered features (photo scanning, voice logging, meal planner, nutrition coach) are available through AI Pro at $9.99/month with transparent pricing.",
   },
   {
-    question: "Is Macro Maxxing more accurate than Cal AI?",
+    question: "Is Macromaxxing more accurate than Cal AI?",
     answer:
-      "Macro Maxxing uses Claude AI (Haiku and Sonnet) by Anthropic for food recognition and macro estimation. Cal AI users frequently report accuracy issues with complex dishes, hidden ingredients, and portion sizes. Macro Maxxing also offers voice logging as a second input method, which Cal AI lacks.",
+      "Macromaxxing uses Claude AI (Haiku and Sonnet) by Anthropic for food recognition and macro estimation. Cal AI users frequently report accuracy issues with complex dishes, hidden ingredients, and portion sizes. Macromaxxing also offers voice logging as a second input method, which Cal AI lacks.",
   },
   {
-    question: "Does Macro Maxxing have features Cal AI doesn't?",
+    question: "Does Macromaxxing have features Cal AI doesn't?",
     answer:
-      "Yes. Macro Maxxing includes several features Cal AI doesn't offer: voice meal logging, an AI meal planner that suggests what to eat based on remaining macros, an AI nutrition coach that reviews your day, smart workout tracking with automatic macro adjustments, an intermittent fasting timer, daily streaks, Aura XP leaderboards, and a social community feed.",
+      "Yes. Macromaxxing includes several features Cal AI doesn't offer: voice meal logging, an AI meal planner that suggests what to eat based on remaining macros, an AI nutrition coach that reviews your day, smart workout tracking with automatic macro adjustments, an intermittent fasting timer, daily streaks, Aura XP leaderboards, and a social community feed.",
   },
   {
     question: "Does Cal AI track macros?",
     answer:
-      "Cal AI tracks calories, protein, carbs, and fat from photos. However, it's primarily marketed as a calorie tracker rather than a macro tracker. Macro Maxxing is built as a macro tracker first — protein, carbs, and fat are displayed prominently alongside calories, and features like the AI meal planner are designed to help you hit specific macro targets.",
+      "Cal AI tracks calories, protein, carbs, and fat from photos. However, it's primarily marketed as a calorie tracker rather than a macro tracker. Macromaxxing is built as a macro tracker first — protein, carbs, and fat are displayed prominently alongside calories, and features like the AI meal planner are designed to help you hit specific macro targets.",
   },
 ];
 
@@ -49,8 +49,8 @@ export default function CalAIAlternativePage() {
   return (
     <>
       <ArticleJsonLd
-        title="Best Cal AI Alternative 2026 — Macro Maxxing"
-        description="Macro Maxxing is a feature-rich Cal AI alternative with voice logging, AI meal planning, nutrition coaching, and gamified accountability."
+        title="Best Cal AI Alternative 2026 — Macromaxxing"
+        description="Macromaxxing is a feature-rich Cal AI alternative with voice logging, AI meal planning, nutrition coaching, and gamified accountability."
         url="https://macromaxxing.app/cal-ai-alternative"
       />
       <FAQPageJsonLd faqs={faqs} />
@@ -76,7 +76,7 @@ export default function CalAIAlternativePage() {
               <span className="text-gradient-gold">Calorie Counting</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              Macro Maxxing is a Cal AI alternative that goes beyond photo
+              Macromaxxing is a Cal AI alternative that goes beyond photo
               calorie counting with full macro tracking, voice logging, an AI
               meal planner, AI nutrition coach, workout tracking, streaks,
               leaderboards, and a social community.
@@ -88,7 +88,7 @@ export default function CalAIAlternativePage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-orange hover:bg-brand-orange/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Switch to Macro Maxxing
+              Switch to Macromaxxing
             </a>
           </div>
         </section>
@@ -101,14 +101,14 @@ export default function CalAIAlternativePage() {
             </h2>
             <p className="text-gray-300 text-lg leading-relaxed">
               <strong className="text-white">
-                Macro Maxxing is the best Cal AI alternative for anyone who
+                Macromaxxing is the best Cal AI alternative for anyone who
                 wants more than photo-based calorie counting.
               </strong>{" "}
               It matches Cal AI&apos;s photo scanning and adds voice logging, an
               AI meal planner, AI nutrition coach, workout tracking with auto
               macro adjustments, intermittent fasting, streaks, leaderboards,
               and a social community. The trade-off: Cal AI has a simpler
-              onboarding flow and is available on Android, while Macro Maxxing
+              onboarding flow and is available on Android, while Macromaxxing
               is iOS only with deeper features.
             </p>
           </div>
@@ -164,7 +164,7 @@ export default function CalAIAlternativePage() {
         <section className="py-16 md:py-20 bg-white/[0.02]">
           <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-8">
-              Macro Maxxing vs Cal AI
+              Macromaxxing vs Cal AI
             </h2>
             <ComparisonTable
               features={[
@@ -240,7 +240,7 @@ export default function CalAIAlternativePage() {
 
         <section className="py-16 md:py-20 max-w-5xl mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            What Macro Maxxing Adds
+            What Macromaxxing Adds
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
             <FeatureCard
@@ -291,7 +291,7 @@ export default function CalAIAlternativePage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-brand-green/5 border border-brand-green/20 rounded-2xl p-6">
                 <h3 className="text-lg font-bold text-brand-green mb-4">
-                  Switch to Macro Maxxing if you:
+                  Switch to Macromaxxing if you:
                 </h3>
                 <ul className="space-y-2 text-gray-300 text-sm">
                   <li className="flex items-start gap-2">
@@ -327,7 +327,7 @@ export default function CalAIAlternativePage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-gray-500 mt-0.5">•</span>Need Android
-                    support (Macro Maxxing is iOS only)
+                    support (Macromaxxing is iOS only)
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-gray-500 mt-0.5">•</span>Prefer the
@@ -355,7 +355,7 @@ export default function CalAIAlternativePage() {
                   1. Download
                 </p>
                 <p className="text-gray-400 text-sm">
-                  Get Macro Maxxing from the App Store. Set up in under 2
+                  Get Macromaxxing from the App Store. Set up in under 2
                   minutes.
                 </p>
               </div>
@@ -403,7 +403,7 @@ export default function CalAIAlternativePage() {
         <div id="download">
           <DownloadCTA
             headline="More Than Calorie Counting"
-            subheadline="Core tracking and community free. AI scanning, voice logging, and coaching at $9.99/mo with transparent pricing. Download Macro Maxxing."
+            subheadline="Core tracking and community free. AI scanning, voice logging, and coaching at $9.99/mo with transparent pricing. Download Macromaxxing."
           />
         </div>
       </article>

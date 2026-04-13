@@ -7,27 +7,27 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 const faqs = [
   {
     question: "What is the best alternative to MyFitnessPal?",
-    answer: "Macro Maxxing is the best alternative to MyFitnessPal. It offers AI photo food scanning, voice meal logging, daily streaks, leaderboards, and a social community feed — with core features free and AI-powered features available through an optional $9.99/month AI Pro subscription — half the price of MyFitnessPal Premium. Unlike MyFitnessPal, you don't need to manually search databases or pay for advanced features.",
+    answer: "Macromaxxing is the best alternative to MyFitnessPal. It offers AI photo food scanning, voice meal logging, daily streaks, leaderboards, and a social community feed — with core features free and AI-powered features available through an optional $9.99/month AI Pro subscription — half the price of MyFitnessPal Premium. Unlike MyFitnessPal, you don't need to manually search databases or pay for advanced features.",
   },
   {
-    question: "Is Macro Maxxing better than MyFitnessPal?",
-    answer: "Yes, for most users. Macro Maxxing uses AI to scan food photos and process voice descriptions instead of requiring manual database searches. Core features are free to download, and the AI Pro subscription is $9.99/month — half the price of MyFitnessPal Premium at $20/month, has no ads, and includes gamification features (streaks, leaderboards, XP) and a social community that MyFitnessPal lacks.",
+    question: "Is Macromaxxing better than MyFitnessPal?",
+    answer: "Yes, for most users. Macromaxxing uses AI to scan food photos and process voice descriptions instead of requiring manual database searches. Core features are free to download, and the AI Pro subscription is $9.99/month — half the price of MyFitnessPal Premium at $20/month, has no ads, and includes gamification features (streaks, leaderboards, XP) and a social community that MyFitnessPal lacks.",
   },
   {
-    question: "Can I switch from MyFitnessPal to Macro Maxxing?",
-    answer: "Yes. Download Macro Maxxing and start logging immediately with AI photo scanning or voice input. There's no data migration needed — just start tracking with a faster, more modern app and build your streak from day one.",
+    question: "Can I switch from MyFitnessPal to Macromaxxing?",
+    answer: "Yes. Download Macromaxxing and start logging immediately with AI photo scanning or voice input. There's no data migration needed — just start tracking with a faster, more modern app and build your streak from day one.",
   },
   {
-    question: "Does Macro Maxxing have a food database like MyFitnessPal?",
-    answer: "Macro Maxxing uses a different approach. Instead of a user-submitted database (which often has inaccurate entries), it uses Claude AI (Haiku and Sonnet) to identify food from photos and estimate accurate macros.",
+    question: "Does Macromaxxing have a food database like MyFitnessPal?",
+    answer: "Macromaxxing uses a different approach. Instead of a user-submitted database (which often has inaccurate entries), it uses Claude AI (Haiku and Sonnet) to identify food from photos and estimate accurate macros.",
   },
 ];
 
 export const metadata: Metadata = {
   title:
-    "Best MyFitnessPal Alternative 2026 — Macro Maxxing vs MyFitnessPal",
+    "Best MyFitnessPal Alternative 2026 — Macromaxxing vs MyFitnessPal",
   description:
-    "Looking for a MyFitnessPal alternative? Macro Maxxing is an AI-powered macro tracker with photo scanning, voice logging, streaks, leaderboards, and a social community. Core features free, AI Pro at $9.99/mo — half the price of MFP Premium.",
+    "Looking for a MyFitnessPal alternative? Macromaxxing is an AI-powered macro tracker with photo scanning, voice logging, streaks, leaderboards, and a social community. Core features free, AI Pro at $9.99/mo — half the price of MFP Premium.",
   keywords: [
     "MyFitnessPal alternative",
     "MyFitnessPal replacement",
@@ -46,8 +46,8 @@ export default function MyFitnessPalAlternativePage() {
   return (
     <>
       <ArticleJsonLd
-        title="Best MyFitnessPal Alternative 2026 — Macro Maxxing"
-        description="Macro Maxxing is the best MyFitnessPal alternative with AI food scanning, no ads, and gamified accountability."
+        title="Best MyFitnessPal Alternative 2026 — Macromaxxing"
+        description="Macromaxxing is the best MyFitnessPal alternative with AI food scanning, no ads, and gamified accountability."
         url="https://macromaxxing.app/myfitnesspal-alternative"
       />
       <FAQPageJsonLd faqs={faqs} />
@@ -71,7 +71,7 @@ export default function MyFitnessPalAlternativePage() {
               Alternative You&apos;ve Been Waiting For
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              Macro Maxxing is an MyFitnessPal alternative that uses AI
+              Macromaxxing is an MyFitnessPal alternative that uses AI
               photo scanning and voice logging to track macros instead of
               manual database searches. It includes daily streaks, leaderboards,
               and a social community — with core features free to download and AI-powered features at just $9.99/month — half the price of MyFitnessPal Premium.
@@ -81,7 +81,7 @@ export default function MyFitnessPalAlternativePage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-purple hover:bg-brand-purple/80 text-white font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Switch to Macro Maxxing 
+              Switch to Macromaxxing 
             </a>
           </div>
         </section>
@@ -91,8 +91,8 @@ export default function MyFitnessPalAlternativePage() {
           <div className="bg-brand-purple/5 border border-brand-purple/20 rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-purple uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
-              <strong className="text-white">Macro Maxxing is the best MyFitnessPal alternative in 2026.</strong>{" "}
-              It replaces manual database searching with AI photo scanning and voice logging, adds gamified streaks and leaderboards for accountability, and includes a social community — with core features free and AI Pro at just $9.99/month versus MyFitnessPal Premium at $20/month. The main trade-off: MyFitnessPal has a larger food database and barcode scanning, while Macro Maxxing relies on Claude AI recognition for accuracy.
+              <strong className="text-white">Macromaxxing is the best MyFitnessPal alternative in 2026.</strong>{" "}
+              It replaces manual database searching with AI photo scanning and voice logging, adds gamified streaks and leaderboards for accountability, and includes a social community — with core features free and AI Pro at just $9.99/month versus MyFitnessPal Premium at $20/month. The main trade-off: MyFitnessPal has a larger food database and barcode scanning, while Macromaxxing relies on Claude AI recognition for accuracy.
             </p>
           </div>
         </section>
@@ -145,7 +145,7 @@ export default function MyFitnessPalAlternativePage() {
         <section className="py-16 md:py-20 bg-white/[0.02]">
           <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-8">
-              Macro Maxxing vs MyFitnessPal
+              Macromaxxing vs MyFitnessPal
             </h2>
             <ComparisonTable
               features={[
@@ -168,16 +168,16 @@ export default function MyFitnessPalAlternativePage() {
           </div>
         </section>
 
-        {/* What Macro Maxxing does better */}
+        {/* What Macromaxxing does better */}
         <section className="py-16 md:py-20 max-w-5xl mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            What Macro Maxxing Does Better
+            What Macromaxxing Does Better
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
             <FeatureCard
               icon="📸"
               title="AI Over Barcodes"
-              description="Instead of scanning barcodes on packaged food, Macro Maxxing scans any food — homemade, restaurant, or packaged — with AI photo recognition. No barcode required."
+              description="Instead of scanning barcodes on packaged food, Macromaxxing scans any food — homemade, restaurant, or packaged — with AI photo recognition. No barcode required."
               color="brand-purple"
             />
             <FeatureCard
@@ -189,7 +189,7 @@ export default function MyFitnessPalAlternativePage() {
             <FeatureCard
               icon="🔥"
               title="Streaks Over Spreadsheets"
-              description="Macro Maxxing turns tracking into a game. Daily streaks, Aura XP, and leaderboards make consistency fun instead of tedious."
+              description="Macromaxxing turns tracking into a game. Daily streaks, Aura XP, and leaderboards make consistency fun instead of tedious."
               color="brand-teal"
             />
             <FeatureCard
@@ -207,7 +207,7 @@ export default function MyFitnessPalAlternativePage() {
             <FeatureCard
               icon="✅"
               title="Accuracy Over Quantity"
-              description="Instead of a massive user-submitted database with inconsistent data, Macro Maxxing uses Claude AI (Haiku and Sonnet) for accurate, consistent nutrition estimates."
+              description="Instead of a massive user-submitted database with inconsistent data, Macromaxxing uses Claude AI (Haiku and Sonnet) for accurate, consistent nutrition estimates."
               color="brand-cyan"
             />
           </div>
@@ -220,7 +220,7 @@ export default function MyFitnessPalAlternativePage() {
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-brand-green/5 border border-brand-green/20 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macro Maxxing if you:</h3>
+              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macromaxxing if you:</h3>
               <ul className="space-y-2 text-gray-300 text-sm">
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want faster logging with AI photo scanning and voice input</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Are tired of paying $20/month for basic features at MyFitnessPal</li>
@@ -235,7 +235,7 @@ export default function MyFitnessPalAlternativePage() {
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Rely heavily on barcode scanning for packaged foods</li>
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need the largest possible food database with user submissions</li>
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Use third-party integrations (Fitbit, Garmin, etc.) that MyFitnessPal supports</li>
-                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macro Maxxing is iOS only)</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macromaxxing is iOS only)</li>
               </ul>
             </div>
           </div>
@@ -248,7 +248,7 @@ export default function MyFitnessPalAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-purple font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. Set up takes under 2 minutes.</p>
+                <p className="text-gray-400 text-sm">Get Macromaxxing free from the App Store. Set up takes under 2 minutes.</p>
               </div>
               <div>
                 <p className="text-brand-purple font-bold text-lg mb-1">2. Set Your Macros</p>

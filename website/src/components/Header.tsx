@@ -11,7 +11,7 @@ export function Header() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
           <span className="text-2xl">🔥</span>
-          <span className="text-xl font-bold text-gradient">Macro Maxxing</span>
+          <span className="text-xl font-bold text-gradient">Macromaxxing</span>
         </Link>
 
         {/* Desktop nav */}

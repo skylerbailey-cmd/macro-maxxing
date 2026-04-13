@@ -5,9 +5,9 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title:
-    "Streaks, Leaderboards & Gamified Macro Tracking | Macro Maxxing",
+    "Streaks, Leaderboards & Gamified Macro Tracking | Macromaxxing",
   description:
-    "Turn nutrition tracking into a game. Macro Maxxing features daily streaks, Aura XP points, leaderboards, and a social feed that keeps you accountable and motivated every single day.",
+    "Turn nutrition tracking into a game. Macromaxxing features daily streaks, Aura XP points, leaderboards, and a social feed that keeps you accountable and motivated every single day.",
   keywords: [
     "gamified macro tracker",
     "nutrition streaks app",
@@ -44,7 +44,7 @@ export default function StreaksAndGamificationPage() {
               <span className="text-gradient-gold">Game</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
-              Most nutrition apps are boring spreadsheets. Macro Maxxing turns
+              Most nutrition apps are boring spreadsheets. Macromaxxing turns
               tracking into a game with daily streaks, Aura XP, leaderboards,
               and a social community — so you actually stick with it.
             </p>
@@ -69,7 +69,7 @@ export default function StreaksAndGamificationPage() {
             numbers manually is tedious and unrewarding.
           </p>
           <p className="text-gray-300 text-lg mb-6">
-            Macro Maxxing solves this with two key innovations:{" "}
+            Macromaxxing solves this with two key innovations:{" "}
             <strong>AI-powered logging</strong> that eliminates the tedious
             data entry, and <strong>gamification</strong> that makes tracking
             genuinely fun and addictive — in a good way.
@@ -163,7 +163,7 @@ export default function StreaksAndGamificationPage() {
             <p className="text-gray-300 text-lg mb-8">
               A streak is the simplest and most powerful motivator. Once you have
               a 14-day streak going, you&apos;ll think twice before skipping a
-              day. Macro Maxxing displays your streak prominently so it serves
+              day. Macromaxxing displays your streak prominently so it serves
               as a constant reminder of your commitment.
             </p>
             <div className="grid md:grid-cols-3 gap-6">
@@ -201,7 +201,7 @@ export default function StreaksAndGamificationPage() {
             Social Accountability Makes It Stick
           </h2>
           <p className="text-gray-300 text-lg mb-6">
-            The community feed in Macro Maxxing isn&apos;t just for show — it&apos;s
+            The community feed in Macromaxxing isn&apos;t just for show — it&apos;s
             an accountability engine. When other people can see your streak, your
             XP, and your meals, you&apos;re far more likely to stay consistent.
             Studies show that public commitment increases follow-through by over
@@ -209,7 +209,7 @@ export default function StreaksAndGamificationPage() {
           </p>
           <p className="text-gray-300 text-lg">
             Follow friends, join challenges, and celebrate milestones together.
-            Macro Maxxing turns solo dieting into a team sport.
+            Macromaxxing turns solo dieting into a team sport.
           </p>
         </section>
 
@@ -223,19 +223,19 @@ export default function StreaksAndGamificationPage() {
               {[
                 {
                   q: "What is a gamified macro tracker?",
-                  a: "A gamified macro tracker is a nutrition tracking app that uses game mechanics like streaks, points (XP), leaderboards, and social features to make tracking fun and keep you accountable. Macro Maxxing is an gamified macro tracker with AI-powered food scanning, daily streaks, Aura XP, and competitive leaderboards.",
+                  a: "A gamified macro tracker is a nutrition tracking app that uses game mechanics like streaks, points (XP), leaderboards, and social features to make tracking fun and keep you accountable. Macromaxxing is an gamified macro tracker with AI-powered food scanning, daily streaks, Aura XP, and competitive leaderboards.",
                 },
                 {
                   q: "Do streaks really help with diet consistency?",
-                  a: "Yes. Behavioral research shows that streak mechanics significantly increase habit adherence. Once you build a streak of 7+ days, the psychological cost of breaking it becomes a powerful motivator. Macro Maxxing displays your streak prominently and rewards milestones with bonus Aura XP.",
+                  a: "Yes. Behavioral research shows that streak mechanics significantly increase habit adherence. Once you build a streak of 7+ days, the psychological cost of breaking it becomes a powerful motivator. Macromaxxing displays your streak prominently and rewards milestones with bonus Aura XP.",
                 },
                 {
-                  q: "How do leaderboards work in Macro Maxxing?",
+                  q: "How do leaderboards work in Macromaxxing?",
                   a: "Leaderboards rank users by total Aura XP earned. You earn XP by logging meals, hitting protein and calorie targets, maintaining streaks, and logging workouts. There are weekly and all-time leaderboards so both new and veteran users can compete.",
                 },
                 {
-                  q: "What does Macro Maxxing cost?",
-                  a: "Yes, Macro Maxxing is available to download to download and use. All features including AI food scanning, streaks, leaderboards, and the social community are available included.",
+                  q: "What does Macromaxxing cost?",
+                  a: "Yes, Macromaxxing is available to download to download and use. All features including AI food scanning, streaks, leaderboards, and the social community are available included.",
                 },
               ].map((faq) => (
                 <div
