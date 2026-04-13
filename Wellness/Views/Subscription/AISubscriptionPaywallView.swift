@@ -387,6 +387,12 @@ struct AISubscriptionPaywallView: View {
                         }
                     }
                     priceLine(productID: productID, hasPromo: hasPromo)
+                    if productID == AISubscriptionStore.annualProductID,
+                       let vsMonthly = vsMonthlySavings(hasPromo: hasPromo) {
+                        Text(vsMonthly)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(gold)
+                    }
                     Text(trialLine(productID: productID, hasPromo: hasPromo))
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.55))
@@ -443,6 +449,32 @@ struct AISubscriptionPaywallView: View {
             return "\(store.trialDayCount) days free, then charged."
         }
         return "Cancel anytime."
+    }
+
+    /// The total yearly savings when picking annual over paying monthly for
+    /// 12 months. Shown on the annual tier regardless of promo state — but
+    /// the number grows when an affiliate code is applied because the
+    /// annual year-1 price drops to $59 while monthly stays at $12.99/mo.
+    ///
+    /// Returns `nil` if we can't compute it (products haven't loaded yet).
+    private func vsMonthlySavings(hasPromo: Bool) -> String? {
+        guard let monthlyPrice = store.monthlyProduct?.price else { return nil }
+        let annualCost: Decimal = hasPromo
+            ? annualAffiliatePrice
+            : (store.annualProduct?.price ?? Decimal(69.99))
+        let monthlyYearCost = monthlyPrice * Decimal(12)
+        let savings = monthlyYearCost - annualCost
+        guard savings > 0 else { return nil }
+        let savingsStr = formatUSD(savings)
+        let pct = percentInt(savings: savings, base: monthlyYearCost)
+        return "Save \(savingsStr)/yr vs monthly (\(pct)% off)"
+    }
+
+    private func percentInt(savings: Decimal, base: Decimal) -> Int {
+        let s = NSDecimalNumber(decimal: savings).doubleValue
+        let b = NSDecimalNumber(decimal: base).doubleValue
+        guard b > 0 else { return 0 }
+        return Int((s / b) * 100.0)
     }
 
     private func discountedPriceString(for productID: String) -> String {
