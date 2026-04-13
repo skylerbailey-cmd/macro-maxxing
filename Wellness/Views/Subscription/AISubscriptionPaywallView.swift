@@ -8,19 +8,21 @@
 //    • AI when logging a meal (food photo analysis)
 //    • AI when logging a workout (voice → workout parser)
 //
-//  Two tiers (annual primary, monthly anchor) and a "Have a promo code?"
-//  entry point that opens Apple's native offer-code redemption sheet for
-//  affiliate discounts.
+//  Two tiers (annual primary, monthly anchor) with a prominent inline promo
+//  code field. When a user enters a promo code we optimistically show the
+//  affiliate discount (strikethrough original price + % saved) on the
+//  selected tier, then copy the code to the clipboard and present Apple's
+//  offer-code redemption sheet on purchase so the user can paste in one tap.
 //
 
 import SwiftUI
 import StoreKit
+import UIKit
 
 struct AISubscriptionPaywallView: View {
 
     /// Called when the purchase is successful (or an existing entitlement is
-    /// discovered via Restore). The parent should dismiss the paywall and
-    /// resume whatever action the user was trying to take.
+    /// discovered via Restore).
     var onSubscribed: () -> Void
 
     /// Called when the user dismisses the paywall without subscribing.
@@ -30,8 +32,9 @@ struct AISubscriptionPaywallView: View {
     @State private var selectedProductID: String = AISubscriptionStore.annualProductID
     @State private var showError = false
 
-    @State private var showPromoSheet = false
     @State private var promoCodeInput: String = ""
+    @State private var appliedPromoCode: String? = nil
+    @State private var showPromoField: Bool = false
     @State private var isRedeemingPromo = false
 
     @Environment(\.dismiss) private var dismiss
@@ -41,17 +44,23 @@ struct AISubscriptionPaywallView: View {
     private let accent = Color(red: 0.65, green: 0.45, blue: 1.00)
     private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
 
+    // Known affiliate pricing — mirrors what's configured in App Store Connect.
+    // Used to show a live discount preview when the user applies a promo code
+    // before Apple's redemption sheet appears.
+    private let annualAffiliatePrice:  Decimal = 59.00
+    private let monthlyAffiliatePrice: Decimal = 9.99
+
     var body: some View {
         ZStack {
             pageBg.ignoresSafeArea()
 
             ScrollView {
-                VStack(spacing: 22) {
+                VStack(spacing: 18) {
                     header
-                    featuresCard
+                    compactFeaturesRow
+                    promoCodeSection
                     tierPicker
                     ctaButtons
-                    promoCodeRow
                     legalFooter
                 }
                 .padding(.horizontal, 24)
@@ -80,116 +89,178 @@ struct AISubscriptionPaywallView: View {
         .onChange(of: store.errorMessage) { _, msg in
             showError = (msg != nil && !msg!.isEmpty)
         }
-        .sheet(isPresented: $showPromoSheet) {
-            promoSheet
-        }
     }
 
     // MARK: - Header
 
     private var header: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 10) {
             ZStack {
                 Circle()
                     .fill(accent.opacity(0.16))
-                    .frame(width: 92, height: 92)
+                    .frame(width: 72, height: 72)
                 Image(systemName: "sparkles")
-                    .font(.system(size: 42, weight: .semibold))
+                    .font(.system(size: 34, weight: .semibold))
                     .foregroundStyle(accent)
             }
             Text("Unlock AI")
-                .font(.system(size: 30, weight: .black, design: .rounded))
+                .font(.system(size: 28, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
-            Text("One subscription unlocks every AI feature in Macromaxxing.")
-                .font(.system(size: 15))
-                .foregroundStyle(.white.opacity(0.65))
+            Text("Every AI feature in Macromaxxing — one subscription.")
+                .font(.system(size: 13))
+                .foregroundStyle(.white.opacity(0.6))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    // MARK: - Features
+    // MARK: - Compact features row
 
-    private var featuresCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            featureRow(icon: "lightbulb.fill", color: gold,
-                       title: "AI Meal Planner",
-                       text: "Specific meal suggestions based on your remaining macro gaps for the day.")
-            divider
-            featureRow(icon: "wand.and.stars", color: accent,
-                       title: "AI Nutrition Coach",
-                       text: "Personalized debrief of your day — meals, macros, workouts, and timing.")
-            divider
-            featureRow(icon: "camera.fill", color: Color(red: 0.20, green: 0.85, blue: 0.75),
-                       title: "AI Meal Logging",
-                       text: "Snap a photo of your food and let AI estimate calories, protein, carbs, and fat.")
-            divider
-            featureRow(icon: "figure.run", color: Color(red: 0.30, green: 0.90, blue: 0.55),
-                       title: "AI Workout Logging",
-                       text: "Describe your workout out loud — AI fills in the name, duration, and calories burned.")
+    private var compactFeaturesRow: some View {
+        // A single pill row of four AI features — way more compact than the
+        // previous stacked card.
+        HStack(spacing: 8) {
+            featurePill(icon: "lightbulb.fill", color: gold,
+                        title: "Meal Planner")
+            featurePill(icon: "wand.and.stars", color: accent,
+                        title: "Coach")
+            featurePill(icon: "camera.fill",
+                        color: Color(red: 0.20, green: 0.85, blue: 0.75),
+                        title: "Food Scan")
+            featurePill(icon: "figure.run",
+                        color: Color(red: 0.30, green: 0.90, blue: 0.55),
+                        title: "Workouts")
         }
-        .padding(20)
-        .background(cardBg, in: RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(accent.opacity(0.22), lineWidth: 1))
     }
 
-    private var divider: some View {
-        Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
-    }
-
-    private func featureRow(icon: String, color: Color, title: String, text: String) -> some View {
-        HStack(alignment: .top, spacing: 14) {
+    private func featurePill(icon: String, color: Color, title: String) -> some View {
+        VStack(spacing: 6) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(color.opacity(0.16))
-                    .frame(width: 36, height: 36)
+                    .fill(color.opacity(0.18))
+                    .frame(width: 38, height: 38)
                 Image(systemName: icon)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(color)
             }
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.white)
-                Text(text)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.62))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.82))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(cardBg.opacity(0.6), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Promo code (inline, prominent)
+
+    @ViewBuilder
+    private var promoCodeSection: some View {
+        if let code = appliedPromoCode {
+            // Applied state: show confirmation chip
+            HStack(spacing: 10) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(gold)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Promo \(code) applied")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("Discount will be confirmed at checkout.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+                Spacer()
+                Button("Remove") {
+                    appliedPromoCode = nil
+                    promoCodeInput = ""
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(accent)
+            }
+            .padding(14)
+            .background(gold.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(gold.opacity(0.35), lineWidth: 1))
+
+        } else if showPromoField {
+            // Entry state: text field + apply
+            HStack(spacing: 8) {
+                TextField("ENTER CODE", text: $promoCodeInput)
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
+                    .font(.system(size: 15, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.3), lineWidth: 1))
+
+                Button("Apply") {
+                    applyPromoCode()
+                }
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 11)
+                .background(accent, in: RoundedRectangle(cornerRadius: 10))
+                .disabled(promoCodeInput.trimmingCharacters(in: .whitespaces).isEmpty)
+                .opacity(promoCodeInput.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
+            }
+        } else {
+            // Collapsed state: prominent button
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showPromoField = true
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "tag.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text("Have a promo code?")
+                        .font(.system(size: 14, weight: .bold))
+                }
+                .foregroundStyle(accent)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10)
+                    .stroke(accent.opacity(0.35), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func applyPromoCode() {
+        let code = promoCodeInput.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !code.isEmpty else { return }
+        appliedPromoCode = code
+        promoCodeInput = code
     }
 
     // MARK: - Tier picker
 
     private var tierPicker: some View {
-        VStack(spacing: 12) {
-            tierRow(
-                productID: AISubscriptionStore.annualProductID,
-                title:     "Annual",
-                headline:  annualHeadline,
-                subline:   annualSubline,
-                badge:     "BEST VALUE — SAVE 55%"
-            )
-            tierRow(
-                productID: AISubscriptionStore.monthlyProductID,
-                title:     "Monthly",
-                headline:  monthlyHeadline,
-                subline:   monthlySubline,
-                badge:     nil
-            )
+        VStack(spacing: 10) {
+            tierRow(productID: AISubscriptionStore.annualProductID,
+                    title:     "Annual",
+                    badge:     "BEST VALUE")
+            tierRow(productID: AISubscriptionStore.monthlyProductID,
+                    title:     "Monthly",
+                    badge:     nil)
         }
     }
 
     private func tierRow(productID: String,
                          title: String,
-                         headline: String,
-                         subline: String,
                          badge: String?) -> some View {
         let isSelected = selectedProductID == productID
+        let hasPromo   = appliedPromoCode != nil
+
         return Button {
             selectedProductID = productID
         } label: {
-            HStack(alignment: .center, spacing: 14) {
+            HStack(alignment: .center, spacing: 12) {
                 ZStack {
                     Circle()
                         .stroke(isSelected ? accent : Color.white.opacity(0.25), lineWidth: 2)
@@ -198,72 +269,110 @@ struct AISubscriptionPaywallView: View {
                         Circle().fill(accent).frame(width: 12, height: 12)
                     }
                 }
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 8) {
                         Text(title)
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(.white)
                         if let badge {
                             Text(badge)
                                 .font(.system(size: 9, weight: .heavy, design: .rounded))
-                                .tracking(1.2)
+                                .tracking(1.1)
                                 .foregroundStyle(gold)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 3)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
                                 .background(gold.opacity(0.15), in: Capsule())
                         }
                     }
-                    Text(headline)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.9))
-                    Text(subline)
-                        .font(.system(size: 12))
+                    priceLine(productID: productID, hasPromo: hasPromo)
+                    Text(trialLine(productID: productID, hasPromo: hasPromo))
+                        .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.55))
                 }
                 Spacer(minLength: 0)
+                if hasPromo {
+                    Text(discountBadge(for: productID))
+                        .font(.system(size: 10, weight: .heavy, design: .rounded))
+                        .foregroundStyle(gold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(gold.opacity(0.18), in: Capsule())
+                }
             }
-            .padding(16)
+            .padding(14)
             .background(cardBg.opacity(isSelected ? 0.9 : 0.5),
                         in: RoundedRectangle(cornerRadius: 14))
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
-                    .stroke(isSelected ? accent : Color.white.opacity(0.08), lineWidth: isSelected ? 1.5 : 1)
+                    .stroke(isSelected ? accent : Color.white.opacity(0.08),
+                            lineWidth: isSelected ? 1.5 : 1)
             )
         }
         .buttonStyle(.plain)
     }
 
-    private var annualHeadline: String {
-        let price = store.displayPrice(for: AISubscriptionStore.annualProductID)
-        if store.isEligibleForIntroOffer {
-            return "\(store.trialDayCount) days free, then \(price)/year"
+    @ViewBuilder
+    private func priceLine(productID: String, hasPromo: Bool) -> some View {
+        let period = store.period(for: productID)
+        let original = store.displayPrice(for: productID)
+        if hasPromo {
+            HStack(spacing: 6) {
+                Text(original)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .strikethrough()
+                Text("\(discountedPriceString(for: productID)) / \(period)")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(gold)
+            }
+        } else {
+            Text("\(original) / \(period)")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.9))
         }
-        return "\(price) / year"
     }
 
-    private var annualSubline: String {
-        // Approximate monthly equivalent for comparison.
-        let priceDecimal: Decimal = store.annualProduct?.price ?? Decimal(69.99)
-        let monthly = NSDecimalNumber(decimal: priceDecimal / Decimal(12)).doubleValue
-        return String(format: "Just $%.2f/mo — billed annually", monthly)
-    }
-
-    private var monthlyHeadline: String {
-        let price = store.displayPrice(for: AISubscriptionStore.monthlyProductID)
-        if store.isEligibleForIntroOffer {
-            return "\(store.trialDayCount) days free, then \(price)/month"
+    private func trialLine(productID: String, hasPromo: Bool) -> String {
+        let period = store.period(for: productID)
+        if hasPromo {
+            return "Affiliate pricing applies to your first \(period). Renews at regular price."
         }
-        return "\(price) / month"
+        if store.isEligibleForIntroOffer {
+            return "\(store.trialDayCount) days free, then charged."
+        }
+        return "Cancel anytime."
     }
 
-    private var monthlySubline: String {
-        "Cancel anytime"
+    private func discountedPriceString(for productID: String) -> String {
+        let price = productID == AISubscriptionStore.annualProductID
+                    ? annualAffiliatePrice : monthlyAffiliatePrice
+        return formatUSD(price)
+    }
+
+    private func discountBadge(for productID: String) -> String {
+        let originalDecimal: Decimal = productID == AISubscriptionStore.annualProductID
+            ? (store.annualProduct?.price ?? Decimal(69.99))
+            : (store.monthlyProduct?.price ?? Decimal(12.99))
+        let discounted = productID == AISubscriptionStore.annualProductID
+            ? annualAffiliatePrice : monthlyAffiliatePrice
+        let originalD  = NSDecimalNumber(decimal: originalDecimal).doubleValue
+        let discountD  = NSDecimalNumber(decimal: discounted).doubleValue
+        guard originalD > 0 else { return "SAVE" }
+        let pct = Int(((originalD - discountD) / originalD) * 100.0)
+        return "SAVE \(pct)%"
+    }
+
+    private func formatUSD(_ d: Decimal) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .currency
+        f.currencyCode = "USD"
+        return f.string(from: NSDecimalNumber(decimal: d)) ?? "$\(d)"
     }
 
     // MARK: - CTA
 
     private var ctaButtons: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             Button {
                 Task { await handlePurchase() }
             } label: {
@@ -277,7 +386,7 @@ struct AISubscriptionPaywallView: View {
                             )
                         )
                         .frame(height: 54)
-                    if store.isPurchasing {
+                    if store.isPurchasing || isRedeemingPromo {
                         ProgressView().tint(.white)
                     } else {
                         Text(ctaText)
@@ -287,7 +396,7 @@ struct AISubscriptionPaywallView: View {
                 }
             }
             .buttonStyle(.plain)
-            .disabled(store.isPurchasing || store.isRestoring)
+            .disabled(store.isPurchasing || store.isRestoring || isRedeemingPromo)
 
             Button {
                 Task { await handleRestore() }
@@ -296,8 +405,8 @@ struct AISubscriptionPaywallView: View {
                     ProgressView().tint(.white.opacity(0.6))
                 } else {
                     Text("Restore Purchases")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.60))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.55))
                 }
             }
             .buttonStyle(.plain)
@@ -306,6 +415,9 @@ struct AISubscriptionPaywallView: View {
     }
 
     private var ctaText: String {
+        if appliedPromoCode != nil {
+            return "Redeem Promo & Subscribe"
+        }
         if store.isEligibleForIntroOffer {
             return "Start 3-Day Free Trial"
         }
@@ -314,118 +426,25 @@ struct AISubscriptionPaywallView: View {
         return "Subscribe — \(price)/\(period)"
     }
 
-    // MARK: - Promo code
-
-    private var promoCodeRow: some View {
-        Button {
-            promoCodeInput = ""
-            showPromoSheet = true
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "tag.fill")
-                    .font(.system(size: 12, weight: .semibold))
-                Text("Have a promo code?")
-                    .font(.system(size: 13, weight: .semibold))
-            }
-            .foregroundStyle(accent.opacity(0.85))
-            .padding(.vertical, 8)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var promoSheet: some View {
-        ZStack {
-            pageBg.ignoresSafeArea()
-            VStack(spacing: 20) {
-                HStack {
-                    Spacer()
-                    Button { showPromoSheet = false } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.55))
-                            .padding(10)
-                            .background(cardBg, in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                }
-                VStack(spacing: 8) {
-                    Image(systemName: "tag.fill")
-                        .font(.system(size: 32))
-                        .foregroundStyle(accent)
-                    Text("Enter Promo Code")
-                        .font(.system(size: 22, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                    Text("Got a code from an affiliate? Enter it here to get your discount. You'll finish redemption in Apple's secure sheet — no trial required.")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.white.opacity(0.6))
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                TextField("PROMOCODE", text: $promoCodeInput)
-                    .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled()
-                    .font(.system(size: 18, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.white)
-                    .padding(14)
-                    .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(accent.opacity(0.25), lineWidth: 1)
-                    )
-
-                Button {
-                    Task { await handleRedeemPromo() }
-                } label: {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(accent)
-                            .frame(height: 50)
-                        if isRedeemingPromo {
-                            ProgressView().tint(.white)
-                        } else {
-                            Text("Redeem Code")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(.white)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-                .disabled(isRedeemingPromo)
-
-                Text("Don't have a code? Close this window and pick a plan above.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.white.opacity(0.4))
-                    .multilineTextAlignment(.center)
-
-                Spacer()
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 12)
-        }
-        .preferredColorScheme(.dark)
-        .presentationDetents([.medium, .large])
-    }
-
     // MARK: - Legal footer
 
     private var legalFooter: some View {
         VStack(spacing: 6) {
             Text(legalFooterText)
-                .font(.system(size: 11))
+                .font(.system(size: 10))
                 .foregroundStyle(.white.opacity(0.38))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: 16) {
+            HStack(spacing: 14) {
                 Button {
                     if let url = URL(string: "https://www.macromaxxing.app/terms") {
                         UIApplication.shared.open(url)
                     }
                 } label: {
                     Text("Terms of Service")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.50))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.48))
                 }
                 Button {
                     if let url = URL(string: "https://macromaxxing.app/privacy-policy") {
@@ -433,8 +452,8 @@ struct AISubscriptionPaywallView: View {
                     }
                 } label: {
                     Text("Privacy Policy")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.50))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.48))
                 }
             }
         }
@@ -443,10 +462,13 @@ struct AISubscriptionPaywallView: View {
     private var legalFooterText: String {
         let price  = store.displayPrice(for: selectedProductID)
         let period = store.period(for: selectedProductID)
-        if store.isEligibleForIntroOffer {
-            return "Your \(store.trialDayCount)-day free trial begins after purchase. You won't be charged during the trial. After \(store.trialDayCount) days your subscription auto-renews at \(price)/\(period) and is charged to your Apple ID. Cancel anytime at least 24 hours before the end of the current period in your Apple ID settings — otherwise it renews automatically."
+        if appliedPromoCode != nil {
+            return "Promo pricing applies to your first \(period) when the code is accepted in Apple's secure redemption sheet. After that your subscription auto-renews at \(price)/\(period) unless canceled at least 24 hours before the end of the current period."
         }
-        return "Payment charged to your Apple ID on confirmation. Subscription auto-renews at \(price)/\(period) unless canceled at least 24 hours before the end of the current period. Manage or cancel in your Apple ID settings."
+        if store.isEligibleForIntroOffer {
+            return "Your \(store.trialDayCount)-day free trial begins after purchase. You won't be charged during the trial. After \(store.trialDayCount) days your subscription auto-renews at \(price)/\(period). Cancel anytime in Apple ID settings at least 24 hours before the end of the current period."
+        }
+        return "Payment charged to your Apple ID on confirmation. Auto-renews at \(price)/\(period) unless canceled 24+ hours before the end of the current period."
     }
 
     private var closeButton: some View {
@@ -472,8 +494,32 @@ struct AISubscriptionPaywallView: View {
     // MARK: - Actions
 
     private func handlePurchase() async {
+        if let code = appliedPromoCode {
+            await redeemPromo(code: code)
+            return
+        }
         let success = await store.purchase(productID: selectedProductID)
         if success {
+            onSubscribed()
+            dismiss()
+        }
+    }
+
+    private func redeemPromo(code: String) async {
+        isRedeemingPromo = true
+        defer { isRedeemingPromo = false }
+
+        // Copy to the pasteboard so the user can paste into Apple's sheet in
+        // a single tap — Apple's redemption UI does not accept a pre-filled
+        // code via API, but iOS 16+ shows a paste-to-field suggestion.
+        UIPasteboard.general.string = code
+
+        await store.redeemPromoCode(stashedCode: code)
+
+        // Give Apple's sheet time to finalise, then check entitlement.
+        try? await Task.sleep(nanoseconds: 500_000_000)
+        await store.refreshEntitlement()
+        if store.isSubscribed {
             onSubscribed()
             dismiss()
         }
@@ -482,26 +528,6 @@ struct AISubscriptionPaywallView: View {
     private func handleRestore() async {
         let success = await store.restore()
         if success {
-            onSubscribed()
-            dismiss()
-        }
-    }
-
-    private func handleRedeemPromo() async {
-        isRedeemingPromo = true
-        defer { isRedeemingPromo = false }
-
-        let code = promoCodeInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        await store.redeemPromoCode(stashedCode: code.isEmpty ? nil : code)
-
-        // Close our custom sheet — Apple's redemption sheet will take over.
-        showPromoSheet = false
-
-        // Give Apple's sheet a beat to finalize the transaction, then see if
-        // we're now subscribed.
-        try? await Task.sleep(nanoseconds: 500_000_000)
-        await store.refreshEntitlement()
-        if store.isSubscribed {
             onSubscribed()
             dismiss()
         }
