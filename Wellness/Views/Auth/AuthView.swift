@@ -375,11 +375,14 @@ struct AuthView: View {
                 Task { await auth.handleAppleSignIn(result) }
             }
             .signInWithAppleButtonStyle(.white)
-            // ASAuthorizationAppleIDButton caps itself at 375pt per Apple's
-            // HIG. Constrain the SwiftUI frame to match so AutoLayout doesn't
-            // log a constraint conflict on iPhone Pro Max-class devices where
-            // the padded container would otherwise be ~382pt wide.
-            .frame(maxWidth: 375, maxHeight: 50)
+            // Fix the height (not maxHeight) so the Apple button renders at
+            // exactly the same 50pt height as the Google button below —
+            // otherwise ASAuthorizationAppleIDButton falls back to its
+            // intrinsic ~45pt and the two buttons look visually mismatched.
+            // 375pt maxWidth matches Apple's HIG cap so AutoLayout doesn't
+            // complain on iPhone Pro Max-class devices.
+            .frame(maxWidth: 375)
+            .frame(height: 50)
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .padding(.horizontal, 24)
 
