@@ -144,7 +144,7 @@ enum TutorialSteps {
         // ── Board ──────────────────────────────────────────────────────
         .init(
             title: "Mog Board",
-            body: "The weekly leaderboard resets every Sunday at 8 PM ET. Your rank is based on the aura XP you earn during the week — hit your macro goals daily, keep your streak alive, and stay active to climb. Use the scope selector to compare yourself within your Team, your Local area, or across the full Arena.",
+            body: "The weekly leaderboard resets every Sunday at 8 PM ET. Your rank is based on the aura XP you earn during the week — hit your macro goals daily, keep your streak alive, and stay active to climb.\n\nUse the scope selector to compare yourself within your Team, your Local area, or across the full Arena.",
             tabIndex: 3,
             anchorID: "board.header",
             additionalAnchorIDs: ["board.scopePicker"]
