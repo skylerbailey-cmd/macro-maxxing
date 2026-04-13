@@ -122,13 +122,11 @@ struct NewPostView: View {
     private var statusPrompt: String { dailyStatusPrompts[dailyIndex(for: dailyStatusPrompts)] }
     private var bodyPrompt:   String { dailyBodyPrompts[dailyIndex(for: dailyBodyPrompts)] }
 
-    /// A post can be submitted if it has a title, body, photo, or a content-bearing label selected.
+    /// A post can be submitted if a label is selected, or if a title has been entered.
+    /// Title is only required when no label is selected.
     private var hasPostableContent: Bool {
-        let hasTitle = !titleText.trimmingCharacters(in: .whitespaces).isEmpty
-        let hasBody  = !bodyText.trimmingCharacters(in: .whitespaces).isEmpty
-        let hasPhoto = !photos.isEmpty
-        let hasLabel = selectedLabel != nil
-        return hasTitle || hasBody || hasPhoto || hasLabel
+        if selectedLabel != nil { return true }
+        return !titleText.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     var body: some View {
