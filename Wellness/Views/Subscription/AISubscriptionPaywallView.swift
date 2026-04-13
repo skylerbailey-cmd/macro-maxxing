@@ -88,7 +88,7 @@ struct AISubscriptionPaywallView: View {
                 dismiss()
             }
         }
-        .alert("Purchase Failed", isPresented: $showError) {
+        .alert(alertTitle, isPresented: $showError) {
             Button("OK") { store.errorMessage = nil }
         } message: {
             Text(store.errorMessage ?? "")
@@ -605,6 +605,16 @@ struct AISubscriptionPaywallView: View {
         return "Payment charged to your Apple ID on confirmation. Auto-renews at \(price)/\(period) unless canceled 24+ hours before the end of the current period."
     }
 
+    /// Chooses a contextual alert title based on the current error. Promo
+    /// failures get their own heading so users don't see "Purchase Failed"
+    /// when the real issue was just an invalid code.
+    private var alertTitle: String {
+        if let msg = store.errorMessage, msg.contains("could not be redeemed") {
+            return "Invalid Promo Code"
+        }
+        return "Purchase Failed"
+    }
+
     private var closeButton: some View {
         VStack {
             HStack {
@@ -648,14 +658,36 @@ struct AISubscriptionPaywallView: View {
         // code via API, but iOS 16+ shows a paste-to-field suggestion.
         UIPasteboard.general.string = code
 
+        // Snapshot subscription state before presenting Apple's sheet so we
+        // can detect whether anything actually changed.
+        let wasSubscribedBefore = store.isSubscribed
+
         await store.redeemPromoCode(stashedCode: code)
 
-        // Give Apple's sheet time to finalise, then check entitlement.
-        try? await Task.sleep(nanoseconds: 500_000_000)
-        await store.refreshEntitlement()
-        if store.isSubscribed {
+        // Apple's sheet is modal and `presentOfferCodeRedeemSheet` returns
+        // before the transaction finalises. Poll entitlement for a few
+        // seconds so we catch a successful redemption that lands after the
+        // sheet dismisses.
+        var redeemed = false
+        for _ in 0..<8 {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            await store.refreshEntitlement()
+            if store.isSubscribed && !wasSubscribedBefore {
+                redeemed = true
+                break
+            }
+        }
+
+        if redeemed {
             onSubscribed()
             dismiss()
+        } else {
+            // Code was invalid / expired / Apple rejected it / user cancelled.
+            // Clear the optimistic discount UI and surface a clear error.
+            appliedPromoCode = nil
+            promoCodeInput   = code  // keep what they typed so they can edit
+            store.errorMessage =
+                "\"\(code)\" could not be redeemed. Please double-check the code, make sure it hasn't expired, and try again."
         }
     }
 
