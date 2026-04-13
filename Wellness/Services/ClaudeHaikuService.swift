@@ -15,6 +15,13 @@ final class ClaudeHaikuService {
 
     private init() {}
 
+    /// Reads dietary exclusion toggles from UserDefaults and returns a prompt
+    /// fragment to inject into the vision prompt so identification and macros
+    /// reflect what the user actually eats (e.g. gluten-free pasta, oat milk).
+    private var dietaryRestrictionsPrompt: String {
+        DietaryRestrictions.visionPromptFragment()
+    }
+
     /// Sends a food photo to Claude Haiku for identification AND macro estimation in one call.
     /// Optionally includes a Core ML hint if Tier 1 attempted classification.
     func identifyFood(image: UIImage, coreMLHint: String? = nil) async throws -> HaikuFoodIdentification {
@@ -57,6 +64,11 @@ final class ClaudeHaikuService {
 
         if let hint = coreMLHint {
             promptParts.insert("Our on-device classifier thinks this might be \"\(hint)\" but was not confident enough. Use this as a hint.", at: 1)
+        }
+
+        let dietary = dietaryRestrictionsPrompt
+        if !dietary.isEmpty {
+            promptParts.insert(dietary, at: 1)
         }
 
         let prompt = promptParts.joined(separator: "\n")

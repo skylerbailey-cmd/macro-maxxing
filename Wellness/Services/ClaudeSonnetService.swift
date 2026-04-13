@@ -15,6 +15,13 @@ final class ClaudeSonnetService {
 
     private init() {}
 
+    /// Reads dietary exclusion toggles from UserDefaults and returns a prompt
+    /// fragment to inject so identification and macros reflect the user's
+    /// dietary preferences (e.g. assume gluten-free pasta, plant-based milk).
+    private var dietaryRestrictionsPrompt: String {
+        DietaryRestrictions.visionPromptFragment()
+    }
+
     /// Full meal analysis using Claude Sonnet. This is the most accurate but highest-cost tier.
     /// Optionally includes context from previous tier attempts.
     func analyzeFood(image: UIImage, previousGuess: String? = nil, voiceNote: String? = nil) async throws -> SonnetAnalysisResult {
@@ -32,9 +39,11 @@ final class ClaudeSonnetService {
             contextLines.append("PRIORITY: The user verbally described this food as: \"\(voice)\". This description overrides what you see in the photo. Use the photo only for visual confirmation — base your food identification, portion size, and macro calculation primarily on the user's description.")
         }
         let contextBlock = contextLines.isEmpty ? "" : contextLines.joined(separator: "\n") + "\n\n"
+        let dietary = dietaryRestrictionsPrompt
+        let dietaryBlock = dietary.isEmpty ? "" : dietary + "\n\n"
 
         let prompt = """
-\(contextBlock)Analyze this food photo carefully. Think step by step:
+\(contextBlock)\(dietaryBlock)Analyze this food photo carefully. Think step by step:
 1. Identify every food item visible in the photo
 2. **Estimate portion sizes using ALL available visual cues in the photo:**
    - Hands, fingers, or thumbs → use as size reference (average adult hand ~19cm long)
@@ -111,9 +120,11 @@ Reply with ONLY the JSON, no markdown fences, no extra text.
     func estimateMacros(items: [HaikuFoodItem], fullMealName: String) async throws -> SonnetAnalysisResult {
         let itemLines = items.map { "- \($0.name): \($0.portionGrams)g" }.joined(separator: "\n")
         let totalGrams = items.reduce(0.0) { $0 + $1.portionGrams }
+        let dietary = dietaryRestrictionsPrompt
+        let dietaryBlock = dietary.isEmpty ? "" : "\n" + dietary + "\n"
 
         let prompt = """
-        Calculate accurate macronutrients for this meal. Use values consistent with USDA FoodData Central.
+        Calculate accurate macronutrients for this meal. Use values consistent with USDA FoodData Central.\(dietaryBlock)
 
         Common reference points:
         - a medium orange (~131g) is ~62 kcal, 1.2g protein, 15.4g carbs, 0.2g fat
