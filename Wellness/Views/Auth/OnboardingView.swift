@@ -41,6 +41,13 @@ struct OnboardingView: View {
     // (or rejected with an inline error) before the user does anything.
     @State private var onboardingPromoCode: String = ""
 
+    // Inline validation state for the onboarding promo field — mirrors the
+    // paywall's promoFieldError + promoFieldSuccess so the user can fix a
+    // bad code BEFORE they tap "Let's Go!" and land on the paywall.
+    @State private var onboardingPromoValidating = false
+    @State private var onboardingPromoError:   String? = nil
+    @State private var onboardingPromoSuccess: String? = nil
+
     // Drives the post-onboarding paywall sheet.
     @State private var showPostOnboardPaywall = false
 
@@ -252,7 +259,14 @@ struct OnboardingView: View {
         case 4: return currentWeight > 0 && goalWeight > 0
         case 5: return healthDisclaimerAgreed
         case 6: return true
-        case 7: return true   // promo code is optional
+        case 7:
+            // Promo code is optional. If the user typed a value, they must
+            // either successfully validate it or clear it before advancing
+            // — that way invalid codes never make it to the paywall sheet.
+            let trimmed = onboardingPromoCode.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty { return true }
+            if onboardingPromoError != nil { return false }
+            return onboardingPromoSuccess != nil
         default: return true
         }
     }
@@ -832,24 +846,114 @@ struct OnboardingView: View {
         OnboardingPageShell(
             emoji: "🎁",
             title: "Got a promo code?",
-            subtitle: "Have a code from an affiliate or partner? Drop it in below and we'll apply your discount on the next screen. Skip if you don't have one."
+            subtitle: "Have a code from an affiliate or partner? Drop it in below — skip if you don't have one."
         ) {
-            VStack(spacing: 12) {
-                TextField("ENTER CODE", text: $onboardingPromoCode)
-                    .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled()
-                    .font(.system(size: 18, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.white)
-                    .padding(16)
-                    .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+            VStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    TextField("ENTER CODE", text: $onboardingPromoCode)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                        .font(.system(size: 18, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.white)
+                        .padding(14)
+                        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(
+                                    onboardingPromoError != nil
+                                        ? Color.red.opacity(0.6)
+                                        : (onboardingPromoSuccess != nil
+                                           ? Color(red: 1.00, green: 0.80, blue: 0.20).opacity(0.6)
+                                           : Color.clear),
+                                    lineWidth: 1
+                                )
+                        )
+                        .onChange(of: onboardingPromoCode) { _, _ in
+                            // Editing invalidates any prior result so the
+                            // user can re-Apply.
+                            onboardingPromoError   = nil
+                            onboardingPromoSuccess = nil
+                        }
 
-                Text("This is optional — you can subscribe with or without a code on the next screen.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.5))
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
+                    Button {
+                        Task { await validateOnboardingPromo() }
+                    } label: {
+                        if onboardingPromoValidating {
+                            ProgressView().tint(.white)
+                                .padding(.horizontal, 18).padding(.vertical, 14)
+                        } else {
+                            Text("Apply")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 18).padding(.vertical, 14)
+                        }
+                    }
+                    .background(purpl, in: RoundedRectangle(cornerRadius: 12))
+                    .disabled(
+                        onboardingPromoValidating
+                        || onboardingPromoCode.trimmingCharacters(in: .whitespaces).isEmpty
+                    )
+                    .opacity(
+                        onboardingPromoCode.trimmingCharacters(in: .whitespaces).isEmpty
+                        ? 0.5 : 1
+                    )
+                }
+
+                if let err = onboardingPromoError {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .font(.system(size: 11))
+                        Text(err)
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundStyle(Color.red.opacity(0.85))
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 4)
+                } else if let success = onboardingPromoSuccess {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 11))
+                        Text(success)
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 4)
+                } else {
+                    Text("Optional. You can subscribe with or without a code on the next screen.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.5))
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 4)
+                }
             }
+        }
+    }
+
+    private func validateOnboardingPromo() async {
+        let code = onboardingPromoCode
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased()
+        guard !code.isEmpty else { return }
+        onboardingPromoValidating = true
+        onboardingPromoError      = nil
+        onboardingPromoSuccess    = nil
+        defer { onboardingPromoValidating = false }
+
+        let result = await PromoCodeTrackingService.shared.validatePromoCode(code)
+        switch result {
+        case .valid:
+            onboardingPromoCode    = code
+            onboardingPromoSuccess = "\(code) applied — your discount will be ready on the next screen."
+        case .unknown:
+            onboardingPromoError = "We don't recognize \"\(code)\". Double-check spelling."
+        case .inactive:
+            onboardingPromoError = "\"\(code)\" has been deactivated."
+        case .expired:
+            onboardingPromoError = "\"\(code)\" has expired."
+        case .error:
+            onboardingPromoError = "Couldn't check the code right now. Try again."
         }
     }
 
