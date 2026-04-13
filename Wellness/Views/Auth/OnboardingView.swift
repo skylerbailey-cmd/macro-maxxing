@@ -515,7 +515,7 @@ struct OnboardingView: View {
 
     private var genderPicker: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Gender")
+            Text("Sex")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.65))
             HStack(spacing: 12) {
