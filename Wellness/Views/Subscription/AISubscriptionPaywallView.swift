@@ -36,6 +36,15 @@ struct AISubscriptionPaywallView: View {
     @State private var appliedPromoCode: String? = nil
     @State private var showPromoField: Bool = false
     @State private var isRedeemingPromo = false
+    @State private var isValidatingPromo = false
+    @State private var promoFieldError: String? = nil
+
+    /// Currently-highlighted AI feature in the interactive row. Starts on the
+    /// Meal Planner so the user lands on a pulsing gold outline that draws
+    /// the eye to the most valuable feature in the bundle.
+    @State private var selectedFeatureID: String = "mealPlanner"
+    /// Drives the pulsing opacity on the selected feature's gold ring.
+    @State private var featurePulse: Bool = false
 
     @Environment(\.dismiss) private var dismiss
 
@@ -81,7 +90,7 @@ struct AISubscriptionPaywallView: View {
                 dismiss()
             }
         }
-        .alert("Purchase Failed", isPresented: $showError) {
+        .alert(alertTitle, isPresented: $showError) {
             Button("OK") { store.errorMessage = nil }
         } message: {
             Text(store.errorMessage ?? "")
@@ -116,42 +125,137 @@ struct AISubscriptionPaywallView: View {
 
     // MARK: - Compact features row
 
+    /// The four AI features shown as interactive pills. Tapping one swaps
+    /// the description box below the row and moves the pulsing gold outline
+    /// onto the tapped pill.
+    private struct AIFeatureCopy: Identifiable {
+        let id: String
+        let icon: String
+        let color: Color
+        let title: String
+        let description: String
+    }
+
+    private var features: [AIFeatureCopy] {
+        [
+            AIFeatureCopy(
+                id: "mealPlanner",
+                icon: "lightbulb.fill",
+                color: gold,
+                title: "Meal Planner",
+                description: "Tell the AI what you've eaten today and it suggests specific meals to close your remaining protein, carb, and fat gaps — tailored to your diet, calorie budget, and taste."
+            ),
+            AIFeatureCopy(
+                id: "coach",
+                icon: "wand.and.stars",
+                color: accent,
+                title: "Coach",
+                description: "End-of-day debrief from a nutritionist-level AI: grades your meals, macros, workout timing, and tells you exactly what to adjust tomorrow."
+            ),
+            AIFeatureCopy(
+                id: "foodScan",
+                icon: "camera.fill",
+                color: Color(red: 0.20, green: 0.85, blue: 0.75),
+                title: "Food Scan",
+                description: "Snap a photo of any meal and the AI estimates calories, protein, carbs, and fat in seconds — no manual lookup, no barcode hunting."
+            ),
+            AIFeatureCopy(
+                id: "workouts",
+                icon: "figure.run",
+                color: Color(red: 0.30, green: 0.90, blue: 0.55),
+                title: "Workouts",
+                description: "Describe your workout out loud and the AI fills in the exercise name, duration, and calories burned — log a whole session in under 10 seconds."
+            ),
+        ]
+    }
+
     private var compactFeaturesRow: some View {
-        // A single pill row of four AI features — way more compact than the
-        // previous stacked card.
-        HStack(spacing: 8) {
-            featurePill(icon: "lightbulb.fill", color: gold,
-                        title: "Meal Planner")
-            featurePill(icon: "wand.and.stars", color: accent,
-                        title: "Coach")
-            featurePill(icon: "camera.fill",
-                        color: Color(red: 0.20, green: 0.85, blue: 0.75),
-                        title: "Food Scan")
-            featurePill(icon: "figure.run",
-                        color: Color(red: 0.30, green: 0.90, blue: 0.55),
-                        title: "Workouts")
+        VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                ForEach(features) { feature in
+                    featurePill(feature: feature)
+                }
+            }
+            featureDescriptionBox
+        }
+        .onAppear {
+            // Kick off the pulsing animation on the initially-selected pill.
+            withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+                featurePulse = true
+            }
         }
     }
 
-    private func featurePill(icon: String, color: Color, title: String) -> some View {
-        VStack(spacing: 6) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(color.opacity(0.18))
-                    .frame(width: 38, height: 38)
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(color)
+    private func featurePill(feature: AIFeatureCopy) -> some View {
+        let isSelected = feature.id == selectedFeatureID
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedFeatureID = feature.id
             }
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.82))
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+        } label: {
+            VStack(spacing: 6) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(feature.color.opacity(0.18))
+                        .frame(width: 38, height: 38)
+                    Image(systemName: feature.icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(feature.color)
+                }
+                Text(feature.title)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(isSelected ? 1.0 : 0.78))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(
+                cardBg.opacity(isSelected ? 0.95 : 0.6),
+                in: RoundedRectangle(cornerRadius: 12)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        isSelected ? gold.opacity(featurePulse ? 1.0 : 0.35)
+                                   : Color.white.opacity(0.04),
+                        lineWidth: isSelected ? 2 : 1
+                    )
+            )
+            // Subtle lift on the selected pill so the gold ring pops.
+            .shadow(
+                color: isSelected ? gold.opacity(featurePulse ? 0.45 : 0.15) : .clear,
+                radius: isSelected ? 8 : 0,
+                x: 0, y: 0
+            )
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(cardBg.opacity(0.6), in: RoundedRectangle(cornerRadius: 12))
+        .buttonStyle(.plain)
+    }
+
+    /// Description box that sits directly below the feature row. Updates
+    /// whenever the user taps a different pill. Content transitions with a
+    /// crossfade so the change feels intentional.
+    private var featureDescriptionBox: some View {
+        let feature = features.first { $0.id == selectedFeatureID } ?? features[0]
+        return HStack(alignment: .top, spacing: 10) {
+            Image(systemName: feature.icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(feature.color)
+                .frame(width: 20, alignment: .leading)
+            Text(feature.description)
+                .font(.system(size: 12))
+                .foregroundStyle(.white.opacity(0.78))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(cardBg.opacity(0.55), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(feature.color.opacity(0.22), lineWidth: 1)
+        )
+        .id(feature.id) // forces the transition on selection change
+        .transition(.opacity)
     }
 
     // MARK: - Promo code (inline, prominent)
@@ -185,27 +289,62 @@ struct AISubscriptionPaywallView: View {
 
         } else if showPromoField {
             // Entry state: text field + apply
-            HStack(spacing: 8) {
-                TextField("ENTER CODE", text: $promoCodeInput)
-                    .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled()
-                    .font(.system(size: 15, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.3), lineWidth: 1))
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    TextField("ENTER CODE", text: $promoCodeInput)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                        .font(.system(size: 15, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(
+                            promoFieldError != nil
+                                ? Color.red.opacity(0.6)
+                                : accent.opacity(0.3),
+                            lineWidth: 1))
+                        .onChange(of: promoCodeInput) { _, _ in
+                            // Clear stale error as soon as the user edits.
+                            promoFieldError = nil
+                        }
 
-                Button("Apply") {
-                    applyPromoCode()
+                    Button {
+                        Task { await applyPromoCode() }
+                    } label: {
+                        if isValidatingPromo {
+                            ProgressView()
+                                .tint(.white)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 11)
+                        } else {
+                            Text("Apply")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 11)
+                        }
+                    }
+                    .background(accent, in: RoundedRectangle(cornerRadius: 10))
+                    .disabled(
+                        isValidatingPromo
+                        || promoCodeInput.trimmingCharacters(in: .whitespaces).isEmpty
+                    )
+                    .opacity(
+                        promoCodeInput.trimmingCharacters(in: .whitespaces).isEmpty
+                        ? 0.5 : 1
+                    )
                 }
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 11)
-                .background(accent, in: RoundedRectangle(cornerRadius: 10))
-                .disabled(promoCodeInput.trimmingCharacters(in: .whitespaces).isEmpty)
-                .opacity(promoCodeInput.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
+                if let err = promoFieldError {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .font(.system(size: 11))
+                        Text(err)
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundStyle(Color.red.opacity(0.85))
+                    .transition(.opacity)
+                }
             }
         } else {
             // Collapsed state: prominent button
@@ -231,11 +370,34 @@ struct AISubscriptionPaywallView: View {
         }
     }
 
-    private func applyPromoCode() {
+    private func applyPromoCode() async {
         let code = promoCodeInput.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard !code.isEmpty else { return }
-        appliedPromoCode = code
-        promoCodeInput = code
+        promoFieldError   = nil
+        isValidatingPromo = true
+        defer { isValidatingPromo = false }
+
+        let result = await PromoCodeTrackingService.shared.validatePromoCode(code)
+        switch result {
+        case .valid(let productID, _):
+            // Switch the picker to the product the code is actually for so
+            // the strikethrough price + savings line apply to the right tier.
+            withAnimation(.easeInOut(duration: 0.2)) {
+                if AISubscriptionStore.allProductIDs.contains(productID) {
+                    selectedProductID = productID
+                }
+                appliedPromoCode = code
+                promoCodeInput   = code
+            }
+        case .unknown:
+            promoFieldError = "We don't recognize \"\(code)\". Double-check spelling."
+        case .inactive:
+            promoFieldError = "\"\(code)\" has been deactivated."
+        case .expired:
+            promoFieldError = "\"\(code)\" has expired."
+        case .error:
+            promoFieldError = "Couldn't check the code right now. Try again."
+        }
     }
 
     // MARK: - Tier picker
@@ -285,6 +447,12 @@ struct AISubscriptionPaywallView: View {
                         }
                     }
                     priceLine(productID: productID, hasPromo: hasPromo)
+                    if productID == AISubscriptionStore.annualProductID,
+                       let vsMonthly = vsMonthlySavings(hasPromo: hasPromo) {
+                        Text(vsMonthly)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(gold)
+                    }
                     Text(trialLine(productID: productID, hasPromo: hasPromo))
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.55))
@@ -343,6 +511,32 @@ struct AISubscriptionPaywallView: View {
         return "Cancel anytime."
     }
 
+    /// The total yearly savings when picking annual over paying monthly for
+    /// 12 months. Shown on the annual tier regardless of promo state — but
+    /// the number grows when an affiliate code is applied because the
+    /// annual year-1 price drops to $59 while monthly stays at $12.99/mo.
+    ///
+    /// Returns `nil` if we can't compute it (products haven't loaded yet).
+    private func vsMonthlySavings(hasPromo: Bool) -> String? {
+        guard let monthlyPrice = store.monthlyProduct?.price else { return nil }
+        let annualCost: Decimal = hasPromo
+            ? annualAffiliatePrice
+            : (store.annualProduct?.price ?? Decimal(69.99))
+        let monthlyYearCost = monthlyPrice * Decimal(12)
+        let savings = monthlyYearCost - annualCost
+        guard savings > 0 else { return nil }
+        let savingsStr = formatUSD(savings)
+        let pct = percentInt(savings: savings, base: monthlyYearCost)
+        return "Save \(savingsStr)/yr vs monthly (\(pct)% off)"
+    }
+
+    private func percentInt(savings: Decimal, base: Decimal) -> Int {
+        let s = NSDecimalNumber(decimal: savings).doubleValue
+        let b = NSDecimalNumber(decimal: base).doubleValue
+        guard b > 0 else { return 0 }
+        return Int((s / b) * 100.0)
+    }
+
     private func discountedPriceString(for productID: String) -> String {
         let price = productID == AISubscriptionStore.annualProductID
                     ? annualAffiliatePrice : monthlyAffiliatePrice
@@ -399,14 +593,26 @@ struct AISubscriptionPaywallView: View {
             .disabled(store.isPurchasing || store.isRestoring || isRedeemingPromo)
 
             Button {
+                onDismiss()
+                dismiss()
+            } label: {
+                Text("No thanks, I don't want this offer")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .underline()
+            }
+            .buttonStyle(.plain)
+            .disabled(store.isPurchasing || store.isRestoring || isRedeemingPromo)
+
+            Button {
                 Task { await handleRestore() }
             } label: {
                 if store.isRestoring {
                     ProgressView().tint(.white.opacity(0.6))
                 } else {
                     Text("Restore Purchases")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.55))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.42))
                 }
             }
             .buttonStyle(.plain)
@@ -471,6 +677,16 @@ struct AISubscriptionPaywallView: View {
         return "Payment charged to your Apple ID on confirmation. Auto-renews at \(price)/\(period) unless canceled 24+ hours before the end of the current period."
     }
 
+    /// Chooses a contextual alert title based on the current error. Promo
+    /// failures get their own heading so users don't see "Purchase Failed"
+    /// when the real issue was just an invalid code.
+    private var alertTitle: String {
+        if let msg = store.errorMessage, msg.contains("could not be redeemed") {
+            return "Invalid Promo Code"
+        }
+        return "Purchase Failed"
+    }
+
     private var closeButton: some View {
         VStack {
             HStack {
@@ -514,14 +730,36 @@ struct AISubscriptionPaywallView: View {
         // code via API, but iOS 16+ shows a paste-to-field suggestion.
         UIPasteboard.general.string = code
 
+        // Snapshot subscription state before presenting Apple's sheet so we
+        // can detect whether anything actually changed.
+        let wasSubscribedBefore = store.isSubscribed
+
         await store.redeemPromoCode(stashedCode: code)
 
-        // Give Apple's sheet time to finalise, then check entitlement.
-        try? await Task.sleep(nanoseconds: 500_000_000)
-        await store.refreshEntitlement()
-        if store.isSubscribed {
+        // Apple's sheet is modal and `presentOfferCodeRedeemSheet` returns
+        // before the transaction finalises. Poll entitlement for a few
+        // seconds so we catch a successful redemption that lands after the
+        // sheet dismisses.
+        var redeemed = false
+        for _ in 0..<8 {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            await store.refreshEntitlement()
+            if store.isSubscribed && !wasSubscribedBefore {
+                redeemed = true
+                break
+            }
+        }
+
+        if redeemed {
             onSubscribed()
             dismiss()
+        } else {
+            // Code was invalid / expired / Apple rejected it / user cancelled.
+            // Clear the optimistic discount UI and surface a clear error.
+            appliedPromoCode = nil
+            promoCodeInput   = code  // keep what they typed so they can edit
+            store.errorMessage =
+                "\"\(code)\" could not be redeemed. Please double-check the code, make sure it hasn't expired, and try again."
         }
     }
 
