@@ -220,6 +220,12 @@ struct OnboardingView: View {
     }
 
     private func advance() {
+        // Baseline step: require a sex selection before proceeding, since it
+        // feeds the Mifflin–St Jeor BMR calculation used to set macro goals.
+        if page == 4 && gender.isEmpty {
+            saveError = "Please select a sex. We use this to calculate your daily calorie and macro goals (the Mifflin–St Jeor formula adjusts BMR by biological sex)."
+            return
+        }
         if page < totalPages - 1 {
             var next = page + 1
             // Skip username page if already set from sign-up
@@ -485,6 +491,13 @@ struct OnboardingView: View {
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.40))
                     .padding(.horizontal, 4)
+                if page == 4, let error = saveError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 4)
+                }
             }
         }
     }
@@ -528,7 +541,11 @@ struct OnboardingView: View {
     }
 
     private func genderButton(label: String, value: String) -> some View {
-        Button { gender = value } label: {
+        Button {
+            gender = value
+            // Clear the "please select a sex" error once the user picks one.
+            if saveError != nil { saveError = nil }
+        } label: {
             Text(label)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(gender == value ? .black : .white.opacity(0.55))
