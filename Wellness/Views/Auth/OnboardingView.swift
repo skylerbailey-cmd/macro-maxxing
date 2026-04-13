@@ -56,6 +56,13 @@ struct OnboardingView: View {
     @State private var isSaving = false
     @State private var saveError: String? = nil
 
+    // Per-step save progress — so a retry after a partial failure doesn't
+    // re-run work that already succeeded (e.g. re-upload a photo whose
+    // Firestore URL we already wrote).
+    @State private var didWritePrivateFields = false
+    @State private var didUploadPhoto        = false
+    @State private var didWritePublicFields  = false
+
     private let totalPages = 7
     private let purpl    = Color(red: 0.65, green: 0.45, blue: 1.00)
     // Matches TutorialOverlayView: pure black dim behind a floating purple-bordered card.
@@ -813,34 +820,61 @@ struct OnboardingView: View {
             "isPrivateAccount": isPrivate,
         ]
 
-        do {
-            // Write the private subcollection FIRST. Both `updateProfilePhoto`
-            // and `updateProfile` call `fetchAndApplyProfile` internally, and
-            // that call trips the onboarding gate in `SessionManager` if the
-            // private doc still holds empty `dateOfBirth` / `heightInches`.
-            // Getting the private doc right up front also keeps `populate`
-            // from briefly overwriting UserSettings with stale empty values.
-            try await UserProfileService.shared.updatePrivateProfile(
-                userID: uid, fields: privateFields)
-
-            // Upload profile photo if one was selected
-            if let image = profileImage {
-                try await session.updateProfilePhoto(image: image)
+        // Write the private subcollection FIRST. Both `updateProfilePhoto`
+        // and `updateProfile` call `fetchAndApplyProfile` internally, and
+        // that call trips the onboarding gate in `SessionManager` if the
+        // private doc still holds empty `dateOfBirth` / `heightInches`.
+        // Getting the private doc right up front also keeps `populate`
+        // from briefly overwriting UserSettings with stale empty values.
+        if !didWritePrivateFields {
+            do {
+                try await UserProfileService.shared.updatePrivateProfile(
+                    userID: uid, fields: privateFields)
+                didWritePrivateFields = true
+            } catch {
+                AppLogger.log("[OnboardingView] updatePrivateProfile failed: \(error.localizedDescription)")
+                saveError = "Couldn't save your profile (\(error.localizedDescription)). Please try again."
+                isSaving = false
+                return
             }
-
-            try await session.updateProfile(fields: publicFields)
-
-            // Update local macro goals to match the goal weight
-            UserDefaults.standard.set(max(cals,    1200), forKey: "goalCalories")
-            UserDefaults.standard.set(max(protein,    50), forKey: "goalProtein")
-            UserDefaults.standard.set(max(carbs,      50), forKey: "goalCarbs")
-            UserDefaults.standard.set(max(fat,        20), forKey: "goalFat")
-
-            session.needsOnboarding = false
-        } catch {
-            saveError = "Couldn't save your profile. Please try again."
-            isSaving = false
         }
+
+        // Upload profile photo if one was selected. A photo upload failure
+        // is NOT fatal — the user can always set/change their photo later
+        // from Settings, and blocking onboarding here has been stranding
+        // TestFlight users on the final screen with no recoverable action.
+        // We log the failure, surface a gentle note in the UI, and let
+        // them continue.
+        if let image = profileImage, !didUploadPhoto {
+            do {
+                try await session.updateProfilePhoto(image: image)
+                didUploadPhoto = true
+            } catch {
+                AppLogger.log("[OnboardingView] updateProfilePhoto failed (non-fatal): \(error.localizedDescription)")
+                didUploadPhoto = true // don't retry the photo on subsequent taps
+                profileImage   = nil  // clear local state so we don't retry
+            }
+        }
+
+        if !didWritePublicFields {
+            do {
+                try await session.updateProfile(fields: publicFields)
+                didWritePublicFields = true
+            } catch {
+                AppLogger.log("[OnboardingView] updateProfile (public) failed: \(error.localizedDescription)")
+                saveError = "Couldn't save your profile (\(error.localizedDescription)). Please try again."
+                isSaving = false
+                return
+            }
+        }
+
+        // Update local macro goals to match the goal weight
+        UserDefaults.standard.set(max(cals,    1200), forKey: "goalCalories")
+        UserDefaults.standard.set(max(protein,    50), forKey: "goalProtein")
+        UserDefaults.standard.set(max(carbs,      50), forKey: "goalCarbs")
+        UserDefaults.standard.set(max(fat,        20), forKey: "goalFat")
+
+        session.needsOnboarding = false
     }
 }
 
