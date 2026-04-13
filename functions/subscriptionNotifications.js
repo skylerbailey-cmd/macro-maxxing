@@ -249,11 +249,15 @@ async function handleNotification(db, payload) {
     case "SUBSCRIBED":
     case "DID_RENEW":
       await updateUserSubscription(db, userID, txInfo, renewalInfo, "active");
-      await incrementCounters(db, userID, "periodsPaid", 1);
-      // Mirror `periodsPaid` onto the promoRedemption when this was an
-      // affiliate signup, so the commission export can read it directly.
-      if (AFFILIATE_OFFER_IDS.has(txInfo.offerIdentifier)) {
-        await bumpPromoPeriods(db, txInfo.transactionId, 1);
+      // Only count actual paid periods — free trial transactions have
+      // price = 0 and would otherwise inflate the period count on reports.
+      if (typeof txInfo.price === "number" && txInfo.price > 0) {
+        await incrementCounters(db, userID, "periodsPaid", 1);
+        // Mirror onto the promoRedemption doc when this was an affiliate
+        // signup so the commission export can read counts directly.
+        if (AFFILIATE_OFFER_IDS.has(txInfo.offerIdentifier)) {
+          await bumpPromoPeriods(db, txInfo.transactionId, 1);
+        }
       }
       break;
 
