@@ -593,14 +593,26 @@ struct AISubscriptionPaywallView: View {
             .disabled(store.isPurchasing || store.isRestoring || isRedeemingPromo)
 
             Button {
+                onDismiss()
+                dismiss()
+            } label: {
+                Text("No thanks, I don't want this offer")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .underline()
+            }
+            .buttonStyle(.plain)
+            .disabled(store.isPurchasing || store.isRestoring || isRedeemingPromo)
+
+            Button {
                 Task { await handleRestore() }
             } label: {
                 if store.isRestoring {
                     ProgressView().tint(.white.opacity(0.6))
                 } else {
                     Text("Restore Purchases")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.55))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.42))
                 }
             }
             .buttonStyle(.plain)
