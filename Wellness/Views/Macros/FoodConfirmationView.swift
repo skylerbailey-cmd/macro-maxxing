@@ -187,10 +187,12 @@ struct FoodConfirmationView: View {
                 }
             }
 
-            // Toggle edit button
+            // Toggle edit button — edits auto-apply, so this just shows/hides
+            // the editor.
             Button {
                 if editingMacros {
-                    // Apply edits back
+                    // Make sure the latest text-field values are flushed in
+                    // before collapsing the editor.
                     applyManualEdits()
                 } else {
                     // Populate text fields from current values
@@ -205,7 +207,7 @@ struct FoodConfirmationView: View {
                 HStack(spacing: 5) {
                     Image(systemName: editingMacros ? "checkmark" : "pencil")
                         .font(.system(size: 11, weight: .semibold))
-                    Text(editingMacros ? "Apply Changes" : "Edit Macros")
+                    Text(editingMacros ? "Done" : "Edit Macros")
                         .font(.system(size: 12, weight: .semibold))
                 }
                 .foregroundStyle(accent)
@@ -237,6 +239,9 @@ struct FoodConfirmationView: View {
                                 targetCalories = newCal
                             }
                         }
+                        // Auto-apply edits live so the user doesn't have to
+                        // tap an explicit "Apply Changes" button.
+                        applyManualEdits()
                     }
                 Text(unit)
                     .font(.caption)
@@ -473,6 +478,11 @@ struct FoodConfirmationView: View {
         VStack(spacing: 10) {
             // Log it
             Button {
+                // Flush any in-flight manual edits so the user doesn't need
+                // to tap "Done" on the editor first.
+                if editingMacros {
+                    applyManualEdits()
+                }
                 var finalResult = recognitionResult
                 finalResult.foodName = editableFoodName
                 finalResult.calories = scaledCalories

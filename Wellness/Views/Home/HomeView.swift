@@ -299,10 +299,8 @@ struct HomeView: View {
                         .foregroundStyle(.white.opacity(0.85))
                 }
 
-                if viewModel.userSettings.auraPoints > 0 {
-                    auraXPBar
-                        .tutorialAnchor("hub.stats")
-                }
+                auraXPBar
+                    .tutorialAnchor("hub.stats")
 
                 // Cheat Day button — only show if streak > 0, today isn't already a cheat day,
                 // and today's macros haven't already been met.
@@ -784,7 +782,7 @@ struct HomeView: View {
                     if !aiSubscription.isSubscribed {
                         Image(systemName: "sparkles")
                         Text(aiSubscription.isEligibleForIntroOffer
-                             ? "Try AI Free for 7 Days"
+                             ? "Try AI Free for 3 Days"
                              : "Unlock AI Meal Planner")
                     } else if viewModel.userSettings.brainstormLimitReached {
                         Image(systemName: "xmark.circle.fill")

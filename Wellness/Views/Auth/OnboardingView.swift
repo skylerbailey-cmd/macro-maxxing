@@ -35,6 +35,22 @@ struct OnboardingView: View {
     @State private var goalWeight:      Double   = 160
     @State private var isPrivate:       Bool     = true
 
+    // Optional promo code captured on the final onboarding page. If filled
+    // in, we hand it to the AI subscription paywall sheet that pops up
+    // immediately after onboarding completes so the discount is applied
+    // (or rejected with an inline error) before the user does anything.
+    @State private var onboardingPromoCode: String = ""
+
+    // Inline validation state for the onboarding promo field — mirrors the
+    // paywall's promoFieldError + promoFieldSuccess so the user can fix a
+    // bad code BEFORE they tap "Let's Go!" and land on the paywall.
+    @State private var onboardingPromoValidating = false
+    @State private var onboardingPromoError:   String? = nil
+    @State private var onboardingPromoSuccess: String? = nil
+
+    // Drives the post-onboarding paywall sheet.
+    @State private var showPostOnboardPaywall = false
+
     // Photo picker state
     @State private var showingPhotoPicker  = false
     @State private var showingCamera       = false
@@ -71,7 +87,7 @@ struct OnboardingView: View {
     @State private var didUploadPhoto        = false
     @State private var didWritePublicFields  = false
 
-    private let totalPages = 6
+    private let totalPages = 7
     private let purpl    = Color(red: 0.65, green: 0.45, blue: 1.00)
     // Matches TutorialOverlayView: pure black dim behind a floating purple-bordered card.
     private let backdrop = Color.black.opacity(0.85)
@@ -128,6 +144,23 @@ struct OnboardingView: View {
             .padding(.horizontal, 16)
         }
         .animation(.easeInOut(duration: 0.3), value: page)
+        .fullScreenCover(isPresented: $showPostOnboardPaywall) {
+            // After dismissal — whether the user subscribed, declined, or
+            // closed — we hand them off to the main app.
+            dismissOnboarding()
+        } content: {
+            AISubscriptionPaywallView(
+                onSubscribed: {
+                    showPostOnboardPaywall = false
+                },
+                onDismiss: {
+                    showPostOnboardPaywall = false
+                },
+                prefilledPromoCode: onboardingPromoCode
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .isEmpty ? nil : onboardingPromoCode
+            )
+        }
         .onAppear {
             // Pre-fill from whatever was collected at sign-up
             name     = userSettings.name
@@ -156,6 +189,7 @@ struct OnboardingView: View {
         case 3: weightPage
         case 4: healthDisclaimerPage
         case 5: privacyPage
+        case 6: promoCodePage
         default: EmptyView()
         }
     }
@@ -237,6 +271,14 @@ struct OnboardingView: View {
         case 3: return currentWeight > 0 && goalWeight > 0
         case 4: return healthDisclaimerAgreed
         case 5: return true
+        case 6:
+            // Promo code is optional. If the user typed a value, they must
+            // either successfully validate it or clear it before advancing
+            // — that way invalid codes never make it to the paywall sheet.
+            let trimmed = onboardingPromoCode.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty { return true }
+            if onboardingPromoError != nil { return false }
+            return onboardingPromoSuccess != nil
         default: return true
         }
     }
@@ -848,6 +890,122 @@ struct OnboardingView: View {
         }
     }
 
+    // Page 7: Promo Code (optional)
+    private var promoCodePage: some View {
+        OnboardingPageShell(
+            emoji: "🎁",
+            title: "Got a promo code?",
+            subtitle: "Have a code from an affiliate or partner? Drop it in below — skip if you don't have one."
+        ) {
+            VStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    TextField("ENTER CODE", text: $onboardingPromoCode)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                        .font(.system(size: 18, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.white)
+                        .padding(14)
+                        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(
+                                    onboardingPromoError != nil
+                                        ? Color.red.opacity(0.6)
+                                        : (onboardingPromoSuccess != nil
+                                           ? Color(red: 1.00, green: 0.80, blue: 0.20).opacity(0.6)
+                                           : Color.clear),
+                                    lineWidth: 1
+                                )
+                        )
+                        .onChange(of: onboardingPromoCode) { _, _ in
+                            // Editing invalidates any prior result so the
+                            // user can re-Apply.
+                            onboardingPromoError   = nil
+                            onboardingPromoSuccess = nil
+                        }
+
+                    Button {
+                        Task { await validateOnboardingPromo() }
+                    } label: {
+                        if onboardingPromoValidating {
+                            ProgressView().tint(.white)
+                                .padding(.horizontal, 18).padding(.vertical, 14)
+                        } else {
+                            Text("Apply")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 18).padding(.vertical, 14)
+                        }
+                    }
+                    .background(purpl, in: RoundedRectangle(cornerRadius: 12))
+                    .disabled(
+                        onboardingPromoValidating
+                        || onboardingPromoCode.trimmingCharacters(in: .whitespaces).isEmpty
+                    )
+                    .opacity(
+                        onboardingPromoCode.trimmingCharacters(in: .whitespaces).isEmpty
+                        ? 0.5 : 1
+                    )
+                }
+
+                if let err = onboardingPromoError {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .font(.system(size: 11))
+                        Text(err)
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundStyle(Color.red.opacity(0.85))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 4)
+                } else if let success = onboardingPromoSuccess {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 11))
+                        Text(success)
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 4)
+                } else {
+                    Text("Optional. You can subscribe with or without a code on the next screen.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.5))
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 4)
+                }
+            }
+        }
+    }
+
+    private func validateOnboardingPromo() async {
+        let code = onboardingPromoCode
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased()
+        guard !code.isEmpty else { return }
+        onboardingPromoValidating = true
+        onboardingPromoError      = nil
+        onboardingPromoSuccess    = nil
+        defer { onboardingPromoValidating = false }
+
+        let result = await PromoCodeTrackingService.shared.validatePromoCode(code)
+        switch result {
+        case .valid:
+            onboardingPromoCode    = code
+            onboardingPromoSuccess = "\(code) applied — your discount will be ready on the next screen."
+        case .unknown:
+            onboardingPromoError = "We don't recognize \"\(code)\". Double-check spelling."
+        case .inactive:
+            onboardingPromoError = "\"\(code)\" has been deactivated."
+        case .expired:
+            onboardingPromoError = "\"\(code)\" has expired."
+        case .error:
+            onboardingPromoError = "Couldn't check the code right now. Try again."
+        }
+    }
+
     // MARK: - Finish
 
     private func finishOnboarding() async {
@@ -961,6 +1119,17 @@ struct OnboardingView: View {
         UserDefaults.standard.set(max(carbs,      50), forKey: "goalCarbs")
         UserDefaults.standard.set(max(fat,        20), forKey: "goalFat")
 
+        // Profile is saved — present the AI subscription paywall before
+        // handing the user off to the main app. The paywall receives the
+        // promo code (if any) the user typed on the previous page and runs
+        // its own validation. We hold off on `needsOnboarding = false`
+        // until the paywall is dismissed so the underlying view doesn't
+        // animate away mid-presentation.
+        showPostOnboardPaywall = true
+        isSaving = false
+    }
+
+    private func dismissOnboarding() {
         session.needsOnboarding = false
     }
 }

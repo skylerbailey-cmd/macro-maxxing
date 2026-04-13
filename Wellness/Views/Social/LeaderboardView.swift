@@ -44,6 +44,7 @@ struct LeaderboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(LocationManager.self) private var locationManager
     @Environment(NotificationState.self) private var notificationState
+    @Environment(SessionManager.self) private var session
     @Query(sort: \SocialPost.postedAt, order: .reverse) private var allPosts: [SocialPost]
 
     /// Firestore-loaded set of userIDs the current user follows.
@@ -67,6 +68,9 @@ struct LeaderboardView: View {
     @State private var countdownBlink:     Bool               = false
     @State private var showingWinnerPopup: Bool               = false
     @State private var boardUnlocked:      Bool               = false
+    @State private var showMakePublicConfirm: Bool            = false
+    @State private var isUpdatingPrivacy:    Bool             = false
+    @State private var privacyUpdateError:   String?          = nil
 
     enum Scope: String, CaseIterable {
         case team  = "Team"
@@ -723,31 +727,83 @@ struct LeaderboardView: View {
     // MARK: - Private account banner
 
     private var privateAccountBanner: some View {
-        HStack(spacing: 14) {
-            Image(systemName: "lock.fill")
-                .font(.system(size: 22))
-                .foregroundStyle(purpl)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("You're off the board")
-                    .font(.system(size: 14, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-                Text("Private accounts don't appear on Local or Arena boards. Switch to a public profile in Settings to get ranked.")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.50))
-                    .fixedSize(horizontal: false, vertical: true)
+        Button {
+            showMakePublicConfirm = true
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(purpl)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("You're off the board")
+                        .font(.system(size: 14, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text("Private accounts don't appear on Local or Arena boards. Tap here to make your profile public and get ranked.")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.50))
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let err = privacyUpdateError {
+                        Text(err)
+                            .font(.caption2)
+                            .foregroundStyle(.red)
+                            .padding(.top, 2)
+                    }
+                }
+                Spacer(minLength: 0)
+                if isUpdatingPrivacy {
+                    ProgressView()
+                        .tint(purpl)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.35))
+                }
             }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(cardBg)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(purpl.opacity(0.30), lineWidth: 1)
+                    )
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 14))
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(cardBg)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(purpl.opacity(0.30), lineWidth: 1)
-                )
-        )
+        .buttonStyle(.plain)
+        .disabled(isUpdatingPrivacy)
+        .confirmationDialog(
+            "Make your profile public?",
+            isPresented: $showMakePublicConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Yes, make my profile public") {
+                Task { await makeProfilePublic() }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Going public means anyone can view your profile, follow you, and see your posts, streak, and Aura XP. Your name, profile photo, and city (if set) will appear on the Local and Arena leaderboards. Weight, height, sex, date of birth, and dietary preferences stay private. You can switch back to a private account anytime in Settings.")
+        }
+    }
 
+    /// Flip the user from private to public, mirroring the Settings toggle:
+    /// persist `isPrivateAccount = false` to Firestore and update local state.
+    private func makeProfilePublic() async {
+        guard !isUpdatingPrivacy else { return }
+        isUpdatingPrivacy = true
+        privacyUpdateError = nil
+        defer { isUpdatingPrivacy = false }
+
+        userSettings.isPrivateAccount = false
+        do {
+            try await session.updateProfile(fields: ["isPrivateAccount": false])
+        } catch {
+            // Roll back local flag so the banner reappears for another try.
+            userSettings.isPrivateAccount = true
+            privacyUpdateError = "Couldn't update your profile. Please try again."
+            AppLogger.log("[LeaderboardView] makeProfilePublic failed: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Displayed entries
