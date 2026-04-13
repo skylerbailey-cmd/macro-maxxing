@@ -48,8 +48,6 @@ struct OnboardingView: View {
     @State private var onboardingPromoError:   String? = nil
     @State private var onboardingPromoSuccess: String? = nil
 
-    // Drives the post-onboarding paywall sheet.
-    @State private var showPostOnboardPaywall = false
 
     // Photo picker state
     @State private var showingPhotoPicker  = false
@@ -144,23 +142,6 @@ struct OnboardingView: View {
             .padding(.horizontal, 16)
         }
         .animation(.easeInOut(duration: 0.3), value: page)
-        .fullScreenCover(isPresented: $showPostOnboardPaywall) {
-            // After dismissal — whether the user subscribed, declined, or
-            // closed — we hand them off to the main app.
-            dismissOnboarding()
-        } content: {
-            AISubscriptionPaywallView(
-                onSubscribed: {
-                    showPostOnboardPaywall = false
-                },
-                onDismiss: {
-                    showPostOnboardPaywall = false
-                },
-                prefilledPromoCode: onboardingPromoCode
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                    .isEmpty ? nil : onboardingPromoCode
-            )
-        }
         .onAppear {
             // Pre-fill from whatever was collected at sign-up
             name     = userSettings.name
@@ -917,7 +898,14 @@ struct OnboardingView: View {
                                     lineWidth: 1
                                 )
                         )
-                        .onChange(of: onboardingPromoCode) { _, _ in
+                        .onChange(of: onboardingPromoCode) { _, newValue in
+                            // Force uppercase as the user types so they
+                            // don't have to tap Apply twice (once to
+                            // re-cap, once to validate).
+                            let upper = newValue.uppercased()
+                            if upper != newValue {
+                                onboardingPromoCode = upper
+                            }
                             // Editing invalidates any prior result so the
                             // user can re-Apply.
                             onboardingPromoError   = nil
@@ -1119,18 +1107,19 @@ struct OnboardingView: View {
         UserDefaults.standard.set(max(carbs,      50), forKey: "goalCarbs")
         UserDefaults.standard.set(max(fat,        20), forKey: "goalFat")
 
-        // Profile is saved — present the AI subscription paywall before
-        // handing the user off to the main app. The paywall receives the
-        // promo code (if any) the user typed on the previous page and runs
-        // its own validation. We hold off on `needsOnboarding = false`
-        // until the paywall is dismissed so the underlying view doesn't
-        // animate away mid-presentation.
-        showPostOnboardPaywall = true
+        // Profile is saved. Hand the post-onboarding paywall flag to
+        // SessionManager so ContentView (not OnboardingView) presents the
+        // paywall on its next render. Doing the presentation in ContentView
+        // is what lets the tutorial wait for the paywall to dismiss — if we
+        // presented it here, this view would be torn down the moment we set
+        // `needsOnboarding = false` and the cover would race the tutorial.
+        let trimmedPromo = onboardingPromoCode
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased()
+        session.pendingOnboardingPromoCode = trimmedPromo.isEmpty ? nil : trimmedPromo
+        session.showPostOnboardPaywall      = true
+        session.needsOnboarding             = false
         isSaving = false
-    }
-
-    private func dismissOnboarding() {
-        session.needsOnboarding = false
     }
 }
 

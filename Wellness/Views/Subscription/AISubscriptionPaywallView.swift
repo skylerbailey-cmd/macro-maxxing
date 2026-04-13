@@ -322,7 +322,13 @@ struct AISubscriptionPaywallView: View {
                                 ? Color.red.opacity(0.6)
                                 : accent.opacity(0.3),
                             lineWidth: 1))
-                        .onChange(of: promoCodeInput) { _, _ in
+                        .onChange(of: promoCodeInput) { _, newValue in
+                            // Force uppercase as user types so Apply works
+                            // on the first tap rather than the second.
+                            let upper = newValue.uppercased()
+                            if upper != newValue {
+                                promoCodeInput = upper
+                            }
                             // Clear stale error as soon as the user edits.
                             promoFieldError = nil
                         }

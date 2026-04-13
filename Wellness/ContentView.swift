@@ -104,8 +104,38 @@ struct ContentView: View {
                 guard !userSettings.userID.isEmpty else { return }
                 if !hasSeenAppTour {
                     try? await Task.sleep(for: .seconds(0.6))
-                    showingAppTour = true
+                    // Don't race the post-onboarding paywall — the tutorial
+                    // waits for it to dismiss (see onChange below).
+                    if !auth.showPostOnboardPaywall {
+                        showingAppTour = true
+                    }
                 }
+            }
+            // When the post-onboarding paywall closes, kick off the app tour
+            // for users who still haven't seen it (e.g. brand-new signups).
+            .onChange(of: auth.showPostOnboardPaywall) { _, isShowing in
+                if isShowing == false && !hasSeenAppTour {
+                    Task {
+                        try? await Task.sleep(for: .seconds(0.4))
+                        showingAppTour = true
+                    }
+                }
+            }
+            .fullScreenCover(isPresented: Binding(
+                get: { auth.showPostOnboardPaywall },
+                set: { auth.showPostOnboardPaywall = $0 }
+            )) {
+                AISubscriptionPaywallView(
+                    onSubscribed: {
+                        auth.showPostOnboardPaywall      = false
+                        auth.pendingOnboardingPromoCode  = nil
+                    },
+                    onDismiss: {
+                        auth.showPostOnboardPaywall      = false
+                        auth.pendingOnboardingPromoCode  = nil
+                    },
+                    prefilledPromoCode: auth.pendingOnboardingPromoCode
+                )
             }
             .onChange(of: userSettings.userID) { _, newID in
                 guard !newID.isEmpty else { return }
