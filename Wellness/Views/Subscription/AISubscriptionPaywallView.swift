@@ -95,7 +95,7 @@ struct AISubscriptionPaywallView: View {
                 .font(.system(size: 30, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
 
-            Text("One subscription unlocks every AI feature in Macro Maxxing.")
+            Text("One subscription unlocks every AI feature in Macromaxxing.")
                 .font(.system(size: 15))
                 .foregroundStyle(.white.opacity(0.65))
                 .multilineTextAlignment(.center)

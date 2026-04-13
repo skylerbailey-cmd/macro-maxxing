@@ -5,9 +5,9 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
-  title: "Best Lifesum Alternative 2026 — Macro Maxxing vs Lifesum",
+  title: "Best Lifesum Alternative 2026 — Macromaxxing vs Lifesum",
   description:
-    "Looking for a Lifesum alternative with AI features and no paywall? Macro Maxxing offers AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — core features free, AI Pro at $9.99/mo.",
+    "Looking for a Lifesum alternative with AI features and no paywall? Macromaxxing offers AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — core features free, AI Pro at $9.99/mo.",
   keywords: [
     "Lifesum alternative",
     "Lifesum replacement",
@@ -25,19 +25,19 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "What is the best alternative to Lifesum?",
-    answer: "Macro Maxxing is the best alternative to Lifesum. It offers AI photo scanning, voice logging, full macro tracking, gamified streaks, leaderboards, and a social community — with core features free and AI Pro at $9.99/month. Lifesum charges $50-70/year for Premium features that still lack AI scanning and voice logging.",
+    answer: "Macromaxxing is the best alternative to Lifesum. It offers AI photo scanning, voice logging, full macro tracking, gamified streaks, leaderboards, and a social community — with core features free and AI Pro at $9.99/month. Lifesum charges $50-70/year for Premium features that still lack AI scanning and voice logging.",
   },
   {
-    question: "Is Macro Maxxing better than Lifesum?",
-    answer: "For anyone serious about their macros, yes. Macro Maxxing offers AI-powered food scanning and voice logging (which Lifesum doesn't have), gamified accountability with streaks and leaderboards, and a social community for motivation — with core features free and AI-powered features at $9.99/month. Lifesum has more diet plan variety but locks most features behind a paywall.",
+    question: "Is Macromaxxing better than Lifesum?",
+    answer: "For anyone serious about their macros, yes. Macromaxxing offers AI-powered food scanning and voice logging (which Lifesum doesn't have), gamified accountability with streaks and leaderboards, and a social community for motivation — with core features free and AI-powered features at $9.99/month. Lifesum has more diet plan variety but locks most features behind a paywall.",
   },
   {
-    question: "Does Macro Maxxing have diet plans like Lifesum?",
-    answer: "Macro Maxxing uses a flexible approach: set your own macro targets based on your goals (weight loss, muscle gain, recomp, maintenance) and track against them with AI. Instead of rigid diet plans, you have full control over your nutrition targets with AI handling the logging work.",
+    question: "Does Macromaxxing have diet plans like Lifesum?",
+    answer: "Macromaxxing uses a flexible approach: set your own macro targets based on your goals (weight loss, muscle gain, recomp, maintenance) and track against them with AI. Instead of rigid diet plans, you have full control over your nutrition targets with AI handling the logging work.",
   },
   {
-    question: "Can I track intermittent fasting with Macro Maxxing?",
-    answer: "Yes. Macro Maxxing includes an built-in intermittent fasting timer with support for all common protocols (16:8, 18:6, 20:4, OMAD, custom). Lifesum charges for fasting features in their Premium plan.",
+    question: "Can I track intermittent fasting with Macromaxxing?",
+    answer: "Yes. Macromaxxing includes an built-in intermittent fasting timer with support for all common protocols (16:8, 18:6, 20:4, OMAD, custom). Lifesum charges for fasting features in their Premium plan.",
   },
 ];
 
@@ -45,8 +45,8 @@ export default function LifesumAlternativePage() {
   return (
     <>
       <ArticleJsonLd
-        title="Best Lifesum Alternative 2026 — Macro Maxxing"
-        description="Macro Maxxing is the best Lifesum alternative with AI features and gamified accountability."
+        title="Best Lifesum Alternative 2026 — Macromaxxing"
+        description="Macromaxxing is the best Lifesum alternative with AI features and gamified accountability."
         url="https://macromaxxing.app/lifesum-alternative"
       />
       <FAQPageJsonLd faqs={faqs} />
@@ -69,7 +69,7 @@ export default function LifesumAlternativePage() {
               <span className="text-gradient">AI Power</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              Macro Maxxing is an Lifesum alternative that adds AI photo
+              Macromaxxing is an Lifesum alternative that adds AI photo
               scanning and voice logging to accurate macro tracking — features
               Lifesum doesn&apos;t offer at any price. It includes gamified streaks,
               leaderboards, and a social community, with core features free and AI Pro at $9.99/month — better value than Lifesum
@@ -80,7 +80,7 @@ export default function LifesumAlternativePage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-cyan hover:bg-brand-cyan/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Switch to Macro Maxxing 
+              Switch to Macromaxxing 
             </a>
           </div>
         </section>
@@ -90,7 +90,7 @@ export default function LifesumAlternativePage() {
           <div className="bg-brand-cyan/5 border border-brand-cyan/20 rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-cyan uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
-              <strong className="text-white">Macro Maxxing is the best Lifesum alternative with AI features Lifesum doesn&apos;t offer.</strong>{" "}
+              <strong className="text-white">Macromaxxing is the best Lifesum alternative with AI features Lifesum doesn&apos;t offer.</strong>{" "}
               It provides photo scanning, voice logging, gamified streaks, and a social community with core features free and AI Pro at $9.99/month versus Lifesum Premium at $50-70/year. The trade-off: Lifesum offers curated diet plans (keto, clean eating, etc.) and a polished visual design that some users prefer for guided nutrition.
             </p>
           </div>
@@ -141,7 +141,7 @@ export default function LifesumAlternativePage() {
         <section className="py-16 md:py-20 bg-white/[0.02]">
           <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-8">
-              Macro Maxxing vs Lifesum
+              Macromaxxing vs Lifesum
             </h2>
             <ComparisonTable
               features={[
@@ -164,7 +164,7 @@ export default function LifesumAlternativePage() {
 
         <section className="py-16 md:py-20 max-w-5xl mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            The Macro Maxxing Advantage
+            The Macromaxxing Advantage
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
             <FeatureCard
@@ -213,7 +213,7 @@ export default function LifesumAlternativePage() {
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-brand-green/5 border border-brand-green/20 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macro Maxxing if you:</h3>
+              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macromaxxing if you:</h3>
               <ul className="space-y-2 text-gray-300 text-sm">
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want AI photo scanning and voice logging for faster tracking</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want better value — free core features and AI Pro at $9.99/month vs. Lifesum Premium at $50-70/year</li>
@@ -228,7 +228,7 @@ export default function LifesumAlternativePage() {
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Want curated diet plans (keto, Mediterranean, clean eating)</li>
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Prefer a guided nutrition approach over self-directed tracking</li>
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Use health app integrations that Lifesum supports</li>
-                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macro Maxxing is iOS only)</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macromaxxing is iOS only)</li>
               </ul>
             </div>
           </div>
@@ -241,7 +241,7 @@ export default function LifesumAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-cyan font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. Core features included immediately.</p>
+                <p className="text-gray-400 text-sm">Get Macromaxxing free from the App Store. Core features included immediately.</p>
               </div>
               <div>
                 <p className="text-brand-cyan font-bold text-lg mb-1">2. Set Your Macros</p>

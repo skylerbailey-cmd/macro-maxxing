@@ -6,7 +6,7 @@ import { ArticleJsonLd } from "@/components/JsonLd";
 export const metadata: Metadata = {
   title: "Calorie Counter App with AI — No Barcode Needed",
   description:
-    "Count calories with AI photo scanning and voice logging. No barcode scanning required. Track calories, protein, carbs, and fat effortlessly with Macro Maxxing.",
+    "Count calories with AI photo scanning and voice logging. No barcode scanning required. Track calories, protein, carbs, and fat effortlessly with Macromaxxing.",
   keywords: [
     "calorie counter app",
     "free calorie counter",
@@ -51,7 +51,7 @@ export default function CalorieCounterApp() {
           <p className="text-gray-400 text-lg leading-relaxed mb-12">
             Most calorie counters were built for packaged food. But what about
             the meals you actually cook? The plate your friend made? The
-            restaurant dish with no nutrition label? Macro Maxxing counts
+            restaurant dish with no nutrition label? Macromaxxing counts
             calories from photos and voice — no barcode required.
           </p>
 
@@ -65,7 +65,7 @@ export default function CalorieCounterApp() {
             food.
           </p>
           <p className="text-gray-400 leading-relaxed mb-8">
-            That&apos;s where AI comes in. Macro Maxxing lets you{" "}
+            That&apos;s where AI comes in. Macromaxxing lets you{" "}
             <strong className="text-white">take a photo of any meal</strong> —
             packaged or not — and instantly get a calorie and macro estimate.
           </p>
@@ -107,7 +107,7 @@ export default function CalorieCounterApp() {
           </div>
 
           <h2 className="text-2xl font-bold mb-6">
-            Macro Maxxing vs. Traditional Calorie Counters
+            Macromaxxing vs. Traditional Calorie Counters
           </h2>
           <div className="bg-brand-card rounded-xl border border-white/5 p-6 mb-12">
             <ComparisonTable features={comparisonFeatures} />
@@ -117,7 +117,7 @@ export default function CalorieCounterApp() {
             More Than Just Calories
           </h2>
           <p className="text-gray-400 leading-relaxed mb-4">
-            Calories matter, but macros matter more. Macro Maxxing tracks all
+            Calories matter, but macros matter more. Macromaxxing tracks all
             four: <span className="text-brand-orange">calories</span>,{" "}
             <span className="text-brand-cyan">protein</span>,{" "}
             <span className="text-brand-mint">carbs</span>, and{" "}
@@ -133,7 +133,7 @@ export default function CalorieCounterApp() {
 
       <DownloadCTA
         headline="Counting calories shouldn't be a chore."
-        subheadline="Download Macro Maxxing and let AI handle the math."
+        subheadline="Download Macromaxxing and let AI handle the math."
       />
     </>
   );

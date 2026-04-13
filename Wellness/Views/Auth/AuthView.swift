@@ -147,7 +147,7 @@ struct AuthView: View {
                     .foregroundStyle(Color.gold)
             }
 
-            Text("Macro Maxxing")
+            Text("Macromaxxing")
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
 

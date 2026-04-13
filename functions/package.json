@@ -1,6 +1,6 @@
 {
   "name": "macro-maxxing-functions",
-  "description": "Cloud Functions for Macro Maxxing",
+  "description": "Cloud Functions for Macromaxxing",
   "scripts": {
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log"

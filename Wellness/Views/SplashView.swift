@@ -63,7 +63,7 @@ struct SplashView: View {
 
                 // App name + random welcome line
                 VStack(spacing: 6) {
-                    Text("Macro Maxxing")
+                    Text("Macromaxxing")
                         .font(.system(size: 34, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                     Text("log the mog.")
