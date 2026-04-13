@@ -408,7 +408,7 @@ struct OnboardingView: View {
         OnboardingPageShell(
             emoji: "🎂",
             title: "When's your birthday?",
-            subtitle: "You must be at least 18 years old to use Macromaxxing. Not shown publicly."
+            subtitle: "You must be at least 13 years old to use Macromaxxing. Not shown publicly."
         ) {
             VStack(spacing: 16) {
                 // On iOS 26+, try Apple's Declared Age Range API first
@@ -473,7 +473,7 @@ struct OnboardingView: View {
         case .verified:
             ageVerified = true
         case .underage:
-            saveError = "You must be at least 18 years old to use Macromaxxing."
+            saveError = "You must be at least 13 years old to use Macromaxxing."
         case .declined:
             ageCheckDeclined = true
         case .unavailable:
@@ -483,7 +483,7 @@ struct OnboardingView: View {
 
     private var dobRange: ClosedRange<Date> {
         let oldest = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date()
-        let youngest = Calendar.current.date(byAdding: .year, value: -18, to: Date()) ?? Date()
+        let youngest = Calendar.current.date(byAdding: .year, value: -13, to: Date()) ?? Date()
         return oldest...youngest
     }
 
