@@ -2,11 +2,11 @@ export function AppJsonLd() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: "Macro Maxxing",
+    name: "Macromaxxing",
     operatingSystem: "iOS",
     applicationCategory: "HealthApplication",
     description:
-      "Macro Maxxing is an AI-powered macro tracking app for iOS that uses photo scanning and voice logging to estimate calories, protein, carbs, and fat. It includes workout tracking with automatic macro adjustments, an intermittent fasting timer, daily streaks, leaderboards, and a social community feed.",
+      "Macromaxxing is an AI-powered macro tracking app for iOS that uses photo scanning and voice logging to estimate calories, protein, carbs, and fat. It includes workout tracking with automatic macro adjustments, an intermittent fasting timer, daily streaks, leaderboards, and a social community feed.",
     url: "https://macromaxxing.app",
     offers: {
       "@type": "Offer",
@@ -21,7 +21,7 @@ export function AppJsonLd() {
     },
     author: {
       "@type": "Organization",
-      name: "Macro Maxxing",
+      name: "Macromaxxing",
       url: "https://macromaxxing.app",
     },
     featureList: [
@@ -48,10 +48,10 @@ export function OrganizationJsonLd() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: "Macro Maxxing",
+    name: "Macromaxxing",
     url: "https://macromaxxing.app",
     description:
-      "Macro Maxxing builds AI-powered nutrition tracking tools for iOS, helping users track macros through photo scanning, voice logging, and smart workout adjustments.",
+      "Macromaxxing builds AI-powered nutrition tracking tools for iOS, helping users track macros through photo scanning, voice logging, and smart workout adjustments.",
     foundingDate: "2025",
     sameAs: [],
   };
@@ -84,8 +84,8 @@ export function ArticleJsonLd({
     description,
     url,
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
-    author: { "@type": "Organization", name: "Macro Maxxing", url: "https://macromaxxing.app" },
-    publisher: { "@type": "Organization", name: "Macro Maxxing", url: "https://macromaxxing.app" },
+    author: { "@type": "Organization", name: "Macromaxxing", url: "https://macromaxxing.app" },
+    publisher: { "@type": "Organization", name: "Macromaxxing", url: "https://macromaxxing.app" },
     datePublished,
     dateModified,
   };

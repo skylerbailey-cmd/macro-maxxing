@@ -19,7 +19,7 @@ import {
  * - `analytics`: measurement of site usage. Opt-in only.
  * - `marketing`: advertising / cross-site tracking. Opt-in only.
  *
- * As of this commit the Macro Maxxing website does not actually set any
+ * As of this commit the Macromaxxing website does not actually set any
  * non-essential cookies, so every opt-in category is currently unused. The
  * stored consent exists as a gate: any future analytics or marketing scripts
  * must check the corresponding flag before loading.

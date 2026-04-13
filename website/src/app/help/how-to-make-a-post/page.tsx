@@ -8,23 +8,23 @@ import {
 } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: "How to Make a Post in Macro Maxxing — Step-by-Step Guide",
+  title: "How to Make a Post in Macromaxxing — Step-by-Step Guide",
   description:
-    "Learn how to create posts in Macro Maxxing. Share your fuel log, goal progress, workouts, transformations, and more with the community. Earn aura points for Fuel Log and Workout posts.",
+    "Learn how to create posts in Macromaxxing. Share your fuel log, goal progress, workouts, transformations, and more with the community. Earn aura points for Fuel Log and Workout posts.",
   keywords: [
-    "how to post macro maxxing",
-    "macro maxxing post",
-    "macro maxxing feed",
-    "macro maxxing community",
+    "how to post macromaxxing",
+    "macromaxxing post",
+    "macromaxxing feed",
+    "macromaxxing community",
     "fitness social post",
     "share meal log",
     "share workout post",
-    "macro maxxing help",
-    "macro maxxing labels",
-    "macro maxxing aura points",
+    "macromaxxing help",
+    "macromaxxing labels",
+    "macromaxxing aura points",
   ],
   openGraph: {
-    title: "How to Make a Post in Macro Maxxing — Step-by-Step Guide",
+    title: "How to Make a Post in Macromaxxing — Step-by-Step Guide",
     description:
       "Share your fuel log, goal progress, workouts, and wins with the community. Full step-by-step guide with screenshots.",
     url: "https://macromaxxing.app/help/how-to-make-a-post",
@@ -37,27 +37,27 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    question: "How do I make a post in Macro Maxxing?",
+    question: "How do I make a post in Macromaxxing?",
     answer:
-      "Open Macro Maxxing, tap the yellow + button on the Hub screen, then select 'Make a Post.' Choose an optional label (Fuel Log, Goal, Workout, Mog Board, Transformation, Meal Inspo, or Advice), set your audience visibility, write a title and body, optionally attach a photo, and tap Post.",
+      "Open Macromaxxing, tap the yellow + button on the Hub screen, then select 'Make a Post.' Choose an optional label (Fuel Log, Goal, Workout, Mog Board, Transformation, Meal Inspo, or Advice), set your audience visibility, write a title and body, optionally attach a photo, and tap Post.",
   },
   {
-    question: "What are post labels in Macro Maxxing?",
+    question: "What are post labels in Macromaxxing?",
     answer:
       "Post labels categorize your posts and some automatically attach content. Fuel Log attaches your daily food entries with calorie counts. Goal shows your macro discipline percentage and progress bars. Workout attaches your logged exercises with duration and calories burned. Mog Board, Transformation, Meal Inspo, and Advice are purely for categorization.",
   },
   {
-    question: "Do I earn points for posting in Macro Maxxing?",
+    question: "Do I earn points for posting in Macromaxxing?",
     answer:
       "Yes. Posts with the Fuel Log or Workout labels earn you aura points, which contribute to your XP, level, and daily streak displayed on the Hub screen.",
   },
   {
-    question: "Who can see my posts in Macro Maxxing?",
+    question: "Who can see my posts in Macromaxxing?",
     answer:
       "You control visibility with the 'Visible to' picker when creating a post. Options include Arena (the broader community), and other audience scopes depending on the label. The Mog Board label also offers Team, Local, and Arena visibility options.",
   },
   {
-    question: "Can I attach photos to posts in Macro Maxxing?",
+    question: "Can I attach photos to posts in Macromaxxing?",
     answer:
       "Yes. When creating a post, tap 'Take Photo' to use your camera or 'Library' to pick from your photo library. Photos are optional but make your posts more engaging on the feed.",
   },
@@ -67,14 +67,14 @@ function HowToJsonLd() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "HowTo",
-    name: "How to Make a Post in Macro Maxxing",
+    name: "How to Make a Post in Macromaxxing",
     description:
-      "Step-by-step guide to creating posts in the Macro Maxxing iOS app, including choosing labels, setting visibility, and sharing fuel logs, goals, and workouts.",
+      "Step-by-step guide to creating posts in the Macromaxxing iOS app, including choosing labels, setting visibility, and sharing fuel logs, goals, and workouts.",
     totalTime: "PT1M",
     tool: [
       {
         "@type": "HowToTool",
-        name: "Macro Maxxing iOS app",
+        name: "Macromaxxing iOS app",
       },
     ],
     step: [
@@ -117,8 +117,8 @@ export default function HowToMakeAPost() {
     <>
       <HowToJsonLd />
       <ArticleJsonLd
-        title="How to Make a Post in Macro Maxxing"
-        description="Step-by-step guide on how to create posts in Macro Maxxing with labels like Fuel Log, Goal, Workout, and more."
+        title="How to Make a Post in Macromaxxing"
+        description="Step-by-step guide on how to create posts in Macromaxxing with labels like Fuel Log, Goal, Workout, and more."
         url="https://macromaxxing.app/help/how-to-make-a-post"
         datePublished="2026-04-09"
         dateModified="2026-04-09"
@@ -154,7 +154,7 @@ export default function HowToMakeAPost() {
           </h1>
           <p className="text-gray-300 text-lg leading-relaxed mb-4">
             Posts are how you share your progress, fuel logs, goals, and wins
-            with the Macro Maxxing community. This guide walks you through
+            with the Macromaxxing community. This guide walks you through
             creating a post from start to finish.
           </p>
           <p className="text-gray-500 text-sm mb-12">
@@ -176,7 +176,7 @@ export default function HowToMakeAPost() {
             <div className="bg-brand-card rounded-xl p-4 border border-white/5 flex justify-center">
               <Image
                 src="/help/Home Screen.png"
-                alt="Macro Maxxing Hub screen showing the yellow plus button in the bottom-right corner"
+                alt="Macromaxxing Hub screen showing the yellow plus button in the bottom-right corner"
                 width={300}
                 height={650}
                 className="rounded-lg"

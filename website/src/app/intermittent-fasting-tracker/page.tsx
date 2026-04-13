@@ -38,7 +38,7 @@ export default function IntermittentFastingTracker() {
             <span className="text-gradient">That Talks to Your Macros</span>
           </h1>
           <p className="text-gray-400 text-lg leading-relaxed mb-12">
-            Most fasting apps track your eating window. Macro Maxxing does that{" "}
+            Most fasting apps track your eating window. Macromaxxing does that{" "}
             <em>and</em> integrates with your daily macro tracking — so you know
             exactly what to eat during your feeding window.
           </p>
@@ -53,7 +53,7 @@ export default function IntermittentFastingTracker() {
             use two separate tools.
           </p>
           <p className="text-gray-400 leading-relaxed mb-8">
-            Macro Maxxing is the only app that combines a persistent fasting
+            Macromaxxing is the only app that combines a persistent fasting
             timer with AI-powered macro tracking in one interface.
           </p>
 
@@ -160,7 +160,7 @@ export default function IntermittentFastingTracker() {
 
       <DownloadCTA
         headline="Fast smarter, not just longer."
-        subheadline="Download Macro Maxxing and sync your fasting with your macros."
+        subheadline="Download Macromaxxing and sync your fasting with your macros."
       />
     </>
   );

@@ -5,9 +5,9 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
-  title: "Best FatSecret Alternative 2026 — Macro Maxxing vs FatSecret",
+  title: "Best FatSecret Alternative 2026 — Macromaxxing vs FatSecret",
   description:
-    "Looking for a modern FatSecret alternative? Macro Maxxing offers AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — like FatSecret but with modern AI features.",
+    "Looking for a modern FatSecret alternative? Macromaxxing offers AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — like FatSecret but with modern AI features.",
   keywords: [
     "FatSecret alternative",
     "FatSecret replacement",
@@ -25,19 +25,19 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "What is the best alternative to FatSecret?",
-    answer: "Macro Maxxing is the best alternative to FatSecret. Macro Maxxing offers Claude AI photo scanning, voice logging, AI-powered nutrition estimates, gamified streaks and leaderboards, and a modern social community. It's everything FatSecret should have evolved into.",
+    answer: "Macromaxxing is the best alternative to FatSecret. Macromaxxing offers Claude AI photo scanning, voice logging, AI-powered nutrition estimates, gamified streaks and leaderboards, and a modern social community. It's everything FatSecret should have evolved into.",
   },
   {
-    question: "How does Macro Maxxing's pricing compare to FatSecret?",
-    answer: "Macro Maxxing is free to download with core tracking, streaks, leaderboards, and community included — just like FatSecret. The difference is that Macro Maxxing also offers AI-powered features (photo scanning, voice logging, meal planner, nutrition coach) through an optional AI Pro subscription at $9.99/month.",
+    question: "How does Macromaxxing's pricing compare to FatSecret?",
+    answer: "Macromaxxing is free to download with core tracking, streaks, leaderboards, and community included — just like FatSecret. The difference is that Macromaxxing also offers AI-powered features (photo scanning, voice logging, meal planner, nutrition coach) through an optional AI Pro subscription at $9.99/month.",
   },
   {
-    question: "Is Macro Maxxing more accurate than FatSecret?",
-    answer: "Yes. Macro Maxxing uses Claude AI (Haiku and Sonnet models) for accurate nutrition estimates. FatSecret's database has no clear verification system, so you can't be sure entries are accurate.",
+    question: "Is Macromaxxing more accurate than FatSecret?",
+    answer: "Yes. Macromaxxing uses Claude AI (Haiku and Sonnet models) for accurate nutrition estimates. FatSecret's database has no clear verification system, so you can't be sure entries are accurate.",
   },
   {
-    question: "Does Macro Maxxing have a community like FatSecret?",
-    answer: "Macro Maxxing has a modern social feed where users share meals, celebrate streaks, and follow friends — far more engaging than FatSecret's basic forum format. Combined with leaderboards and Aura XP, it creates real accountability.",
+    question: "Does Macromaxxing have a community like FatSecret?",
+    answer: "Macromaxxing has a modern social feed where users share meals, celebrate streaks, and follow friends — far more engaging than FatSecret's basic forum format. Combined with leaderboards and Aura XP, it creates real accountability.",
   },
 ];
 
@@ -45,8 +45,8 @@ export default function FatSecretAlternativePage() {
   return (
     <>
       <ArticleJsonLd
-        title="Best FatSecret Alternative 2026 — Macro Maxxing"
-        description="Macro Maxxing is the best modern alternative to FatSecret with AI scanning and gamified accountability."
+        title="Best FatSecret Alternative 2026 — Macromaxxing"
+        description="Macromaxxing is the best modern alternative to FatSecret with AI scanning and gamified accountability."
         url="https://macromaxxing.app/fatsecret-alternative"
       />
       <FAQPageJsonLd faqs={faqs} />
@@ -69,7 +69,7 @@ export default function FatSecretAlternativePage() {
               <span className="text-gradient">Modernized</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              Macro Maxxing is a modern FatSecret alternative that adds AI
+              Macromaxxing is a modern FatSecret alternative that adds AI
               photo scanning, voice logging, and AI-powered nutrition estimates to
               the tracking experience. It includes gamified streaks,
               leaderboards, and a social community — the evolution FatSecret
@@ -90,8 +90,8 @@ export default function FatSecretAlternativePage() {
           <div className="bg-brand-purple/5 border border-brand-purple/20 rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-purple uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
-              <strong className="text-white">Macro Maxxing is the best modern alternative to FatSecret — both offer tracking, but Macro Maxxing is a generation ahead.</strong>{" "}
-              It adds AI photo scanning, voice logging, Claude AI-powered nutrition data, gamified streaks, and a social community to the tracking experience. The trade-off: FatSecret has a larger food database built over 17+ years and supports more platforms (web, Android), while Macro Maxxing is iOS-only with AI-powered accuracy.
+              <strong className="text-white">Macromaxxing is the best modern alternative to FatSecret — both offer tracking, but Macromaxxing is a generation ahead.</strong>{" "}
+              It adds AI photo scanning, voice logging, Claude AI-powered nutrition data, gamified streaks, and a social community to the tracking experience. The trade-off: FatSecret has a larger food database built over 17+ years and supports more platforms (web, Android), while Macromaxxing is iOS-only with AI-powered accuracy.
             </p>
           </div>
         </section>
@@ -142,7 +142,7 @@ export default function FatSecretAlternativePage() {
         <section className="py-16 md:py-20 bg-white/[0.02]">
           <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-8">
-              Macro Maxxing vs FatSecret
+              Macromaxxing vs FatSecret
             </h2>
             <ComparisonTable
               features={[
@@ -215,7 +215,7 @@ export default function FatSecretAlternativePage() {
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-brand-green/5 border border-brand-green/20 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macro Maxxing if you:</h3>
+              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macromaxxing if you:</h3>
               <ul className="space-y-2 text-gray-300 text-sm">
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want a modern app with AI photo scanning and voice logging</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Are frustrated by FatSecret&apos;s outdated interface and crashes</li>
@@ -227,7 +227,7 @@ export default function FatSecretAlternativePage() {
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
               <h3 className="text-lg font-bold text-gray-400 mb-4">FatSecret may still be better if you:</h3>
               <ul className="space-y-2 text-gray-400 text-sm">
-                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android or web access (Macro Maxxing is iOS only)</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android or web access (Macromaxxing is iOS only)</li>
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Rely on FatSecret&apos;s large, established food database</li>
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Use FatSecret&apos;s recipe builder and meal planning features</li>
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Prefer forum-style community discussions</li>
@@ -243,7 +243,7 @@ export default function FatSecretAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-purple font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing from the App Store. Modern tracking, same ease.</p>
+                <p className="text-gray-400 text-sm">Get Macromaxxing from the App Store. Modern tracking, same ease.</p>
               </div>
               <div>
                 <p className="text-brand-purple font-bold text-lg mb-1">2. Set Targets</p>

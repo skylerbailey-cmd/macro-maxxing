@@ -12,20 +12,51 @@ struct TutorialStep {
     let body: String
     /// App-tour only: switch to this tab index before showing the step.
     let tabIndex: Int?
-    /// ID passed to `.tutorialAnchor(_:)` on the element to spotlight.
+    /// Primary anchor ID — drives card positioning and the spotlight cutout.
     /// Nil = full-screen dim with no cutout.
     let anchorID: String?
+    /// Extra anchor IDs to include in the spotlight when a single card needs
+    /// to highlight multiple elements at once (e.g. the combined Feed step
+    /// that calls out the aura stream, scope picker, and label chips together).
+    let additionalAnchorIDs: [String]
+    /// When true and there are multiple anchors, the spotlight is drawn as a
+    /// single rectangle that bounds all of them, rather than one cutout per
+    /// anchor. Used by the combined Feed step to spotlight all of its
+    /// sub-sections as a single region.
+    let unionHighlight: Bool
     /// Optional inline icon view shown between the body and navigation buttons.
     let icon: TutorialIcon?
+    /// Nested subsections rendered below the primary body/icon. Each gets its
+    /// own subtitle, body, and optional icon so a single step can walk through
+    /// multiple related bits of UI without bloating into separate steps.
+    let sections: [TutorialSection]
 
     init(title: String, body: String,
          tabIndex: Int? = nil,
          anchorID: String? = nil,
-         icon: TutorialIcon? = nil) {
+         additionalAnchorIDs: [String] = [],
+         unionHighlight: Bool = false,
+         icon: TutorialIcon? = nil,
+         sections: [TutorialSection] = []) {
         self.title    = title
         self.body     = body
         self.tabIndex = tabIndex
         self.anchorID = anchorID
+        self.additionalAnchorIDs = additionalAnchorIDs
+        self.unionHighlight = unionHighlight
+        self.icon     = icon
+        self.sections = sections
+    }
+}
+
+struct TutorialSection {
+    let subtitle: String
+    let body: String
+    let icon: TutorialIcon?
+
+    init(subtitle: String, body: String, icon: TutorialIcon? = nil) {
+        self.subtitle = subtitle
+        self.body     = body
         self.icon     = icon
     }
 }
@@ -39,34 +70,92 @@ enum TutorialIcon {
 
 enum TutorialSteps {
 
-    // MARK: Full App Tour (combines per-tab steps with tab switching + highlighting)
+    // MARK: Full App Tour (shortened, hand-authored)
     //
-    // The per-tab step collections (`hub`, `log`, `feed`, `board`) are the single
-    // source of truth for tutorial content. The first-time app tour simply
-    // re-wraps them with a `tabIndex` so the overlay can switch tabs between
-    // steps. Always forward every field (including `icon`) so the two entry
-    // points — first launch and tapping the ? icon — display identical cards.
-    static let appTour: [TutorialStep] = {
-        var steps: [TutorialStep] = []
-        steps.append(.init(
-            title: "Welcome to Macro Maxxing",
-            body: "Let's walk you through the app. This quick tour covers each tab so you know where everything is.\n\nYou can revisit this tutorial anytime — just tap the ? icon at the top of any tab.",
-            anchorID: nil
-        ))
-        for s in hub {
-            steps.append(.init(title: s.title, body: s.body, tabIndex: 0, anchorID: s.anchorID, icon: s.icon))
-        }
-        for s in log {
-            steps.append(.init(title: s.title, body: s.body, tabIndex: 1, anchorID: s.anchorID, icon: s.icon))
-        }
-        for s in feed {
-            steps.append(.init(title: s.title, body: s.body, tabIndex: 2, anchorID: s.anchorID, icon: s.icon))
-        }
-        for s in board {
-            steps.append(.init(title: s.title, body: s.body, tabIndex: 3, anchorID: s.anchorID, icon: s.icon))
-        }
-        return steps
-    }()
+    // The first-time tour intentionally combines and trims steps from the
+    // per-tab tutorials so a brand-new user gets a faster onboarding pass
+    // without losing context. The per-tab collections below (`hub`, `log`,
+    // `feed`, `board`, `profile`) remain the source of truth for the help
+    // icons in each tab — editing this array does NOT change those.
+    static let appTour: [TutorialStep] = [
+        // ── Hub ────────────────────────────────────────────────────────
+        .init(
+            title: "Welcome to Macromaxxing",
+            body: "Let's walk you through the app — this quick tour covers each tab so you know where everything is. You can revisit it anytime by tapping the ? icon at the top of any tab.\n\nFirst — your stats at a glance. Your streak count and aura level are pinned here, alongside the bell for notifications and your profile picture. Streaks grow each day you hit all four macro goals; aura XP stacks from streaks, posts, and achievements to level you up over time.",
+            tabIndex: 0,
+            anchorID: "hub.header"
+        ),
+        .init(
+            title: "Macro Goal Bars",
+            body: "Each bar shows your actual vs. target for calories, protein, carbs, and fat. Tap any bar to see a 30-day history chart.",
+            tabIndex: 0,
+            anchorID: "hub.macros"
+        ),
+        .init(
+            title: "AI Meal Planner",
+            body: "Tap 'Brainstorm next meal' and AI will suggest specific meals or snacks tailored to your remaining macro gaps for the day. You get 2 suggestions per day — use them wisely.\n\nHave a gluten or dairy sensitivity? Head to Settings to toggle those dietary preferences and the planner will steer clear.",
+            tabIndex: 0,
+            anchorID: "hub.mealPlanner"
+        ),
+
+        // ── Log ────────────────────────────────────────────────────────
+        .init(
+            title: "Fuel / Duel Tabs",
+            body: "Fuel is your daily food log. Duel is where you log workouts — track exercises, duration, and calories burned. Tap the gold + button anywhere in the app to log a meal or workout.",
+            tabIndex: 1,
+            anchorID: "log.tabBar",
+            icon: .goldPlus,
+            sections: [
+                .init(
+                    subtitle: "Meal Score Circle",
+                    body: "Each logged entry shows a small circle score (0–100) based on how well that meal's macro ratio aligns with your personal goals. Tap it to see the full breakdown.",
+                    icon: .mealScore
+                ),
+            ]
+        ),
+        .init(
+            title: "AI Nutrition Coach",
+            body: "Scroll to the bottom of your food log to find the AI Nutrition Coach. It reviews your full day — every meal, macro distribution, and workout timing — then gives you a personalized nutritionist-level debrief with actionable advice. Available once per day.",
+            tabIndex: 1,
+            anchorID: "log.nutritionCoach"
+        ),
+
+        // ── Feed ───────────────────────────────────────────────────────
+        .init(
+            title: "Your Feed",
+            body: "Your community hub. The Aura Stream shows every logged meal, workout, streak milestone, and post from the community in real time — logging, hitting streaks, and sharing progress all build your standing.",
+            tabIndex: 2,
+            anchorID: "feed.header",
+            additionalAnchorIDs: ["feed.scopePicker", "feed.labelChips"],
+            unionHighlight: true,
+            sections: [
+                .init(
+                    subtitle: "Scope Filters & Post Labels",
+                    body: "Scope picker: Arena = everyone on the platform, Team = your friends, Following = people you've followed, Local = users near you. Below it, tap any label chip — Fuel Log, Workout, Transformation, Goal — to filter the feed to exactly what you want to see."
+                ),
+                .init(
+                    subtitle: "Create a Post",
+                    body: "Tap the + floating button in the bottom right to create a new post. Pick a label to pre-fill the title and body, then make it yours.",
+                    icon: .goldPlus
+                ),
+            ]
+        ),
+
+        // ── Board ──────────────────────────────────────────────────────
+        .init(
+            title: "Mog Board",
+            body: "The weekly leaderboard resets every Sunday at 8 PM ET. Your rank is based on the aura XP you earn during the week — hit your macro goals daily, keep your streak alive, and stay active to climb.\n\nUse the scope selector to compare yourself within your Team, your Local area, or across the full Arena.",
+            tabIndex: 3,
+            anchorID: "board.header",
+            additionalAnchorIDs: ["board.scopePicker"]
+        ),
+        .init(
+            title: "Your Standing",
+            body: "Your row is always highlighted so you can find your rank at a glance. Pull down to refresh the board with the latest data.",
+            tabIndex: 3,
+            anchorID: "board.rows"
+        ),
+    ]
 
     // MARK: Profile
     static let profile: [TutorialStep] = [
@@ -211,38 +300,62 @@ struct TutorialOverlayView: View {
 
     var body: some View {
         GeometryReader { geo in
-            // Resolve the anchor for the current step into a real CGRect
-            let highlightRect: CGRect? = step.anchorID.flatMap { id in
+            // Resolve every anchor for the current step (primary + extras)
+            // into real CGRects. Most steps have a single anchor; the
+            // combined Feed step uses several so the spotlight covers the
+            // aura stream, scope picker, and label chips together.
+            let allAnchorIDs: [String] =
+                (step.anchorID.map { [$0] } ?? []) + step.additionalAnchorIDs
+            let rawRects: [CGRect] = allAnchorIDs.compactMap { id in
                 anchors[id].map { geo[$0] }
             }
-            // If highlight is in the lower half of the screen, put the card at the top
-            let cardAtTop = (highlightRect?.midY ?? 0) > geo.size.height * 0.45
+            // If the step opts into union highlighting, merge all anchor rects
+            // into a single bounding rectangle so the spotlight shows them as
+            // one region instead of separate cutouts.
+            let highlightRects: [CGRect] = {
+                guard step.unionHighlight, let first = rawRects.first else {
+                    return rawRects
+                }
+                return [rawRects.dropFirst().reduce(first) { $0.union($1) }]
+            }()
+            // Card positioning is driven by the primary (first) rect.
+            let primaryRect = highlightRects.first
+            // If primary highlight is in the lower half, put the card at the top
+            let cardAtTop = (primaryRect?.midY ?? 0) > geo.size.height * 0.45
 
             ZStack {
                 // ── Spotlight layer ──────────────────────────────────────────
-                if let rect = highlightRect {
+                if !highlightRects.isEmpty {
                     Color.black.opacity(0.72)
                         .overlay(
-                            // Punch a transparent hole over the target element
-                            RoundedRectangle(cornerRadius: 14)
-                                .frame(width: rect.width  + 8,
-                                       height: rect.height + 8)
-                                .position(x: rect.midX, y: rect.midY)
-                                .blendMode(.destinationOut)
+                            // Punch a transparent hole over each target element
+                            ZStack {
+                                ForEach(highlightRects.indices, id: \.self) { i in
+                                    let rect = highlightRects[i]
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .frame(width: rect.width  + 8,
+                                               height: rect.height + 8)
+                                        .position(x: rect.midX, y: rect.midY)
+                                        .blendMode(.destinationOut)
+                                }
+                            }
                         )
                         .drawingGroup()
                         .allowsHitTesting(false)
 
-                    // Purple highlight ring on top of the hole
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color(red: 0.65, green: 0.45, blue: 1.00).opacity(0.85),
-                                lineWidth: 2)
-                        .frame(width: rect.width  + 8,
-                               height: rect.height + 8)
-                        .position(x: rect.midX, y: rect.midY)
-                        .shadow(color: Color(red: 0.65, green: 0.45, blue: 1.00).opacity(0.45),
-                                radius: 10)
-                        .allowsHitTesting(false)
+                    // Purple highlight ring on top of each hole
+                    ForEach(highlightRects.indices, id: \.self) { i in
+                        let rect = highlightRects[i]
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color(red: 0.65, green: 0.45, blue: 1.00).opacity(0.85),
+                                    lineWidth: 2)
+                            .frame(width: rect.width  + 8,
+                                   height: rect.height + 8)
+                            .position(x: rect.midX, y: rect.midY)
+                            .shadow(color: Color(red: 0.65, green: 0.45, blue: 1.00).opacity(0.45),
+                                    radius: 10)
+                            .allowsHitTesting(false)
+                    }
                 } else {
                     Color.black.opacity(0.65).allowsHitTesting(false)
                 }
@@ -303,22 +416,16 @@ struct TutorialOverlayView: View {
                 .buttonStyle(.plain)
             }
 
-            // Title + body
-            VStack(alignment: .leading, spacing: 8) {
-                Text(step.title)
-                    .font(.system(size: 19, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-                Text(step.body)
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white.opacity(0.82))
-                    .lineSpacing(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            // Inline icon (e.g. pulsing gold + button)
-            if let icon = step.icon {
-                TutorialIconView(icon: icon)
-                    .frame(maxWidth: .infinity)
+            // Title + body + icon + sections — sized to content so short
+            // steps don't leave blank space; falls back to a scroll view
+            // only if content doesn't fit in the available height.
+            ViewThatFits(in: .vertical) {
+                cardContent
+                ScrollView {
+                    cardContent
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicators(.hidden)
             }
 
             // Navigation
@@ -359,6 +466,52 @@ struct TutorialOverlayView: View {
                             lineWidth: 1)
                 )
                 .shadow(color: .black.opacity(0.50), radius: 24, y: 8)
+        }
+    }
+
+    /// The scrollable body of the card — title, body, icon, and subsections.
+    /// Extracted so the card can use `ViewThatFits` to size to content for
+    /// short steps and fall back to a ScrollView only when needed.
+    private var cardContent: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(step.title)
+                    .font(.system(size: 19, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                if !step.body.isEmpty {
+                    Text(step.body)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white.opacity(0.82))
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            // Inline icon (e.g. pulsing gold + button)
+            if let icon = step.icon {
+                TutorialIconView(icon: icon)
+                    .frame(maxWidth: .infinity)
+            }
+
+            // Nested subsections (subtitle + body + optional icon)
+            ForEach(step.sections.indices, id: \.self) { i in
+                let section = step.sections[i]
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(section.subtitle)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text(section.body)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white.opacity(0.82))
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let icon = section.icon {
+                        TutorialIconView(icon: icon)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 4)
+                    }
+                }
+            }
         }
     }
 

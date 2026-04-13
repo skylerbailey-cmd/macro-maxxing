@@ -372,7 +372,7 @@ exports.appStoreNotifications = onRequest(
 // 1. Deploy: `cd functions && npm run deploy`
 // 2. Grab the public URL:
 //      https://us-central1-<project>.cloudfunctions.net/appStoreNotifications
-// 3. App Store Connect → Apps → Macro Maxxing → App Information →
+// 3. App Store Connect → Apps → Macromaxxing → App Information →
 //      App Store Server Notifications (Version 2).
 //    Set BOTH "Production Server URL" and "Sandbox Server URL" to the URL
 //    above. Save.

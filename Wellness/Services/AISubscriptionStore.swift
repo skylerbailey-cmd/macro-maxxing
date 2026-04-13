@@ -22,8 +22,8 @@
 //  When a user redeems an affiliate code we record it in Firestore via
 //  PromoCodeTrackingService so we can attribute commissions.
 //
-//  Setup required in App Store Connect — see the README at the bottom of
-//  this file.
+//  Setup required in App Store Connect — see the full checklist at the
+//  bottom of this file.
 //
 
 import Foundation
@@ -385,7 +385,7 @@ final class AISubscriptionStore {
 
 // MARK: - App Store Connect setup checklist
 //
-// 1. App Store Connect → My Apps → Macro Maxxing → Subscriptions.
+// 1. App Store Connect → My Apps → Macromaxxing → Subscriptions.
 // 2. Make sure the subscription group is named "AI Features".
 // 3. Monthly subscription (existing):
 //      • Reference name:  AI Monthly

@@ -5,7 +5,7 @@ import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
   title:
-    "Looksmaxxing Macro Tracker — Track Nutrition for Your Glow Up | Macro Maxxing",
+    "Looksmaxxing Macro Tracker — Track Nutrition for Your Glow Up | Macromaxxing",
   description:
     "The best macro tracker for looksmaxxing. Track protein, calories, and nutrition to optimize your physique, skin, jawline, and overall appearance. AI-powered food scanner with streaks, leaderboards, and a community of people on the same journey.",
   keywords: [
@@ -49,7 +49,7 @@ export default function LooksmaxxingMacroTrackerPage() {
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
               Your physique, skin, hair, and energy are all downstream of
-              nutrition. Macro Maxxing helps you dial in the exact protein,
+              nutrition. Macromaxxing helps you dial in the exact protein,
               vitamins, and calories you need to maximize your appearance — with
               AI food scanning, streaks to keep you consistent, and a community
               that holds you accountable.
@@ -76,7 +76,7 @@ export default function LooksmaxxingMacroTrackerPage() {
             leanness, hair quality, and overall energy.
           </p>
           <p className="text-gray-300 text-lg mb-6">
-            Macro Maxxing is the ideal companion for anyone on a looksmaxxing
+            Macromaxxing is the ideal companion for anyone on a looksmaxxing
             journey because it makes tracking nutrition effortless. Just snap a
             photo of your food or describe it with your voice — our Claude AI
             handles the rest — estimating accurate macros instantly using
@@ -126,12 +126,12 @@ export default function LooksmaxxingMacroTrackerPage() {
           </div>
         </section>
 
-        {/* Why Macro Maxxing for Looksmaxxing */}
+        {/* Why Macromaxxing for Looksmaxxing */}
         <section className="py-16 md:py-20 bg-white/[0.02]">
           <div className="max-w-5xl mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
               Why Looksmaxxers Choose{" "}
-              <span className="text-gradient">Macro Maxxing</span>
+              <span className="text-gradient">Macromaxxing</span>
             </h2>
             <div className="grid md:grid-cols-3 gap-6">
               <FeatureCard
@@ -160,7 +160,7 @@ export default function LooksmaxxingMacroTrackerPage() {
               <FeatureCard
                 icon="🎯"
                 title="Protein-First Tracking"
-                description="Macro Maxxing prioritizes protein visibility because protein is king for looksmaxxing. See your daily protein intake front and center at all times."
+                description="Macromaxxing prioritizes protein visibility because protein is king for looksmaxxing. See your daily protein intake front and center at all times."
                 color="brand-cyan"
               />
               <FeatureCard
@@ -192,7 +192,7 @@ export default function LooksmaxxingMacroTrackerPage() {
               },
               {
                 name: "Aggressive Cut",
-                desc: "Short-term deficit to reveal jawline and facial structure. Macro Maxxing helps you hit exact protein targets so you preserve muscle during the cut.",
+                desc: "Short-term deficit to reveal jawline and facial structure. Macromaxxing helps you hit exact protein targets so you preserve muscle during the cut.",
                 macros: "Deficit -500 kcal | 1.3g/lb protein | Low fat",
               },
               {
@@ -225,7 +225,7 @@ export default function LooksmaxxingMacroTrackerPage() {
               <span className="text-gradient-gold">Game</span> — Play It Right
             </h2>
             <p className="text-gray-300 text-lg text-center max-w-2xl mx-auto mb-12">
-              Consistency is everything in looksmaxxing. Macro Maxxing turns
+              Consistency is everything in looksmaxxing. Macromaxxing turns
               nutrition tracking into a game with streaks, XP, and leaderboards
               so you never fall off.
             </p>
@@ -285,23 +285,23 @@ export default function LooksmaxxingMacroTrackerPage() {
             {[
               {
                 q: "What is the best macro tracker for looksmaxxing?",
-                a: "Macro Maxxing is the best macro tracker for looksmaxxing because it combines AI-powered food scanning (photo and voice), protein-first tracking, and gamified accountability with streaks and leaderboards. It requires no barcode scanning, and has a built-in social community for motivation.",
+                a: "Macromaxxing is the best macro tracker for looksmaxxing because it combines AI-powered food scanning (photo and voice), protein-first tracking, and gamified accountability with streaks and leaderboards. It requires no barcode scanning, and has a built-in social community for motivation.",
               },
               {
                 q: "How many grams of protein do I need for looksmaxxing?",
-                a: "Most looksmaxxers should aim for 0.8–1.2 grams of protein per pound of bodyweight. Protein supports muscle growth, skin repair, and hair health. Macro Maxxing makes it easy to track your daily protein intake with AI food scanning — just snap a photo of your meal.",
+                a: "Most looksmaxxers should aim for 0.8–1.2 grams of protein per pound of bodyweight. Protein supports muscle growth, skin repair, and hair health. Macromaxxing makes it easy to track your daily protein intake with AI food scanning — just snap a photo of your meal.",
               },
               {
                 q: "What diet is best for a glow up?",
-                a: "The best diet for a glow up focuses on high protein, adequate healthy fats (especially Omega-3s), plenty of water, and micronutrient-dense foods like salmon, eggs, berries, and leafy greens. Avoid excess sugar and sodium which cause bloating and skin issues. Use Macro Maxxing to track everything effortlessly.",
+                a: "The best diet for a glow up focuses on high protein, adequate healthy fats (especially Omega-3s), plenty of water, and micronutrient-dense foods like salmon, eggs, berries, and leafy greens. Avoid excess sugar and sodium which cause bloating and skin issues. Use Macromaxxing to track everything effortlessly.",
               },
               {
-                q: "Does Macro Maxxing have streaks and leaderboards?",
-                a: "Yes. Macro Maxxing features daily logging streaks, an Aura XP point system, and competitive leaderboards. You earn XP for logging meals, hitting protein targets, and maintaining streaks. Your rank is visible on the leaderboard and your profile.",
+                q: "Does Macromaxxing have streaks and leaderboards?",
+                a: "Yes. Macromaxxing features daily logging streaks, an Aura XP point system, and competitive leaderboards. You earn XP for logging meals, hitting protein targets, and maintaining streaks. Your rank is visible on the leaderboard and your profile.",
               },
               {
-                q: "Is there a social community in Macro Maxxing?",
-                a: "Yes. Macro Maxxing has a built-in social feed where you can share meals, progress, and streak milestones. You can follow other users, exchange tips, and hold each other accountable. It's like having a looksmaxxing community built into your nutrition tracker.",
+                q: "Is there a social community in Macromaxxing?",
+                a: "Yes. Macromaxxing has a built-in social feed where you can share meals, progress, and streak milestones. You can follow other users, exchange tips, and hold each other accountable. It's like having a looksmaxxing community built into your nutrition tracker.",
               },
             ].map((faq) => (
               <div

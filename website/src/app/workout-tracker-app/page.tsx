@@ -102,7 +102,7 @@ export default function WorkoutTrackerApp() {
                   2
                 </span>
                 <p className="text-gray-400 text-sm">
-                  Macro Maxxing calculates additional macro needs based on ISSN
+                  Macromaxxing calculates additional macro needs based on ISSN
                   & ACSM sports nutrition guidelines for your workout type.
                 </p>
               </div>
@@ -142,7 +142,7 @@ export default function WorkoutTrackerApp() {
 
       <DownloadCTA
         headline="Train hard. Fuel smart."
-        subheadline="Download Macro Maxxing and let your workouts drive your nutrition."
+        subheadline="Download Macromaxxing and let your workouts drive your nutrition."
       />
     </>
   );

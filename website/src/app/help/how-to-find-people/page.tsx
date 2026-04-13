@@ -8,23 +8,23 @@ import {
 } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: "How to Find People in Macro Maxxing — Step-by-Step Guide",
+  title: "How to Find People in Macromaxxing — Step-by-Step Guide",
   description:
-    "Learn how to search for and follow other users in Macro Maxxing. Find friends, follow their progress, and build your fitness community.",
+    "Learn how to search for and follow other users in Macromaxxing. Find friends, follow their progress, and build your fitness community.",
   keywords: [
-    "how to find people macro maxxing",
-    "macro maxxing search users",
-    "macro maxxing follow",
-    "macro maxxing community",
+    "how to find people macromaxxing",
+    "macromaxxing search users",
+    "macromaxxing follow",
+    "macromaxxing community",
     "fitness app find friends",
-    "macro maxxing social",
-    "macro maxxing help",
+    "macromaxxing social",
+    "macromaxxing help",
     "follow fitness friends app",
   ],
   openGraph: {
-    title: "How to Find People in Macro Maxxing — Step-by-Step Guide",
+    title: "How to Find People in Macromaxxing — Step-by-Step Guide",
     description:
-      "Search for users by name or username and follow their fitness journey. Build your community in Macro Maxxing.",
+      "Search for users by name or username and follow their fitness journey. Build your community in Macromaxxing.",
     url: "https://macromaxxing.app/help/how-to-find-people",
     type: "article",
   },
@@ -35,27 +35,27 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    question: "How do I find people in Macro Maxxing?",
+    question: "How do I find people in Macromaxxing?",
     answer:
-      "Open Macro Maxxing, tap the yellow + button on the Hub screen, then select 'Find People.' Type a name or username into the search bar and matching results will appear. Tap 'Follow' to follow a user.",
+      "Open Macromaxxing, tap the yellow + button on the Hub screen, then select 'Find People.' Type a name or username into the search bar and matching results will appear. Tap 'Follow' to follow a user.",
   },
   {
-    question: "Can I search by username in Macro Maxxing?",
+    question: "Can I search by username in Macromaxxing?",
     answer:
       "Yes. The search finds users by both their display name and their @username. For example, searching 'juan' would match a user named Juan with the username @juanwon1.",
   },
   {
-    question: "How do I follow someone in Macro Maxxing?",
+    question: "How do I follow someone in Macromaxxing?",
     answer:
       "After finding a user via the search, tap the yellow 'Follow' button next to their name. You'll then see their posts in your feed and be able to view their profile.",
   },
   {
-    question: "Can I see where other users are located in Macro Maxxing?",
+    question: "Can I see where other users are located in Macromaxxing?",
     answer:
       "Yes. If a user has set their Profile Location in their account settings, their city and country appear below their username in search results. For example, you might see 'Los Angeles, CA, United States' under a user's name.",
   },
   {
-    question: "Is there a follower count in Macro Maxxing?",
+    question: "Is there a follower count in Macromaxxing?",
     answer:
       "Yes. Each user's follower count is displayed next to a people icon in search results, so you can see how many followers they have before deciding to follow them.",
   },
@@ -65,14 +65,14 @@ function HowToJsonLd() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "HowTo",
-    name: "How to Find People in Macro Maxxing",
+    name: "How to Find People in Macromaxxing",
     description:
-      "Step-by-step guide to finding and following other users in the Macro Maxxing iOS app.",
+      "Step-by-step guide to finding and following other users in the Macromaxxing iOS app.",
     totalTime: "PT1M",
     tool: [
       {
         "@type": "HowToTool",
-        name: "Macro Maxxing iOS app",
+        name: "Macromaxxing iOS app",
       },
     ],
     step: [
@@ -110,8 +110,8 @@ export default function HowToFindPeople() {
     <>
       <HowToJsonLd />
       <ArticleJsonLd
-        title="How to Find People in Macro Maxxing"
-        description="Step-by-step guide to finding and following other users in the Macro Maxxing community."
+        title="How to Find People in Macromaxxing"
+        description="Step-by-step guide to finding and following other users in the Macromaxxing community."
         url="https://macromaxxing.app/help/how-to-find-people"
         datePublished="2026-04-09"
         dateModified="2026-04-09"
@@ -146,7 +146,7 @@ export default function HowToFindPeople() {
             How to Find People
           </h1>
           <p className="text-gray-300 text-lg leading-relaxed mb-4">
-            Macro Maxxing is better with a community. Find friends, follow other
+            Macromaxxing is better with a community. Find friends, follow other
             users, and see their posts, progress, and wins on your feed. Here&apos;s
             how to search for and follow people.
           </p>
@@ -167,7 +167,7 @@ export default function HowToFindPeople() {
             <div className="bg-brand-card rounded-xl p-4 border border-white/5 flex justify-center">
               <Image
                 src="/help/Home Screen.png"
-                alt="Macro Maxxing Hub screen showing the yellow plus button in the bottom-right corner"
+                alt="Macromaxxing Hub screen showing the yellow plus button in the bottom-right corner"
                 width={300}
                 height={650}
                 className="rounded-lg"

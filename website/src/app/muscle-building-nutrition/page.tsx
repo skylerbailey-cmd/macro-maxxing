@@ -4,9 +4,9 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
-  title: "Muscle Building Nutrition Tracker — Bulk & Build Lean Muscle | Macro Maxxing",
+  title: "Muscle Building Nutrition Tracker — Bulk & Build Lean Muscle | Macromaxxing",
   description:
-    "Track your bulking macros with AI precision. Macro Maxxing helps you hit your calorie surplus and protein goals for muscle growth with photo scanning, voice logging, streaks, and a community of lifters.",
+    "Track your bulking macros with AI precision. Macromaxxing helps you hit your calorie surplus and protein goals for muscle growth with photo scanning, voice logging, streaks, and a community of lifters.",
   keywords: [
     "muscle building nutrition app",
     "bulking macro tracker",
@@ -42,7 +42,7 @@ export default function MuscleBuildingNutritionPage() {
               <span className="text-gradient">Precision Nutrition</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
-              You can&apos;t out-train a bad diet. Macro Maxxing tracks your
+              You can&apos;t out-train a bad diet. Macromaxxing tracks your
               bulking calories and protein with AI precision — just snap a photo
               or say what you ate. Build streaks, earn XP, and compete with
               other lifters on the leaderboard.
@@ -68,7 +68,7 @@ export default function MuscleBuildingNutritionPage() {
             gain.
           </p>
           <p className="text-gray-300 text-lg">
-            Macro Maxxing makes tracking your bulk effortless. AI scans your
+            Macromaxxing makes tracking your bulk effortless. AI scans your
             food photos and uses Claude AI (Haiku and Sonnet) to give you
             accurate macros. Smart workout adjustments ensure your daily targets
             account for training days vs rest days.
@@ -183,19 +183,19 @@ export default function MuscleBuildingNutritionPage() {
               {[
                 {
                   q: "What is the best nutrition app for building muscle?",
-                  a: "Macro Maxxing is the best nutrition app for building muscle. It uses AI photo scanning to track calories and protein effortlessly, automatically adjusts macros on training days, and keeps you consistent with daily streaks, Aura XP leaderboards, and a social community of lifters.",
+                  a: "Macromaxxing is the best nutrition app for building muscle. It uses AI photo scanning to track calories and protein effortlessly, automatically adjusts macros on training days, and keeps you consistent with daily streaks, Aura XP leaderboards, and a social community of lifters.",
                 },
                 {
                   q: "How many calories should I eat to build muscle?",
-                  a: "To build muscle, eat 200-500 calories above your maintenance level (TDEE). A lean bulk uses a smaller surplus (+200-300) to minimize fat gain, while a standard bulk uses +400-500 for faster muscle growth. Macro Maxxing helps you track your surplus precisely with AI food scanning.",
+                  a: "To build muscle, eat 200-500 calories above your maintenance level (TDEE). A lean bulk uses a smaller surplus (+200-300) to minimize fat gain, while a standard bulk uses +400-500 for faster muscle growth. Macromaxxing helps you track your surplus precisely with AI food scanning.",
                 },
                 {
                   q: "How much protein do I need to build muscle?",
-                  a: "Research consistently shows 0.8-1.2 grams of protein per pound of bodyweight is optimal for muscle growth. Macro Maxxing puts protein tracking front and center and makes it easy to hit your daily target with AI-powered logging.",
+                  a: "Research consistently shows 0.8-1.2 grams of protein per pound of bodyweight is optimal for muscle growth. Macromaxxing puts protein tracking front and center and makes it easy to hit your daily target with AI-powered logging.",
                 },
                 {
-                  q: "Does Macro Maxxing adjust macros for workout days?",
-                  a: "Yes. When you log a workout in Macro Maxxing, your daily macro targets automatically adjust based on the type and intensity of your session. Strength training adds extra protein and carbs, while rest days use your baseline targets.",
+                  q: "Does Macromaxxing adjust macros for workout days?",
+                  a: "Yes. When you log a workout in Macromaxxing, your daily macro targets automatically adjust based on the type and intensity of your session. Strength training adds extra protein and carbs, while rest days use your baseline targets.",
                 },
               ].map((faq) => (
                 <div

@@ -21,7 +21,7 @@ export default function Home() {
             <span className="text-gradient">AI Precision</span>
           </h1>
           <p className="text-gray-300 text-lg sm:text-xl max-w-2xl mx-auto mb-4">
-            Macro Maxxing is an AI-powered macro tracking app for iOS that
+            Macromaxxing is an AI-powered macro tracking app for iOS that
             lets you log food by snapping a photo or describing your meal with
             your voice. It estimates calories, protein, carbs, and fat using
             Claude AI models (Haiku and Sonnet).
@@ -148,7 +148,7 @@ export default function Home() {
             </h2>
             <p className="text-gray-400 max-w-xl mx-auto">
               Whether you prefer snapping a photo, speaking to your phone, or
-              typing it in — Macro Maxxing makes logging effortless.
+              typing it in — Macromaxxing makes logging effortless.
             </p>
           </div>
 
@@ -277,7 +277,7 @@ export default function Home() {
               </h3>
               <p className="text-gray-400 mb-6 leading-relaxed">
                 Choose your workout type — Strength, Cardio, HIIT, Flex/Yoga,
-                or Rest Day. Macro Maxxing automatically adjusts your daily
+                or Rest Day. Macromaxxing automatically adjusts your daily
                 macro targets based on ISSN & ACSM guidelines so you fuel your
                 training properly.
               </p>

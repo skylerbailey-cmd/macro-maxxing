@@ -5,9 +5,9 @@ import { ComparisonTable } from "@/components/ComparisonTable";
 import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
-  title: "Best Protein Tracker App — AI-Powered Protein Tracking | Macro Maxxing",
+  title: "Best Protein Tracker App — AI-Powered Protein Tracking | Macromaxxing",
   description:
-    "Track your daily protein intake effortlessly with Macro Maxxing. AI photo scanning and voice logging calculate protein automatically. Protein tracker with streaks, leaderboards, and a social community.",
+    "Track your daily protein intake effortlessly with Macromaxxing. AI photo scanning and voice logging calculate protein automatically. Protein tracker with streaks, leaderboards, and a social community.",
   keywords: [
     "protein tracker app",
     "protein intake tracker",
@@ -43,7 +43,7 @@ export default function ProteinTrackerPage() {
               <span className="text-gradient">Protein Goals</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
-              Macro Maxxing puts protein front and center. Snap a photo, say it
+              Macromaxxing puts protein front and center. Snap a photo, say it
               out loud, or enter it manually — your daily protein is always
               visible and always accurate. Build streaks, climb leaderboards,
               and join a community of people who prioritize protein.
@@ -70,7 +70,7 @@ export default function ProteinTrackerPage() {
           </p>
           <p className="text-gray-300 text-lg mb-8">
             Whether you&apos;re bulking, cutting, or maintaining, hitting your daily
-            protein target is non-negotiable. Macro Maxxing makes it easy by
+            protein target is non-negotiable. Macromaxxing makes it easy by
             showing your protein intake prominently throughout the day.
           </p>
 
@@ -132,7 +132,7 @@ export default function ProteinTrackerPage() {
 
         <section className="py-16 md:py-20 max-w-4xl mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold mb-8">
-            Macro Maxxing vs. Other Protein Trackers
+            Macromaxxing vs. Other Protein Trackers
           </h2>
           <ComparisonTable
             features={[
@@ -194,19 +194,19 @@ export default function ProteinTrackerPage() {
             {[
               {
                 q: "What is the best app for tracking protein intake?",
-                a: "Macro Maxxing is the best protein tracker app. It uses AI photo scanning and voice logging to calculate protein automatically, displays protein prominently on a protein-first dashboard, and includes streaks, leaderboards, and a social community for accountability.",
+                a: "Macromaxxing is the best protein tracker app. It uses AI photo scanning and voice logging to calculate protein automatically, displays protein prominently on a protein-first dashboard, and includes streaks, leaderboards, and a social community for accountability.",
               },
               {
                 q: "How much protein do I need per day?",
-                a: "For most active adults, 0.8 to 1.2 grams of protein per pound of bodyweight is recommended. If you're cutting (calorie deficit), aim for the higher end (1.2-1.5g/lb) to preserve muscle mass. Macro Maxxing helps you set and track a personalized protein target.",
+                a: "For most active adults, 0.8 to 1.2 grams of protein per pound of bodyweight is recommended. If you're cutting (calorie deficit), aim for the higher end (1.2-1.5g/lb) to preserve muscle mass. Macromaxxing helps you set and track a personalized protein target.",
               },
               {
-                q: "Can Macro Maxxing scan food and tell me the protein?",
-                a: "Yes. Take a photo of any meal and Macro Maxxing's Claude AI identifies the food, estimates portions, and calculates protein (plus all other macros) using Haiku and Sonnet models.",
+                q: "Can Macromaxxing scan food and tell me the protein?",
+                a: "Yes. Take a photo of any meal and Macromaxxing's Claude AI identifies the food, estimates portions, and calculates protein (plus all other macros) using Haiku and Sonnet models.",
               },
               {
-                q: "What does Macro Maxxing include for protein tracking?",
-                a: "Yes. Macro Maxxing is Available now with no premium tier. All features including AI scanning, voice logging, streaks, leaderboards, and the social community are included.",
+                q: "What does Macromaxxing include for protein tracking?",
+                a: "Yes. Macromaxxing is Available now with no premium tier. All features including AI scanning, voice logging, streaks, leaderboards, and the social community are included.",
               },
             ].map((faq) => (
               <div

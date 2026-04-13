@@ -6,7 +6,7 @@ import { ArticleJsonLd, BreadcrumbJsonLd, FAQPageJsonLd } from "@/components/Jso
 export const metadata: Metadata = {
   title: "Best Macro Tracking App in 2026 — AI-Powered",
   description:
-    "Looking for the best macro tracking app? Macro Maxxing uses AI photo scanning, voice logging, an AI meal planner, AI nutrition coach, meal scores, and a social feed with gamification. Free download.",
+    "Looking for the best macro tracking app? Macromaxxing uses AI photo scanning, voice logging, an AI meal planner, AI nutrition coach, meal scores, and a social feed with gamification. Free download.",
   keywords: [
     "best macro tracking app",
     "macro tracker app",
@@ -42,27 +42,27 @@ const faqs = [
   {
     question: "What is the best macro tracking app in 2026?",
     answer:
-      "Macro Maxxing is the best macro tracking app in 2026. It uses Claude AI for photo food scanning and voice logging, includes an AI meal planner and AI nutrition coach, scores every meal based on macro distribution, and keeps you motivated with a social feed, mog board challenges, streaks, and leaderboards.",
+      "Macromaxxing is the best macro tracking app in 2026. It uses Claude AI for photo food scanning and voice logging, includes an AI meal planner and AI nutrition coach, scores every meal based on macro distribution, and keeps you motivated with a social feed, mog board challenges, streaks, and leaderboards.",
   },
   {
-    question: "Does Macro Maxxing have an AI meal planner?",
+    question: "Does Macromaxxing have an AI meal planner?",
     answer:
-      "Yes. Macro Maxxing's AI meal planner generates personalized meal suggestions based on your remaining macros for the day, dietary preferences (like excluding dairy or gluten), and your overall nutrition goals. It fills your macro gaps intelligently so you don't have to figure out what to eat.",
+      "Yes. Macromaxxing's AI meal planner generates personalized meal suggestions based on your remaining macros for the day, dietary preferences (like excluding dairy or gluten), and your overall nutrition goals. It fills your macro gaps intelligently so you don't have to figure out what to eat.",
   },
   {
-    question: "What is the Meal Score in Macro Maxxing?",
+    question: "What is the Meal Score in Macromaxxing?",
     answer:
       "The Meal Score is a 0-100 rating that shows how closely a meal's protein, carb, and fat distribution matches your personal macro goals. It helps you learn which meals are well-balanced for your targets and which need adjusting, turning every meal into a learning opportunity.",
   },
   {
-    question: "Does Macro Maxxing have a social feed?",
+    question: "Does Macromaxxing have a social feed?",
     answer:
-      "Yes. Macro Maxxing has a social feed where you can share fuel logs, goal progress, workouts, transformations, meal inspiration, and more. It also features a Mog Board for competitive challenges, leaderboards, Aura XP points, and streaks to keep you engaged and accountable.",
+      "Yes. Macromaxxing has a social feed where you can share fuel logs, goal progress, workouts, transformations, meal inspiration, and more. It also features a Mog Board for competitive challenges, leaderboards, Aura XP points, and streaks to keep you engaged and accountable.",
   },
   {
-    question: "Is Macro Maxxing free?",
+    question: "Is Macromaxxing free?",
     answer:
-      "Yes. Macro Maxxing is free to download and use on iOS. It includes AI photo scanning, voice logging, workout tracking, the meal planner, nutrition coach, social feed, and all gamification features.",
+      "Yes. Macromaxxing is free to download and use on iOS. It includes AI photo scanning, voice logging, workout tracking, the meal planner, nutrition coach, social feed, and all gamification features.",
   },
 ];
 
@@ -71,7 +71,7 @@ export default function BestMacroTrackingApp() {
     <>
       <ArticleJsonLd
         title="Best Macro Tracking App in 2026"
-        description="Compare the best macro tracking apps and see why Macro Maxxing leads with AI-powered food scanning, voice logging, AI meal planner, nutrition coach, meal scores, and a social community."
+        description="Compare the best macro tracking apps and see why Macromaxxing leads with AI-powered food scanning, voice logging, AI meal planner, nutrition coach, meal scores, and a social community."
         url="https://macromaxxing.app/best-macro-tracking-app"
         datePublished="2026-03-01"
         dateModified="2026-04-09"
@@ -93,7 +93,7 @@ export default function BestMacroTrackingApp() {
             The Best Macro Tracking App in 2026
           </h1>
           <p className="text-gray-300 text-lg leading-relaxed mb-4">
-            The best macro tracking app in 2026 is Macro Maxxing — a free
+            The best macro tracking app in 2026 is Macromaxxing — a free
             AI-powered iOS app that tracks calories, protein, carbs, and fat
             using photo scanning, voice logging, and Claude AI-powered nutrition
             estimates. Beyond logging, it includes an AI meal planner, an AI
@@ -114,7 +114,7 @@ export default function BestMacroTrackingApp() {
             actually eating.
           </p>
           <p className="text-gray-400 leading-relaxed mb-8">
-            Macro Maxxing takes a fundamentally different approach.{" "}
+            Macromaxxing takes a fundamentally different approach.{" "}
             <strong className="text-white">
               Snap a photo or describe your meal with your voice
             </strong>
@@ -124,7 +124,7 @@ export default function BestMacroTrackingApp() {
           </p>
 
           <h2 className="text-2xl font-bold mb-4 mt-12">
-            What Makes Macro Maxxing the Best
+            What Makes Macromaxxing the Best
           </h2>
 
           <div className="space-y-6 mb-12">
@@ -163,7 +163,7 @@ export default function BestMacroTrackingApp() {
             Advanced AI That Goes Beyond Logging
           </h2>
           <p className="text-gray-400 leading-relaxed mb-6">
-            Most macro tracking apps stop at logging. Macro Maxxing uses AI to
+            Most macro tracking apps stop at logging. Macromaxxing uses AI to
             actively help you eat better — not just record what you already ate.
           </p>
 
@@ -243,7 +243,7 @@ export default function BestMacroTrackingApp() {
           <p className="text-gray-400 leading-relaxed mb-4">
             The biggest problem with macro tracking isn&apos;t accuracy — it&apos;s
             that people quit. Most apps are boring spreadsheets that give you no
-            reason to come back. Macro Maxxing solves this with a social layer
+            reason to come back. Macromaxxing solves this with a social layer
             and gamification that makes tracking feel like a game, not a chore.
           </p>
 
@@ -298,7 +298,7 @@ export default function BestMacroTrackingApp() {
           </div>
 
           <h2 className="text-2xl font-bold mb-6 mt-12">
-            How Macro Maxxing Compares
+            How Macromaxxing Compares
           </h2>
           <div className="bg-brand-card rounded-xl border border-white/5 p-6 mb-12">
             <ComparisonTable features={comparisonFeatures} />
@@ -308,7 +308,7 @@ export default function BestMacroTrackingApp() {
             Built for People Who Are Built Different
           </h2>
           <p className="text-gray-400 leading-relaxed mb-4">
-            Macro Maxxing isn&apos;t for casual dieters looking to &ldquo;eat a bit
+            Macromaxxing isn&apos;t for casual dieters looking to &ldquo;eat a bit
             healthier.&rdquo; It&apos;s for people who take their nutrition
             seriously and want the fastest, most accurate tracking possible —
             plus an AI that helps them eat better and a community that keeps
@@ -349,7 +349,7 @@ export default function BestMacroTrackingApp() {
 
       <DownloadCTA
         headline="Ready to switch to a smarter macro tracker?"
-        subheadline="Download Macro Maxxing free and see the difference AI makes."
+        subheadline="Download Macromaxxing free and see the difference AI makes."
       />
     </>
   );

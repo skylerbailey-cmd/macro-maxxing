@@ -3,13 +3,13 @@ import Link from "next/link";
 import { BreadcrumbJsonLd } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: "Help & Guides — Learn How to Use Macro Maxxing",
+  title: "Help & Guides — Learn How to Use Macromaxxing",
   description:
-    "Step-by-step guides and tutorials for getting the most out of Macro Maxxing. Learn how to make posts, log meals, track workouts, and more.",
+    "Step-by-step guides and tutorials for getting the most out of Macromaxxing. Learn how to make posts, log meals, track workouts, and more.",
   keywords: [
-    "macro maxxing help",
-    "macro maxxing tutorial",
-    "how to use macro maxxing",
+    "macromaxxing help",
+    "macromaxxing tutorial",
+    "how to use macromaxxing",
     "macro tracking guide",
     "fitness app help",
   ],
@@ -85,7 +85,7 @@ export default function HelpPage() {
             Help &amp; Guides
           </h1>
           <p className="text-gray-300 text-lg leading-relaxed mb-12">
-            Everything you need to get the most out of Macro Maxxing. Browse our
+            Everything you need to get the most out of Macromaxxing. Browse our
             step-by-step guides below.
           </p>
 

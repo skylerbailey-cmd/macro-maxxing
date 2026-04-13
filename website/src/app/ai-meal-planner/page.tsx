@@ -6,7 +6,7 @@ import { ArticleJsonLd, BreadcrumbJsonLd, FAQPageJsonLd } from "@/components/Jso
 export const metadata: Metadata = {
   title: "AI Meal Planner — Smart Meal Suggestions Based on Your Macros",
   description:
-    "Macro Maxxing's AI Meal Planner analyzes your remaining macro gaps and suggests specific meals with exact portions to help you hit your daily targets. Powered by Claude AI.",
+    "Macromaxxing's AI Meal Planner analyzes your remaining macro gaps and suggests specific meals with exact portions to help you hit your daily targets. Powered by Claude AI.",
   keywords: [
     "AI meal planner",
     "AI meal suggestions",
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    question: "What is the AI Meal Planner in Macro Maxxing?",
+    question: "What is the AI Meal Planner in Macromaxxing?",
     answer:
       "The AI Meal Planner analyzes your remaining calorie, protein, carb, and fat targets for the day and suggests 2 specific meals or snacks — with exact portion sizes in grams — that fill your macro gaps without exceeding any macro you've already hit. It's powered by Claude Haiku AI and respects your dietary restrictions (dairy-free, gluten-free).",
   },
@@ -49,7 +49,7 @@ export default function AIMealPlannerPage() {
     <>
       <ArticleJsonLd
         title="AI Meal Planner — Smart Meal Suggestions Based on Your Macros"
-        description="How Macro Maxxing's AI Meal Planner suggests specific meals to fill your remaining macro gaps."
+        description="How Macromaxxing's AI Meal Planner suggests specific meals to fill your remaining macro gaps."
         url="https://macromaxxing.app/ai-meal-planner"
       />
       <FAQPageJsonLd faqs={faqs} />
@@ -77,7 +77,7 @@ export default function AIMealPlannerPage() {
               </span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              The AI Meal Planner in Macro Maxxing analyzes your remaining macro
+              The AI Meal Planner in Macromaxxing analyzes your remaining macro
               gaps for the day and suggests specific meals with exact portion
               sizes — so you always know what to eat next to hit your targets.
               Powered by Claude Haiku AI.
@@ -89,7 +89,7 @@ export default function AIMealPlannerPage() {
               href="#download"
               className="inline-flex items-center gap-2 bg-brand-gold hover:bg-brand-gold/80 text-dark font-bold py-4 px-8 rounded-2xl text-lg transition-all"
             >
-              Download Macro Maxxing
+              Download Macromaxxing
             </a>
           </div>
         </section>
@@ -102,7 +102,7 @@ export default function AIMealPlannerPage() {
             </h2>
             <p className="text-gray-300 text-lg leading-relaxed">
               <strong className="text-white">
-                Macro Maxxing&apos;s AI Meal Planner tells you exactly what to
+                Macromaxxing&apos;s AI Meal Planner tells you exactly what to
                 eat next to hit your daily macros.
               </strong>{" "}
               It calculates your remaining calorie, protein, carb, and fat gaps,
@@ -204,7 +204,7 @@ export default function AIMealPlannerPage() {
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
               <h3 className="text-lg font-bold text-brand-gold mb-3">
-                What Macro Maxxing Does
+                What Macromaxxing Does
               </h3>
               <ul className="space-y-2 text-gray-300 text-sm">
                 <li className="flex items-start gap-2">
@@ -284,7 +284,7 @@ export default function AIMealPlannerPage() {
         <div id="download">
           <DownloadCTA
             headline="Never Wonder What to Eat Next"
-            subheadline="AI analyzes your remaining macros and tells you exactly what to eat. Download Macro Maxxing."
+            subheadline="AI analyzes your remaining macros and tells you exactly what to eat. Download Macromaxxing."
           />
         </div>
       </article>

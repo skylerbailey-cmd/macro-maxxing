@@ -12,8 +12,8 @@ export const metadata: Metadata = {
     apple: "/icon.svg",
   },
   title: {
-    default: "Macro Maxxing — AI-Powered Macro Tracker & Nutrition App",
-    template: "%s | Macro Maxxing",
+    default: "Macromaxxing — AI-Powered Macro Tracker & Nutrition App",
+    template: "%s | Macromaxxing",
   },
   description:
     "Track macros with AI photo analysis, voice logging, and smart workout adjustments. The most advanced macro tracking app for people serious about their nutrition.",
@@ -30,18 +30,18 @@ export const metadata: Metadata = {
     "fitness app",
     "protein tracker",
   ],
-  authors: [{ name: "Macro Maxxing" }],
+  authors: [{ name: "Macromaxxing" }],
   openGraph: {
     type: "website",
     locale: "en_US",
-    siteName: "Macro Maxxing",
-    title: "Macro Maxxing — AI-Powered Macro Tracker & Nutrition App",
+    siteName: "Macromaxxing",
+    title: "Macromaxxing — AI-Powered Macro Tracker & Nutrition App",
     description:
       "Track macros with AI photo analysis, voice logging, and smart workout adjustments. Built different.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Macro Maxxing — AI-Powered Macro Tracker & Nutrition App",
+    title: "Macromaxxing — AI-Powered Macro Tracker & Nutrition App",
     description:
       "Track macros with AI photo analysis, voice logging, and smart workout adjustments. Built different.",
   },

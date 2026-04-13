@@ -4,9 +4,9 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
-  title: "Best Weight Loss App — AI Calorie & Macro Tracker | Macro Maxxing",
+  title: "Best Weight Loss App — AI Calorie & Macro Tracker | Macromaxxing",
   description:
-    "Lose weight with the easiest calorie and macro tracker. Macro Maxxing uses AI photo scanning, voice logging, and gamified streaks to help you stay in a deficit and reach your goal weight. With social accountability.",
+    "Lose weight with the easiest calorie and macro tracker. Macromaxxing uses AI photo scanning, voice logging, and gamified streaks to help you stay in a deficit and reach your goal weight. With social accountability.",
   keywords: [
     "weight loss app",
     "free weight loss app",
@@ -43,7 +43,7 @@ export default function WeightLossAppPage() {
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
               Weight loss comes down to one thing: a consistent calorie deficit.
-              Macro Maxxing makes tracking effortless with AI food scanning and
+              Macromaxxing makes tracking effortless with AI food scanning and
               keeps you consistent with streaks, leaderboards, and a community
               that holds you accountable.
             </p>
@@ -68,7 +68,7 @@ export default function WeightLossAppPage() {
             tracking apps are too tedious, so people quit after a week or two.
           </p>
           <p className="text-gray-300 text-lg">
-            Macro Maxxing solves this with AI-powered logging (photo or voice —
+            Macromaxxing solves this with AI-powered logging (photo or voice —
             no manual searching) and gamification that makes tracking feel
             rewarding instead of like homework.
           </p>
@@ -77,7 +77,7 @@ export default function WeightLossAppPage() {
         <section className="py-16 md:py-20 bg-white/[0.02]">
           <div className="max-w-5xl mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-              How Macro Maxxing Helps You Lose Weight
+              How Macromaxxing Helps You Lose Weight
             </h2>
             <div className="grid md:grid-cols-3 gap-6">
               <FeatureCard
@@ -89,13 +89,13 @@ export default function WeightLossAppPage() {
               <FeatureCard
                 icon="🎯"
                 title="Deficit Tracking"
-                description="Set your calorie target based on your goal. Macro Maxxing tracks every meal against your target so you always know where you stand."
+                description="Set your calorie target based on your goal. Macromaxxing tracks every meal against your target so you always know where you stand."
                 color="brand-purple"
               />
               <FeatureCard
                 icon="💪"
                 title="Protein Protection"
-                description="Lose fat, not muscle. Track protein to ensure you're eating enough to preserve lean mass during your deficit. Macro Maxxing puts protein front and center."
+                description="Lose fat, not muscle. Track protein to ensure you're eating enough to preserve lean mass during your deficit. Macromaxxing puts protein front and center."
                 color="brand-teal"
               />
               <FeatureCard
@@ -127,13 +127,13 @@ export default function WeightLossAppPage() {
           <p className="text-gray-300 text-lg mb-6">
             Most weight loss apps feel like punishment. Endless database
             searches, guilt-tripping notifications, and boring spreadsheets.
-            Macro Maxxing takes the opposite approach — it makes tracking fast
+            Macromaxxing takes the opposite approach — it makes tracking fast
             (AI does the work), fun (streaks and XP), and social (community
             feed).
           </p>
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8">
             <h3 className="text-xl font-bold mb-4">
-              The Macro Maxxing Weight Loss Approach
+              The Macromaxxing Weight Loss Approach
             </h3>
             <div className="space-y-4">
               {[
@@ -166,19 +166,19 @@ export default function WeightLossAppPage() {
               {[
                 {
                   q: "What is the best app for weight loss?",
-                  a: "Macro Maxxing is a Available now weight loss app that uses AI to track calories and macros from food photos or voice descriptions. It includes daily streaks, Aura XP leaderboards, and a social community for accountability — all features that help you maintain a consistent calorie deficit.",
+                  a: "Macromaxxing is a Available now weight loss app that uses AI to track calories and macros from food photos or voice descriptions. It includes daily streaks, Aura XP leaderboards, and a social community for accountability — all features that help you maintain a consistent calorie deficit.",
                 },
                 {
                   q: "How do I lose weight with a calorie tracking app?",
-                  a: "Set a daily calorie target 300-500 calories below your maintenance level. Log every meal using Macro Maxxing's AI photo scanner or voice logging. Prioritize protein (1g/lb bodyweight) to preserve muscle. Build a daily logging streak for consistency and use the social feed for accountability.",
+                  a: "Set a daily calorie target 300-500 calories below your maintenance level. Log every meal using Macromaxxing's AI photo scanner or voice logging. Prioritize protein (1g/lb bodyweight) to preserve muscle. Build a daily logging streak for consistency and use the social feed for accountability.",
                 },
                 {
                   q: "Do weight loss apps with gamification work better?",
-                  a: "Yes. Research shows that gamified health apps have significantly higher retention rates. Macro Maxxing uses streaks, Aura XP, and leaderboards to make tracking feel like a game rather than a chore. Users who maintain streaks are more likely to sustain their calorie deficit long-term.",
+                  a: "Yes. Research shows that gamified health apps have significantly higher retention rates. Macromaxxing uses streaks, Aura XP, and leaderboards to make tracking feel like a game rather than a chore. Users who maintain streaks are more likely to sustain their calorie deficit long-term.",
                 },
                 {
-                  q: "Can I track weight loss with Macro Maxxing?",
-                  a: "Yes. Macro Maxxing is available to download with no premium tier or subscription. All features including AI food scanning, voice logging, workout tracking, streaks, leaderboards, and the social community are available included.",
+                  q: "Can I track weight loss with Macromaxxing?",
+                  a: "Yes. Macromaxxing is available to download with no premium tier or subscription. All features including AI food scanning, voice logging, workout tracking, streaks, leaderboards, and the social community are available included.",
                 },
               ].map((faq) => (
                 <div

@@ -4,7 +4,7 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
-  title: "Meal Prep Tracker — Save & Reuse Meals with AI Macros | Macro Maxxing",
+  title: "Meal Prep Tracker — Save & Reuse Meals with AI Macros | Macromaxxing",
   description:
     "Track meal prep macros effortlessly. Scan your prepped meals once with AI, save them as templates, and log them all week with one tap. Free meal prep tracker with streaks and community.",
   keywords: [
@@ -69,7 +69,7 @@ export default function MealPrepTrackerPage() {
           </p>
           <p className="text-gray-300 text-lg">
             The problem? Most tracking apps make you re-enter the same meals
-            every day. Macro Maxxing&apos;s Saved Meals feature lets you scan
+            every day. Macromaxxing&apos;s Saved Meals feature lets you scan
             a meal once, save it as a template, and log it with a single tap
             for the rest of the week.
           </p>
@@ -178,19 +178,19 @@ export default function MealPrepTrackerPage() {
               {[
                 {
                   q: "What is the best meal prep tracking app?",
-                  a: "Macro Maxxing is the best meal prep tracking app. It lets you scan prepped meals with AI, save them as reusable templates, and log them all week with one tap. It also features streaks, leaderboards, and a social community for accountability.",
+                  a: "Macromaxxing is the best meal prep tracking app. It lets you scan prepped meals with AI, save them as reusable templates, and log them all week with one tap. It also features streaks, leaderboards, and a social community for accountability.",
                 },
                 {
-                  q: "Can I save meals in Macro Maxxing and reuse them?",
-                  a: "Yes. Macro Maxxing has a Saved Meals feature that lets you save any meal (scanned or manually entered) as a reusable template. You can log saved meals with a single tap, making it perfect for meal prep where you eat the same meals multiple times per week.",
+                  q: "Can I save meals in Macromaxxing and reuse them?",
+                  a: "Yes. Macromaxxing has a Saved Meals feature that lets you save any meal (scanned or manually entered) as a reusable template. You can log saved meals with a single tap, making it perfect for meal prep where you eat the same meals multiple times per week.",
                 },
                 {
                   q: "How does AI meal prep scanning work?",
-                  a: "Take a photo of your prepped meal container. Macro Maxxing's Claude AI identifies the ingredients, estimates portions, and calculates macros instantly. You can then save the result as a meal template for future use.",
+                  a: "Take a photo of your prepped meal container. Macromaxxing's Claude AI identifies the ingredients, estimates portions, and calculates macros instantly. You can then save the result as a meal template for future use.",
                 },
                 {
-                  q: "Is Macro Maxxing good for weekly meal prep?",
-                  a: "Macro Maxxing is ideal for weekly meal prep. Scan your meals once on prep day, save them as templates, and log them instantly throughout the week. Combined with daily streaks and community sharing, it makes meal prep tracking effortless.",
+                  q: "Is Macromaxxing good for weekly meal prep?",
+                  a: "Macromaxxing is ideal for weekly meal prep. Scan your meals once on prep day, save them as templates, and log them instantly throughout the week. Combined with daily streaks and community sharing, it makes meal prep tracking effortless.",
                 },
               ].map((faq) => (
                 <div

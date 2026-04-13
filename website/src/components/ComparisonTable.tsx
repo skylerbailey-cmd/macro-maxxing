@@ -25,7 +25,7 @@ export function ComparisonTable({
               Feature
             </th>
             <th className="text-center py-4 px-4 text-brand-purple font-semibold text-sm">
-              Macro Maxxing
+              Macromaxxing
             </th>
             <th className="text-center py-4 px-4 text-gray-400 font-medium text-sm">
               Other Apps
