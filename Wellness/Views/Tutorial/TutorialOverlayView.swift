@@ -78,16 +78,10 @@ enum TutorialSteps {
     // `feed`, `board`, `profile`) remain the source of truth for the help
     // icons in each tab — editing this array does NOT change those.
     static let appTour: [TutorialStep] = [
-        .init(
-            title: "Welcome to Macromaxxing",
-            body: "Let's walk you through the app. This quick tour covers each tab so you know where everything is.\n\nYou can revisit this tutorial anytime — just tap the ? icon at the top of any tab.",
-            anchorID: nil
-        ),
-
         // ── Hub ────────────────────────────────────────────────────────
         .init(
-            title: "Stats at a Glance",
-            body: "Your streak count and aura level are pinned at the top, alongside the bell icon for in-app notifications and your profile picture for editing your profile. Streaks grow each day you hit all four macro goals; aura XP stacks from streaks, posts, and achievements to level you up over time.",
+            title: "Welcome to Macromaxxing",
+            body: "Let's walk you through the app — this quick tour covers each tab so you know where everything is. You can revisit it anytime by tapping the ? icon at the top of any tab.\n\nFirst — your stats at a glance. Your streak count and aura level are pinned here, alongside the bell for notifications and your profile picture. Streaks grow each day you hit all four macro goals; aura XP stacks from streaks, posts, and achievements to level you up over time.",
             tabIndex: 0,
             anchorID: "hub.header"
         ),
@@ -129,16 +123,12 @@ enum TutorialSteps {
         // ── Feed ───────────────────────────────────────────────────────
         .init(
             title: "Your Feed",
-            body: "Your community hub. Logging meals, hitting streaks, and sharing progress builds your standing here.",
+            body: "Your community hub. The Aura Stream shows every logged meal, workout, streak milestone, and post from the community in real time — logging, hitting streaks, and sharing progress all build your standing.",
             tabIndex: 2,
             anchorID: "feed.header",
             additionalAnchorIDs: ["feed.scopePicker", "feed.labelChips"],
             unionHighlight: true,
             sections: [
-                .init(
-                    subtitle: "Aura Stream",
-                    body: "The main feed where every logged meal, workout, streak milestone, and post from the community shows up in real time."
-                ),
                 .init(
                     subtitle: "Scope Filters",
                     body: "Arena = everyone on the platform. Team = your friends. Following = people you've followed. Local = users near you."
@@ -430,53 +420,17 @@ struct TutorialOverlayView: View {
                 .buttonStyle(.plain)
             }
 
-            // Title + body + icon + sections — scrollable so tall combined
-            // steps don't overflow the screen on shorter devices.
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(step.title)
-                            .font(.system(size: 19, weight: .black, design: .rounded))
-                            .foregroundStyle(.white)
-                        if !step.body.isEmpty {
-                            Text(step.body)
-                                .font(.system(size: 14))
-                                .foregroundStyle(.white.opacity(0.82))
-                                .lineSpacing(3)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-
-                    // Inline icon (e.g. pulsing gold + button)
-                    if let icon = step.icon {
-                        TutorialIconView(icon: icon)
-                            .frame(maxWidth: .infinity)
-                    }
-
-                    // Nested subsections (subtitle + body + optional icon)
-                    ForEach(step.sections.indices, id: \.self) { i in
-                        let section = step.sections[i]
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(section.subtitle)
-                                .font(.system(size: 15, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                            Text(section.body)
-                                .font(.system(size: 14))
-                                .foregroundStyle(.white.opacity(0.82))
-                                .lineSpacing(3)
-                                .fixedSize(horizontal: false, vertical: true)
-                            if let icon = section.icon {
-                                TutorialIconView(icon: icon)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.top, 4)
-                            }
-                        }
-                    }
+            // Title + body + icon + sections — sized to content so short
+            // steps don't leave blank space; falls back to a scroll view
+            // only if content doesn't fit in the available height.
+            ViewThatFits(in: .vertical) {
+                cardContent
+                ScrollView {
+                    cardContent
                 }
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicators(.hidden)
             }
-            .scrollBounceBehavior(.basedOnSize)
-            .scrollIndicators(.hidden)
-            .frame(maxHeight: 440)
 
             // Navigation
             HStack(spacing: 10) {
@@ -516,6 +470,52 @@ struct TutorialOverlayView: View {
                             lineWidth: 1)
                 )
                 .shadow(color: .black.opacity(0.50), radius: 24, y: 8)
+        }
+    }
+
+    /// The scrollable body of the card — title, body, icon, and subsections.
+    /// Extracted so the card can use `ViewThatFits` to size to content for
+    /// short steps and fall back to a ScrollView only when needed.
+    private var cardContent: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(step.title)
+                    .font(.system(size: 19, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                if !step.body.isEmpty {
+                    Text(step.body)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white.opacity(0.82))
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            // Inline icon (e.g. pulsing gold + button)
+            if let icon = step.icon {
+                TutorialIconView(icon: icon)
+                    .frame(maxWidth: .infinity)
+            }
+
+            // Nested subsections (subtitle + body + optional icon)
+            ForEach(step.sections.indices, id: \.self) { i in
+                let section = step.sections[i]
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(section.subtitle)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text(section.body)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white.opacity(0.82))
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let icon = section.icon {
+                        TutorialIconView(icon: icon)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 4)
+                    }
+                }
+            }
         }
     }
 
