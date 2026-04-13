@@ -93,7 +93,7 @@ enum TutorialSteps {
         ),
         .init(
             title: "AI Meal Planner",
-            body: "Tap 'Brainstorm next meal' and AI will suggest specific meals or snacks tailored to your remaining macro gaps for the day. You get 2 suggestions per day — use them wisely.",
+            body: "Tap 'Brainstorm next meal' and AI will suggest specific meals or snacks tailored to your remaining macro gaps for the day. You get 2 suggestions per day — use them wisely.\n\nHave a gluten or dairy sensitivity? Head to Settings to toggle those dietary preferences and the planner will steer clear.",
             tabIndex: 0,
             anchorID: "hub.mealPlanner"
         ),
@@ -130,12 +130,8 @@ enum TutorialSteps {
             unionHighlight: true,
             sections: [
                 .init(
-                    subtitle: "Scope Filters",
-                    body: "Arena = everyone on the platform. Team = your friends. Following = people you've followed. Local = users near you."
-                ),
-                .init(
-                    subtitle: "Post Label Chips",
-                    body: "Tap any label chip to filter the feed. Fuel Log, Workout, Transformation, Goal — find exactly what you want to see."
+                    subtitle: "Scope Filters & Post Labels",
+                    body: "Scope picker: Arena = everyone on the platform, Team = your friends, Following = people you've followed, Local = users near you. Below it, tap any label chip — Fuel Log, Workout, Transformation, Goal — to filter the feed to exactly what you want to see."
                 ),
                 .init(
                     subtitle: "Create a Post",
@@ -148,7 +144,7 @@ enum TutorialSteps {
         // ── Board ──────────────────────────────────────────────────────
         .init(
             title: "Mog Board",
-            body: "The weekly leaderboard resets every Sunday at 8 PM ET. Your rank is based on the aura XP you earn during the week — hit your macro goals daily, keep your streak alive, and stay active to climb. Use the scope selector to compare yourself within your Team, your Local area, or across the full Arena.",
+            body: "The weekly leaderboard resets every Sunday at 8 PM ET. Your rank is based on the aura XP you earn during the week — hit your macro goals daily, keep your streak alive, and stay active to climb.\n\nUse the scope selector to compare yourself within your Team, your Local area, or across the full Arena.",
             tabIndex: 3,
             anchorID: "board.header",
             additionalAnchorIDs: ["board.scopePicker"]
