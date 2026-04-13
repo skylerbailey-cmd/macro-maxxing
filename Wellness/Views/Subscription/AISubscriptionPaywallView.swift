@@ -28,6 +28,12 @@ struct AISubscriptionPaywallView: View {
     /// Called when the user dismisses the paywall without subscribing.
     var onDismiss: () -> Void = {}
 
+    /// Optional promo code passed in from another flow (e.g. onboarding).
+    /// When set, the paywall auto-runs the same validation the user would
+    /// trigger by tapping Apply, then shows either the discount (success)
+    /// or an inline red error (failure) before the user does anything.
+    var prefilledPromoCode: String? = nil
+
     @State private var store = AISubscriptionStore.shared
     @State private var selectedProductID: String = AISubscriptionStore.annualProductID
     @State private var showError = false
@@ -85,6 +91,18 @@ struct AISubscriptionPaywallView: View {
         .task {
             await store.loadProducts()
             await store.refreshEntitlement()
+
+            // If onboarding (or another caller) handed us a promo code,
+            // expand the field and run the same validation flow as if the
+            // user had typed it and tapped Apply. Success → discount shows;
+            // failure → inline red error appears under the field.
+            if let prefill = prefilledPromoCode?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !prefill.isEmpty {
+                showPromoField  = true
+                promoCodeInput  = prefill.uppercased()
+                await applyPromoCode()
+            }
+
             if store.isSubscribed {
                 onSubscribed()
                 dismiss()
