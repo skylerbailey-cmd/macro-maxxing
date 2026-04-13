@@ -299,10 +299,8 @@ struct HomeView: View {
                         .foregroundStyle(.white.opacity(0.85))
                 }
 
-                if viewModel.userSettings.auraPoints > 0 {
-                    auraXPBar
-                        .tutorialAnchor("hub.stats")
-                }
+                auraXPBar
+                    .tutorialAnchor("hub.stats")
 
                 // Cheat Day button — only show if streak > 0, today isn't already a cheat day,
                 // and today's macros haven't already been met.
