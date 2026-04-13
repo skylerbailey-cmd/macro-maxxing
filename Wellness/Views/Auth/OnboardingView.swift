@@ -55,6 +55,11 @@ struct OnboardingView: View {
     // Validation: user tapped Next on the weight page without selecting Sex
     @State private var showSexRequiredError = false
 
+    // Dietary exclusions (used by AI Meal Planner). Mirrored to UserSettings
+    // and the Firestore private profile on finishOnboarding.
+    @State private var excludeDairy:  Bool = false
+    @State private var excludeGluten: Bool = false
+
     // Saving state
     @State private var isSaving = false
     @State private var saveError: String? = nil
@@ -506,6 +511,7 @@ struct OnboardingView: View {
                 heightPicker
                 weightSlider(label: "Current Weight", value: $currentWeight)
                 goalWeightSlider
+                dietaryPreferences
                 Text("Goal weight is limited to 5 lbs from your current weight. Sustainable progress means small, steady steps — aim for 1–2 lbs per week, then update your goal as you hit it.")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.40))
@@ -633,6 +639,43 @@ struct OnboardingView: View {
             }
             Slider(value: value, in: 80...400, step: 1)
                 .tint(purpl)
+        }
+        .padding(16)
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private var dietaryPreferences: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Dietary Preferences")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.65))
+            Text("If you've got a sensitivity, flip these on and the AI Meal Planner won't suggest meals containing dairy or gluten. You can change these anytime in Settings.")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.45))
+
+            Toggle(isOn: $excludeDairy) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Exclude dairy")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text("Skips milk, cheese, yogurt, butter, cream, and whey.")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+            }
+            .tint(purpl)
+
+            Toggle(isOn: $excludeGluten) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Exclude gluten")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text("Skips wheat, bread, pasta, flour, barley, and rye.")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+            }
+            .tint(purpl)
         }
         .padding(16)
         .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
@@ -848,7 +891,16 @@ struct OnboardingView: View {
             "gender":        gender,
             "currentWeight": currentWeight,
             "goalWeight":    goalWeight,
+            "excludeDairy":  excludeDairy,
+            "excludeGluten": excludeGluten,
         ]
+
+        // Mirror dietary exclusions to the local UserSettings now so that
+        // services reading from UserDefaults (e.g. ClaudeAnalysisService for
+        // the AI Meal Planner) pick them up immediately, without waiting for
+        // the Firestore listener to round-trip.
+        userSettings.excludeDairy  = excludeDairy
+        userSettings.excludeGluten = excludeGluten
         let publicFields: [String: Any] = [
             "name":             name.trimmingCharacters(in: .whitespacesAndNewlines),
             "username":         username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
