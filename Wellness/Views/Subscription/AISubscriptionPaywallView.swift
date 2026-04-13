@@ -36,6 +36,8 @@ struct AISubscriptionPaywallView: View {
     @State private var appliedPromoCode: String? = nil
     @State private var showPromoField: Bool = false
     @State private var isRedeemingPromo = false
+    @State private var isValidatingPromo = false
+    @State private var promoFieldError: String? = nil
 
     /// Currently-highlighted AI feature in the interactive row. Starts on the
     /// Meal Planner so the user lands on a pulsing gold outline that draws
@@ -287,27 +289,62 @@ struct AISubscriptionPaywallView: View {
 
         } else if showPromoField {
             // Entry state: text field + apply
-            HStack(spacing: 8) {
-                TextField("ENTER CODE", text: $promoCodeInput)
-                    .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled()
-                    .font(.system(size: 15, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.3), lineWidth: 1))
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    TextField("ENTER CODE", text: $promoCodeInput)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                        .font(.system(size: 15, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(
+                            promoFieldError != nil
+                                ? Color.red.opacity(0.6)
+                                : accent.opacity(0.3),
+                            lineWidth: 1))
+                        .onChange(of: promoCodeInput) { _, _ in
+                            // Clear stale error as soon as the user edits.
+                            promoFieldError = nil
+                        }
 
-                Button("Apply") {
-                    applyPromoCode()
+                    Button {
+                        Task { await applyPromoCode() }
+                    } label: {
+                        if isValidatingPromo {
+                            ProgressView()
+                                .tint(.white)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 11)
+                        } else {
+                            Text("Apply")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 11)
+                        }
+                    }
+                    .background(accent, in: RoundedRectangle(cornerRadius: 10))
+                    .disabled(
+                        isValidatingPromo
+                        || promoCodeInput.trimmingCharacters(in: .whitespaces).isEmpty
+                    )
+                    .opacity(
+                        promoCodeInput.trimmingCharacters(in: .whitespaces).isEmpty
+                        ? 0.5 : 1
+                    )
                 }
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 11)
-                .background(accent, in: RoundedRectangle(cornerRadius: 10))
-                .disabled(promoCodeInput.trimmingCharacters(in: .whitespaces).isEmpty)
-                .opacity(promoCodeInput.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
+                if let err = promoFieldError {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .font(.system(size: 11))
+                        Text(err)
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundStyle(Color.red.opacity(0.85))
+                    .transition(.opacity)
+                }
             }
         } else {
             // Collapsed state: prominent button
@@ -333,11 +370,34 @@ struct AISubscriptionPaywallView: View {
         }
     }
 
-    private func applyPromoCode() {
+    private func applyPromoCode() async {
         let code = promoCodeInput.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard !code.isEmpty else { return }
-        appliedPromoCode = code
-        promoCodeInput = code
+        promoFieldError   = nil
+        isValidatingPromo = true
+        defer { isValidatingPromo = false }
+
+        let result = await PromoCodeTrackingService.shared.validatePromoCode(code)
+        switch result {
+        case .valid(let productID, _):
+            // Switch the picker to the product the code is actually for so
+            // the strikethrough price + savings line apply to the right tier.
+            withAnimation(.easeInOut(duration: 0.2)) {
+                if AISubscriptionStore.allProductIDs.contains(productID) {
+                    selectedProductID = productID
+                }
+                appliedPromoCode = code
+                promoCodeInput   = code
+            }
+        case .unknown:
+            promoFieldError = "We don't recognize \"\(code)\". Double-check spelling."
+        case .inactive:
+            promoFieldError = "\"\(code)\" has been deactivated."
+        case .expired:
+            promoFieldError = "\"\(code)\" has expired."
+        case .error:
+            promoFieldError = "Couldn't check the code right now. Try again."
+        }
     }
 
     // MARK: - Tier picker
