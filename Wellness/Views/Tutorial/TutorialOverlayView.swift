@@ -130,12 +130,8 @@ enum TutorialSteps {
             unionHighlight: true,
             sections: [
                 .init(
-                    subtitle: "Scope Filters",
-                    body: "Arena = everyone on the platform. Team = your friends. Following = people you've followed. Local = users near you."
-                ),
-                .init(
-                    subtitle: "Post Label Chips",
-                    body: "Tap any label chip to filter the feed. Fuel Log, Workout, Transformation, Goal — find exactly what you want to see."
+                    subtitle: "Scope Filters & Post Labels",
+                    body: "Scope picker: Arena = everyone on the platform, Team = your friends, Following = people you've followed, Local = users near you. Below it, tap any label chip — Fuel Log, Workout, Transformation, Goal — to filter the feed to exactly what you want to see."
                 ),
                 .init(
                     subtitle: "Create a Post",
