@@ -93,7 +93,7 @@ enum TutorialSteps {
         ),
         .init(
             title: "AI Meal Planner",
-            body: "Tap 'Brainstorm next meal' and AI will suggest specific meals or snacks tailored to your remaining macro gaps for the day. You get 2 suggestions per day — use them wisely.",
+            body: "Tap 'Brainstorm next meal' and AI will suggest specific meals or snacks tailored to your remaining macro gaps for the day. You get 2 suggestions per day — use them wisely.\n\nHave a gluten or dairy sensitivity? Head to Settings to toggle those dietary preferences and the planner will steer clear.",
             tabIndex: 0,
             anchorID: "hub.mealPlanner"
         ),
