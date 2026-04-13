@@ -70,6 +70,10 @@ struct OnboardingView: View {
 
     // Validation: user tapped Next on the weight page without selecting Sex
     @State private var showSexRequiredError = false
+    // Bumped every time the sex-required error is (re)triggered so the
+    // content ScrollView reliably scrolls back to the gender picker even
+    // when `showSexRequiredError` is already true.
+    @State private var sexErrorBumpID = 0
 
     // Dietary exclusions (used by AI Meal Planner). Mirrored to UserSettings
     // and the Firestore private profile on finishOnboarding.
@@ -93,6 +97,10 @@ struct OnboardingView: View {
     private let backdrop = Color.black.opacity(0.85)
     private let cardBg   = Color(red: 0.10, green: 0.10, blue: 0.14)
 
+    /// ScrollViewReader id used to scroll the gender picker into view when
+    /// the sex-required error fires on the baseline step.
+    private static let genderAnchorID = "onboarding.genderPicker"
+
     var body: some View {
         ZStack {
             // Dark backdrop — same visual language as TutorialOverlayView.
@@ -114,20 +122,34 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 18) {
                 cardHeader
 
-                ScrollView {
-                    pageContent
-                        .id(page)
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .move(edge: .trailing)),
-                            removal:   .opacity.combined(with: .move(edge: .leading))
-                        ))
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        pageContent
+                            .id(page)
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .move(edge: .trailing)),
+                                removal:   .opacity.combined(with: .move(edge: .leading))
+                            ))
+                    }
+                    .scrollBounceBehavior(.basedOnSize)
+                    .scrollIndicators(.hidden)
+                    // Let the card grow with content but cap at 62% of screen
+                    // so it stays the same approximate size as the tutorial card
+                    // and leaves room for the keyboard on short devices.
+                    .frame(maxHeight: 440)
+                    // When a validation error fires on the baseline step, the
+                    // offending field may be scrolled off-screen (e.g. the
+                    // user is looking at weights and forgot to pick Sex).
+                    // Auto-scroll to the gender picker so the error is
+                    // actually visible. Listening on the bump counter rather
+                    // than the boolean means this still fires if the user
+                    // taps Next again while the error is already showing.
+                    .onChange(of: sexErrorBumpID) { _, _ in
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            proxy.scrollTo(Self.genderAnchorID, anchor: .top)
+                        }
+                    }
                 }
-                .scrollBounceBehavior(.basedOnSize)
-                .scrollIndicators(.hidden)
-                // Let the card grow with content but cap at 62% of screen
-                // so it stays the same approximate size as the tutorial card
-                // and leaves room for the keyboard on short devices.
-                .frame(maxHeight: 440)
 
                 navButtons
             }
@@ -289,6 +311,7 @@ struct OnboardingView: View {
         // silently leaving the Next button disabled.
         if page == 3 && gender.isEmpty {
             withAnimation { showSexRequiredError = true }
+            sexErrorBumpID &+= 1
             return
         }
 
@@ -613,6 +636,7 @@ struct OnboardingView: View {
                     lineWidth: 1
                 )
         )
+        .id(Self.genderAnchorID)
     }
 
     private func genderButton(label: String, value: String) -> some View {
@@ -965,7 +989,7 @@ struct OnboardingView: View {
                         Text(success)
                             .font(.system(size: 12, weight: .semibold))
                     }
-                    .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
+                    .foregroundStyle(Color(red: 0.30, green: 0.85, blue: 0.45))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 4)
                 } else {
