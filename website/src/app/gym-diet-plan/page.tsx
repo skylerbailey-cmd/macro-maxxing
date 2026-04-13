@@ -4,9 +4,9 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
-  title: "Gym Diet Plan Tracker — Track Your Training Diet with AI | Macro Maxxing",
+  title: "Gym Diet Plan Tracker — Track Your Training Diet with AI | Macromaxxing",
   description:
-    "Track your gym diet plan with AI. Whether you're following a bodybuilding diet, powerlifting nutrition, or CrossFit macros, Macro Maxxing tracks everything with photo scanning, voice logging, and smart workout adjustments.",
+    "Track your gym diet plan with AI. Whether you're following a bodybuilding diet, powerlifting nutrition, or CrossFit macros, Macromaxxing tracks everything with photo scanning, voice logging, and smart workout adjustments.",
   keywords: [
     "gym diet plan app",
     "gym nutrition tracker",
@@ -42,7 +42,7 @@ export default function GymDietPlanPage() {
               <span className="text-gradient">Tracked by AI</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
-              The gym is only half the battle. Macro Maxxing is the nutrition
+              The gym is only half the battle. Macromaxxing is the nutrition
               app built for people who train — with smart workout macro
               adjustments, AI meal scanning, and a competitive community that
               keeps you locked in.
@@ -64,10 +64,10 @@ export default function GymDietPlanPage() {
             Generic calorie counters don&apos;t understand training. They
             don&apos;t adjust your macros on leg day vs rest day. They
             don&apos;t know that you need more carbs before a heavy session and
-            more protein after. Macro Maxxing does.
+            more protein after. Macromaxxing does.
           </p>
           <p className="text-gray-300 text-lg">
-            Macro Maxxing was built for people who train. It automatically
+            Macromaxxing was built for people who train. It automatically
             adjusts your daily macros based on your workout type and intensity,
             so your nutrition always matches your training.
           </p>
@@ -94,7 +94,7 @@ export default function GymDietPlanPage() {
               <FeatureCard
                 icon="⚡"
                 title="HIIT & CrossFit"
-                description="High-intensity sessions burn serious calories. Macro Maxxing accounts for the intensity and duration in your daily targets."
+                description="High-intensity sessions burn serious calories. Macromaxxing accounts for the intensity and duration in your daily targets."
                 color="brand-gold"
               />
               <FeatureCard
@@ -143,7 +143,7 @@ export default function GymDietPlanPage() {
               },
               {
                 name: "Keto for Athletes",
-                desc: "High fat, very low carb, moderate protein. Some athletes prefer keto for endurance and body composition. Macro Maxxing tracks net carbs too.",
+                desc: "High fat, very low carb, moderate protein. Some athletes prefer keto for endurance and body composition. Macromaxxing tracks net carbs too.",
                 split: "25% Protein / 5% Carbs / 70% Fat",
               },
             ].map((diet) => (
@@ -171,7 +171,7 @@ export default function GymDietPlanPage() {
               <span className="text-gradient-gold">Accountable</span>
             </h2>
             <p className="text-gray-300 text-lg text-center max-w-2xl mx-auto mb-12">
-              Macro Maxxing isn&apos;t just a tracker — it&apos;s a community
+              Macromaxxing isn&apos;t just a tracker — it&apos;s a community
               of people who train. Build streaks, compete on leaderboards, and share
               your gym meals with people who get it.
             </p>
@@ -213,19 +213,19 @@ export default function GymDietPlanPage() {
             {[
               {
                 q: "What is the best nutrition tracker for the gym?",
-                a: "Macro Maxxing is the best nutrition tracker for gym-goers. It automatically adjusts your macros based on your workout type (strength, cardio, HIIT, rest), uses AI for instant food scanning, and includes streaks, leaderboards, and a social community for accountability.",
+                a: "Macromaxxing is the best nutrition tracker for gym-goers. It automatically adjusts your macros based on your workout type (strength, cardio, HIIT, rest), uses AI for instant food scanning, and includes streaks, leaderboards, and a social community for accountability.",
               },
               {
                 q: "Should I eat more on training days?",
-                a: "Yes. On training days, your body needs more calories (especially carbs for energy and protein for recovery). Macro Maxxing automatically adjusts your daily macro targets when you log a workout, so you always eat the right amount for your activity level.",
+                a: "Yes. On training days, your body needs more calories (especially carbs for energy and protein for recovery). Macromaxxing automatically adjusts your daily macro targets when you log a workout, so you always eat the right amount for your activity level.",
               },
               {
                 q: "How do I track gym nutrition without spending hours?",
-                a: "Use Macro Maxxing's AI photo scanning or voice logging. Take a photo of your meal or say what you ate — AI calculates macros instantly. Combined with saved meal templates for meal prep, most users spend less than 2 minutes per day tracking.",
+                a: "Use Macromaxxing's AI photo scanning or voice logging. Take a photo of your meal or say what you ate — AI calculates macros instantly. Combined with saved meal templates for meal prep, most users spend less than 2 minutes per day tracking.",
               },
               {
-                q: "Does Macro Maxxing work for bodybuilding, powerlifting, and CrossFit?",
-                a: "Yes. Macro Maxxing supports any training style. It adjusts macros based on workout type and intensity, tracks all macros (calories, protein, carbs, fat), and lets you customize your macro split for your specific diet approach.",
+                q: "Does Macromaxxing work for bodybuilding, powerlifting, and CrossFit?",
+                a: "Yes. Macromaxxing supports any training style. It adjusts macros based on workout type and intensity, tracks all macros (calories, protein, carbs, fat), and lets you customize your macro split for your specific diet approach.",
               },
             ].map((faq) => (
               <div

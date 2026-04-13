@@ -678,7 +678,7 @@ struct LeaderboardView: View {
 
     @MainActor
     private func presentInviteSheet() {
-        let text = "Hey! 💪 I've been crushing my macro goals on Macro Maxxing. Join me and compete on the local leaderboard! Download the app here: https://apps.apple.com/app/macro-maxxing"
+        let text = "Hey! 💪 I've been crushing my macro goals on Macromaxxing. Join me and compete on the local leaderboard! Download the app here: https://apps.apple.com/app/macro-maxxing"
         let av = UIActivityViewController(
             activityItems: [text],
             applicationActivities: nil
@@ -1223,7 +1223,7 @@ private struct MogBoardShareCard: View {
             VStack(spacing: 0) {
                 // Header
                 VStack(spacing: 4) {
-                    Text("MACRO MAXXING")
+                    Text("MACROMAXXING")
                         .font(.system(size: 11, weight: .black))
                         .tracking(3)
                         .foregroundStyle(purpl.opacity(0.70))

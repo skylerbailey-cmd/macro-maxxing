@@ -49,7 +49,7 @@ enum TutorialSteps {
     static let appTour: [TutorialStep] = {
         var steps: [TutorialStep] = []
         steps.append(.init(
-            title: "Welcome to Macro Maxxing",
+            title: "Welcome to Macromaxxing",
             body: "Let's walk you through the app. This quick tour covers each tab so you know where everything is.\n\nYou can revisit this tutorial anytime — just tap the ? icon at the top of any tab.",
             anchorID: nil
         ))

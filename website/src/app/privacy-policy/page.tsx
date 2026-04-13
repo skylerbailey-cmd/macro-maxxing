@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
-    "Macro Maxxing privacy policy. Learn how we collect, use, and protect your data.",
+    "Macromaxxing privacy policy. Learn how we collect, use, and protect your data.",
 };
 
 export default function PrivacyPolicyPage() {
@@ -20,8 +20,8 @@ export default function PrivacyPolicyPage() {
             </h2>
             <p>
               GRND Labs LLC (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or
-              &ldquo;us&rdquo;), doing business as Macro Maxxing, operates the
-              Macro Maxxing mobile application (the &ldquo;App&rdquo;) and the
+              &ldquo;us&rdquo;), doing business as Macromaxxing, operates the
+              Macromaxxing mobile application (the &ldquo;App&rdquo;) and the
               website at macromaxxing.app (the &ldquo;Website&rdquo;). This Privacy Policy explains what
               information we collect, how we use it, the legal bases for
               processing, and your rights regarding your data. It applies to all

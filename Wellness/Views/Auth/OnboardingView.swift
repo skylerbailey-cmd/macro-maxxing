@@ -397,7 +397,7 @@ struct OnboardingView: View {
         OnboardingPageShell(
             emoji: "🎂",
             title: "When's your birthday?",
-            subtitle: "You must be at least 18 years old to use Macro Maxxing. Not shown publicly."
+            subtitle: "You must be at least 18 years old to use Macromaxxing. Not shown publicly."
         ) {
             VStack(spacing: 16) {
                 // On iOS 26+, try Apple's Declared Age Range API first
@@ -462,7 +462,7 @@ struct OnboardingView: View {
         case .verified:
             ageVerified = true
         case .underage:
-            saveError = "You must be at least 18 years old to use Macro Maxxing."
+            saveError = "You must be at least 18 years old to use Macromaxxing."
         case .declined:
             ageCheckDeclined = true
         case .unavailable:

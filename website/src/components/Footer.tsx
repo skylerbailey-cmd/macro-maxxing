@@ -11,7 +11,7 @@ export function Footer() {
             <div className="flex items-center gap-2 mb-4">
               <span className="text-2xl">🔥</span>
               <span className="text-xl font-bold text-gradient">
-                Macro Maxxing
+                Macromaxxing
               </span>
             </div>
             <p className="text-gray-400 text-sm">

@@ -5,9 +5,9 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
-  title: "Best Carbon Diet Coach Alternative 2026 — Macro Maxxing vs Carbon",
+  title: "Best Carbon Diet Coach Alternative 2026 — Macromaxxing vs Carbon",
   description:
-    "Looking for an Carbon Diet Coach alternative? Macro Maxxing offers AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — with core features free and AI Pro at $9.99/mo — comparable price to Carbon but with more features.",
+    "Looking for an Carbon Diet Coach alternative? Macromaxxing offers AI photo scanning, voice logging, gamified streaks, leaderboards, and a social community — with core features free and AI Pro at $9.99/mo — comparable price to Carbon but with more features.",
   keywords: [
     "Carbon Diet Coach alternative",
     "Carbon Diet Coach replacement",
@@ -25,19 +25,19 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "What is the best alternative to Carbon Diet Coach?",
-    answer: "Macro Maxxing is the best alternative to Carbon Diet Coach. It offers AI photo scanning and voice logging (which Carbon lacks), gamified streaks and leaderboards, and a social community — with core features free and AI Pro at $9.99/month. Carbon costs $10/month with no free tier.",
+    answer: "Macromaxxing is the best alternative to Carbon Diet Coach. It offers AI photo scanning and voice logging (which Carbon lacks), gamified streaks and leaderboards, and a social community — with core features free and AI Pro at $9.99/month. Carbon costs $10/month with no free tier.",
   },
   {
-    question: "Is Macro Maxxing good for bodybuilding like Carbon?",
-    answer: "Yes. Macro Maxxing tracks all macros precisely, adjusts targets for workout days, and supports bulking, cutting, and recomp protocols. While Carbon's auto-adjusting coaching algorithm is unique, Macro Maxxing offers faster logging with AI and more accountability features.",
+    question: "Is Macromaxxing good for bodybuilding like Carbon?",
+    answer: "Yes. Macromaxxing tracks all macros precisely, adjusts targets for workout days, and supports bulking, cutting, and recomp protocols. While Carbon's auto-adjusting coaching algorithm is unique, Macromaxxing offers faster logging with AI and more accountability features.",
   },
   {
-    question: "Does Macro Maxxing adjust macros automatically like Carbon?",
-    answer: "Macro Maxxing automatically adjusts macros based on workout type and intensity. However, it doesn't have Carbon's algorithm that adjusts baseline calories weekly based on weight trends. If automatic weekly calorie adjustments are your top priority, Carbon excels there.",
+    question: "Does Macromaxxing adjust macros automatically like Carbon?",
+    answer: "Macromaxxing automatically adjusts macros based on workout type and intensity. However, it doesn't have Carbon's algorithm that adjusts baseline calories weekly based on weight trends. If automatic weekly calorie adjustments are your top priority, Carbon excels there.",
   },
   {
-    question: "Can I use Macro Maxxing for contest prep?",
-    answer: "Yes. Macro Maxxing's precise AI-powered tracking is ideal for contest prep where accuracy matters most. Set your cutting macros, build a daily streak, and use the community for accountability through the entire prep. The gamified features help maintain discipline during difficult dieting phases.",
+    question: "Can I use Macromaxxing for contest prep?",
+    answer: "Yes. Macromaxxing's precise AI-powered tracking is ideal for contest prep where accuracy matters most. Set your cutting macros, build a daily streak, and use the community for accountability through the entire prep. The gamified features help maintain discipline during difficult dieting phases.",
   },
 ];
 
@@ -45,8 +45,8 @@ export default function CarbonDietCoachAlternativePage() {
   return (
     <>
       <ArticleJsonLd
-        title="Best Carbon Diet Coach Alternative 2026 — Macro Maxxing"
-        description="Macro Maxxing is the best Carbon Diet Coach alternative with AI scanning and gamified tracking."
+        title="Best Carbon Diet Coach Alternative 2026 — Macromaxxing"
+        description="Macromaxxing is the best Carbon Diet Coach alternative with AI scanning and gamified tracking."
         url="https://macromaxxing.app/carbon-diet-coach-alternative"
       />
       <FAQPageJsonLd faqs={faqs} />
@@ -69,7 +69,7 @@ export default function CarbonDietCoachAlternativePage() {
               <span className="text-gradient">Serious Trackers</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              Macro Maxxing is an Carbon Diet Coach alternative that provides
+              Macromaxxing is an Carbon Diet Coach alternative that provides
               AI photo scanning and voice logging — features Carbon doesn&apos;t offer
               despite its $10/month price tag. It includes gamified streaks,
               leaderboards, and a social community, with core features free and AI Pro at $9.99/month — comparable to Carbon&apos;s $10/month but with AI features Carbon doesn&apos;t offer.
@@ -89,7 +89,7 @@ export default function CarbonDietCoachAlternativePage() {
           <div className="bg-brand-rose/5 border border-brand-rose/20 rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-rose uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
-              <strong className="text-white">Macro Maxxing is the best Carbon Diet Coach alternative for serious trackers who want AI-powered logging.</strong>{" "}
+              <strong className="text-white">Macromaxxing is the best Carbon Diet Coach alternative for serious trackers who want AI-powered logging.</strong>{" "}
               It offers photo scanning, voice input, gamified streaks, and a competitive community with core features free and AI Pro at $9.99/month versus Carbon&apos;s $10/month (with no free tier). The trade-off: Carbon has Layne Norton&apos;s auto-adjusting coaching algorithm that adapts your calories weekly based on weight data — if fully automated contest prep coaching is your priority, Carbon is purpose-built for that.
             </p>
           </div>
@@ -142,7 +142,7 @@ export default function CarbonDietCoachAlternativePage() {
         <section className="py-16 md:py-20 bg-white/[0.02]">
           <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-8">
-              Macro Maxxing vs Carbon Diet Coach
+              Macromaxxing vs Carbon Diet Coach
             </h2>
             <ComparisonTable
               features={[
@@ -166,7 +166,7 @@ export default function CarbonDietCoachAlternativePage() {
 
         <section className="py-16 md:py-20 max-w-5xl mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            Why People Switch to Macro Maxxing
+            Why People Switch to Macromaxxing
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
             <FeatureCard
@@ -202,7 +202,7 @@ export default function CarbonDietCoachAlternativePage() {
             <FeatureCard
               icon="🎯"
               title="For Everyone"
-              description="Weight loss, muscle gain, recomp, maintenance, looksmaxxing — Macro Maxxing works for any goal, not just bodybuilding."
+              description="Weight loss, muscle gain, recomp, maintenance, looksmaxxing — Macromaxxing works for any goal, not just bodybuilding."
               color="brand-teal"
             />
           </div>
@@ -215,7 +215,7 @@ export default function CarbonDietCoachAlternativePage() {
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-brand-green/5 border border-brand-green/20 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macro Maxxing if you:</h3>
+              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macromaxxing if you:</h3>
               <ul className="space-y-2 text-gray-300 text-sm">
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want AI photo scanning and voice logging for faster tracking</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want a free core experience plus AI Pro at $9.99/month — with features Carbon doesn&apos;t offer</li>
@@ -230,7 +230,7 @@ export default function CarbonDietCoachAlternativePage() {
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Want fully automated weekly calorie adjustments from Layne Norton&apos;s algorithm</li>
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Are preparing for a bodybuilding or physique competition</li>
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Prefer algorithm-driven coaching over self-directed tracking</li>
-                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macro Maxxing is iOS only)</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macromaxxing is iOS only)</li>
               </ul>
             </div>
           </div>
@@ -243,7 +243,7 @@ export default function CarbonDietCoachAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-rose font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing free from the App Store. Core features included immediately.</p>
+                <p className="text-gray-400 text-sm">Get Macromaxxing free from the App Store. Core features included immediately.</p>
               </div>
               <div>
                 <p className="text-brand-rose font-bold text-lg mb-1">2. Transfer Targets</p>
@@ -251,7 +251,7 @@ export default function CarbonDietCoachAlternativePage() {
               </div>
               <div>
                 <p className="text-brand-rose font-bold text-lg mb-1">3. Better Value</p>
-                <p className="text-gray-400 text-sm">Cancel Carbon and save — or try Macro Maxxing's free tier first, then add AI Pro when ready.</p>
+                <p className="text-gray-400 text-sm">Cancel Carbon and save — or try Macromaxxing's free tier first, then add AI Pro when ready.</p>
               </div>
             </div>
           </div>

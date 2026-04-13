@@ -4,9 +4,9 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
-  title: "Accountability Partner App for Diet & Fitness | Macro Maxxing",
+  title: "Accountability Partner App for Diet & Fitness | Macromaxxing",
   description:
-    "Find accountability for your diet and fitness goals. Macro Maxxing combines AI macro tracking with streaks, leaderboards, and a social community that acts as your built-in accountability partner..",
+    "Find accountability for your diet and fitness goals. Macromaxxing combines AI macro tracking with streaks, leaderboards, and a social community that acts as your built-in accountability partner..",
   keywords: [
     "accountability partner app",
     "diet accountability app",
@@ -74,7 +74,7 @@ export default function AccountabilityPartnerPage() {
             life gets in the way.
           </p>
           <p className="text-gray-300 text-lg">
-            Macro Maxxing solves this by building accountability directly into
+            Macromaxxing solves this by building accountability directly into
             your nutrition tracker. Streaks create self-accountability.
             Leaderboards create competitive accountability. The social feed
             creates community accountability. You&apos;re never dieting alone.
@@ -213,15 +213,15 @@ export default function AccountabilityPartnerPage() {
             {[
               {
                 q: "What is the best accountability app for dieting?",
-                a: "Macro Maxxing is the best accountability app for dieting. It combines AI-powered macro tracking with three layers of accountability: daily streaks (self-accountability), leaderboards (competitive accountability), and a social community feed (social accountability). All features are included.",
+                a: "Macromaxxing is the best accountability app for dieting. It combines AI-powered macro tracking with three layers of accountability: daily streaks (self-accountability), leaderboards (competitive accountability), and a social community feed (social accountability). All features are included.",
               },
               {
                 q: "How do accountability partners help with weight loss?",
-                a: "Research shows that having accountability increases goal completion rates from 10% (going solo) to 95% (regular accountability). Macro Maxxing builds accountability into the app through public streaks, leaderboards, and a social feed — so you always have accountability without needing to coordinate with another person.",
+                a: "Research shows that having accountability increases goal completion rates from 10% (going solo) to 95% (regular accountability). Macromaxxing builds accountability into the app through public streaks, leaderboards, and a social feed — so you always have accountability without needing to coordinate with another person.",
               },
               {
-                q: "Can I use Macro Maxxing with friends for accountability?",
-                a: "Yes. Follow your friends in Macro Maxxing to see their meals, streaks, and leaderboard positions. They can see yours too. This creates mutual accountability that keeps both of you on track with your nutrition goals.",
+                q: "Can I use Macromaxxing with friends for accountability?",
+                a: "Yes. Follow your friends in Macromaxxing to see their meals, streaks, and leaderboard positions. They can see yours too. This creates mutual accountability that keeps both of you on track with your nutrition goals.",
               },
               {
                 q: "Do streaks and leaderboards really help with diet consistency?",

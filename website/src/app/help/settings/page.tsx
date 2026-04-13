@@ -8,25 +8,25 @@ import {
 } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: "Settings & Account — Macro Maxxing Help",
+  title: "Settings & Account — Macromaxxing Help",
   description:
-    "Complete guide to Macro Maxxing account settings. Learn how to set up your profile, configure nutrition goals, manage privacy, connect social accounts, enable fasting tracking, and customize notifications.",
+    "Complete guide to Macromaxxing account settings. Learn how to set up your profile, configure nutrition goals, manage privacy, connect social accounts, enable fasting tracking, and customize notifications.",
   keywords: [
-    "macro maxxing settings",
-    "macro maxxing account",
-    "macro maxxing profile setup",
-    "macro maxxing nutrition settings",
-    "macro maxxing privacy",
-    "macro maxxing protein per lb",
-    "macro maxxing fasting tracker",
-    "macro maxxing help",
-    "macro maxxing export data",
-    "macro maxxing private account",
+    "macromaxxing settings",
+    "macromaxxing account",
+    "macromaxxing profile setup",
+    "macromaxxing nutrition settings",
+    "macromaxxing privacy",
+    "macromaxxing protein per lb",
+    "macromaxxing fasting tracker",
+    "macromaxxing help",
+    "macromaxxing export data",
+    "macromaxxing private account",
   ],
   openGraph: {
-    title: "Settings & Account — Macro Maxxing Help",
+    title: "Settings & Account — Macromaxxing Help",
     description:
-      "Configure your profile, nutrition goals, privacy, notifications, and more in Macro Maxxing.",
+      "Configure your profile, nutrition goals, privacy, notifications, and more in Macromaxxing.",
     url: "https://macromaxxing.app/help/settings",
     type: "article",
   },
@@ -37,22 +37,22 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    question: "How do I access settings in Macro Maxxing?",
+    question: "How do I access settings in Macromaxxing?",
     answer:
       "Tap your profile picture in the top-right corner of the Hub screen to open the Account settings page.",
   },
   {
-    question: "How do I make my Macro Maxxing account private?",
+    question: "How do I make my Macromaxxing account private?",
     answer:
       "Go to Account settings and toggle on 'Private Account' under the Profile section. When private, only approved followers can see your posts and progress.",
   },
   {
-    question: "How do I change my protein goal in Macro Maxxing?",
+    question: "How do I change my protein goal in Macromaxxing?",
     answer:
       "In Account settings, scroll to the Nutrition section. The 'Protein per lb' setting controls how many grams of protein per pound of body weight are used to calculate your daily protein goal. General fitness is typically 0.7–0.8 g/lb, while strength training is 0.8–1.0 g/lb.",
   },
   {
-    question: "Does Macro Maxxing auto-adjust macros for workouts?",
+    question: "Does Macromaxxing auto-adjust macros for workouts?",
     answer:
       "Yes. In the Nutrition section of Account settings, toggle on 'Auto-adjust macros for workouts.' When enabled, the workout log sheet will default to applying macro adjustments based on the type and duration of your workout.",
   },
@@ -62,24 +62,24 @@ const faqs = [
       "Yes. In Account settings under Nutrition, toggle on 'Exclude dairy' and/or 'Exclude gluten.' These dietary exclusions are used by the AI meal planner to avoid suggesting meals with those ingredients.",
   },
   {
-    question: "How do I enable intermittent fasting tracking in Macro Maxxing?",
+    question: "How do I enable intermittent fasting tracking in Macromaxxing?",
     answer:
       "In Account settings, scroll to the Intermittent Fasting section and toggle on 'Track Intermittent Fasting Window.' This enables the fasting window tracker on the Home screen.",
   },
   {
-    question: "How do I export my data from Macro Maxxing?",
+    question: "How do I export my data from Macromaxxing?",
     answer:
       "In Account settings, scroll to Privacy & Data and tap 'Export My Data.' You can download a copy of all your data at any time.",
   },
   {
-    question: "How do I connect Instagram or TikTok to Macro Maxxing?",
+    question: "How do I connect Instagram or TikTok to Macromaxxing?",
     answer:
-      "In Account settings, scroll to the Socials section. Enter your Instagram and/or TikTok username to link your social accounts to your Macro Maxxing profile.",
+      "In Account settings, scroll to the Socials section. Enter your Instagram and/or TikTok username to link your social accounts to your Macromaxxing profile.",
   },
   {
-    question: "How do I delete my Macro Maxxing account?",
+    question: "How do I delete my Macromaxxing account?",
     answer:
-      "In Account settings, scroll to the very bottom and tap 'Delete Account.' This action is permanent and removes all your data from Macro Maxxing.",
+      "In Account settings, scroll to the very bottom and tap 'Delete Account.' This action is permanent and removes all your data from Macromaxxing.",
   },
 ];
 
@@ -87,14 +87,14 @@ function HowToJsonLd() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "HowTo",
-    name: "How to Configure Settings in Macro Maxxing",
+    name: "How to Configure Settings in Macromaxxing",
     description:
-      "Guide to setting up your profile, nutrition goals, privacy, and notifications in the Macro Maxxing iOS app.",
+      "Guide to setting up your profile, nutrition goals, privacy, and notifications in the Macromaxxing iOS app.",
     totalTime: "PT3M",
     tool: [
       {
         "@type": "HowToTool",
-        name: "Macro Maxxing iOS app",
+        name: "Macromaxxing iOS app",
       },
     ],
     step: [
@@ -138,8 +138,8 @@ export default function SettingsPage() {
     <>
       <HowToJsonLd />
       <ArticleJsonLd
-        title="Settings & Account — Macro Maxxing Help"
-        description="Complete guide to Macro Maxxing account settings including profile, nutrition goals, privacy, notifications, and data management."
+        title="Settings & Account — Macromaxxing Help"
+        description="Complete guide to Macromaxxing account settings including profile, nutrition goals, privacy, notifications, and data management."
         url="https://macromaxxing.app/help/settings"
         datePublished="2026-04-09"
         dateModified="2026-04-09"
@@ -520,7 +520,7 @@ export default function SettingsPage() {
                     Ad Tracking Permissions
                   </h4>
                   <p className="text-gray-400 text-sm">
-                    Control whether personalized ads are shown. Macro Maxxing
+                    Control whether personalized ads are shown. Macromaxxing
                     does not sell or share your personal information for
                     advertising purposes.
                   </p>

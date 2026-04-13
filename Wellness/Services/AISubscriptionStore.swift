@@ -13,7 +13,7 @@
 //  Subscription group: "AI Features"
 //
 //  Setup required in App Store Connect:
-//    1. App Store Connect → My Apps → Macro Maxxing → Subscriptions
+//    1. App Store Connect → My Apps → Macromaxxing → Subscriptions
 //    2. Create a subscription group named "AI Features"
 //    3. Add a subscription:
 //         • Reference name: "AI Monthly"

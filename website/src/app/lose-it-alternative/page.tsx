@@ -5,9 +5,9 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
-  title: "Best Lose It! Alternative 2026 — Macro Maxxing vs Lose It",
+  title: "Best Lose It! Alternative 2026 — Macromaxxing vs Lose It",
   description:
-    "Looking for a Lose It! alternative with better macro tracking? Macro Maxxing offers AI photo scanning, voice logging, detailed macros, streaks, leaderboards, and community — core features free, AI Pro at $9.99/mo.",
+    "Looking for a Lose It! alternative with better macro tracking? Macromaxxing offers AI photo scanning, voice logging, detailed macros, streaks, leaderboards, and community — core features free, AI Pro at $9.99/mo.",
   keywords: [
     "Lose It alternative",
     "Lose It app alternative",
@@ -25,19 +25,19 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "What is the best alternative to Lose It?",
-    answer: "Macro Maxxing is the best alternative to Lose It! for anyone serious about their macros. It offers detailed macro tracking (not just calories), AI photo scanning, voice logging, daily streaks, leaderboards, and a social community — with core features free and AI Pro at $9.99/month.",
+    answer: "Macromaxxing is the best alternative to Lose It! for anyone serious about their macros. It offers detailed macro tracking (not just calories), AI photo scanning, voice logging, daily streaks, leaderboards, and a social community — with core features free and AI Pro at $9.99/month.",
   },
   {
-    question: "Is Macro Maxxing better than Lose It for weight loss?",
-    answer: "Yes. While Lose It! focuses on calorie counting, Macro Maxxing tracks full macros (protein, carbs, fat) which leads to better body composition results. It also includes gamified streaks and social accountability that significantly improve consistency — the #1 factor in weight loss success.",
+    question: "Is Macromaxxing better than Lose It for weight loss?",
+    answer: "Yes. While Lose It! focuses on calorie counting, Macromaxxing tracks full macros (protein, carbs, fat) which leads to better body composition results. It also includes gamified streaks and social accountability that significantly improve consistency — the #1 factor in weight loss success.",
   },
   {
-    question: "Does Macro Maxxing track macros better than Lose It?",
-    answer: "Yes. Macro Maxxing is built as a macro tracker first. Protein, carbs, and fat are displayed prominently alongside calories. Claude AI photo scanning provides accurate macro breakdowns powered by Haiku and Sonnet models. In Lose It!, detailed macros require the Premium subscription.",
+    question: "Does Macromaxxing track macros better than Lose It?",
+    answer: "Yes. Macromaxxing is built as a macro tracker first. Protein, carbs, and fat are displayed prominently alongside calories. Claude AI photo scanning provides accurate macro breakdowns powered by Haiku and Sonnet models. In Lose It!, detailed macros require the Premium subscription.",
   },
   {
-    question: "Is Macro Maxxing available to download?",
-    answer: "Macro Maxxing is free to download with full macro tracking, streaks, leaderboards, and community included. AI-powered features (photo scanning, voice logging, meal planner, nutrition coach) are available for $9.99/month through AI Pro. Lose It! charges $40/year for basic premium features that still don't include AI scanning or voice logging.",
+    question: "Is Macromaxxing available to download?",
+    answer: "Macromaxxing is free to download with full macro tracking, streaks, leaderboards, and community included. AI-powered features (photo scanning, voice logging, meal planner, nutrition coach) are available for $9.99/month through AI Pro. Lose It! charges $40/year for basic premium features that still don't include AI scanning or voice logging.",
   },
 ];
 
@@ -45,8 +45,8 @@ export default function LoseItAlternativePage() {
   return (
     <>
       <ArticleJsonLd
-        title="Best Lose It! Alternative 2026 — Macro Maxxing"
-        description="Macro Maxxing is the best Lose It! alternative with AI scanning, detailed macros, and gamified accountability."
+        title="Best Lose It! Alternative 2026 — Macromaxxing"
+        description="Macromaxxing is the best Lose It! alternative with AI scanning, detailed macros, and gamified accountability."
         url="https://macromaxxing.app/lose-it-alternative"
       />
       <FAQPageJsonLd faqs={faqs} />
@@ -69,7 +69,7 @@ export default function LoseItAlternativePage() {
               <span className="text-gradient-gold">Counting Calories</span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
-              Macro Maxxing is an Lose It! alternative that goes beyond
+              Macromaxxing is an Lose It! alternative that goes beyond
               calorie counting with detailed macro tracking (protein, carbs,
               fat), AI photo scanning, and voice logging. It includes gamified
               streaks, leaderboards, and a social community for accountability —
@@ -90,7 +90,7 @@ export default function LoseItAlternativePage() {
           <div className="bg-brand-orange/5 border border-brand-orange/20 rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-orange uppercase tracking-wider mb-3">TL;DR</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
-              <strong className="text-white">Macro Maxxing is the best Lose It! alternative for anyone who wants detailed macro tracking, not just calorie counting.</strong>{" "}
+              <strong className="text-white">Macromaxxing is the best Lose It! alternative for anyone who wants detailed macro tracking, not just calorie counting.</strong>{" "}
               It offers AI photo scanning, voice logging, gamified streaks, and a social community — with core features free and AI Pro at $9.99/month versus Lose It! Premium at $40/year (which lacks AI scanning and voice logging). The trade-off: Lose It! has a clean calorie-focused design and basic challenges that some users prefer for simple weight loss tracking.
             </p>
           </div>
@@ -142,7 +142,7 @@ export default function LoseItAlternativePage() {
         <section className="py-16 md:py-20 bg-white/[0.02]">
           <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-8">
-              Macro Maxxing vs Lose It!
+              Macromaxxing vs Lose It!
             </h2>
             <ComparisonTable
               features={[
@@ -165,13 +165,13 @@ export default function LoseItAlternativePage() {
 
         <section className="py-16 md:py-20 max-w-5xl mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            Why People Choose Macro Maxxing Over Lose It!
+            Why People Choose Macromaxxing Over Lose It!
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
             <FeatureCard
               icon="🥩"
               title="Protein-First"
-              description="Macro Maxxing displays protein prominently because it's the most important macro for body composition. Lose It! buries macros behind the calorie number."
+              description="Macromaxxing displays protein prominently because it's the most important macro for body composition. Lose It! buries macros behind the calorie number."
               color="brand-orange"
             />
             <FeatureCard
@@ -183,7 +183,7 @@ export default function LoseItAlternativePage() {
             <FeatureCard
               icon="🔥"
               title="Streak Motivation"
-              description="Daily streaks keep you tracking consistently. Combined with Aura XP and leaderboards, Macro Maxxing makes consistency a game."
+              description="Daily streaks keep you tracking consistently. Combined with Aura XP and leaderboards, Macromaxxing makes consistency a game."
               color="brand-gold"
             />
             <FeatureCard
@@ -214,7 +214,7 @@ export default function LoseItAlternativePage() {
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-brand-green/5 border border-brand-green/20 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macro Maxxing if you:</h3>
+              <h3 className="text-lg font-bold text-brand-green mb-4">Switch to Macromaxxing if you:</h3>
               <ul className="space-y-2 text-gray-300 text-sm">
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want detailed macro tracking (protein, carbs, fat) — not just calories</li>
                 <li className="flex items-start gap-2"><span className="text-brand-green mt-0.5">✓</span>Want AI photo scanning and voice logging for faster entry</li>
@@ -229,7 +229,7 @@ export default function LoseItAlternativePage() {
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Only need simple calorie counting without macro details</li>
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Prefer a minimal, calorie-first interface</li>
                 <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Use wearable integrations that Lose It! supports</li>
-                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macro Maxxing is iOS only)</li>
+                <li className="flex items-start gap-2"><span className="text-gray-500 mt-0.5">•</span>Need Android support (Macromaxxing is iOS only)</li>
               </ul>
             </div>
           </div>
@@ -242,7 +242,7 @@ export default function LoseItAlternativePage() {
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <p className="text-brand-orange font-bold text-lg mb-1">1. Download</p>
-                <p className="text-gray-400 text-sm">Get Macro Maxxing from the App Store. Ready to track in under 2 minutes.</p>
+                <p className="text-gray-400 text-sm">Get Macromaxxing from the App Store. Ready to track in under 2 minutes.</p>
               </div>
               <div>
                 <p className="text-brand-orange font-bold text-lg mb-1">2. Set Macro Goals</p>

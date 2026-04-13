@@ -4,9 +4,9 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { DownloadCTA } from "@/components/DownloadCTA";
 
 export const metadata: Metadata = {
-  title: "Body Recomposition Tracker — Lose Fat & Build Muscle | Macro Maxxing",
+  title: "Body Recomposition Tracker — Lose Fat & Build Muscle | Macromaxxing",
   description:
-    "Track your body recomposition with AI. Macro Maxxing helps you lose fat and build muscle simultaneously by tracking macros with photo scanning, adjusting for workouts, and keeping you accountable with streaks and leaderboards.",
+    "Track your body recomposition with AI. Macromaxxing helps you lose fat and build muscle simultaneously by tracking macros with photo scanning, adjusting for workouts, and keeping you accountable with streaks and leaderboards.",
   keywords: [
     "body recomposition tracker",
     "body recomp app",
@@ -43,7 +43,7 @@ export default function BodyRecompositionPage() {
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
               Body recomposition requires precise nutrition — eating at or near
-              maintenance while hitting high protein targets. Macro Maxxing
+              maintenance while hitting high protein targets. Macromaxxing
               makes it possible with AI tracking, workout-adjusted macros,
               daily streaks, and a community that keeps you locked in.
             </p>
@@ -73,7 +73,7 @@ export default function BodyRecompositionPage() {
             muscle growth. This narrow margin makes accurate tracking essential.
           </p>
           <p className="text-gray-300 text-lg">
-            Macro Maxxing&apos;s AI-powered tracking makes hitting these precise
+            Macromaxxing&apos;s AI-powered tracking makes hitting these precise
             targets effortless. Snap a photo, say what you ate, or use saved
             meal templates — every meal is tracked accurately in seconds.
           </p>
@@ -82,7 +82,7 @@ export default function BodyRecompositionPage() {
         <section className="py-16 md:py-20 bg-white/[0.02]">
           <div className="max-w-5xl mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-              Why Macro Maxxing Is Perfect for Recomp
+              Why Macromaxxing Is Perfect for Recomp
             </h2>
             <div className="grid md:grid-cols-3 gap-6">
               <FeatureCard
@@ -94,13 +94,13 @@ export default function BodyRecompositionPage() {
               <FeatureCard
                 icon="🥩"
                 title="Protein-First Dashboard"
-                description="Protein is the #1 priority for recomp. Macro Maxxing displays your protein intake prominently so you always know if you're hitting your target."
+                description="Protein is the #1 priority for recomp. Macromaxxing displays your protein intake prominently so you always know if you're hitting your target."
                 color="brand-purple"
               />
               <FeatureCard
                 icon="🏋️"
                 title="Workout Adjustments"
-                description="Recomp works best with carb cycling — more carbs on training days, fewer on rest days. Macro Maxxing adjusts your macros automatically when you log a workout."
+                description="Recomp works best with carb cycling — more carbs on training days, fewer on rest days. Macromaxxing adjusts your macros automatically when you log a workout."
                 color="brand-teal"
               />
               <FeatureCard
@@ -139,7 +139,7 @@ export default function BodyRecompositionPage() {
                 <p className="text-gray-300">
                   Eat at maintenance or in a very slight deficit (100-200 kcal
                   below TDEE). A larger deficit will compromise muscle growth.
-                  Macro Maxxing helps you track precisely enough to stay in this
+                  Macromaxxing helps you track precisely enough to stay in this
                   narrow range.
                 </p>
               </div>
@@ -161,7 +161,7 @@ export default function BodyRecompositionPage() {
                   After protein, fill remaining calories with carbs and fat
                   based on preference. Many recomp athletes benefit from
                   higher carbs on training days and higher fat on rest days.
-                  Macro Maxxing&apos;s workout adjustments handle this
+                  Macromaxxing&apos;s workout adjustments handle this
                   automatically.
                 </p>
               </div>
@@ -171,7 +171,7 @@ export default function BodyRecompositionPage() {
                 </h3>
                 <p className="text-gray-300">
                   Progressive overload is essential for recomp. Log your
-                  workouts in Macro Maxxing to ensure your daily macros
+                  workouts in Macromaxxing to ensure your daily macros
                   adjust for training intensity.
                 </p>
               </div>
@@ -227,7 +227,7 @@ export default function BodyRecompositionPage() {
             {[
               {
                 q: "What is the best app for body recomposition?",
-                a: "Macro Maxxing is the best app for body recomposition. It features AI-powered food scanning for precise calorie and protein tracking, automatic workout macro adjustments, and gamified accountability (streaks, leaderboards, community) to keep you consistent through the long recomp process.",
+                a: "Macromaxxing is the best app for body recomposition. It features AI-powered food scanning for precise calorie and protein tracking, automatic workout macro adjustments, and gamified accountability (streaks, leaderboards, community) to keep you consistent through the long recomp process.",
               },
               {
                 q: "Can you really lose fat and build muscle at the same time?",
@@ -235,11 +235,11 @@ export default function BodyRecompositionPage() {
               },
               {
                 q: "How many calories should I eat for body recomp?",
-                a: "For body recomposition, eat at maintenance calories (your TDEE) or in a very slight deficit (100-200 kcal below). The margin is narrow, which is why accurate tracking with Macro Maxxing's AI food scanning is essential for success.",
+                a: "For body recomposition, eat at maintenance calories (your TDEE) or in a very slight deficit (100-200 kcal below). The margin is narrow, which is why accurate tracking with Macromaxxing's AI food scanning is essential for success.",
               },
               {
                 q: "How long does body recomposition take?",
-                a: "Body recomp is a gradual process. Most people see noticeable changes in 3-6 months with consistent training and precise nutrition. Macro Maxxing's streaks and community keep you accountable through the entire journey.",
+                a: "Body recomp is a gradual process. Most people see noticeable changes in 3-6 months with consistent training and precise nutrition. Macromaxxing's streaks and community keep you accountable through the entire journey.",
               },
             ].map((faq) => (
               <div
