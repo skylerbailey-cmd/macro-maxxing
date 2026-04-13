@@ -3,8 +3,8 @@
 //  Wellness
 //
 //  Multi-step onboarding shown to brand-new users immediately after sign-up.
-//  Collects: name, profile photo, username (with uniqueness check), date of birth,
-//            current weight, goal weight, and account privacy preference.
+//  Collects: name + username (with uniqueness check), profile photo, date of
+//            birth, current weight, goal weight, and account privacy preference.
 //  Email is already captured at sign-up and shown in Settings via Firebase Auth.
 //
 
@@ -71,6 +71,11 @@ struct OnboardingView: View {
     // Validation: user tapped Next on the weight page without selecting Sex
     @State private var showSexRequiredError = false
 
+    // Dietary exclusions (used by AI Meal Planner). Mirrored to UserSettings
+    // and the Firestore private profile on finishOnboarding.
+    @State private var excludeDairy:  Bool = false
+    @State private var excludeGluten: Bool = false
+
     // Saving state
     @State private var isSaving = false
     @State private var saveError: String? = nil
@@ -82,7 +87,7 @@ struct OnboardingView: View {
     @State private var didUploadPhoto        = false
     @State private var didWritePublicFields  = false
 
-    private let totalPages = 8
+    private let totalPages = 7
     private let purpl    = Color(red: 0.65, green: 0.45, blue: 1.00)
     // Matches TutorialOverlayView: pure black dim behind a floating purple-bordered card.
     private let backdrop = Color.black.opacity(0.85)
@@ -160,6 +165,12 @@ struct OnboardingView: View {
             // Pre-fill from whatever was collected at sign-up
             name     = userSettings.name
             username = userSettings.username
+            // Sign-up validates username uniqueness before it reaches us, so
+            // treat a pre-filled username as available — this also unblocks
+            // the Next button if the user taps Back into the combined page.
+            if username.count >= 4 {
+                usernameAvailable = true
+            }
             // If sign-up already collected name + username, skip to the profile photo page
             if !name.isEmpty && username.count >= 4 {
                 page = 1
@@ -174,12 +185,11 @@ struct OnboardingView: View {
         switch page {
         case 0: namePage
         case 1: profilePicPage
-        case 2: usernamePage
-        case 3: dobPage
-        case 4: weightPage
-        case 5: healthDisclaimerPage
-        case 6: privacyPage
-        case 7: promoCodePage
+        case 2: dobPage
+        case 3: weightPage
+        case 4: healthDisclaimerPage
+        case 5: privacyPage
+        case 6: promoCodePage
         default: EmptyView()
         }
     }
@@ -252,14 +262,16 @@ struct OnboardingView: View {
 
     private var canAdvance: Bool {
         switch page {
-        case 0: return !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case 0:
+            let nameOK = !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let usernameOK = (usernameAvailable == true) && username.count >= 4
+            return nameOK && usernameOK
         case 1: return true   // photo is optional
-        case 2: return (usernameAvailable == true) && username.count >= 4
-        case 3: return true   // DOB always valid
-        case 4: return currentWeight > 0 && goalWeight > 0
-        case 5: return healthDisclaimerAgreed
-        case 6: return true
-        case 7:
+        case 2: return true   // DOB always valid
+        case 3: return currentWeight > 0 && goalWeight > 0
+        case 4: return healthDisclaimerAgreed
+        case 5: return true
+        case 6:
             // Promo code is optional. If the user typed a value, they must
             // either successfully validate it or clear it before advancing
             // — that way invalid codes never make it to the paywall sheet.
@@ -272,21 +284,16 @@ struct OnboardingView: View {
     }
 
     private func advance() {
-        // Page 4 (weight/baseline) requires Sex to be selected. We allow the
+        // Page 3 (weight/baseline) requires Sex to be selected. We allow the
         // tap to register so we can surface an inline error rather than
         // silently leaving the Next button disabled.
-        if page == 4 && gender.isEmpty {
+        if page == 3 && gender.isEmpty {
             withAnimation { showSexRequiredError = true }
             return
         }
 
         if page < totalPages - 1 {
-            var next = page + 1
-            // Skip username page if already set from sign-up
-            if next == 2 && username.count >= 4 {
-                next = 3
-            }
-            withAnimation { page = next }
+            withAnimation { page += 1 }
         } else {
             Task { await finishOnboarding() }
         }
@@ -294,20 +301,68 @@ struct OnboardingView: View {
 
     // MARK: - Pages
 
-    // Page 0: Name
+    // Page 0: Name + Username
     private var namePage: some View {
         OnboardingPageShell(
             emoji: "👋",
             title: "What should we call you?",
-            subtitle: "This is your display name — you can change it anytime in Settings."
+            subtitle: "Set your display name and pick a username. Display name is changeable later; username is permanent."
         ) {
-            VStack(spacing: 0) {
-                TextField("Display name", text: $name)
-                    .font(.system(size: 18))
-                    .foregroundStyle(.white)
+            VStack(alignment: .leading, spacing: 18) {
+                // Display name
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Display name")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.65))
+                    TextField("Display name", text: $name)
+                        .font(.system(size: 18))
+                        .foregroundStyle(.white)
+                        .padding(16)
+                        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+                        .autocorrectionDisabled()
+                }
+
+                // Username
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Username")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.65))
+                    HStack {
+                        Text("@")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(purpl)
+                        TextField("username", text: $username)
+                            .font(.system(size: 18))
+                            .foregroundStyle(.white)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .onChange(of: username) { _, newVal in
+                                let stripped = newVal.replacingOccurrences(of: " ", with: "")
+                                if stripped != newVal { username = stripped }
+                                scheduleUsernameCheck(stripped)
+                            }
+                        if checkingUsername {
+                            ProgressView().tint(purpl).scaleEffect(0.8)
+                        } else if let available = usernameAvailable {
+                            Image(systemName: available ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundStyle(available ? .green : .red)
+                        }
+                    }
                     .padding(16)
                     .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
-                    .autocorrectionDisabled()
+
+                    if let available = usernameAvailable, !checkingUsername {
+                        Text(available ? "Username is available!" : "That username is already taken.")
+                            .font(.caption)
+                            .foregroundStyle(available ? .green : .red)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4)
+                    }
+                    Text("Minimum 4 characters, letters and numbers only. You can't change this later.")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.45))
+                        .padding(.horizontal, 4)
+                }
             }
         }
     }
@@ -402,50 +457,7 @@ struct OnboardingView: View {
         }
     }
 
-    // Page 2: Username
-    private var usernamePage: some View {
-        OnboardingPageShell(
-            emoji: "🪪",
-            title: "Choose your username",
-            subtitle: "Minimum 4 characters, letters and numbers only. You can't change this later."
-        ) {
-            VStack(spacing: 10) {
-                HStack {
-                    Text("@")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(purpl)
-                    TextField("username", text: $username)
-                        .font(.system(size: 18))
-                        .foregroundStyle(.white)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .onChange(of: username) { _, newVal in
-                            let stripped = newVal.replacingOccurrences(of: " ", with: "")
-                            if stripped != newVal { username = stripped }
-                            scheduleUsernameCheck(stripped)
-                        }
-                    if checkingUsername {
-                        ProgressView().tint(purpl).scaleEffect(0.8)
-                    } else if let available = usernameAvailable {
-                        Image(systemName: available ? "checkmark.circle.fill" : "xmark.circle.fill")
-                            .foregroundStyle(available ? .green : .red)
-                    }
-                }
-                .padding(16)
-                .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
-
-                if let available = usernameAvailable, !checkingUsername {
-                    Text(available ? "Username is available!" : "That username is already taken.")
-                        .font(.caption)
-                        .foregroundStyle(available ? .green : .red)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 4)
-                }
-            }
-        }
-    }
-
-    // Page 3: Date of Birth
+    // Page 2: Date of Birth
     private var dobPage: some View {
         OnboardingPageShell(
             emoji: "🎂",
@@ -529,7 +541,7 @@ struct OnboardingView: View {
         return oldest...youngest
     }
 
-    // Page 4: Weights
+    // Page 3: Weights
     private var weightPage: some View {
         OnboardingPageShell(
             emoji: "⚖️",
@@ -541,6 +553,7 @@ struct OnboardingView: View {
                 heightPicker
                 weightSlider(label: "Current Weight", value: $currentWeight)
                 goalWeightSlider
+                dietaryPreferences
                 Text("Goal weight is limited to 5 lbs from your current weight. Sustainable progress means small, steady steps — aim for 1–2 lbs per week, then update your goal as you hit it.")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.40))
@@ -673,8 +686,44 @@ struct OnboardingView: View {
         .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
     }
 
-    // Page 5: Privacy
-    // Page 5: Health Disclaimer
+    private var dietaryPreferences: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Dietary Preferences")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.65))
+            Text("If you've got a sensitivity, flip these on and the AI Meal Planner won't suggest meals containing dairy or gluten. You can change these anytime in Settings.")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.45))
+
+            Toggle(isOn: $excludeDairy) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Exclude dairy")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text("Skips milk, cheese, yogurt, butter, cream, and whey.")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+            }
+            .tint(purpl)
+
+            Toggle(isOn: $excludeGluten) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Exclude gluten")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text("Skips wheat, bread, pasta, flour, barley, and rye.")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+            }
+            .tint(purpl)
+        }
+        .padding(16)
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    // Page 4: Health Disclaimer
     private var healthDisclaimerPage: some View {
         OnboardingPageShell(
             emoji: "⚕️",
@@ -747,7 +796,7 @@ struct OnboardingView: View {
         }
     }
 
-    // Page 6: Privacy
+    // Page 5: Privacy
     private var privacyPage: some View {
         OnboardingPageShell(
             emoji: "🔒",
@@ -1000,7 +1049,16 @@ struct OnboardingView: View {
             "gender":        gender,
             "currentWeight": currentWeight,
             "goalWeight":    goalWeight,
+            "excludeDairy":  excludeDairy,
+            "excludeGluten": excludeGluten,
         ]
+
+        // Mirror dietary exclusions to the local UserSettings now so that
+        // services reading from UserDefaults (e.g. ClaudeAnalysisService for
+        // the AI Meal Planner) pick them up immediately, without waiting for
+        // the Firestore listener to round-trip.
+        userSettings.excludeDairy  = excludeDairy
+        userSettings.excludeGluten = excludeGluten
         let publicFields: [String: Any] = [
             "name":             name.trimmingCharacters(in: .whitespacesAndNewlines),
             "username":         username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
