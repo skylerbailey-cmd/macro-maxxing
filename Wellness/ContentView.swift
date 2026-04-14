@@ -38,13 +38,10 @@ struct ContentView: View {
 
     // FAB state
     @State private var fabExpanded           = false
-    @State private var fabShowingCamera      = false
-    @State private var fabShowingLibrary     = false
     @State private var fabShowingNewPost     = false
     @State private var fabShowingSearch      = false
     @State private var fabShowingLogWorkout  = false
-    @State private var fabShowingSavedMeals  = false
-    @State private var fabSelectedImage: UIImage? = nil
+    @State private var fabOpenLogMeal        = false
 
     var body: some View {
         // Convert the @Environment-bound SessionManager into a @Bindable so
@@ -74,7 +71,7 @@ struct ContentView: View {
 
                 NavigationStack {
                     FoodLogView(modelContext: modelContext, selectedDate: $selectedDate,
-                                userSettings: userSettings, externalImage: $fabSelectedImage)
+                                userSettings: userSettings, openLogMealTrigger: $fabOpenLogMeal)
                 }
                 .tabItem { Label("Log", systemImage: "flame.fill") }
                 .tag(1)
@@ -173,12 +170,10 @@ struct ContentView: View {
                     // so the app feels fresh after force-quit or background return
                     selectedTab = 0
                     fabExpanded = false
-                    fabShowingCamera = false
-                    fabShowingLibrary = false
                     fabShowingNewPost = false
                     fabShowingSearch = false
                     fabShowingLogWorkout = false
-                    fabShowingSavedMeals = false
+                    fabOpenLogMeal = false
                     selectedDate = Calendar.current.startOfDay(for: Date())
                 }
             }
@@ -258,20 +253,10 @@ struct ContentView: View {
 
             QuickActionFAB(
                 expanded: $fabExpanded,
-                onLogMealCamera: {
+                onLogMeal: {
                     fabExpanded = false
                     selectedTab = 1
-                    fabShowingCamera = true
-                },
-                onLogMealLibrary: {
-                    fabExpanded = false
-                    selectedTab = 1
-                    fabShowingLibrary = true
-                },
-                onLogMealSaved: {
-                    fabExpanded = false
-                    selectedTab = 1
-                    fabShowingSavedMeals = true
+                    fabOpenLogMeal = true
                 },
                 onLogWorkout: {
                     fabExpanded = false
@@ -309,15 +294,6 @@ struct ContentView: View {
             UserSearchView(currentUserSettings: userSettings)
                 .environment(locationManager)
         }
-        .sheet(isPresented: $fabShowingCamera) {
-            ImagePickerView(sourceType: .camera, selectedImage: $fabSelectedImage)
-        }
-        .sheet(isPresented: $fabShowingLibrary) {
-            ImagePickerView(sourceType: .photoLibrary, selectedImage: $fabSelectedImage)
-        }
-        .sheet(isPresented: $fabShowingSavedMeals) {
-            SavedMealsSheet(userID: userSettings.userID, selectedDate: selectedDate)
-        }
         .sheet(isPresented: Binding(
             get: { streakBreakCount != nil },
             set: { if !$0 { streakBreakCount = nil } }
@@ -338,9 +314,6 @@ struct ContentView: View {
                 )
             }
         }
-        .onChange(of: fabSelectedImage) { _, image in
-            if image != nil { selectedTab = 1 }
-        }
     }
 
 }
@@ -349,12 +322,10 @@ struct ContentView: View {
 
 private struct QuickActionFAB: View {
     @Binding var expanded: Bool
-    let onLogMealCamera:  () -> Void
-    let onLogMealLibrary: () -> Void
-    let onLogMealSaved:   () -> Void
-    let onLogWorkout:     () -> Void
-    let onMakePost:       () -> Void
-    let onFindPeople:     () -> Void
+    let onLogMeal:    () -> Void
+    let onLogWorkout: () -> Void
+    let onMakePost:   () -> Void
+    let onFindPeople: () -> Void
 
 
     private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
@@ -362,34 +333,11 @@ private struct QuickActionFAB: View {
     private let teal   = Color(red: 0.20, green: 0.80, blue: 0.70)
     private let green  = Color(red: 0.30, green: 0.90, blue: 0.55)
 
-    @State private var logMealExpanded = false
-
     var body: some View {
         VStack(alignment: .trailing, spacing: 10) {
             if expanded {
-                // Sub-actions under Log a Meal
-                if logMealExpanded {
-                    actionPill(icon: "bookmark.fill", label: "Saved Meals", color: purpl,
-                               action: onLogMealSaved)
-
-                    actionPill(icon: "photo.on.rectangle", label: "Photo Library", color: purpl,
-                               action: onLogMealLibrary)
-
-                    actionPill(icon: "camera.fill", label: "Camera",
-                               color: purpl,
-                               disabled: !UIImagePickerController.isSourceTypeAvailable(.camera),
-                               action: onLogMealCamera)
-                }
-
-                actionPill(
-                    icon: logMealExpanded ? "chevron.down" : "flame.fill",
-                    label: "Log a Meal",
-                    color: purpl
-                ) {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        logMealExpanded.toggle()
-                    }
-                }
+                actionPill(icon: "flame.fill", label: "Log a Meal", color: purpl,
+                           action: onLogMeal)
 
                 actionPill(icon: "figure.strengthtraining.traditional", label: "Log a Workout",
                            color: green, action: onLogWorkout)
@@ -404,7 +352,6 @@ private struct QuickActionFAB: View {
             // Main FAB button
             Button {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    if expanded { logMealExpanded = false }
                     expanded.toggle()
                 }
             } label: {
@@ -469,81 +416,6 @@ private struct QuickActionFAB: View {
                 removal:   .scale(scale: 0.85, anchor: .bottomTrailing).combined(with: .opacity)
             )
         )
-    }
-}
-
-// MARK: - Saved Meals Sheet (loads meals and handles logging)
-
-private struct SavedMealsSheet: View {
-    let userID: String
-    let selectedDate: Date
-    @State private var savedMeals: [FoodEntry] = []
-    @State private var isLoading = true
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        Group {
-            if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.black)
-                    .preferredColorScheme(.dark)
-            } else {
-                SavedMealsView(savedMeals: savedMeals, onSelect: { meal in
-                    logMeal(meal)
-                }, onDelete: { meal in
-                    savedMeals.removeAll { $0.id == meal.id }
-                    Task { await FoodEntryService.shared.delete(entryID: meal.firebaseEntryID, userID: userID) }
-                }, onEdit: { meal, name, cal, pro, carb, fat in
-                    // Update locally
-                    if let idx = savedMeals.firstIndex(where: { $0.id == meal.id }) {
-                        savedMeals[idx].foodName = name
-                        savedMeals[idx].calories = cal
-                        savedMeals[idx].protein  = pro
-                        savedMeals[idx].carbs    = carb
-                        savedMeals[idx].fat      = fat
-                    }
-                    // Persist to Firestore
-                    Task {
-                        await FoodEntryService.shared.update(
-                            entryID: meal.firebaseEntryID, userID: userID,
-                            foodName: name, calories: cal, protein: pro, carbs: carb, fat: fat)
-                    }
-                })
-            }
-        }
-        .task {
-            savedMeals = (try? await FoodEntryService.shared.fetchSavedMeals(userID: userID)) ?? []
-            isLoading = false
-        }
-    }
-
-    private func logMeal(_ meal: FoodEntry) {
-        let calendar = Calendar.current
-        var comps    = calendar.dateComponents([.year, .month, .day], from: selectedDate)
-        let now      = Date()
-        comps.hour   = calendar.component(.hour,   from: now)
-        comps.minute = calendar.component(.minute, from: now)
-        comps.second = calendar.component(.second, from: now)
-        let loggedAt = calendar.date(from: comps) ?? selectedDate
-
-        let entry = FoodEntry(
-            loggedAt: loggedAt,
-            userID:   userID,
-            foodName: meal.foodName,
-            calories: meal.calories,
-            protein:  meal.protein,
-            carbs:    meal.carbs,
-            fat:      meal.fat
-        )
-        // Carry over the photo URL from the saved meal
-        entry.photoURL = meal.photoURL
-
-        Task {
-            _ = try? await FoodEntryService.shared.save(entry: entry, imageData: nil, existingPhotoURL: meal.photoURL)
-            // Post notification so FoodLogView refreshes
-            NotificationCenter.default.post(name: .init("FoodEntryAdded"), object: nil)
-        }
     }
 }
 

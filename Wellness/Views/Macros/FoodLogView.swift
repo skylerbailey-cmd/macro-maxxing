@@ -15,6 +15,7 @@ struct FoodLogView: View {
     @Binding var selectedDate: Date
     let userSettings: UserSettings
     @Binding var externalImage: UIImage?
+    @Binding var openLogMealTrigger: Bool
     @Environment(NotificationState.self) private var notificationState
     @State private var showingTutorial        = false
     @State private var tutorialAnchors:       [String: Anchor<CGRect>] = [:]
@@ -61,7 +62,8 @@ struct FoodLogView: View {
     @Environment(\.modelContext) private var modelContext
 
     init(modelContext: ModelContext, selectedDate: Binding<Date>, userSettings: UserSettings,
-         externalImage: Binding<UIImage?> = .constant(nil)) {
+         externalImage: Binding<UIImage?> = .constant(nil),
+         openLogMealTrigger: Binding<Bool> = .constant(false)) {
         _viewModel  = State(wrappedValue: FoodLogViewModel(
             selectedDate: selectedDate.wrappedValue,
             userID: userSettings.userID
@@ -72,6 +74,7 @@ struct FoodLogView: View {
         ))
         _selectedDate  = selectedDate
         _externalImage = externalImage
+        _openLogMealTrigger = openLogMealTrigger
         self.userSettings = userSettings
     }
 
@@ -130,6 +133,12 @@ struct FoodLogView: View {
                 }
             }
             .onChange(of: externalImage, handleExternalImage)
+            .onChange(of: openLogMealTrigger) { _, trigger in
+                if trigger {
+                    activeMealSheet = .analysis
+                    openLogMealTrigger = false
+                }
+            }
             .onChange(of: viewModel.showingCamera) { _, show in
                 if show { activeMealSheet = .camera }
             }
@@ -525,7 +534,7 @@ struct FoodLogView: View {
                 Text("No fuel logged")
                     .font(.system(size: 17, weight: .bold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.65))
-                Text("Tap Camera or Library below\nto log your first meal.")
+                Text("Tap the + button below\nto log your first meal.")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.32))
                     .multilineTextAlignment(.center)
@@ -846,6 +855,9 @@ private struct AnalysisSheet: View {
     @State private var skeletonPulse     = false
     @State private var showSaveError     = false
 
+    // In-sheet image picker source (for the two-square selector)
+    @State private var pickerSource: ImageSourceKind? = nil
+
     // AI gating (paywall + consent) — checked per AI action so users can still
     // log the meal manually without encountering a paywall.
     @State private var aiSubscription     = AISubscriptionStore.shared
@@ -855,6 +867,14 @@ private struct AnalysisSheet: View {
 
     enum EntryMode { case photo, voice, manual }
     enum PendingAIAction { case analyze, analyzeWithVoice, reanalyze }
+
+    enum ImageSourceKind: Int, Identifiable {
+        case camera, photoLibrary
+        var id: Int { rawValue }
+        var sourceType: UIImagePickerController.SourceType {
+            self == .camera ? .camera : .photoLibrary
+        }
+    }
 
     private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
     private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
@@ -883,7 +903,7 @@ private struct AnalysisSheet: View {
                 ScrollView {
                     VStack(spacing: 20) {
 
-                        // Food photo
+                        // Food photo — or two picker squares if no image yet
                         if let image = viewModel.selectedImage {
                             Image(uiImage: image)
                                 .resizable()
@@ -892,6 +912,8 @@ private struct AnalysisSheet: View {
                                 .frame(height: 190)
                                 .clipped()
                                 .cornerRadius(16)
+                        } else {
+                            photoSourceSquares
                         }
 
                         // Saved meals quick-select
@@ -1023,7 +1045,70 @@ private struct AnalysisSheet: View {
                     }
                 )
             }
+            .sheet(item: $pickerSource) { source in
+                ImagePickerView(
+                    sourceType: source.sourceType,
+                    selectedImage: $viewModel.selectedImage
+                )
+            }
+            .onChange(of: viewModel.selectedImage) { _, newImage in
+                // When an image is picked inside the sheet, switch to Photo mode
+                // and reset analysis state so the "Analyze Photo" button shows.
+                if newImage != nil {
+                    mode = .photo
+                    if case .confirmed = viewModel.analysisState { } else {
+                        viewModel.analysisState = .idle
+                    }
+                }
+            }
         }
+    }
+
+    // MARK: - Photo Source Squares
+
+    private var photoSourceSquares: some View {
+        HStack(spacing: 12) {
+            photoSourceSquare(
+                icon: "camera.fill",
+                label: "Camera",
+                disabled: !UIImagePickerController.isSourceTypeAvailable(.camera)
+            ) {
+                pickerSource = .camera
+            }
+            photoSourceSquare(
+                icon: "photo.on.rectangle",
+                label: "Photos"
+            ) {
+                pickerSource = .photoLibrary
+            }
+        }
+        .frame(height: 190)
+    }
+
+    private func photoSourceSquare(icon: String, label: String,
+                                   disabled: Bool = false,
+                                   action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(disabled ? accent.opacity(0.25) : accent)
+                Text(label)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(disabled ? .white.opacity(0.30) : .white.opacity(0.85))
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(cardBg, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(
+                        accent.opacity(disabled ? 0.10 : 0.35),
+                        style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
     }
 
     // MARK: - AI Gating
