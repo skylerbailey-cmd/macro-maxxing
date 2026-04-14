@@ -8,6 +8,11 @@ import FirebaseFunctions
 
 final class ClaudeAnalysisService {
     private let model = "claude-haiku-4-5-20251001"
+    /// Stronger fallback model used only when the primary Haiku call returns
+    /// suggestions that violate the user's macro upper limits. Paying for
+    /// Sonnet on the ~20% of calls that fail validation is cheaper than
+    /// running Sonnet on every brainstorm.
+    private let fallbackModel = "claude-sonnet-4-6"
 
     // MARK: - Recent brainstorm ingredient tracking
 
@@ -457,7 +462,10 @@ final class ClaudeAnalysisService {
             Rewrite BOTH suggestions so every macro in every suggestion stays within the remaining room. \
             Use smaller portions or lower-\(initialViolations.first?.macroName ?? "macro") foods.
             """
-            let retryText = try await callBrainstormModel(prompt: retryPrompt)
+            // Use Sonnet for the retry — stronger constraint-following on the
+            // ~20% of calls Haiku gets wrong. See cost analysis: Haiku+Sonnet
+            // fallback ≈ $0.33/user/mo vs Sonnet-everywhere ≈ $0.61/user/mo.
+            let retryText = try await callBrainstormModel(prompt: retryPrompt, model: fallbackModel)
             let retryViolations = validateBrainstormText(retryText, against: limits)
             // Only adopt the retry if it's no worse than the first attempt.
             if retryViolations.count < initialViolations.count {
@@ -474,9 +482,9 @@ final class ClaudeAnalysisService {
         return finalText
     }
 
-    private func callBrainstormModel(prompt: String) async throws -> String {
+    private func callBrainstormModel(prompt: String, model: String? = nil) async throws -> String {
         let payload: [String: Any] = [
-            "model": model,
+            "model": model ?? self.model,
             "maxTokens": 800,
             "messages": [["role": "user", "content": prompt]]
         ]
