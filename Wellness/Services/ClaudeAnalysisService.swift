@@ -8,6 +8,11 @@ import FirebaseFunctions
 
 final class ClaudeAnalysisService {
     private let model = "claude-haiku-4-5-20251001"
+    /// Stronger fallback model used only when the primary Haiku call returns
+    /// suggestions that violate the user's macro upper limits. Paying for
+    /// Sonnet on the ~20% of calls that fail validation is cheaper than
+    /// running Sonnet on every brainstorm.
+    private let fallbackModel = "claude-sonnet-4-6"
 
     // MARK: - Recent brainstorm ingredient tracking
 
@@ -229,6 +234,7 @@ final class ClaudeAnalysisService {
         let upperFat      = input.goalFat      * 1.15
 
         let roomCalories = max(0, upperCalories - input.totalCalories)
+        let roomProtein  = max(0, upperProtein  - input.totalProtein)
         let roomCarbs    = max(0, upperCarbs    - input.totalCarbs)
         let roomFat      = max(0, upperFat      - input.totalFat)
 
@@ -438,8 +444,47 @@ final class ClaudeAnalysisService {
         - No intro line, no outro — just the 2 numbered options
         """
 
+        let initialText = try await callBrainstormModel(prompt: prompt)
+
+        // Validate that each suggestion fits within the upper-limit room.
+        // If the model returned a suggestion that would push the user over a
+        // macro upper limit, retry ONCE with the violation called out explicitly.
+        let limits = MacroLimits(
+            roomCalories: roomCalories, roomProtein: roomProtein,
+            roomCarbs: roomCarbs, roomFat: roomFat
+        )
+        var finalText = initialText
+        let initialViolations = validateBrainstormText(initialText, against: limits)
+        if !initialViolations.isEmpty {
+            let retryPrompt = prompt + "\n\n" + """
+            RETRY — your previous suggestions violated the upper-limit constraints:
+            \(initialViolations.map { "- Suggestion \($0.suggestionIndex): \($0.macroName) = \(Int($0.actual))\($0.unit), exceeds remaining room of \(Int($0.allowed))\($0.unit)" }.joined(separator: "\n"))
+            Rewrite BOTH suggestions so every macro in every suggestion stays within the remaining room. \
+            Use smaller portions or lower-\(initialViolations.first?.macroName ?? "macro") foods.
+            """
+            // Use Sonnet for the retry — stronger constraint-following on the
+            // ~20% of calls Haiku gets wrong. See cost analysis: Haiku+Sonnet
+            // fallback ≈ $0.33/user/mo vs Sonnet-everywhere ≈ $0.61/user/mo.
+            let retryText = try await callBrainstormModel(prompt: retryPrompt, model: fallbackModel)
+            let retryViolations = validateBrainstormText(retryText, against: limits)
+            // Only adopt the retry if it's no worse than the first attempt.
+            if retryViolations.count < initialViolations.count {
+                finalText = retryText
+            }
+        }
+
+        // Remember the suggested ingredients so the next brainstorm avoids repeats.
+        let suggested = extractIngredients(from: finalText)
+        if !suggested.isEmpty {
+            saveRecentIngredients(suggested)
+        }
+
+        return finalText
+    }
+
+    private func callBrainstormModel(prompt: String, model: String? = nil) async throws -> String {
         let payload: [String: Any] = [
-            "model": model,
+            "model": model ?? self.model,
             "maxTokens": 800,
             "messages": [["role": "user", "content": prompt]]
         ]
@@ -450,14 +495,95 @@ final class ClaudeAnalysisService {
               let text = content.first(where: { $0["type"] as? String == "text" })?["text"] as? String else {
             throw ClaudeServiceError.noContent
         }
-
-        // Remember the suggested ingredients so the next brainstorm avoids repeats.
-        let suggested = extractIngredients(from: text)
-        if !suggested.isEmpty {
-            saveRecentIngredients(suggested)
-        }
-
         return text
+    }
+
+    // MARK: - Brainstorm validation
+
+    private struct MacroLimits {
+        let roomCalories: Double
+        let roomProtein:  Double
+        let roomCarbs:    Double
+        let roomFat:      Double
+    }
+
+    fileprivate struct BrainstormViolation {
+        let suggestionIndex: Int
+        let macroName: String  // "calories", "protein", "carbs", "fat"
+        let actual:   Double
+        let allowed:  Double
+        let unit:     String   // " kcal" or "g"
+    }
+
+    fileprivate struct SuggestionMacros {
+        var calories: Double?
+        var protein:  Double?
+        var carbs:    Double?
+        var fat:      Double?
+    }
+
+    /// Splits the brainstorm response into numbered suggestions and parses the
+    /// estimated macros from each one. Returns any macros that exceed the
+    /// remaining room to the upper limit.
+    fileprivate func validateBrainstormText(_ text: String, against limits: MacroLimits) -> [BrainstormViolation] {
+        let suggestions = splitNumberedSuggestions(text)
+        // Tolerance: allow up to 5% slop on top of the computed room to avoid
+        // false positives from rounding in the model's macro estimates.
+        let tolerance = 1.05
+        var violations: [BrainstormViolation] = []
+        for (idx, suggestionText) in suggestions.enumerated() {
+            let macros = parseSuggestionMacros(from: suggestionText)
+            let i = idx + 1
+            if let c = macros.calories, c > limits.roomCalories * tolerance {
+                violations.append(.init(suggestionIndex: i, macroName: "calories", actual: c, allowed: limits.roomCalories, unit: " kcal"))
+            }
+            if let p = macros.protein, p > limits.roomProtein * tolerance {
+                violations.append(.init(suggestionIndex: i, macroName: "protein", actual: p, allowed: limits.roomProtein, unit: "g"))
+            }
+            if let cb = macros.carbs, cb > limits.roomCarbs * tolerance {
+                violations.append(.init(suggestionIndex: i, macroName: "carbs", actual: cb, allowed: limits.roomCarbs, unit: "g"))
+            }
+            if let f = macros.fat, f > limits.roomFat * tolerance {
+                violations.append(.init(suggestionIndex: i, macroName: "fat", actual: f, allowed: limits.roomFat, unit: "g"))
+            }
+        }
+        return violations
+    }
+
+    /// Splits text on leading "1." / "2." / "3." markers (possibly after a
+    /// newline) and returns the body of each numbered suggestion.
+    private func splitNumberedSuggestions(_ text: String) -> [String] {
+        let pattern = #"(?m)^\s*\d+\.\s"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let ns = text as NSString
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: ns.length))
+        guard !matches.isEmpty else { return [] }
+        var chunks: [String] = []
+        for (i, match) in matches.enumerated() {
+            let start = match.range.location + match.range.length
+            let end = i + 1 < matches.count ? matches[i + 1].range.location : ns.length
+            chunks.append(ns.substring(with: NSRange(location: start, length: end - start)))
+        }
+        return chunks
+    }
+
+    /// Extracts calories / protein / carbs / fat values from a suggestion's
+    /// body. Matches formats like "605 kcal", "42g protein", "55 g carbs".
+    private func parseSuggestionMacros(from text: String) -> SuggestionMacros {
+        var out = SuggestionMacros()
+        out.calories = firstNumericMatch(in: text, pattern: #"(\d+(?:\.\d+)?)\s*(?:kcal|cal\b|calories)"#)
+        out.protein  = firstNumericMatch(in: text, pattern: #"(\d+(?:\.\d+)?)\s*g\s*protein"#)
+        out.carbs    = firstNumericMatch(in: text, pattern: #"(\d+(?:\.\d+)?)\s*g\s*carb"#)
+        out.fat      = firstNumericMatch(in: text, pattern: #"(\d+(?:\.\d+)?)\s*g\s*fat"#)
+        return out
+    }
+
+    private func firstNumericMatch(in text: String, pattern: String) -> Double? {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return nil }
+        let ns = text as NSString
+        guard let match = regex.firstMatch(in: text, range: NSRange(location: 0, length: ns.length)),
+              match.numberOfRanges >= 2 else { return nil }
+        return Double(ns.substring(with: match.range(at: 1)))
     }
 
     // MARK: - Workout Voice Parse
