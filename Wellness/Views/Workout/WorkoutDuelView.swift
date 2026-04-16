@@ -260,7 +260,7 @@ struct WorkoutDuelView: View {
 
 // MARK: - EditWorkoutSheet
 
-private struct EditWorkoutSheet: View {
+struct EditWorkoutSheet: View {
     let entry:    WorkoutEntry
     let onSave:   (String, WorkoutType, Int, Int, Date, [Exercise]) -> Void
     var onDelete: (() -> Void)? = nil
@@ -275,7 +275,6 @@ private struct EditWorkoutSheet: View {
     @State private var loggedAt:         Date
     @State private var exercises:        [Exercise]
     @State private var showSaveError     = false
-    @State private var showDeleteConfirm = false
 
     private enum Field: Hashable { case name, duration, calories }
 
@@ -370,10 +369,11 @@ private struct EditWorkoutSheet: View {
                             .font(.caption)
                     }
                 }
-                if onDelete != nil {
+                if let onDelete {
                     Section {
                         Button(role: .destructive) {
-                            showDeleteConfirm = true
+                            onDelete()
+                            dismiss()
                         } label: {
                             HStack {
                                 Spacer()
@@ -383,13 +383,6 @@ private struct EditWorkoutSheet: View {
                         }
                     }
                 }
-            }
-            .confirmationDialog("Delete this workout?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
-                Button("Delete", role: .destructive) {
-                    onDelete?()
-                    dismiss()
-                }
-                Button("Cancel", role: .cancel) {}
             }
             .navigationTitle("Edit Workout")
             .navigationBarTitleDisplayMode(.inline)
@@ -510,7 +503,7 @@ private struct EditWorkoutSheet: View {
 
 // MARK: - WorkoutRow
 
-private struct WorkoutRow: View {
+struct WorkoutRow: View {
     let entry:    WorkoutEntry
     let accent:   Color
     let cardBg:   Color
@@ -541,6 +534,16 @@ private struct WorkoutRow: View {
                     Text("\(entry.formattedDuration) · \(entry.caloriesBurned) cal burned")
                         .font(.system(size: 12))
                         .foregroundStyle(.white.opacity(0.45))
+                    if let loc = entry.location, loc.isValid {
+                        HStack(spacing: 4) {
+                            Image(systemName: "mappin.and.ellipse")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text(loc.name)
+                                .font(.system(size: 11, weight: .semibold))
+                                .lineLimit(1)
+                        }
+                        .foregroundStyle(accent.opacity(0.85))
+                    }
                     if hasExercises {
                         Button {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {

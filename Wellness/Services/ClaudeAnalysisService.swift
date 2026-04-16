@@ -609,15 +609,33 @@ final class ClaudeAnalysisService {
         If the user mentions calories, use that number. Otherwise estimate accurately \
         based on workout type and duration for an average adult.
 
-        If the user describes specific exercises (e.g. "3 sets of 10 bench press at 135 pounds" \
-        or "pyramid bench: 10 at 135, 8 at 145, 6 at 155"), include them in an "exercises" array. \
-        Each exercise entry has: \
-        {"name": "Bench Press", "sets": [{"reps": 10, "weight": 135}, {"reps": 10, "weight": 135}, {"reps": 10, "weight": 135}]}. \
-        The "sets" array contains one object per set performed; if the user says "3 sets of 10 at 135", \
-        emit 3 identical set objects. If they describe pyramid/varying sets, emit each set's actual reps and weight. \
-        Set "weight" to null when the user does not mention a weight for that set. \
-        Always output weight in pounds (lb); if the user says kilograms, convert to pounds (1 kg ≈ 2.2046 lb) and round to the nearest pound. \
-        If the user doesn't mention any specific exercises, return an empty "exercises" array.
+        Always try to populate an "exercises" array — be helpful, the user can edit afterwards. \
+        Follow these rules, in priority order:
+
+        1. EXPLICIT SETS/REPS/WEIGHT. If the user gives specific details \
+           (e.g. "3 sets of 10 bench press at 135 pounds", or pyramids like \
+           "bench: 10 at 135, 8 at 145, 6 at 155"), emit those verbatim — one \
+           set object per set performed. If they say "3 sets of 10 at 135", \
+           emit 3 identical set objects.
+
+        2. FOCUS / BODY PART WORKOUTS. If the user only names the focus \
+           (e.g. "chest and triceps day", "leg workout", "push day", "back and \
+           biceps for 45 min"), INFER a plausible typical routine — 3 to 5 \
+           well-known exercises that match that focus and the duration. For \
+           each exercise, emit 3 sets of 10 reps with weight = null (don't \
+           guess weights). Duration ~30 min → ~3 exercises; ~45 min → ~4; \
+           ~60 min → ~5.
+
+        3. CARDIO / MIXED / VAGUE. If the activity has no distinct named \
+           movements (steady-state running, cycling, yoga, HIIT class, rest \
+           day, "just worked out"), return an empty "exercises" array.
+
+        Each exercise entry:
+        {"name": "Bench Press", "sets": [{"reps": 10, "weight": 135}, ...]}
+
+        Weight rules:
+        - "weight" is a number in pounds, or null if the user didn't give one (or for inferred routines).
+        - If the user says kilograms, convert to pounds (1 kg ≈ 2.2046 lb) and round to the nearest pound.
 
         User said: "\(transcript)"
 
@@ -627,7 +645,9 @@ final class ClaudeAnalysisService {
 
         let payload: [String: Any] = [
             "model": model,
-            "maxTokens": 600,
+            // 1200 tokens is comfortable headroom for an inferred routine
+            // of ~5 exercises × ~3 sets each (previously 600 could truncate).
+            "maxTokens": 1200,
             "messages": [["role": "user", "content": prompt]]
         ]
 

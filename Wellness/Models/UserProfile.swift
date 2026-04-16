@@ -53,6 +53,10 @@ struct UserProfile: Codable, Identifiable {
     var auraPopupsEnabled:    Bool
     var excludeDairy:         Bool
     var excludeGluten:        Bool
+    /// The user's selected accent color raw value (e.g. "purple", "orange").
+    /// Empty string when the user hasn't picked one — client falls back to
+    /// whatever's cached locally (or the default purple on a fresh install).
+    var accentColor:          String
     /// Comma-separated streak milestone days already awarded, e.g. "3,7,14".
     /// Synced to Firestore so milestones survive reinstalls and device switches.
     var achievedMilestones:   String
@@ -125,6 +129,7 @@ struct UserProfile: Codable, Identifiable {
         auraPopupsEnabled:    Bool     = true,
         excludeDairy:         Bool     = false,
         excludeGluten:        Bool     = false,
+        accentColor:          String   = "",
         achievedMilestones:   String   = "",
         goalsMetDates:        [String] = [],
         lastGoalsMetDate:     String   = "",
@@ -167,6 +172,7 @@ struct UserProfile: Codable, Identifiable {
         self.auraPopupsEnabled   = auraPopupsEnabled
         self.excludeDairy        = excludeDairy
         self.excludeGluten       = excludeGluten
+        self.accentColor         = accentColor
         self.achievedMilestones  = achievedMilestones
         self.goalsMetDates       = goalsMetDates
         self.lastGoalsMetDate    = lastGoalsMetDate
@@ -254,6 +260,7 @@ extension UserProfile {
             "tiktokHandle":    "",
             "dateOfBirth":     "",
             "gender":          "",
+            "accentColor":     "",
         ]
         for (key, value) in stringDefaults where data[key] == nil {
             data[key] = value

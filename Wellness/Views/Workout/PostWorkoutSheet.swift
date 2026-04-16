@@ -14,6 +14,9 @@ struct PostWorkoutSheet: View {
     let workoutType:     WorkoutType
     let durationMinutes: Int
     let caloriesBurned:  Int
+    /// Optional gym tagged at log time. Surfaces in the post's workout
+    /// item (visible in feed rows) and in the preview card here.
+    var gym:             WorkoutLocation? = nil
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss)      private var dismiss
@@ -97,17 +100,21 @@ struct PostWorkoutSheet: View {
 
     // MARK: - Aura Reward Banner
 
+    /// Gold palette for the aura reward — fixed hue (not the user's accent) so
+    /// the "+25 Aura" badge always reads as a reward regardless of theme.
+    private static let auraGold      = Color(red: 1.00, green: 0.82, blue: 0.25)
+    private static let auraGoldDeep  = Color(red: 0.95, green: 0.65, blue: 0.10)
+
     private var auraRewardBanner: some View {
         HStack(spacing: 10) {
             Image(systemName: "sparkles")
                 .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(accent)
+                .foregroundStyle(Self.auraGold)
 
             VStack(alignment: .leading, spacing: 2) {
                 if auraRewardAvailable {
-                    Text("Earn +\(Self.workoutPostAuraReward) Aura")
-                        .font(.system(size: 14, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
+                    shimmeringText("Earn +\(Self.workoutPostAuraReward) Aura",
+                                   font: .system(size: 14, weight: .black, design: .rounded))
                     Text("Post this workout to claim your points.")
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.55))
@@ -124,23 +131,33 @@ struct PostWorkoutSheet: View {
             Spacer(minLength: 8)
 
             if auraRewardAvailable {
-                Text("+\(Self.workoutPostAuraReward)")
-                    .font(.system(size: 15, weight: .black, design: .rounded))
-                    .foregroundStyle(accent)
+                shimmeringText("+\(Self.workoutPostAuraReward)",
+                               font: .system(size: 15, weight: .black, design: .rounded))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(accent.opacity(0.15), in: Capsule())
-                    .overlay(Capsule().stroke(accent.opacity(0.35), lineWidth: 0.75))
+                    .background(Self.auraGold.opacity(0.15), in: Capsule())
+                    .overlay(Capsule().stroke(Self.auraGold.opacity(0.55), lineWidth: 0.75))
             } else {
                 Image(systemName: "checkmark.seal.fill")
                     .font(.system(size: 18))
-                    .foregroundStyle(accent.opacity(0.6))
+                    .foregroundStyle(Self.auraGold.opacity(0.6))
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .background(cardBg, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.30), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Self.auraGold.opacity(0.40), lineWidth: 1))
+    }
+
+    /// Text with a diagonal shimmer highlight that sweeps left→right, producing
+    /// a subtle gold gleam. The base color is gold; the highlight is a near-white
+    /// gold-white that slides across the glyphs on a repeat loop.
+    @ViewBuilder
+    private func shimmeringText(_ string: String, font: Font) -> some View {
+        Text(string)
+            .font(font)
+            .foregroundStyle(Self.auraGold)
+            .modifier(AuraShimmerModifier(color: Self.auraGold))
     }
 
     // MARK: - Preview Card
@@ -174,6 +191,18 @@ struct PostWorkoutSheet: View {
                 statBadge(icon: "timer",             value: "\(durationMinutes) min",      color: ThemeStore.shared.accent)
                 statBadge(icon: "flame.fill",         value: "\(caloriesBurned) kcal",      color: Color(red: 1.00, green: 0.55, blue: 0.15))
                 statBadge(icon: workoutType.icon,     value: workoutType.shortLabel,        color: accent)
+            }
+
+            if let gym, gym.isValid {
+                HStack(spacing: 5) {
+                    Image(systemName: "mappin.and.ellipse")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(accent)
+                    Text(gym.name)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.80))
+                        .lineLimit(1)
+                }
             }
 
             if let img = photo {
@@ -325,7 +354,11 @@ struct PostWorkoutSheet: View {
             workoutType:     workoutType.rawValue,
             durationMinutes: durationMinutes,
             caloriesBurned:  caloriesBurned,
-            sortOrder:       0
+            sortOrder:       0,
+            gymName:         gym?.name      ?? "",
+            gymAddress:      gym?.address   ?? "",
+            gymLatitude:     gym?.latitude  ?? 0,
+            gymLongitude:    gym?.longitude ?? 0
         )
 
         let post = SocialPost(
@@ -420,5 +453,52 @@ struct PostWorkoutSheet: View {
 
         isPosting = false
         dismiss()
+    }
+}
+
+// MARK: - Aura Shimmer
+
+/// Overlays a diagonal, semi-transparent white "gleam" that travels across
+/// the masked text, repeating forever. Using `.mask(content)` confines the
+/// gleam to the glyphs so the surrounding card stays untouched.
+private struct AuraShimmerModifier: ViewModifier {
+    let color: Color
+
+    @State private var phase: CGFloat = -1.0
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(
+                GeometryReader { geo in
+                    let w = geo.size.width
+                    let gleamWidth = max(w * 0.55, 80)
+                    LinearGradient(
+                        stops: [
+                            .init(color: .white.opacity(0.00), location: 0.0),
+                            .init(color: .white.opacity(0.85), location: 0.5),
+                            .init(color: .white.opacity(0.00), location: 1.0),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .frame(width: gleamWidth)
+                    .blendMode(.plusLighter)
+                    // Move from just off-screen left to just off-screen right.
+                    .offset(x: phase * (w + gleamWidth) - gleamWidth / 2)
+                    .allowsHitTesting(false)
+                }
+                .mask(content)
+            )
+            .onAppear {
+                // Kick off the sweep and repeat forever. A short delay keeps
+                // the first frame clean (otherwise the shimmer flashes at t=0).
+                withAnimation(
+                    .linear(duration: 2.4)
+                        .repeatForever(autoreverses: false)
+                        .delay(0.2)
+                ) {
+                    phase = 1.0
+                }
+            }
     }
 }

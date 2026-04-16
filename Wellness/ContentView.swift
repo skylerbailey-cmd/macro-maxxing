@@ -328,24 +328,24 @@ private struct QuickActionFAB: View {
     let onFindPeople: () -> Void
 
 
-    private var gold: Color { ThemeStore.shared.accent }
-    private var purpl: Color { ThemeStore.shared.accent }
-    private let teal   = Color(red: 0.20, green: 0.80, blue: 0.70)
-    private let green  = Color(red: 0.30, green: 0.90, blue: 0.55)
+    /// Color used for the main FAB and the expanded action pills — follows
+    /// the user's accent so the plus button feels cohesive with the rest of
+    /// the app's chrome.
+    private var accent: Color { ThemeStore.shared.accent }
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 10) {
             if expanded {
-                actionPill(icon: "flame.fill", label: "Log a Meal", color: purpl,
+                actionPill(icon: "flame.fill", label: "Log a Meal", color: accent,
                            action: onLogMeal)
 
                 actionPill(icon: "figure.strengthtraining.traditional", label: "Log a Workout",
-                           color: green, action: onLogWorkout)
+                           color: accent, action: onLogWorkout)
 
-                actionPill(icon: "square.and.pencil", label: "Make a Post", color: gold,
+                actionPill(icon: "square.and.pencil", label: "Make a Post", color: accent,
                            action: onMakePost)
 
-                actionPill(icon: "person.2.fill", label: "Find People", color: teal,
+                actionPill(icon: "person.2.fill", label: "Find People", color: accent,
                            action: onFindPeople)
             }
 
@@ -361,13 +361,16 @@ private struct QuickActionFAB: View {
                             LinearGradient(
                                 colors: expanded
                                     ? [Color.cardBg, Color.cardBgDeep]
-                                    : [gold, gold.opacity(0.80)],
+                                    : [accent, accent.opacity(0.80)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
                         .frame(width: 56, height: 56)
-                        .shadow(color: expanded ? .clear : gold.opacity(0.45), radius: 14, x: 0, y: 4)
+                        .overlay(
+                            Circle().stroke(Color.black, lineWidth: 2)
+                        )
+                        .shadow(color: expanded ? .clear : accent.opacity(0.45), radius: 14, x: 0, y: 4)
 
                     Image(systemName: "plus")
                         .font(.system(size: 22, weight: .bold))

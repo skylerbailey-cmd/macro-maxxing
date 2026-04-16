@@ -808,6 +808,14 @@ struct AuraGain: Identifiable, Equatable {
         auraPopupsEnabled = profile.auraPopupsEnabled
         excludeDairy      = profile.excludeDairy
         excludeGluten     = profile.excludeGluten
+        // Sync accent color from Firestore so a fresh device picks up the
+        // user's previous choice. Empty string = never-set → leave whatever
+        // UserDefaults had (or the default purple for a brand-new install).
+        if !profile.accentColor.isEmpty {
+            Task { @MainActor in
+                ThemeStore.shared.applyRemoteAccent(profile.accentColor)
+            }
+        }
         // Merge achieved milestones from Firestore with any local values
         if !profile.achievedMilestones.isEmpty {
             var local = achievedMilestones   // existing local Set<Int>

@@ -39,13 +39,8 @@ struct FastingTimelineView: View {
         return result
     }
 
-    // True if any meal was logged outside the eating window
-    private var hasOutOfWindowMeal: Bool {
-        mealLogTimes.contains { $0 < windowStart || $0 > windowEnd }
-    }
-
     private var eatingWindowColor: Color {
-        hasOutOfWindowMeal ? Color.orange.opacity(0.80) : Color.green.opacity(0.75)
+        Color.green.opacity(0.75)
     }
 
     var body: some View {
@@ -69,16 +64,17 @@ struct FastingTimelineView: View {
                     .lineStyle(StrokeStyle(lineWidth: 2))
             }
 
-            // Current time indicator
+            // Current time indicator — uses the user's accent color so it
+            // stays visually tied to the rest of the app's chrome.
             let now = currentFractionalHour
             if now >= 0 && now <= 24 {
                 RuleMark(x: .value("Now", now))
-                    .foregroundStyle(.red.opacity(0.85))
+                    .foregroundStyle(ThemeStore.shared.accent.opacity(0.85))
                     .lineStyle(StrokeStyle(lineWidth: 2, dash: [4, 3]))
                     .annotation(position: .top, alignment: .center, spacing: 2) {
                         Text("Now")
                             .font(.caption2)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(ThemeStore.shared.accent)
                     }
             }
         }

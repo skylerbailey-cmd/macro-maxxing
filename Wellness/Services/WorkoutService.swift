@@ -36,7 +36,7 @@ final class WorkoutService {
                 "sets": setDicts
             ]
         }
-        let data: [String: Any] = [
+        var data: [String: Any] = [
             "workoutID":          entry.workoutID,
             "name":               entry.name,
             "workoutType":        entry.workoutType.rawValue,
@@ -46,6 +46,14 @@ final class WorkoutService {
             "adjustmentApplied":  entry.adjustmentApplied,
             "exercises":          exerciseDicts
         ]
+        // Tagged gym/location (optional) — only written when the user
+        // actually tagged one, so older docs stay small and untagged.
+        if let loc = entry.location, loc.isValid {
+            data["gymName"]      = loc.name
+            data["gymAddress"]   = loc.address
+            data["gymLatitude"]  = loc.latitude
+            data["gymLongitude"] = loc.longitude
+        }
         try await db.collection("users").document(userID)
             .collection("workoutEntries").document(entry.workoutID)
             .setData(data)
@@ -56,10 +64,16 @@ final class WorkoutService {
     // MARK: - Fetch
 
     func fetch(userID: String, date: Date) async throws -> [WorkoutEntry] {
-        guard !userID.isEmpty else { return [] }
         let cal   = Calendar.current
         let start = cal.startOfDay(for: date)
         let end   = cal.date(byAdding: .day, value: 1, to: start)!
+        return try await fetchRange(userID: userID, from: start, to: end)
+    }
+
+    /// Fetches all workouts in `[start, end)` for the user, sorted most-recent
+    /// first. Used by the Hub tab's workouts card to build weekly aggregates.
+    func fetchRange(userID: String, from start: Date, to end: Date) async throws -> [WorkoutEntry] {
+        guard !userID.isEmpty else { return [] }
 
         let snapshot = try await db.collection("users").document(userID)
             .collection("workoutEntries")
@@ -110,10 +124,29 @@ final class WorkoutService {
                 }
                 return Exercise(id: exID, name: exName, sets: sets)
             }
+            // Optional tagged gym — absent from older docs, so every field is tolerated.
+            let gymName = (d["gymName"] as? String) ?? ""
+            let location: WorkoutLocation? = {
+                guard !gymName.isEmpty else { return nil }
+                let addr = (d["gymAddress"] as? String) ?? ""
+                let lat: Double = {
+                    if let v = d["gymLatitude"]  as? Double   { return v }
+                    if let v = d["gymLatitude"]  as? NSNumber { return v.doubleValue }
+                    return 0
+                }()
+                let lng: Double = {
+                    if let v = d["gymLongitude"] as? Double   { return v }
+                    if let v = d["gymLongitude"] as? NSNumber { return v.doubleValue }
+                    return 0
+                }()
+                return WorkoutLocation(name: gymName, address: addr,
+                                       latitude: lat, longitude: lng)
+            }()
+
             return WorkoutEntry(workoutID: wid, name: name, workoutType: wType,
                                 durationMinutes: duration, caloriesBurned: calories,
                                 loggedAt: ts.dateValue(), adjustmentApplied: adjApplied,
-                                exercises: exercises)
+                                exercises: exercises, location: location)
         }
         .sorted { $0.loggedAt > $1.loggedAt }
     }

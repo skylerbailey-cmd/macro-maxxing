@@ -102,6 +102,8 @@ struct WorkoutEntry: Identifiable {
     var loggedAt:           Date
     var adjustmentApplied:  Bool
     var exercises:          [Exercise]
+    /// Optional gym/location tag. `nil` when the user didn't tag a place.
+    var location:           WorkoutLocation?
 
     var id: String { workoutID }
 
@@ -112,7 +114,8 @@ struct WorkoutEntry: Identifiable {
          caloriesBurned:    Int,
          loggedAt:          Date        = Date(),
          adjustmentApplied: Bool        = false,
-         exercises:         [Exercise]  = []) {
+         exercises:         [Exercise]  = [],
+         location:          WorkoutLocation? = nil) {
         self.workoutID          = workoutID
         self.name               = name
         self.workoutType        = workoutType
@@ -121,6 +124,7 @@ struct WorkoutEntry: Identifiable {
         self.loggedAt           = loggedAt
         self.adjustmentApplied  = adjustmentApplied
         self.exercises          = exercises
+        self.location           = location
     }
 
     var formattedDuration: String {

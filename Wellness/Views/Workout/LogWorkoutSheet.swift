@@ -29,6 +29,10 @@ struct LogWorkoutSheet: View {
     // Optional per-exercise detail (name / sets / reps / weight)
     @State private var exercises: [Exercise] = []
 
+    // Optional tagged gym/place. nil means untagged.
+    @State private var selectedGym: WorkoutLocation? = nil
+    @State private var showingGymPicker = false
+
     /// True once the calories field holds a specific value the user (or AI /
     /// saved template / prefill) wants preserved. While this is false, the
     /// calories field tracks the live estimate as duration or type change.
@@ -55,6 +59,7 @@ struct LogWorkoutSheet: View {
     @State private var savedWorkoutType     = WorkoutType.strength
     @State private var savedDuration        = 0
     @State private var savedCalories        = 0
+    @State private var savedGym:             WorkoutLocation? = nil
 
     // MARK: - Sub-types
 
@@ -87,6 +92,7 @@ struct LogWorkoutSheet: View {
             _logTime         = State(initialValue: e.loggedAt)
             _applyAdjustment = State(initialValue: e.adjustmentApplied)
             _exercises       = State(initialValue: e.exercises)
+            _selectedGym     = State(initialValue: e.location)
             _caloriesEdited  = State(initialValue: true)
         } else {
             let oneHourAgo = Date().addingTimeInterval(-60 * 60)
@@ -195,7 +201,8 @@ struct LogWorkoutSheet: View {
                     workoutName:     savedWorkoutName,
                     workoutType:     savedWorkoutType,
                     durationMinutes: savedDuration,
-                    caloriesBurned:  savedCalories
+                    caloriesBurned:  savedCalories,
+                    gym:             savedGym
                 )
             }
         }
@@ -262,10 +269,69 @@ struct LogWorkoutSheet: View {
                 field(label: "Calories Burned", placeholder: "\(estimatedCaloriesPlaceholder)", text: caloriesFieldBinding, keyboardType: .numberPad)
             }
             exercisesSection
+            gymRow
             timePickerRow
         }
         .onChange(of: workoutType)  { _, _ in autoFillCaloriesIfNeeded() }
         .onChange(of: durationText) { _, _ in autoFillCaloriesIfNeeded() }
+    }
+
+    /// Inline gym tag row — compact card that shows "Tag a gym" when empty,
+    /// or the selected gym's name (and optional address) when set. Tap opens
+    /// the `GymPickerView` sheet.
+    private var gymRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Gym / Location")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.45))
+
+            Button { showingGymPicker = true } label: {
+                HStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(accent.opacity(0.16))
+                            .frame(width: 28, height: 28)
+                        Image(systemName: "mappin.and.ellipse")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(accent)
+                    }
+                    if let gym = selectedGym {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(gym.name)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                            if !gym.address.isEmpty {
+                                Text(gym.address)
+                                    .font(.caption2)
+                                    .foregroundStyle(.white.opacity(0.45))
+                                    .lineLimit(1)
+                            }
+                        }
+                    } else {
+                        Text("Tag a gym")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.35))
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10)
+                    .stroke(accent.opacity(0.20), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+        }
+        .sheet(isPresented: $showingGymPicker) {
+            GymPickerView(current: selectedGym) { picked in
+                selectedGym = picked
+            }
+            .presentationDetents([.large])
+        }
     }
 
     private func field(label: String, placeholder: String, text: Binding<String>,
@@ -307,7 +373,7 @@ struct LogWorkoutSheet: View {
                 } label: {
                     PulsingMicButton(
                         isRecording: speechRecognizer.status == .recording,
-                        accent: accent,
+                        accent: .premiumGold,
                         background: pageBg
                     )
                 }
@@ -937,7 +1003,8 @@ struct LogWorkoutSheet: View {
             caloriesBurned:     calories,
             loggedAt:           loggedAt,
             adjustmentApplied:  applyAdjustment,
-            exercises:          cleanedExercises
+            exercises:          cleanedExercises,
+            location:           selectedGym
         )
         do {
             try await WorkoutService.shared.save(entry: entry, userID: userID)
@@ -964,6 +1031,7 @@ struct LogWorkoutSheet: View {
             savedWorkoutType  = workoutType
             savedDuration     = duration
             savedCalories     = calories
+            savedGym          = selectedGym
             isSaving          = false
             // Skip the post prompt when editing an existing workout
             if editingEntry != nil {

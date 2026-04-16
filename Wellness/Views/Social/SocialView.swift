@@ -1098,6 +1098,16 @@ struct PostCard: View {
                     Text("\(item.formattedDuration) · \(typeLabel)")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.40))
+                    if !item.gymName.isEmpty {
+                        HStack(spacing: 3) {
+                            Image(systemName: "mappin.and.ellipse")
+                                .font(.system(size: 9, weight: .semibold))
+                            Text(item.gymName)
+                                .font(.system(size: 11, weight: .semibold))
+                                .lineLimit(1)
+                        }
+                        .foregroundStyle(socialWorkoutGreen.opacity(0.80))
+                    }
                 }
                 Spacer()
                 Text("\(item.caloriesBurned) cal")

@@ -48,7 +48,12 @@ struct FoodLogView: View {
         }
     }
 
-    @State private var logTab = 0     // 0 = Fuel, 1 = Duel
+    // Timeline filter (replaces the old Fuel/Duel sub-tabs)
+
+    // Workout entries for the selected day — fetched alongside food entries so
+    // the unified timeline can show meals and workouts together.
+    @State private var workoutEntries: [WorkoutEntry] = []
+    @State private var editingWorkout: WorkoutEntry? = nil
 
     // Eating window state (mirrors UserDefaults written by HomeViewModel)
     @State private var wStartHour: Int = UserDefaults.standard.integer(forKey: "windowStartHour")
@@ -133,7 +138,11 @@ struct FoodLogView: View {
                 }
             }
             .onChange(of: externalImage, handleExternalImage)
-            .onChange(of: openLogMealTrigger) { _, trigger in
+            // `initial: true` fires the handler once when FoodLogView first
+            // subscribes — covers the case where the FAB set the trigger to
+            // `true` before this tab existed in the view hierarchy (tab
+            // switch + flag flip happen in the same runloop pass).
+            .onChange(of: openLogMealTrigger, initial: true) { _, trigger in
                 if trigger {
                     activeMealSheet = .analysis
                     openLogMealTrigger = false
@@ -196,29 +205,23 @@ struct FoodLogView: View {
     }
 
     // MARK: - Main Content
-    
+
     private var mainContent: some View {
         ZStack {
             Color.pageBg.ignoresSafeArea()
-            
+
             VStack(spacing: 0) {
                 headerView
-                
+
                 DateNavigatorView(selectedDate: $selectedDate)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                
-                logTabBar
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 4)
-                    .tutorialAnchor("log.tabBar")
 
-                // Banner ad below Fuel/Duel tabs
                 ConditionalBannerAd(isEnabled: RemoteConfigService.shared.logTabBannerEnabled)
 
-                tabContent
+                dayViewContent
             }
-            
+
             tutorialOverlay
         }
     }
@@ -226,7 +229,7 @@ struct FoodLogView: View {
     // MARK: - Header
     
     private var headerView: some View {
-        HStack {
+        HStack(alignment: .firstTextBaseline) {
             Text("Fuel Log")
                 .font(.system(size: 22, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
@@ -237,7 +240,7 @@ struct FoodLogView: View {
         .padding(.top, 8)
         .padding(.bottom, 4)
     }
-    
+
     private var headerButtons: some View {
         HStack(spacing: 14) {
             Button { showingTutorial = true } label: {
@@ -259,30 +262,18 @@ struct FoodLogView: View {
         }
     }
     
-    // MARK: - Tab Content
-    
-    @ViewBuilder
-    private var tabContent: some View {
-        if logTab == 0 {
-            fuelTabContent
-        } else {
-            duelTab
-        }
-    }
-    
-    private var fuelTabContent: some View {
-        ScrollView {
-            LazyVStack(spacing: 10) {
-                if isToday && userSettings.fastingEnabled {
-                    eatingWindowCard
-                }
+    // MARK: - Day View Content
 
-                foodEntriesContent
-                
+    private var dayViewContent: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                timelineSection
+                    .padding(.top, 6)
+
                 if !isEditableDate {
                     pastDateNotice
                 }
-                
+
                 analyzeSection
                     .padding(.top, 8)
                     .tutorialAnchor("log.nutritionCoach")
@@ -291,31 +282,190 @@ struct FoodLogView: View {
             .padding(.top, 4)
             .padding(.bottom, 100)
         }
+        .task(id: selectedDate) { await loadWorkouts() }
+        .onReceive(NotificationCenter.default.publisher(for: WorkoutService.workoutSavedNotification)) { _ in
+            Task { await loadWorkouts() }
+        }
+        .sheet(item: $editingWorkout) { entry in
+            EditWorkoutSheet(entry: entry, onSave: { name, type, duration, calories, time, exercises in
+                Task {
+                    var updated = entry
+                    updated.name            = name
+                    updated.workoutType     = type
+                    updated.durationMinutes = duration
+                    updated.caloriesBurned  = calories
+                    updated.loggedAt        = time
+                    updated.exercises       = exercises
+                    try? await WorkoutService.shared.save(entry: updated, userID: userSettings.userID)
+                    await loadWorkouts()
+                }
+            }, onDelete: {
+                Task {
+                    await WorkoutService.shared.delete(workoutID: entry.workoutID, userID: userSettings.userID)
+                    workoutEntries.removeAll { $0.workoutID == entry.workoutID }
+                    if isToday { MacroAdjustmentEngine.revert() }
+                }
+            })
+        }
     }
-    
-    @ViewBuilder
-    private var foodEntriesContent: some View {
-        if viewModel.todayEntries.isEmpty {
-            emptyState
-        } else {
-            Text("\(viewModel.todayEntries.count) Meal\(viewModel.todayEntries.count == 1 ? "" : "s")")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.30))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 2)
-            
-            ForEach(viewModel.todayEntries) { entry in
-                FoodEntryRow(entry: entry,
-                             onEdit:      isEditableDate ? { editingEntry = entry } : {},
-                             onDelete:    { viewModel.deleteEntry(entry) },
-                             onDuplicate: isEditableDate ? { viewModel.duplicateEntry(entry) } : nil,
-                             canEdit:     isEditableDate,
-                             syncState:   viewModel.syncState(for: entry),
-                             onRetry:     { viewModel.retrySync(entry) })
+
+    private func loadWorkouts() async {
+        workoutEntries = (try? await WorkoutService.shared.fetch(userID: userSettings.userID, date: selectedDate)) ?? []
+    }
+
+    // MARK: - Timeline (unified meals + workouts)
+
+    /// One entry in the merged timeline — sorted by `loggedAt` descending.
+    private enum TimelineItem: Identifiable {
+        case meal(FoodEntry)
+        case workout(WorkoutEntry)
+
+        var id: String {
+            switch self {
+            case .meal(let e):    return "m-\(e.id.uuidString)"
+            case .workout(let e): return "w-\(e.workoutID)"
+            }
+        }
+        var loggedAt: Date {
+            switch self {
+            case .meal(let e):    return e.loggedAt
+            case .workout(let e): return e.loggedAt
             }
         }
     }
-    
+
+    private var timelineItems: [TimelineItem] {
+        let meals    = viewModel.todayEntries.map(TimelineItem.meal)
+        let workouts = workoutEntries.map(TimelineItem.workout)
+        return (meals + workouts).sorted { $0.loggedAt > $1.loggedAt }
+    }
+
+    /// Timeline layout:
+    ///  - Both meals AND workouts present → grouped with MEALS / WORKOUTS headers.
+    ///  - Only one type present → flat list (no header needed to "separate" one thing).
+    ///  - Neither present → empty state.
+    private var timelineSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if isToday && userSettings.fastingEnabled {
+                eatingWindowCard
+            }
+
+            if timelineItems.isEmpty {
+                timelineEmptyState
+            } else {
+                timelineCountLabel
+                    .tutorialAnchor("log.tabBar")
+
+                if !viewModel.todayEntries.isEmpty, !workoutEntries.isEmpty {
+                    groupedTimeline
+                } else {
+                    ForEach(timelineItems) { item in
+                        timelineRow(item)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Both-types view — meals section first, workouts second. Each
+    /// section is sorted newest → oldest within itself.
+    private var groupedTimeline: some View {
+        let meals    = viewModel.todayEntries.sorted { $0.loggedAt > $1.loggedAt }
+        let workouts = workoutEntries.sorted        { $0.loggedAt > $1.loggedAt }
+        return VStack(alignment: .leading, spacing: 10) {
+            sectionHeader(title: "MEALS", count: meals.count)
+            ForEach(meals) { entry in
+                timelineRow(.meal(entry))
+            }
+
+            sectionHeader(title: "WORKOUTS", count: workouts.count)
+                .padding(.top, 6)
+            ForEach(workouts) { entry in
+                timelineRow(.workout(entry))
+            }
+        }
+    }
+
+    private func sectionHeader(title: String, count: Int) -> some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 11, weight: .black))
+                .tracking(1.5)
+                .foregroundStyle(.white.opacity(0.45))
+            Text("\(count)")
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.50))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 1.5)
+                .background(Color.white.opacity(0.06), in: Capsule())
+            Rectangle()
+                .fill(Color.white.opacity(0.08))
+                .frame(height: 1)
+        }
+        .padding(.top, 4)
+    }
+
+    @ViewBuilder
+    private func timelineRow(_ item: TimelineItem) -> some View {
+        switch item {
+        case .meal(let entry):
+            FoodEntryRow(entry: entry,
+                         onEdit:      isEditableDate ? { editingEntry = entry } : {},
+                         onDelete:    { viewModel.deleteEntry(entry) },
+                         onDuplicate: isEditableDate ? { viewModel.duplicateEntry(entry) } : nil,
+                         canEdit:     isEditableDate,
+                         syncState:   viewModel.syncState(for: entry),
+                         onRetry:     { viewModel.retrySync(entry) })
+        case .workout(let entry):
+            WorkoutRow(
+                entry:  entry,
+                accent: ThemeStore.shared.accent,
+                cardBg: Color.cardBg,
+                onEdit:   { if isEditableDate { editingWorkout = entry } },
+                onDelete: {
+                    Task {
+                        await WorkoutService.shared.delete(workoutID: entry.workoutID, userID: userSettings.userID)
+                        workoutEntries.removeAll { $0.workoutID == entry.workoutID }
+                        if isToday { MacroAdjustmentEngine.revert() }
+                    }
+                }
+            )
+        }
+    }
+
+    private var timelineCountLabel: some View {
+        let meals    = viewModel.todayEntries.count
+        let workouts = workoutEntries.count
+        return Text("\(meals) meal\(meals == 1 ? "" : "s") · \(workouts) workout\(workouts == 1 ? "" : "s")")
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(.white.opacity(0.30))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 2)
+    }
+
+    private var timelineEmptyState: some View {
+        VStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Color.purpleHi.opacity(0.10))
+                    .frame(width: 72, height: 72)
+                Image(systemName: "sparkles")
+                    .font(.system(size: 30))
+                    .foregroundStyle(Color.purpleHi.opacity(0.45))
+            }
+            VStack(spacing: 4) {
+                Text("Nothing logged yet")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.65))
+                Text("Tap the + button below to log one.")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.32))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+    }
+
     private var pastDateNotice: some View {
         HStack(spacing: 6) {
             Image(systemName: "lock.fill")
@@ -519,33 +669,6 @@ struct FoodLogView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Empty state (compact, inline in scroll)
-
-    private var emptyState: some View {
-        VStack(spacing: 18) {
-            ZStack {
-                Circle()
-                    .fill(Color.purpleHi.opacity(0.10))
-                    .frame(width: 84, height: 84)
-                Image(systemName: "fork.knife.circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundStyle(Color.purpleHi.opacity(0.45))
-            }
-            VStack(spacing: 6) {
-                Text("No fuel logged")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.65))
-                Text("Tap the + button below\nto log your first meal.")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.32))
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(2)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 48)
-    }
-
     // MARK: - Log Meals (AI Nutrition Coach) section
 
     @State private var showLogMealsConfirm = false
@@ -618,11 +741,13 @@ struct FoodLogView: View {
                     }
                 }
                 .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.black)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
             }
             .buttonStyle(.borderedProminent)
-            .tint(analyzeVM.hasRunToday && aiSubscription.isSubscribed ? .gray : Color.purpleHi)
+            .tint(analyzeVM.hasRunToday && aiSubscription.isSubscribed ? .gray : Color.premiumGold)
+            .shimmering(cornerRadius: 10)
             .disabled(aiSubscription.isSubscribed && (analyzeVM.state == .analyzing || analyzeVM.hasRunToday))
             .alert("Get My Recommendation?", isPresented: $showLogMealsConfirm) {
                 Button("Let's Go", role: .none) {
@@ -797,50 +922,6 @@ struct FoodLogView: View {
         }
     }
 
-    // MARK: - Fuel / Duel tab bar
-
-    private var logTabBar: some View {
-        HStack(spacing: 0) {
-            logTabButton(title: "Fuel",  tag: 0)
-            logTabButton(title: "Duel",  tag: 1)
-        }
-        .background(Color.cardBg)
-        .clipShape(Capsule())
-        .overlay(Capsule().stroke(Color.purpleHi.opacity(0.15), lineWidth: 1))
-    }
-
-    private func logTabButton(title: String, tag: Int) -> some View {
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) { logTab = tag }
-        } label: {
-            Text(title)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(logTab == tag ? .black : .white.opacity(0.45))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(
-                    logTab == tag
-                        ? Color.purpleHi
-                        : Color.clear,
-                    in: Capsule()
-                )
-                .padding(3)
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Duel tab
-
-    private var duelTab: some View {
-        WorkoutDuelView(
-            userID:              userSettings.userID,
-            selectedDate:        selectedDate,
-            isToday:             isToday,
-            bodyWeightLbs:       userSettings.currentWeight,
-            autoAdjustByDefault: userSettings.autoAdjustMacrosForWorkout,
-            userSettings:        userSettings
-        )
-    }
 }
 
 // MARK: - Analysis Sheet

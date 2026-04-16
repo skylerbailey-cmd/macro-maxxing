@@ -29,6 +29,21 @@ struct HomeView: View {
     @State private var showingStreakExtension = false
     @State private var showingAIPaywall       = false
     @State private var aiSubscription = AISubscriptionStore.shared
+    /// Whether the macros section is showing the full 2×2 grid. When false,
+    /// a single summary card stands in with four mini gauges. Tapping the
+    /// summary expands it; the chevron in the expanded header collapses it.
+    @State private var macrosExpanded = false
+
+    /// Whether the workouts card is showing its full detail view (7-day dot
+    /// strip + weekly aggregates + recent workouts list) instead of the
+    /// compact half-width summary.
+    @State private var workoutsExpanded = false
+
+    /// Recent workouts (last 14 days) used to build the weekly summary and
+    /// the recent-workouts list in the expanded card. Refreshed on appear,
+    /// on scene foregrounding, and after a workout is saved elsewhere in the
+    /// app.
+    @State private var recentWorkouts: [WorkoutEntry] = []
 
     private enum BrainstormAlert: Identifiable {
         case confirm, limitReached
@@ -115,6 +130,9 @@ struct HomeView: View {
             .onReceive(NotificationCenter.default.publisher(for: MacroAdjustmentEngine.macroAdjustedNotification)) { _ in
                 viewModel.reloadGoalsFromDefaults()
             }
+            .onReceive(NotificationCenter.default.publisher(for: WorkoutService.workoutSavedNotification)) { _ in
+                Task { await loadRecentWorkouts() }
+            }
             .onChange(of: selectedDate) { _, newDate in handleDateChange(newDate) }
             .onChange(of: viewModel.userSettings.macroStreak) { _, newStreak in
                 // Update immediately when populate(from:) loads the streak from Firestore
@@ -131,6 +149,10 @@ struct HomeView: View {
                     lastLoadedDay = today
                     Task { viewModel.loadTodayTotals() }
                 }
+                // Refresh the workouts card whenever we foreground — cheap
+                // and covers the case where a workout was logged while the
+                // Hub wasn't on screen.
+                Task { await loadRecentWorkouts() }
             }
         
         let contentWithGoalChanges = contentWithModifiers
@@ -538,6 +560,8 @@ struct HomeView: View {
             await aiSubscription.loadProduct()
             await aiSubscription.refreshEntitlement()
         }
+        // Workouts card data — 14-day window for weekly aggregates + recent list.
+        Task { await loadRecentWorkouts() }
     }
     
     private func handleDateChange(_ newDate: Date) {
@@ -599,15 +623,6 @@ struct HomeView: View {
                     .font(.system(size: 20, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
                 Spacer()
-                let met = viewModel.macrosMetToday
-                let macroColor: Color = met == 4 ? Color.macroMint : met >= 2 ? .orange : .red
-                Text("\(met)/4 macros")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(macroColor)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4)
-                    .background(macroColor.opacity(0.14))
-                    .cornerRadius(8)
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("DISCIPLINE")
                         .font(.system(size: 9, weight: .bold))
@@ -674,31 +689,583 @@ struct HomeView: View {
         return sum / Double(active.count)
     }
 
+    /// Layout rule: when BOTH cards are collapsed they share a row as
+    /// half-width siblings. As soon as either one expands we break out of
+    /// that row and stack both sections vertically full-width — that way we
+    /// never leave a half-width summary floating next to empty space.
+    /// Layout rule: when both tiles are collapsed they share a row as
+    /// half-width siblings. When one is expanded, it takes the full width
+    /// and the other tile is hidden entirely — keeps focus on what the
+    /// user just opened without a floating summary card next to it.
     private var macrosSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                MacroGaugeCard(label: "Calories", value: viewModel.totalCalories,
-                               goal: viewModel.displayGoalCalories, unit: "kcal",
-                               format: "%.0f", color: .orange,
-                               action: { selectedMacro = .calories },
-                               rangeText: caloriesRange)
-                MacroGaugeCard(label: "Protein",  value: viewModel.totalProtein,
-                               goal: viewModel.displayGoalProtein,  unit: "g",
-                               format: "%.0f", color: .macroBlue,
-                               action: { selectedMacro = .protein },
-                               rangeText: minRange(viewModel.displayGoalProtein))
-                MacroGaugeCard(label: "Carbs",    value: viewModel.totalCarbs,
-                               goal: viewModel.displayGoalCarbs,    unit: "g",
-                               format: "%.0f", color: .macroMint,
-                               action: { selectedMacro = .carbs },
-                               rangeText: minRange(viewModel.displayGoalCarbs))
-                MacroGaugeCard(label: "Fat",      value: viewModel.totalFat,
-                               goal: viewModel.displayGoalFat,      unit: "g",
-                               format: "%.0f", color: .macroRose,
-                               action: { selectedMacro = .fat },
-                               rangeText: minRange(viewModel.displayGoalFat))
+            if macrosExpanded {
+                macrosExpandedHeader
+                macrosGrid
+                    .tutorialAnchor("hub.macros")
+                    .transition(cardTransition)
+            } else if workoutsExpanded {
+                workoutsExpandedView
+                    .transition(cardTransition)
+            } else {
+                // `maxHeight: .infinity` on each card + `fixedSize(vertical:)`
+                // on the HStack makes both cards grow to match the taller
+                // sibling — so the macros and workouts tiles stay the same
+                // size regardless of their individual content height.
+                HStack(alignment: .top, spacing: 12) {
+                    macroSummaryCard(compact: true)
+                        .tutorialAnchor("hub.macros")
+                        .frame(maxHeight: .infinity)
+                    workoutSummaryCard(compact: true)
+                        .frame(maxHeight: .infinity)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .transition(cardTransition)
             }
-            .tutorialAnchor("hub.macros")
+        }
+    }
+
+    private var cardTransition: AnyTransition {
+        .asymmetric(
+            insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .top)),
+            removal:   .opacity.combined(with: .scale(scale: 0.96, anchor: .top))
+        )
+    }
+
+    private var macrosExpandedHeader: some View {
+        HStack {
+            Text("MACROS")
+                .font(.system(size: 11, weight: .black))
+                .tracking(1.5)
+                .foregroundStyle(.white.opacity(0.40))
+            Spacer()
+            Button {
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+                    macrosExpanded = false
+                }
+            } label: {
+                Image(systemName: "chevron.up")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.60))
+                    .frame(width: 24, height: 24)
+                    .background(Color.white.opacity(0.06), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Collapse macros")
+        }
+    }
+
+    private var macrosGrid: some View {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+            MacroGaugeCard(label: "Calories", value: viewModel.totalCalories,
+                           goal: viewModel.displayGoalCalories, unit: "kcal",
+                           format: "%.0f", color: .orange,
+                           action: { selectedMacro = .calories },
+                           rangeText: caloriesRange)
+            MacroGaugeCard(label: "Protein",  value: viewModel.totalProtein,
+                           goal: viewModel.displayGoalProtein,  unit: "g",
+                           format: "%.0f", color: .macroBlue,
+                           action: { selectedMacro = .protein },
+                           rangeText: minRange(viewModel.displayGoalProtein))
+            MacroGaugeCard(label: "Carbs",    value: viewModel.totalCarbs,
+                           goal: viewModel.displayGoalCarbs,    unit: "g",
+                           format: "%.0f", color: .macroMint,
+                           action: { selectedMacro = .carbs },
+                           rangeText: minRange(viewModel.displayGoalCarbs))
+            MacroGaugeCard(label: "Fat",      value: viewModel.totalFat,
+                           goal: viewModel.displayGoalFat,      unit: "g",
+                           format: "%.0f", color: .macroRose,
+                           action: { selectedMacro = .fat },
+                           rangeText: minRange(viewModel.displayGoalFat))
+        }
+    }
+
+    /// - Parameter compact: When `true`, renders in a half-width layout with
+    ///   a 2×2 mini-gauge grid (used when it sits next to the workouts card).
+    ///   When `false`, renders full-width with all four gauges in a single
+    ///   row (used when the workouts card is expanded below it).
+    private func macroSummaryCard(compact: Bool) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+                macrosExpanded = true
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Text(compact ? "MACROS" : "TODAY'S MACROS")
+                        .font(.system(size: 11, weight: .black))
+                        .tracking(1.5)
+                        .foregroundStyle(.white.opacity(0.40))
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+
+                if compact {
+                    // Half-width layout — 4 concentric rings (calories outer,
+                    // then protein, carbs, fat). Condenses all four macro KPIs
+                    // into one glanceable visual that matches the workouts
+                    // card's footprint. Center shows "X/4 met".
+                    VStack(spacing: 8) {
+                        macroRingStack
+                            .frame(width: 92, height: 92)
+                        Text("\(viewModel.macrosMetToday)/4 macros")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
+                    .frame(maxWidth: .infinity)
+                } else {
+                    // Full-width layout — single row of four mini gauges.
+                    HStack(spacing: 6) {
+                        miniGaugeCalories
+                        miniGaugeProtein
+                        miniGaugeCarbs
+                        miniGaugeFat
+                    }
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 16)
+            .frame(maxWidth: .infinity,
+                   maxHeight: compact ? .infinity : nil,
+                   alignment: .topLeading)
+            .background(Color.cardBg)
+            .cornerRadius(18)
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Color.white.opacity(0.07), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Expand macros")
+        .accessibilityHint("Shows calories, protein, carbs, and fat cards")
+    }
+
+    /// 4 concentric macro rings — calories (orange) outermost, then protein
+    /// (blue), carbs (mint), fat (rose). Each ring's trimmed fraction is
+    /// `value / goal` capped at 1.0. Draws a faint full-circle track behind
+    /// each ring so 0-progress macros are still visible.
+    private var macroRingStack: some View {
+        let lineWidth: CGFloat = 6
+        let spacing:   CGFloat = 3   // gap between adjacent rings
+        let step = lineWidth + spacing
+        return ZStack {
+            macroRing(progress: macroRingProgress(viewModel.totalCalories,
+                                                  viewModel.displayGoalCalories),
+                      color: .orange,    inset: 0,        lineWidth: lineWidth)
+            macroRing(progress: macroRingProgress(viewModel.totalProtein,
+                                                  viewModel.displayGoalProtein),
+                      color: .macroBlue, inset: step,     lineWidth: lineWidth)
+            macroRing(progress: macroRingProgress(viewModel.totalCarbs,
+                                                  viewModel.displayGoalCarbs),
+                      color: .macroMint, inset: step * 2, lineWidth: lineWidth)
+            macroRing(progress: macroRingProgress(viewModel.totalFat,
+                                                  viewModel.displayGoalFat),
+                      color: .macroRose, inset: step * 3, lineWidth: lineWidth)
+        }
+    }
+
+    private func macroRing(progress: Double, color: Color,
+                           inset: CGFloat, lineWidth: CGFloat) -> some View {
+        ZStack {
+            Circle()
+                .stroke(color.opacity(0.14),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(color,
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(.easeOut(duration: 0.6), value: progress)
+        }
+        .padding(inset)
+    }
+
+    private func macroRingProgress(_ value: Double, _ goal: Double) -> Double {
+        guard goal > 0 else { return 0 }
+        return min(value / goal, 1.0)
+    }
+
+    // Individual mini-gauge builders — kept separate so both layouts share
+    // the exact same gauge parameters.
+    private var miniGaugeCalories: some View {
+        MiniMacroGauge(label: "Calories", value: viewModel.totalCalories,
+                       goal:  viewModel.displayGoalCalories, unit: "kcal",
+                       color: .orange)
+    }
+    private var miniGaugeProtein: some View {
+        MiniMacroGauge(label: "Protein", value: viewModel.totalProtein,
+                       goal:  viewModel.displayGoalProtein, unit: "g",
+                       color: .macroBlue)
+    }
+    private var miniGaugeCarbs: some View {
+        MiniMacroGauge(label: "Carbs", value: viewModel.totalCarbs,
+                       goal:  viewModel.displayGoalCarbs, unit: "g",
+                       color: .macroMint)
+    }
+    private var miniGaugeFat: some View {
+        MiniMacroGauge(label: "Fat", value: viewModel.totalFat,
+                       goal:  viewModel.displayGoalFat, unit: "g",
+                       color: .macroRose)
+    }
+
+    // MARK: - Workouts card
+
+    /// Weekly aggregate derived from `recentWorkouts`. Recomputed every time
+    /// SwiftUI renders the section — cheap enough for <20 entries, so no
+    /// memoization needed.
+    private var weeklyWorkoutStats: (count: Int, minutes: Int, calories: Int) {
+        let cal = Calendar.current
+        let weekStart = cal.date(from: cal.dateComponents(
+            [.yearForWeekOfYear, .weekOfYear], from: Date())) ?? Date()
+        let entries = recentWorkouts.filter {
+            $0.loggedAt >= weekStart && $0.workoutType != .restDay
+        }
+        return (
+            entries.count,
+            entries.reduce(0) { $0 + $1.durationMinutes },
+            entries.reduce(0) { $0 + $1.caloriesBurned }
+        )
+    }
+
+    /// Consecutive number of days ending today that have at least one logged
+    /// workout. Stops at the first gap day; rest days don't count toward the
+    /// streak but also don't break it (matches typical fitness-app behavior).
+    private var workoutStreakDays: Int {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let days = Set(recentWorkouts
+            .filter { $0.workoutType != .restDay }
+            .map { cal.startOfDay(for: $0.loggedAt) })
+        var streak = 0
+        var cursor = today
+        while days.contains(cursor) {
+            streak += 1
+            guard let prev = cal.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = prev
+        }
+        return streak
+    }
+
+    private func workoutSummaryCard(compact: Bool) -> some View {
+        let stats   = weeklyWorkoutStats
+        let streak  = workoutStreakDays
+        return Button {
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+                workoutsExpanded = true
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Text("WORKOUTS")
+                        .font(.system(size: 11, weight: .black))
+                        .tracking(1.5)
+                        .foregroundStyle(.white.opacity(0.40))
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+
+                if compact {
+                    // Half-width layout — single big number stacked vertically.
+                    VStack(spacing: 6) {
+                        Image(systemName: "dumbbell.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(ThemeStore.shared.accent)
+                        Text("\(stats.count)")
+                            .font(.system(size: 34, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
+                            .contentTransition(.numericText(value: Double(stats.count)))
+                        Text("this week")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    if streak > 0 {
+                        HStack(spacing: 4) {
+                            Text("🔥")
+                            Text("\(streak) day\(streak == 1 ? "" : "s")")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.75))
+                        }
+                        .frame(maxWidth: .infinity)
+                    } else {
+                        Text("Log a workout today")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.35))
+                            .frame(maxWidth: .infinity)
+                    }
+                } else {
+                    // Full-width layout — horizontal row of icon + count + streak.
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(ThemeStore.shared.accent.opacity(0.16))
+                                .frame(width: 44, height: 44)
+                            Image(systemName: "dumbbell.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(ThemeStore.shared.accent)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(stats.count) this week")
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                            if streak > 0 {
+                                Text("🔥 \(streak) day\(streak == 1 ? "" : "s") streak")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.55))
+                            } else {
+                                Text("Log a workout to start a streak")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.35))
+                            }
+                        }
+                        Spacer()
+                    }
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 16)
+            .frame(maxWidth: .infinity,
+                   maxHeight: compact ? .infinity : nil,
+                   alignment: .topLeading)
+            .background(Color.cardBg)
+            .cornerRadius(18)
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Color.white.opacity(0.07), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Expand workouts")
+        .accessibilityHint("Shows this week's workouts and recent history")
+    }
+
+    /// Expanded workouts card — 7-day dot strip, weekly aggregates, and a
+    /// recent-workouts list. Matches the macros expanded pattern: tappable
+    /// chevron-up to collapse back to the summary.
+    private var workoutsExpandedView: some View {
+        let stats = weeklyWorkoutStats
+
+        return VStack(alignment: .leading, spacing: 16) {
+            // Header with collapse chevron
+            HStack {
+                Text("WORKOUTS")
+                    .font(.system(size: 11, weight: .black))
+                    .tracking(1.5)
+                    .foregroundStyle(.white.opacity(0.40))
+                Spacer()
+                Button {
+                    withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+                        workoutsExpanded = false
+                    }
+                } label: {
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.60))
+                        .frame(width: 24, height: 24)
+                        .background(Color.white.opacity(0.06), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Collapse workouts")
+            }
+
+            // 7-day dot strip
+            workoutWeekStrip
+
+            // Aggregate row
+            HStack(spacing: 12) {
+                aggregateBadge(value: "\(stats.count)",
+                               unit:  stats.count == 1 ? "workout" : "workouts")
+                aggregateBadge(value: formatMinutes(stats.minutes),
+                               unit:  "time")
+                aggregateBadge(value: "\(stats.calories)",
+                               unit:  "kcal burned")
+            }
+
+            Divider().background(Color.white.opacity(0.08))
+
+            // Recent workouts list
+            Text("RECENT")
+                .font(.system(size: 11, weight: .black))
+                .tracking(1.5)
+                .foregroundStyle(.white.opacity(0.40))
+
+            if recentWorkouts.isEmpty {
+                HStack(spacing: 10) {
+                    Image(systemName: "figure.strengthtraining.traditional")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.white.opacity(0.25))
+                    Text("No workouts yet. Tap the + button to log one.")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.40))
+                    Spacer()
+                }
+                .padding(.vertical, 8)
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(recentWorkouts.prefix(5)) { entry in
+                        recentWorkoutRow(entry)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.cardBg)
+        .cornerRadius(18)
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(Color.white.opacity(0.07), lineWidth: 1)
+        )
+    }
+
+    /// Mon–Sun dot strip. Filled = at least one non-rest workout that day.
+    private var workoutWeekStrip: some View {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        // Anchor to Monday of this week (ISO weekday 1 = Monday).
+        let weekdayOffset = (cal.component(.weekday, from: today) + 5) % 7
+        let monday = cal.date(byAdding: .day, value: -weekdayOffset, to: today) ?? today
+        let days: [Date] = (0..<7).compactMap {
+            cal.date(byAdding: .day, value: $0, to: monday)
+        }
+        let workoutDays = Set(recentWorkouts
+            .filter { $0.workoutType != .restDay }
+            .map { cal.startOfDay(for: $0.loggedAt) })
+
+        return HStack(spacing: 8) {
+            ForEach(days, id: \.self) { day in
+                let isFuture = day > today
+                let hasWorkout = workoutDays.contains(day)
+                let isToday = cal.isDateInToday(day)
+                VStack(spacing: 6) {
+                    Circle()
+                        .fill(hasWorkout
+                              ? ThemeStore.shared.accent
+                              : Color.white.opacity(isFuture ? 0.05 : 0.10))
+                        .frame(width: 18, height: 18)
+                        .overlay(
+                            Circle()
+                                .stroke(isToday ? Color.white.opacity(0.60) : .clear,
+                                        lineWidth: 1.5)
+                        )
+                        .shadow(color: hasWorkout
+                                ? ThemeStore.shared.accent.opacity(0.50)
+                                : .clear,
+                                radius: 4)
+                    Text(weekdayInitial(day))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(
+                            isToday ? .white.opacity(0.85)
+                                    : .white.opacity(isFuture ? 0.25 : 0.45)
+                        )
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    private func weekdayInitial(_ date: Date) -> String {
+        let f = DateFormatter(); f.dateFormat = "EEEEE"  // narrow: M, T, W, T, F, S, S
+        return f.string(from: date)
+    }
+
+    private func aggregateBadge(value: String, unit: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value)
+                .font(.system(size: 18, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+            Text(unit)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.50))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func recentWorkoutRow(_ entry: WorkoutEntry) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(ThemeStore.shared.accent.opacity(0.14))
+                    .frame(width: 34, height: 34)
+                Image(systemName: entry.workoutType.icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(ThemeStore.shared.accent)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.name)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(entry.workoutType.shortLabel)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.45))
+                    if let loc = entry.location, loc.isValid {
+                        Text("·")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.30))
+                        Image(systemName: "mappin.and.ellipse")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(ThemeStore.shared.accent.opacity(0.80))
+                        Text(loc.name)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(ThemeStore.shared.accent.opacity(0.80))
+                            .lineLimit(1)
+                    }
+                }
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(entry.formattedDuration)
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text(relativeDay(entry.loggedAt))
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.40))
+            }
+        }
+    }
+
+    private func formatMinutes(_ m: Int) -> String {
+        if m <= 0   { return "0m" }
+        if m < 60   { return "\(m)m" }
+        let h = m / 60, rem = m % 60
+        return rem == 0 ? "\(h)h" : "\(h)h \(rem)m"
+    }
+
+    private func relativeDay(_ date: Date) -> String {
+        let cal = Calendar.current
+        if cal.isDateInToday(date)     { return "Today" }
+        if cal.isDateInYesterday(date) { return "Yesterday" }
+        let days = cal.dateComponents([.day], from: cal.startOfDay(for: date),
+                                      to: cal.startOfDay(for: Date())).day ?? 0
+        return "\(days)d ago"
+    }
+
+    /// Loads the last 14 days of workouts for the workouts card. Called on
+    /// appear, when the user returns to the foreground, and when a workout
+    /// is saved elsewhere in the app (via WorkoutService's notification).
+    @MainActor
+    private func loadRecentWorkouts() async {
+        let userID = viewModel.userSettings.userID
+        guard !userID.isEmpty else { return }
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        guard let start = cal.date(byAdding: .day, value: -14, to: today),
+              let end   = cal.date(byAdding: .day, value:   1, to: today) else { return }
+        do {
+            recentWorkouts = try await WorkoutService.shared.fetchRange(
+                userID: userID, from: start, to: end)
+        } catch {
+            AppLogger.log("Failed to load recent workouts for Hub card: \(error)")
         }
     }
 
@@ -803,8 +1370,9 @@ struct HomeView: View {
             .tint(
                 aiSubscription.isSubscribed && viewModel.userSettings.brainstormLimitReached
                 ? Color.gray
-                : ThemeStore.shared.accent
+                : Color.premiumGold
             )
+            .shimmering(cornerRadius: 10)
             .disabled(viewModel.brainstormState == .loading)
             .alert(item: $brainstormAlert) { alert in
                 switch alert {
@@ -1218,6 +1786,69 @@ private struct MacroGaugeCard: View {
                     .padding(10)
             }
         }
+    }
+}
+
+// MARK: - Mini Macro Gauge
+//
+// Compact radial gauge used inside the collapsed `MacroSummaryCard`. Shows
+// four of these side-by-side so the user can see all macro progress at a
+// glance without taking up the full 2×2 grid footprint.
+
+private struct MiniMacroGauge: View {
+    let label: String
+    let value: Double
+    let goal:  Double
+    let unit:  String
+    let color: Color
+
+    private var progress: Double {
+        guard goal > 0 else { return 0 }
+        return min(value / goal, 1.0)
+    }
+    private var isGoalMet: Bool {
+        guard goal > 0 else { return false }
+        let pct = value / goal
+        return pct >= 0.85 && pct <= 1.15
+    }
+    private let trackFraction: Double = 0.75
+    private let lineWidth: CGFloat = 5
+
+    var body: some View {
+        VStack(spacing: 4) {
+            ZStack {
+                Circle()
+                    .trim(from: 0, to: trackFraction)
+                    .stroke(color.opacity(0.14),
+                            style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .rotationEffect(.degrees(135))
+                Circle()
+                    .trim(from: 0, to: progress * trackFraction)
+                    .stroke(color,
+                            style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .rotationEffect(.degrees(135))
+                    .animation(.easeOut(duration: 0.6), value: progress)
+                    .shadow(color: isGoalMet ? color.opacity(0.55) : .clear, radius: 6)
+
+                if isGoalMet {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 11, weight: .black))
+                        .foregroundStyle(color)
+                } else {
+                    Text(String(format: "%.0f", value))
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(1)
+                }
+            }
+            .frame(width: 56, height: 56)
+
+            Text(label)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.70))
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 

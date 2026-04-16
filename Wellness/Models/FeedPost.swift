@@ -254,10 +254,25 @@ struct FeedWorkoutItem: Codable, Identifiable {
     var caloriesBurned:  Int    = 0
     var sortOrder:       Int    = 0
 
+    // Gym/location tag — mirrored as flat fields so older Firestore
+    // documents (which have none of these keys) decode cleanly via the
+    // defaults below.
+    var gymName:      String = ""
+    var gymAddress:   String = ""
+    var gymLatitude:  Double = 0.0
+    var gymLongitude: Double = 0.0
+
     var formattedDuration: String {
         durationMinutes >= 60
             ? "\(durationMinutes / 60)h \(durationMinutes % 60)m"
             : "\(durationMinutes)m"
+    }
+
+    /// Convenience — nil when no gym was tagged.
+    var location: WorkoutLocation? {
+        guard !gymName.isEmpty else { return nil }
+        return WorkoutLocation(name: gymName, address: gymAddress,
+                               latitude: gymLatitude, longitude: gymLongitude)
     }
 }
 
