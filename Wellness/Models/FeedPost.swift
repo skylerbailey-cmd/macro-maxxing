@@ -335,6 +335,60 @@ extension FeedPost {
         if data["isPublic"]            == nil { data["isPublic"]            = true }
         if data["isProSubscriber"]     == nil { data["isProSubscriber"]     = false }
 
+        // Backfill missing keys inside nested `workoutItems` so posts
+        // created before the gym-tag / friend-tag features decode cleanly.
+        // Swift's synthesized Codable init ignores property-level defaults
+        // on missing keys, so we have to seed them here.
+        if var items = data["workoutItems"] as? [[String: Any]] {
+            let workoutItemDefaults: [String: Any] = [
+                "id":              "",
+                "workoutName":     "",
+                "workoutType":     "",
+                "durationMinutes": 0,
+                "caloriesBurned":  0,
+                "sortOrder":       0,
+                "gymName":         "",
+                "gymAddress":      "",
+                "gymLatitude":     0.0,
+                "gymLongitude":    0.0,
+                "taggedFriends":   [[String: Any]]()
+            ]
+            for idx in items.indices {
+                for (key, value) in workoutItemDefaults where items[idx][key] == nil {
+                    items[idx][key] = value
+                }
+                // Give each item a stable id if the older doc didn't have one
+                if (items[idx]["id"] as? String)?.isEmpty ?? true {
+                    items[idx]["id"] = UUID().uuidString
+                }
+            }
+            data["workoutItems"] = items
+        }
+
+        // Same treatment for fuel-log items in case older posts are missing
+        // any fields that were added later.
+        if var items = data["fuelLogItems"] as? [[String: Any]] {
+            let fuelLogDefaults: [String: Any] = [
+                "id":        "",
+                "foodName":  "",
+                "calories":  0.0,
+                "protein":   0.0,
+                "carbs":     0.0,
+                "fat":       0.0,
+                "photoURL":  "",
+                "sortOrder": 0
+            ]
+            for idx in items.indices {
+                for (key, value) in fuelLogDefaults where items[idx][key] == nil {
+                    items[idx][key] = value
+                }
+                if (items[idx]["id"] as? String)?.isEmpty ?? true {
+                    items[idx]["id"] = UUID().uuidString
+                }
+            }
+            data["fuelLogItems"] = items
+        }
+
         // Pull Timestamps out before decoding (Firestore.Decoder can't map Timestamp→Date)
         let createdAtTs = data.removeValue(forKey: "createdAt") as? Timestamp
         let macroDateTs = data.removeValue(forKey: "macroDate") as? Timestamp

@@ -55,6 +55,10 @@ struct HomeView: View {
     /// rest of the list. Cleared when the user navigates to a different week.
     @State private var selectedWorkoutDay: Date? = nil
 
+    /// True while confetti is falling after the user hits all 4 macro goals.
+    /// Auto-clears after a few seconds so the confetti doesn't stay forever.
+    @State private var showConfetti = false
+
     private enum BrainstormAlert: Identifiable {
         case confirm, limitReached
         var id: Self { self }
@@ -130,6 +134,14 @@ struct HomeView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: WorkoutService.workoutSavedNotification)) { _ in
                 Task { await loadRecentWorkouts() }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .hubTabReTapped)) { _ in
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                    macrosExpanded = false
+                    workoutsExpanded = false
+                    workoutsWeekOffset = 0
+                    selectedWorkoutDay = nil
+                }
             }
             .onChange(of: selectedDate) { _, newDate in handleDateChange(newDate) }
             .onChange(of: viewModel.userSettings.macroStreak) { _, newStreak in
@@ -220,6 +232,18 @@ struct HomeView: View {
     private var mainContent: some View {
         ZStack {
             Color.pageBg.ignoresSafeArea()
+
+            // Confetti overlay — falls in front of the scroll content when
+            // the user hits all 4 macro goals. Ignores hit testing so it
+            // doesn't block interaction with the Hub underneath.
+            if showConfetti {
+                ConfettiView()
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+                    .zIndex(50)
+            }
+
             ScrollView {
                 VStack(spacing: 20) {
                     greetingHeader
@@ -621,6 +645,15 @@ struct HomeView: View {
                 ? "\(timeString(hour: viewModel.windowStartHour, minute: viewModel.windowStartMinute)) – \(timeString(hour: viewModel.windowEndHour, minute: viewModel.windowEndMinute)) · \(viewModel.windowDurationHours)h window"
                 : ""
         )
+
+        // Drop confetti on the Hub immediately — it also shows inside the
+        // CelebrationView modal, but having it behind the tab gives the user
+        // a hit of dopamine even before the sheet appears.
+        withAnimation { showConfetti = true }
+        Task {
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            withAnimation { showConfetti = false }
+        }
     }
 
     private var goalsTitle: String {
@@ -886,18 +919,8 @@ struct HomeView: View {
 
     private func macroRing(progress: Double, color: Color,
                            inset: CGFloat, lineWidth: CGFloat) -> some View {
-        ZStack {
-            Circle()
-                .stroke(color.opacity(0.14),
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(color,
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .animation(.easeOut(duration: 0.6), value: progress)
-        }
-        .padding(inset)
+        AnimatedMacroRing(progress: progress, color: color, lineWidth: lineWidth)
+            .padding(inset)
     }
 
     private func macroRingProgress(_ value: Double, _ goal: Double) -> Double {
@@ -1838,6 +1861,46 @@ private struct GoalKPICard<Content: View>: View {
 
 // MARK: - Macro Gauge Card
 
+// MARK: - Animated Macro Ring
+//
+// The concentric calorie/protein/carbs/fat rings at the top of the Hub.
+// Pulled out of `HomeView.macroRing(...)` so it can hold its own
+// `animatedProgress` state — functions can't carry @State, only View structs.
+
+private struct AnimatedMacroRing: View {
+    let progress:  Double
+    let color:     Color
+    let lineWidth: CGFloat
+
+    @State private var animatedProgress: Double = 0
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(color.opacity(0.14),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+            Circle()
+                .trim(from: 0, to: animatedProgress)
+                .stroke(color,
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+        }
+        .onAppear {
+            animatedProgress = 0
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.75, dampingFraction: 0.72)) {
+                    animatedProgress = progress
+                }
+            }
+        }
+        .onChange(of: progress) { _, newValue in
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.75)) {
+                animatedProgress = newValue
+            }
+        }
+    }
+}
+
 private struct MacroGaugeCard: View {
     let label: String
     let value: Double
@@ -1847,6 +1910,12 @@ private struct MacroGaugeCard: View {
     let color: Color
     var action: (() -> Void)? = nil
     var rangeText: String? = nil
+
+    /// Drives the arc draw-in. Starts at 0 and springs up to `progress` on
+    /// first appear, and re-springs whenever `progress` changes (e.g. after
+    /// logging food). Keeping it separate from `progress` is what lets the
+    /// ring animate from empty even though the real value renders instantly.
+    @State private var animatedProgress: Double = 0
 
     private var progress: Double {
         guard goal > 0 else { return 0 }
@@ -1895,7 +1964,7 @@ private struct MacroGaugeCard: View {
                     .stroke(color.opacity(0.12), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(135))
                 Circle()
-                    .trim(from: 0, to: progress * trackFraction)
+                    .trim(from: 0, to: animatedProgress * trackFraction)
                     .stroke(
                         LinearGradient(
                             stops: [
@@ -1908,7 +1977,6 @@ private struct MacroGaugeCard: View {
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                     )
                     .rotationEffect(.degrees(135))
-                    .animation(.easeOut(duration: 0.6), value: progress)
                     .shadow(color: isGoalMet ? color.opacity(0.55) : .clear, radius: 8)
                 VStack(spacing: 1) {
                     if isGoalMet {
@@ -1979,6 +2047,21 @@ private struct MacroGaugeCard: View {
                     .padding(10)
             }
         }
+        .onAppear {
+            // Fire on the next runloop so the initial render shows an empty
+            // arc before the spring starts — otherwise SwiftUI collapses the
+            // state change into the first frame and no animation is seen.
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.75, dampingFraction: 0.72)) {
+                    animatedProgress = progress
+                }
+            }
+        }
+        .onChange(of: progress) { _, newValue in
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.75)) {
+                animatedProgress = newValue
+            }
+        }
     }
 }
 
@@ -1994,6 +2077,10 @@ private struct MiniMacroGauge: View {
     let goal:  Double
     let unit:  String
     let color: Color
+
+    /// See `MacroGaugeCard.animatedProgress` — same draw-in-from-zero trick
+    /// for the compact variant.
+    @State private var animatedProgress: Double = 0
 
     private var progress: Double {
         guard goal > 0 else { return 0 }
@@ -2016,11 +2103,10 @@ private struct MiniMacroGauge: View {
                             style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(135))
                 Circle()
-                    .trim(from: 0, to: progress * trackFraction)
+                    .trim(from: 0, to: animatedProgress * trackFraction)
                     .stroke(color,
                             style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(135))
-                    .animation(.easeOut(duration: 0.6), value: progress)
                     .shadow(color: isGoalMet ? color.opacity(0.55) : .clear, radius: 6)
 
                 if isGoalMet {
@@ -2042,6 +2128,19 @@ private struct MiniMacroGauge: View {
                 .foregroundStyle(.white.opacity(0.70))
         }
         .frame(maxWidth: .infinity)
+        .onAppear {
+            animatedProgress = 0
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.75, dampingFraction: 0.72)) {
+                    animatedProgress = progress
+                }
+            }
+        }
+        .onChange(of: progress) { _, newValue in
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.75)) {
+                animatedProgress = newValue
+            }
+        }
     }
 }
 

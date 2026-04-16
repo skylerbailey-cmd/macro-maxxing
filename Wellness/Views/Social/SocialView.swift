@@ -11,6 +11,9 @@ import CoreLocation
 
 struct SocialView: View {
     let userSettings: UserSettings
+    /// Set by ContentView after a new post — maps "arena"/"local"/"team" to the Feed enum
+    /// so the user lands on the matching tab. Consumed (nil-ed) after applying.
+    @Binding var pendingFeedScope: String?
 
     @Environment(LocationManager.self) private var locationManager
     @Environment(NotificationState.self) private var notificationState
@@ -62,6 +65,7 @@ struct SocialView: View {
         }
     }
     @State private var activeFeedPresentation: FeedPostPresentation? = nil
+    @State private var postToShare: FeedPost? = nil
 
     enum Feed: String, CaseIterable {
         case team      = "Team"
@@ -363,6 +367,20 @@ struct SocialView: View {
             })
             .environment(locationManager)
         }
+        .onChange(of: pendingFeedScope) { _, scope in
+            guard let scope else { return }
+            switch scope {
+            case "team":  selectedFeed = .team
+            case "local": selectedFeed = .local
+            default:      selectedFeed = .arena
+            }
+            pendingFeedScope = nil
+            // Refresh all feeds so the new post appears immediately
+            Task { await arenaViewModel.refresh() }
+            Task { await loadLocalFeed() }
+            Task { await loadTeamFeed() }
+            Task { await loadFollowingFeed() }
+        }
         .onChange(of: showingNewPost) { _, isShowing in
             // Refresh Firestore feeds when the post sheet closes so new posts appear immediately
             if !isShowing {
@@ -371,6 +389,9 @@ struct SocialView: View {
                 if !teamFirestorePosts.isEmpty      { Task { await loadTeamFeed() } }
                 if !followingFirestorePosts.isEmpty { Task { await loadFollowingFeed() } }
             }
+        }
+        .sheet(item: $postToShare) { post in
+            PostShareView(post: post)
         }
         .sheet(isPresented: $showingNotifications) {
             NotificationsView(userSettings: userSettings, notificationState: notificationState)
@@ -482,11 +503,13 @@ struct SocialView: View {
     // MARK: - Feed card helper
 
     private func socialFeedCard(for post: FeedPost) -> some View {
-        FeedPostCard(
+        let isOwn = post.userID == userSettings.userID
+        return FeedPostCard(
             post:              post,
             currentUserID:     userSettings.userID,
             onRep:             { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
-            onDelete:          post.userID == userSettings.userID ? { Task { await arenaViewModel.deletePost(post) } } : nil,
+            onDelete:          isOwn ? { Task { await arenaViewModel.deletePost(post) } } : nil,
+            onShare:           isOwn ? { postToShare = post } : nil,
             onTap:             { activeFeedPresentation = .detail(post) },
             onAvatarTap:       { activeFeedPresentation = .profile(post) },
             onCommentTap:      { activeFeedPresentation = .comment(post) },
@@ -496,6 +519,23 @@ struct SocialView: View {
             onReportUser:      { Task { await reportUserFromPost(post: post) } },
             onReportPost:      { Task { await reportPostFromPost(post: post) } }
         )
+        .scrollTransition(axis: .vertical) { content, phase in
+            let tiltDegrees: Double = {
+                switch phase {
+                case .topLeading:     return -22
+                case .identity:       return 0
+                case .bottomTrailing: return 22
+                }
+            }()
+            return content
+                .opacity(phase.isIdentity ? 1 : 0.55)
+                .rotation3DEffect(
+                    .degrees(tiltDegrees),
+                    axis: (x: 1, y: 0, z: 0),
+                    anchor: .center,
+                    perspective: 0.6
+                )
+        }
     }
 
     // MARK: - Post menu actions

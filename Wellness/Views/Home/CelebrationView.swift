@@ -804,7 +804,7 @@ private struct CelebrationShareCard: View {
 
 // MARK: - Confetti
 
-private struct ConfettiView: View {
+struct ConfettiView: View {
     private struct Piece {
         let xFraction: CGFloat
         let color:     Color

@@ -130,6 +130,10 @@ struct FoodLogView: View {
             }
             .onChange(of: viewModel.analysisState) { _, newState in
                 if case .confirmed = newState {
+                    // Only open the photo-confirmation sheet when there's an
+                    // image to confirm. Text-only AI analysis (manual tab)
+                    // populates the macro fields inline — no separate sheet.
+                    guard viewModel.selectedImage != nil else { return }
                     activeMealSheet = nil
                     Task {
                         try? await Task.sleep(nanoseconds: 450_000_000)
@@ -921,7 +925,7 @@ private struct AnalysisSheet: View {
     @State private var pendingAIAction: PendingAIAction? = nil
 
     enum EntryMode { case photo, voice, manual }
-    enum PendingAIAction { case analyze, analyzeWithVoice, reanalyze }
+    enum PendingAIAction { case analyze, analyzeWithVoice, reanalyze, analyzeFromText }
 
     enum ImageSourceKind: Int, Identifiable {
         case camera, photoLibrary
@@ -1186,6 +1190,7 @@ private struct AnalysisSheet: View {
             case .analyze:          await viewModel.analyzeImage()
             case .analyzeWithVoice: await viewModel.analyzeImageWithVoice()
             case .reanalyze:        await viewModel.reanalyzeWithClaude()
+            case .analyzeFromText:  await viewModel.analyzeFromText()
             }
         }
     }
@@ -1405,7 +1410,34 @@ private struct AnalysisSheet: View {
 
     private var entryFields: some View {
         VStack(spacing: 12) {
-            macroField(label: "Food",     placeholder: "Food name", text: $viewModel.foodName,      unit: nil,    keyboard: .default)
+            HStack(alignment: .bottom, spacing: 8) {
+                macroField(label: "Food", placeholder: "Food name", text: $viewModel.foodName, unit: nil, keyboard: .default)
+                // AI generate button — sends the typed food name to Haiku for
+                // macro estimation. Gated behind the subscription paywall.
+                let isEmpty = viewModel.foodName.trimmingCharacters(in: .whitespaces).isEmpty
+                let gold = Color(red: 1.00, green: 0.75, blue: 0.20)
+                Button {
+                    requestAI(action: .analyzeFromText)
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("AI")
+                            .font(.system(size: 11, weight: .black, design: .rounded))
+                    }
+                    .foregroundStyle(isEmpty ? .white.opacity(0.20) : gold)
+                    .frame(width: 52)
+                    .padding(.vertical, 12)
+                    .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(isEmpty ? Color.white.opacity(0.06) : gold.opacity(0.40),
+                                    lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(isEmpty || viewModel.analysisState == .analyzing)
+            }
             macroField(label: "Calories", placeholder: "0",         text: $viewModel.caloriesText,  unit: "kcal", keyboard: .decimalPad)
             HStack(spacing: 12) {
                 macroField(label: "Protein", placeholder: "0", text: $viewModel.proteinText, unit: "g", keyboard: .decimalPad)

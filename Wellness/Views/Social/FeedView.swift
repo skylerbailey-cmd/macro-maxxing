@@ -135,36 +135,76 @@ struct FeedView: View {
 
     private var feedList: some View {
         ScrollView {
-            LazyVStack(spacing: 12) {
-                ForEach(displayedPosts) { post in
-                    postCard(for: post)
-                        .onAppear {
-                            Task { await viewModel.loadMoreIfNeeded(currentPost: post) }
-                        }
-                }
-
-                // Pagination spinner
-                if viewModel.isLoading && !viewModel.posts.isEmpty {
-                    ProgressView()
-                        .tint(Color.purpleHi)
-                        .padding(.vertical, 20)
-                }
-
-                // End-of-feed message
-                if !viewModel.hasMore && !viewModel.posts.isEmpty {
-                    Text("You've seen it all 💪")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.25))
-                        .padding(.vertical, 20)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 40)
+            feedListStack
         }
         .refreshable {
             await viewModel.refresh()
         }
+    }
+
+    /// Extracted so the type-checker has a simpler expression per computed
+    /// property. Was timing out when the scroll/transition modifiers + spring
+    /// animation + conditional footers all lived inside the ScrollView body.
+    private var feedListStack: some View {
+        LazyVStack(spacing: 12) {
+            ForEach(displayedPosts) { post in
+                animatedPostCard(for: post)
+            }
+
+            if viewModel.isLoading && !viewModel.posts.isEmpty {
+                ProgressView()
+                    .tint(Color.purpleHi)
+                    .padding(.vertical, 20)
+                    .transition(.opacity)
+            }
+
+            if !viewModel.hasMore && !viewModel.posts.isEmpty {
+                Text("You've seen it all 💪")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.25))
+                    .padding(.vertical, 20)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 40)
+        // Spring whenever the displayed list mutates — refresh, new post
+        // via the live listener, a block removing someone's posts, or an
+        // own delete. Keyed off IDs so identical reorderings don't replay.
+        .animation(
+            .spring(response: 0.45, dampingFraction: 0.78),
+            value: displayedPosts.map(\.id)
+        )
+    }
+
+    /// One post card wrapped in a 3D tilt-in animation. Each card starts
+    /// tilted 25° away and faded out, then springs flat + fully opaque when
+    /// it enters the viewport. In a LazyVStack the view is recreated each
+    /// time it scrolls into the lazy-loading window, so the animation
+    /// replays reliably — no `.scrollTransition` phase magic needed.
+    private func animatedPostCard(for post: FeedPost) -> some View {
+        postCard(for: post)
+            .scrollTransition(axis: .vertical) { content, phase in
+                let tiltDegrees: Double = {
+                    switch phase {
+                    case .topLeading:     return -22
+                    case .identity:       return 0
+                    case .bottomTrailing: return 22
+                    }
+                }()
+                return content
+                    .opacity(phase.isIdentity ? 1 : 0.55)
+                    .rotation3DEffect(
+                        .degrees(tiltDegrees),
+                        axis: (x: 1, y: 0, z: 0),
+                        anchor: .center,
+                        perspective: 0.6
+                    )
+            }
+            .onAppear {
+                Task { await viewModel.loadMoreIfNeeded(currentPost: post) }
+            }
     }
 
     // MARK: - Post menu actions
@@ -302,6 +342,7 @@ struct FeedPostCard: View {
     @State private var showReportUserConfirm = false
     @State private var showReportPostConfirm = false
     @State private var showDeleteConfirm     = false
+    @State private var repBurstTrigger       = 0
 
     private let cardBg   = Color(red: 0.11, green: 0.11, blue: 0.14)
     private var purpleHi: Color { post.themeColor }
@@ -342,6 +383,37 @@ struct FeedPostCard: View {
         }
         .background(cardBg)
         .cornerRadius(16)
+        // Floating 💪 burst — pops in, grows, floats up, fades out
+        .overlay(alignment: .bottomTrailing) {
+            Text("💪")
+                .font(.system(size: 28))
+                .keyframeAnimator(
+                    initialValue: RepBurstKeyframe(),
+                    trigger: repBurstTrigger
+                ) { content, value in
+                    content
+                        .scaleEffect(value.scale)
+                        .opacity(value.opacity)
+                        .offset(y: value.offset)
+                } keyframes: { _ in
+                    KeyframeTrack(\.scale) {
+                        SpringKeyframe(1.8, duration: 0.15, spring: .bouncy)
+                        SpringKeyframe(2.4, duration: 0.65)
+                    }
+                    KeyframeTrack(\.opacity) {
+                        LinearKeyframe(1.0, duration: 0.1)
+                        LinearKeyframe(1.0, duration: 0.35)
+                        LinearKeyframe(0.0, duration: 0.4)
+                    }
+                    KeyframeTrack(\.offset) {
+                        SpringKeyframe(-10, duration: 0.15)
+                        SpringKeyframe(-80, duration: 0.7)
+                    }
+                }
+                .allowsHitTesting(false)
+                .padding(.trailing, 40)
+                .padding(.bottom, 10)
+        }
         .overlay(alignment: .topTrailing) {
             postMenu
         }
@@ -422,9 +494,7 @@ struct FeedPostCard: View {
                     }
 
                     if showStreak && post.streak > 0 {
-                        Text("🔥 \(post.streak)d streak")
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
-                            .foregroundStyle(Color(red: 1.0, green: 0.60, blue: 0.20))
+                        FlickerStreakBadge(streak: post.streak)
                     }
 
                     if let label = PostLabel(rawValue: post.postLabel) {
@@ -844,7 +914,12 @@ struct FeedPostCard: View {
             Spacer()
 
             // 💪 Rep button
-            Button(action: onRep) {
+            Button {
+                if !post.hasRepped(userID: currentUserID) {
+                    repBurstTrigger += 1
+                }
+                onRep()
+            } label: {
                 HStack(spacing: 5) {
                     Text("💪")
                         .font(.system(size: 15))
@@ -888,18 +963,18 @@ struct FeedPostCard: View {
     private var postMenu: some View {
         Menu {
             if post.userID == currentUserID {
-                if onShare != nil {
-                    Button {
-                        onShare?()
-                    } label: {
-                        Label("Share Post", systemImage: "square.and.arrow.up")
-                    }
-                }
                 if onDelete != nil {
                     Button(role: .destructive) {
                         showDeleteConfirm = true
                     } label: {
                         Label("Delete Post", systemImage: "trash")
+                    }
+                }
+                if onShare != nil {
+                    Button {
+                        onShare?()
+                    } label: {
+                        Label("Share Post", systemImage: "square.and.arrow.up")
                     }
                 }
             } else {
@@ -975,6 +1050,11 @@ struct MacroDisciplineCard: View {
     private let neon   = Color(red: 0.35, green: 1.00, blue: 0.60)
     private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
 
+    // Slot-machine animation triggers — start at false, flip to true
+    // staggered on appear so bars grow and digits roll one-by-one.
+    @State private var showDiscipline = false
+    @State private var showRow: [Bool] = [false, false, false, false]
+
     private var disciplineProgress: Double {
         let pairs = [(totalCalories, goalCalories), (totalProtein, goalProtein),
                      (totalCarbs, goalCarbs), (totalFat, goalFat)]
@@ -984,7 +1064,8 @@ struct MacroDisciplineCard: View {
     }
 
     var body: some View {
-        let pct    = Int((disciplineProgress * 100 / 5).rounded()) * 5
+        let animDiscipline = showDiscipline ? disciplineProgress : 0
+        let pct = Int((animDiscipline * 100 / 5).rounded()) * 5
         let macros: [(String, Double, Double, String, Color)] = [
             ("Calories", totalCalories, goalCalories, "kcal", Color.calClr),
             ("Protein",  totalProtein,  goalProtein,  "g",    Color.proClr),
@@ -1005,26 +1086,28 @@ struct MacroDisciplineCard: View {
                             Capsule().fill(Color.white.opacity(0.08)).frame(height: 5)
                             Capsule()
                                 .fill(LinearGradient(
-                                    colors: disciplineProgress >= 1.0
+                                    colors: animDiscipline >= 1.0
                                         ? [neon, Color(red: 0.20, green: 0.85, blue: 0.50)]
                                         : [purpl, Color(red: 0.35, green: 0.75, blue: 1.00)],
                                     startPoint: .leading, endPoint: .trailing))
-                                .frame(width: max(4, geo.size.width * disciplineProgress), height: 5)
+                                .frame(width: showDiscipline ? max(4, geo.size.width * animDiscipline) : 0, height: 5)
                         }
                     }
                     .frame(width: 80, height: 5)
                     Text("\(pct)%")
                         .font(.system(size: 13, weight: .black, design: .rounded))
-                        .foregroundStyle(disciplineProgress >= 1.0 ? neon : purpl)
+                        .foregroundStyle(animDiscipline >= 1.0 ? neon : purpl)
                         .frame(width: 38, alignment: .trailing)
+                        .contentTransition(.numericText())
                 }
             }
             Divider().background(purpl.opacity(0.15))
-            // Per-macro rows
-            ForEach(Array(macros.enumerated()), id: \.offset) { _, macro in
+            // Per-macro rows — each animates with a staggered delay
+            ForEach(Array(macros.enumerated()), id: \.offset) { idx, macro in
                 let (label, total, goal, unit, color) = macro
-                let ratio  = goal > 0 ? min(total / goal, 1.0) : 0
-                let macPct = goal > 0 ? Int((total / goal) * 100) : 0
+                let shown  = idx < showRow.count && showRow[idx]
+                let ratio  = goal > 0 ? (shown ? min(total / goal, 1.0) : 0) : 0
+                let macPct = goal > 0 ? (shown ? Int((total / goal) * 100) : 0) : 0
                 HStack(spacing: 8) {
                     Text(label)
                         .font(.system(size: 12, weight: .semibold))
@@ -1035,7 +1118,7 @@ struct MacroDisciplineCard: View {
                             Capsule().fill(Color.white.opacity(0.07)).frame(height: 6)
                             Capsule()
                                 .fill(color.opacity(0.85))
-                                .frame(width: max(4, geo.size.width * ratio), height: 6)
+                                .frame(width: shown ? max(4, geo.size.width * ratio) : 0, height: 6)
                         }
                     }
                     .frame(height: 6)
@@ -1043,6 +1126,7 @@ struct MacroDisciplineCard: View {
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(color)
                         .frame(width: 38, alignment: .trailing)
+                        .contentTransition(.numericText())
                     Text("\(Int(total)) / \(Int(goal)) \(unit)")
                         .font(.system(size: 10))
                         .foregroundStyle(.white.opacity(0.28))
@@ -1054,7 +1138,31 @@ struct MacroDisciplineCard: View {
         .background(cardBg)
         .cornerRadius(14)
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(purpl.opacity(0.20), lineWidth: 1))
+        .onAppear {
+            guard !showDiscipline else { return }
+            // Discipline bar leads, then each macro row staggers in
+            withAnimation(.easeOut(duration: 0.7).delay(0.15)) {
+                showDiscipline = true
+            }
+            for i in 0..<min(4, showRow.count) {
+                withAnimation(.easeOut(duration: 0.7).delay(0.3 + Double(i) * 0.12)) {
+                    showRow[i] = true
+                }
+            }
+        }
     }
+}
+
+// MARK: - Rep burst keyframe state
+
+/// Drives the floating 💪 keyframe animation on FeedPostCard.
+/// Initial values are all zero (invisible). When `repBurstTrigger`
+/// increments, the keyframes run: pop in → grow → float up → fade out,
+/// then the animator returns to these initial values (invisible again).
+private struct RepBurstKeyframe {
+    var scale:   CGFloat = 0
+    var opacity: Double  = 0
+    var offset:  CGFloat = 0
 }
 
 // MARK: - Skeleton card
@@ -1113,3 +1221,43 @@ private struct SkeletonCard: View {
         }
     }
 }
+
+// MARK: - Flicker Streak Badge
+
+/// Animated 🔥 streak badge — the flame emoji gently pulses in opacity and
+/// scale to look like it's flickering. Lightweight: just two looping
+/// animations on the emoji, no timers or state machines.
+private struct FlickerStreakBadge: View {
+    let streak: Int
+
+    @State private var flicker = false
+
+    private let flame = Color(red: 1.0, green: 0.60, blue: 0.20)
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Text("🔥")
+                .font(.system(size: 10))
+                .scaleEffect(flicker ? 1.18 : 0.92)
+                .opacity(flicker ? 1.0 : 0.7)
+                .animation(
+                    .easeInOut(duration: 0.6)
+                    .repeatForever(autoreverses: true),
+                    value: flicker
+                )
+            Text("\(streak)d streak")
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .foregroundStyle(flame)
+        }
+        .onAppear { flicker = true }
+    }
+}
+
+// MARK: - Card Tilt-In Animation
+//
+// Wraps any content so it starts tilted 25° on the X-axis (the top edge
+// rotated away from the viewer), shifted down 30 pt, and fully transparent.
+// On appear it springs to flat / zero offset / fully opaque. In a LazyVStack
+// the view struct is created fresh each time the cell enters the viewport,
+// so the animation replays every time the user scrolls a card into view.
+

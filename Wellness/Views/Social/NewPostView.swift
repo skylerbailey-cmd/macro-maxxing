@@ -85,6 +85,9 @@ struct NewPostView: View {
     /// Called on the main actor after the Firestore post write completes.
     /// Use this to trigger a feed refresh so fuel log items are guaranteed to be in Firestore.
     var onPostCompleted: (() -> Void)? = nil
+    /// Called just before dismiss with the selected post scope ("arena", "local", "team")
+    /// so the parent can switch to the matching feed tab.
+    var onPostScope: ((String) -> Void)? = nil
     @Environment(LocationManager.self) private var locationManager
 
     @Environment(\.modelContext) private var modelContext
@@ -213,6 +216,21 @@ struct NewPostView: View {
 
                         // Photos (buttons only — preview shown above)
                         MultiPhotoSection(photos: $photos, hideThumbnails: true)
+
+                        // Post button
+                        Button {
+                            Task { await submit() }
+                        } label: {
+                            Text("Post")
+                                .font(.system(size: 17, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(purpl, in: RoundedRectangle(cornerRadius: 14))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!hasPostableContent)
+                        .opacity(hasPostableContent ? 1 : 0.4)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 10)
@@ -885,6 +903,7 @@ struct NewPostView: View {
             )
         }
 
+        onPostScope?(postScope)
         dismiss()
     }
 }

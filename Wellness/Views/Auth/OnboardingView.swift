@@ -585,9 +585,8 @@ struct OnboardingView: View {
         }
         .padding(16)
         .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
-        .onChange(of: currentWeight) { _, newWeight in
-            let clamped = min(max(goalWeight, newWeight - 5), newWeight + 5)
-            if clamped != goalWeight { goalWeight = clamped }
+        .onChange(of: currentWeight) { _, _ in
+            // No clamp — the user can pick any goal weight.
         }
     }
 

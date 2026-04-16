@@ -8,6 +8,12 @@
 import SwiftUI
 import SwiftData
 
+extension Notification.Name {
+    /// Fired when the user taps the Hub tab while already on it.
+    /// HomeView listens for this to collapse expanded tiles.
+    static let hubTabReTapped = Notification.Name("hubTabReTapped")
+}
+
 struct ContentView: View {
     @Environment(\.modelContext)  private var modelContext
     @Environment(UserSettings.self) private var userSettings
@@ -42,6 +48,23 @@ struct ContentView: View {
     @State private var fabShowingSearch      = false
     @State private var fabShowingLogWorkout  = false
     @State private var fabOpenLogMeal        = false
+    // After posting, navigate to the Feed tab matching the post's scope
+    @State private var pendingFeedScope:     String? = nil
+
+    /// Custom selection binding that detects when the user re-taps the Hub
+    /// tab while already on it. In that case it posts a notification so
+    /// HomeView can collapse any expanded tiles.
+    private var hubAwareTabSelection: Binding<Int> {
+        Binding(
+            get: { selectedTab },
+            set: { newTab in
+                if newTab == 0 && selectedTab == 0 {
+                    NotificationCenter.default.post(name: .hubTabReTapped, object: nil)
+                }
+                selectedTab = newTab
+            }
+        )
+    }
 
     var body: some View {
         // Convert the @Environment-bound SessionManager into a @Bindable so
@@ -62,7 +85,7 @@ struct ContentView: View {
                 .zIndex(10)
             }
 
-            TabView(selection: $selectedTab) {
+            TabView(selection: hubAwareTabSelection) {
                 NavigationStack {
                     HomeView(modelContext: modelContext, selectedDate: $selectedDate, userSettings: userSettings)
                 }
@@ -77,7 +100,7 @@ struct ContentView: View {
                 .tag(1)
 
                 NavigationStack {
-                    SocialView(userSettings: userSettings)
+                    SocialView(userSettings: userSettings, pendingFeedScope: $pendingFeedScope)
                 }
                 .tabItem { Label("Feed", systemImage: "bolt.heart.fill") }
                 .tag(2)
@@ -166,15 +189,13 @@ struct ContentView: View {
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
-                    // Reset to Hub tab and dismiss any open sheets/FAB
-                    // so the app feels fresh after force-quit or background return
-                    selectedTab = 0
-                    fabExpanded = false
-                    fabShowingNewPost = false
-                    fabShowingSearch = false
-                    fabShowingLogWorkout = false
-                    fabOpenLogMeal = false
-                    selectedDate = Calendar.current.startOfDay(for: Date())
+                    // Advance the selected date if we crossed midnight while
+                    // backgrounded. Everything else stays as-is so the user
+                    // returns to exactly the screen they left.
+                    let today = Calendar.current.startOfDay(for: Date())
+                    if !Calendar.current.isDate(today, inSameDayAs: selectedDate) {
+                        selectedDate = today
+                    }
                 }
             }
             .alert("Firestore Write Error", isPresented: Binding(
@@ -287,8 +308,14 @@ struct ContentView: View {
             .environment(locationManager)
         }
         .sheet(isPresented: $fabShowingNewPost) {
-            NewPostView(userSettings: userSettings)
-                .environment(locationManager)
+            NewPostView(
+                userSettings: userSettings,
+                onPostScope: { scope in
+                    pendingFeedScope = scope
+                    selectedTab = 2
+                }
+            )
+            .environment(locationManager)
         }
         .sheet(isPresented: $fabShowingSearch) {
             UserSearchView(currentUserSettings: userSettings)
@@ -367,9 +394,6 @@ private struct QuickActionFAB: View {
                             )
                         )
                         .frame(width: 56, height: 56)
-                        .overlay(
-                            Circle().stroke(Color.black, lineWidth: 2)
-                        )
                         .shadow(color: expanded ? .clear : accent.opacity(0.45), radius: 14, x: 0, y: 4)
 
                     Image(systemName: "plus")

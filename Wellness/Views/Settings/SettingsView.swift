@@ -200,9 +200,7 @@ struct SettingsView: View {
                          proteinPerLb:  userSettings.proteinPerLb)
         }
         .onChange(of: currentWeightVal) { _, newWeight in
-            // Clamp goal weight to stay within ±5 lbs of current weight
-            let clamped = min(max(goalWeightVal, newWeight - 5), newWeight + 5)
-            if clamped != goalWeightVal { goalWeightVal = clamped }
+            // (No clamp — the user can pick any goal weight.)
         }
         .onDisappear { Task { await saveProfile() } }
         .navigationTitle("Settings")
@@ -449,7 +447,7 @@ struct SettingsView: View {
                       icon: "moon.stars.fill",
                       isOn: $userSettings.fastingEnabled)
         } footer: {
-            "Goal weight is capped at ±5 lbs of your current weight — aim for 1–2 lbs per week. Protein per lb: general fitness 0.7–0.8, strength training 0.8–1.0. Dietary exclusions are applied by the AI meal planner and the photo macro scanner."
+            "Protein per lb: general fitness 0.7–0.8, strength training 0.8–1.0. Dietary exclusions are applied by the AI meal planner and the photo macro scanner."
         }
     }
 
@@ -1376,11 +1374,9 @@ private struct NumberPickerSheet: View {
     private let heightValues  = Array(54...84)
     private let proteinValues = stride(from: 0.70, through: 1.00, by: 0.05).map { Double(String(format: "%.2f", $0))! }
 
-    /// Goal weight is capped to ±5 lbs from current weight.
+    /// Full range — the user can pick any goal weight.
     private var goalWeightValues: [Double] {
-        let low  = max(100, Int(currentWeight) - 5)
-        let high = min(300, Int(currentWeight) + 5)
-        return Array(low...high).map { Double($0) }
+        weightValues
     }
 
     var body: some View {

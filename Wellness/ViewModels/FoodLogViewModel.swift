@@ -436,6 +436,31 @@ enum AnalysisTier: Equatable {
         }
     }
 
+    /// Text-only macro estimation — sends the food name the user typed in
+    /// the manual-entry field to the recognition pipeline (no image needed).
+    /// Counts toward the daily scan limit and is gated behind the AI subscription.
+    func analyzeFromText() async {
+        let name = foodName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        guard checkScanLimit() else { return }
+        analysisState = .analyzing
+        analysisTier  = .none
+
+        let result = await recognitionManager.recognizeFoodByName(name)
+        guard !Task.isCancelled else { return }
+
+        recognitionResult = result
+        populateFromRecognitionResult(result)
+        analysisTier = .claude
+        Self.tier1Count += 1
+
+        if result.tier == 0 && result.calories == 0 {
+            analysisState = .error("Couldn't estimate macros for \"\(name)\". Try being more specific (e.g. \"2 eggs scrambled with butter\").")
+        } else {
+            analysisState = .confirmed(result)
+        }
+    }
+
     /// Forces a Sonnet full vision analysis, bypassing Tier 1 (Haiku).
     /// Called when the user taps "Not right? Try AI scan".
     func reanalyzeWithClaude() async {
