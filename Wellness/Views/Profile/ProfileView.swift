@@ -1396,9 +1396,11 @@ struct ProfileView: View {
         friendCount    = followingIDs.intersection(followerIDs).count
 
         if isOwnProfile {
-            // Still fetch profile for photo URL updates
+            // Still fetch profile for photo URL updates — only the public
+            // doc is needed (we're only reading `profilePhotoURL`), so skip
+            // the private-fields subcollection read.
             if let uid = ownUserSettings?.userID, !uid.isEmpty,
-               let profile = try? await UserProfileService.shared.fetchProfile(userID: uid) {
+               let profile = try? await UserProfileService.shared.fetchProfile(userID: uid, includePrivateFields: false) {
                 targetProfilePhotoURL = profile.profilePhotoURL
             }
             followStateLoaded = true
