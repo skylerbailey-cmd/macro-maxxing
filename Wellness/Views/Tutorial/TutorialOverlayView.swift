@@ -347,12 +347,12 @@ struct TutorialOverlayView: View {
                     ForEach(highlightRects.indices, id: \.self) { i in
                         let rect = highlightRects[i]
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color(red: 0.65, green: 0.45, blue: 1.00).opacity(0.85),
+                            .stroke(ThemeStore.shared.accent.opacity(0.85),
                                     lineWidth: 2)
                             .frame(width: rect.width  + 8,
                                    height: rect.height + 8)
                             .position(x: rect.midX, y: rect.midY)
-                            .shadow(color: Color(red: 0.65, green: 0.45, blue: 1.00).opacity(0.45),
+                            .shadow(color: ThemeStore.shared.accent.opacity(0.45),
                                     radius: 10)
                             .allowsHitTesting(false)
                     }
@@ -395,7 +395,7 @@ struct TutorialOverlayView: View {
                     ForEach(0..<steps.count, id: \.self) { i in
                         Capsule()
                             .fill(i == currentStep
-                                  ? Color(red: 0.65, green: 0.45, blue: 1.00)
+                                  ? ThemeStore.shared.accent
                                   : Color.white.opacity(0.20))
                             .frame(width: i == currentStep ? 18 : 6, height: 6)
                             .animation(.spring(duration: 0.3), value: currentStep)
@@ -449,7 +449,7 @@ struct TutorialOverlayView: View {
                         .foregroundStyle(.black)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 9)
-                        .background(Color(red: 0.65, green: 0.45, blue: 1.00),
+                        .background(ThemeStore.shared.accent,
                                     in: RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
@@ -462,7 +462,7 @@ struct TutorialOverlayView: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
                         .strokeBorder(
-                            Color(red: 0.65, green: 0.45, blue: 1.00).opacity(0.30),
+                            ThemeStore.shared.accent.opacity(0.30),
                             lineWidth: 1)
                 )
                 .shadow(color: .black.opacity(0.50), radius: 24, y: 8)
@@ -539,7 +539,7 @@ private struct TutorialIconView: View {
     let icon: TutorialIcon
     @State private var pulsing = false
 
-    private let gold = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private var gold: Color { ThemeStore.shared.accent }
 
     var body: some View {
         switch icon {
@@ -570,7 +570,7 @@ private struct TutorialIconView: View {
 
         case .mealScore:
             let scoreGreen = Color(red: 0.25, green: 0.85, blue: 0.50)
-            let cardBg     = Color(red: 0.13, green: 0.10, blue: 0.22)
+            let cardBg     = Color(red: 0.11, green: 0.11, blue: 0.14)
             let proClr     = Color(red: 0.35, green: 0.75, blue: 1.00)
             let carbClr    = Color(red: 0.40, green: 0.90, blue: 0.72)
             let fatClr     = Color(red: 1.00, green: 0.50, blue: 0.72)

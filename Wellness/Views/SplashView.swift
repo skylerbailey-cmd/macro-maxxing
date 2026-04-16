@@ -132,24 +132,24 @@ struct WellnessLogoView: View {
         ZStack {
             // Dim track — always full circle
             Circle()
-                .stroke(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.15), lineWidth: lw)
+                .stroke(ThemeStore.shared.accent.opacity(0.15), lineWidth: lw)
                 .frame(width: ringR * 2, height: ringR * 2)
 
             // Progress arc — fills clockwise from 12 o'clock
             Circle()
                 .trim(from: 0, to: progress)
                 .stroke(
-                    Color(red: 0.65, green: 0.45, blue: 1.0),
+                    ThemeStore.shared.accent,
                     style: StrokeStyle(lineWidth: lw, lineCap: .round)
                 )
                 .frame(width: ringR * 2, height: ringR * 2)
                 .rotationEffect(.degrees(-90))          // start at top
-                .shadow(color: Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.25),
+                .shadow(color: ThemeStore.shared.accent.opacity(0.25),
                         radius: size * 0.02)
 
             // Inner accent ring
             Circle()
-                .stroke(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.07), lineWidth: lw * 0.35)
+                .stroke(ThemeStore.shared.accent.opacity(0.07), lineWidth: lw * 0.35)
                 .frame(width: ringR * 1.24, height: ringR * 1.24)
 
             // 4 macro dots
@@ -169,7 +169,7 @@ struct WellnessLogoView: View {
             ForkShape()
                 .fill(Color.white.opacity(0.90))
                 .frame(width: size * 0.22, height: size * 0.28)
-                .shadow(color: Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.20),
+                .shadow(color: ThemeStore.shared.accent.opacity(0.20),
                         radius: size * 0.01)
         }
         .frame(width: size, height: size)

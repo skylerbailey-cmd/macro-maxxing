@@ -13,7 +13,7 @@ private extension Color {
     static let authBg      = Color(red: 0.06, green: 0.04, blue: 0.12)
     static let authCard    = Color(red: 0.13, green: 0.09, blue: 0.24)
     static let purpleMid   = Color(red: 0.45, green: 0.25, blue: 0.85)
-    static let gold        = Color(red: 1.00, green: 0.84, blue: 0.00)
+    static var gold: Color { ThemeStore.shared.accent }
 }
 
 // MARK: - AuthView
@@ -544,7 +544,7 @@ private struct ForgotPasswordView: View {
                 VStack(spacing: 24) {
                     ZStack {
                         Circle()
-                            .fill(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.2))
+                            .fill(ThemeStore.shared.accent.opacity(0.2))
                             .frame(width: 80, height: 80)
                             .blur(radius: 16)
                         Image(systemName: "lock.rotation")
@@ -572,7 +572,7 @@ private struct ForgotPasswordView: View {
 
                     HStack(spacing: 12) {
                         Image(systemName: "envelope.fill")
-                            .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.7))
+                            .foregroundStyle(ThemeStore.shared.accent.opacity(0.7))
                             .frame(width: 18)
                         TextField("Email", text: $email)
                             .foregroundStyle(.white)
@@ -584,7 +584,7 @@ private struct ForgotPasswordView: View {
                     .background(Color.white.opacity(0.06))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay(RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.2), lineWidth: 1))
+                        .stroke(ThemeStore.shared.accent.opacity(0.2), lineWidth: 1))
                     .padding(.horizontal, 24)
 
                     Button {
@@ -595,7 +595,7 @@ private struct ForgotPasswordView: View {
                             .frame(maxWidth: .infinity).padding(.vertical, 16)
                             .background(LinearGradient(
                                 colors: [Color(red: 0.45, green: 0.25, blue: 0.85),
-                                         Color(red: 0.65, green: 0.45, blue: 1.0)],
+                                         ThemeStore.shared.accent],
                                 startPoint: .leading, endPoint: .trailing))
                             .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
@@ -610,7 +610,7 @@ private struct ForgotPasswordView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { auth.clearError(); auth.clearSuccess(); dismiss() }
-                        .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0))
+                        .foregroundStyle(ThemeStore.shared.accent)
                 }
             }
         }
@@ -686,7 +686,7 @@ struct DeleteAccountView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { auth.clearError(); dismiss() }
-                        .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0))
+                        .foregroundStyle(ThemeStore.shared.accent)
                 }
             }
         }
@@ -712,7 +712,7 @@ struct ChangeEmailView: View {
                 VStack(spacing: 24) {
                     ZStack {
                         Circle()
-                            .fill(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.2))
+                            .fill(ThemeStore.shared.accent.opacity(0.2))
                             .frame(width: 80, height: 80).blur(radius: 16)
                         Image(systemName: "envelope.badge.fill")
                             .font(.system(size: 36))
@@ -741,7 +741,7 @@ struct ChangeEmailView: View {
                         // New email field
                         HStack(spacing: 12) {
                             Image(systemName: "envelope.fill")
-                                .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.7))
+                                .foregroundStyle(ThemeStore.shared.accent.opacity(0.7))
                                 .frame(width: 18)
                             TextField("New email address", text: $newEmail)
                                 .foregroundStyle(.white)
@@ -753,12 +753,12 @@ struct ChangeEmailView: View {
                         .background(Color.white.opacity(0.06))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.2), lineWidth: 1))
+                            .stroke(ThemeStore.shared.accent.opacity(0.2), lineWidth: 1))
 
                         // Current password field
                         HStack(spacing: 12) {
                             Image(systemName: "lock.fill")
-                                .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.7))
+                                .foregroundStyle(ThemeStore.shared.accent.opacity(0.7))
                                 .frame(width: 18)
                             Group {
                                 if showPassword {
@@ -770,14 +770,14 @@ struct ChangeEmailView: View {
                             .foregroundStyle(.white)
                             Button { showPassword.toggle() } label: {
                                 Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
-                                    .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.6))
+                                    .foregroundStyle(ThemeStore.shared.accent.opacity(0.6))
                             }
                         }
                         .padding(14)
                         .background(Color.white.opacity(0.06))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.2), lineWidth: 1))
+                            .stroke(ThemeStore.shared.accent.opacity(0.2), lineWidth: 1))
                     }
                     .padding(.horizontal, 24)
 
@@ -795,10 +795,10 @@ struct ChangeEmailView: View {
                         .frame(maxWidth: .infinity).padding(.vertical, 16)
                         .background(LinearGradient(
                             colors: [Color(red: 0.45, green: 0.25, blue: 0.85),
-                                     Color(red: 0.65, green: 0.45, blue: 1.0)],
+                                     ThemeStore.shared.accent],
                             startPoint: .leading, endPoint: .trailing))
                         .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .shadow(color: Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.35), radius: 8, y: 4)
+                        .shadow(color: ThemeStore.shared.accent.opacity(0.35), radius: 8, y: 4)
                     }
                     .padding(.horizontal, 24)
                     .disabled(auth.isLoading || newEmail.isEmpty || password.isEmpty)
@@ -815,7 +815,7 @@ struct ChangeEmailView: View {
                         auth.clearSuccess()
                         dismiss()
                     }
-                    .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0))
+                    .foregroundStyle(ThemeStore.shared.accent)
                 }
             }
         }

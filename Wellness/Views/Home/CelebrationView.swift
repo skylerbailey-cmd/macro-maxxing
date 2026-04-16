@@ -119,7 +119,7 @@ struct CelebrationView: View {
                         .padding(.vertical, 12)
                         .background(postedToFeed
                             ? Color.green.opacity(0.30)
-                            : Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.35))
+                            : ThemeStore.shared.accent.opacity(0.35))
                         .cornerRadius(14)
                     }
                     .disabled(postedToFeed)
@@ -155,11 +155,11 @@ struct CelebrationView: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .shadow(color: Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.50), radius: 40)
+                    .shadow(color: ThemeStore.shared.accent.opacity(0.50), radius: 40)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 28)
-                    .stroke(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.55), lineWidth: 1.5)
+                    .stroke(ThemeStore.shared.accent.opacity(0.55), lineWidth: 1.5)
             )
             // X dismiss button
             .overlay(alignment: .topTrailing) {
@@ -280,10 +280,10 @@ struct CelebrationPostEditorSheet: View {
 
     private enum Field: Hashable { case title, message }
 
-    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var purpl: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
 
     var body: some View {
         NavigationStack {
@@ -596,7 +596,7 @@ private struct CelebrationShareOptionsSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(red: 0.07, green: 0.05, blue: 0.12).ignoresSafeArea()
+                Color(red: 0.05, green: 0.05, blue: 0.07).ignoresSafeArea()
 
                 VStack(spacing: 12) {
                     shareButton(
@@ -611,7 +611,7 @@ private struct CelebrationShareOptionsSheet: View {
                         title: "Share / Save / More",
                         subtitle: "Messages, AirDrop, save to Photos…",
                         icon: "square.and.arrow.up",
-                        colors: [Color(red: 0.65, green: 0.45, blue: 1.00),
+                        colors: [ThemeStore.shared.accent,
                                  Color(red: 0.40, green: 0.20, blue: 0.85)]
                     ) { showingActivitySheet = true }
                 }
@@ -656,7 +656,7 @@ private struct CelebrationShareOptionsSheet: View {
                     .foregroundStyle(.white.opacity(0.30))
             }
             .padding(.horizontal, 14).padding(.vertical, 10)
-            .background(Color(red: 0.13, green: 0.10, blue: 0.22))
+            .background(Color(red: 0.11, green: 0.11, blue: 0.14))
             .cornerRadius(14)
         }
         .buttonStyle(.plain)
@@ -690,8 +690,8 @@ private struct CelebrationShareCard: View {
     let userName:      String
     var streak:        Int = 0
 
-    private let purpl = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold  = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private var purpl: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
 
     private let macroItems: [(String, Color)] = [
         ("Calories", Color(red: 1.00, green: 0.55, blue: 0.15)),
@@ -820,7 +820,7 @@ private struct ConfettiView: View {
 
     private static let palette: [Color] = [
         .orange,
-        Color(red: 0.65, green: 0.45, blue: 1.00),
+        ThemeStore.shared.accent,
         Color(red: 0.35, green: 0.75, blue: 1.00),
         Color(red: 0.40, green: 0.90, blue: 0.72),
         Color(red: 1.00, green: 0.50, blue: 0.72),

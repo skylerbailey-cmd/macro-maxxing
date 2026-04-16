@@ -22,9 +22,9 @@ struct WorkoutDuelView: View {
     @State private var isSavingRestDay   = false
     @State private var editingEntry:     WorkoutEntry?  = nil
 
-    private let accent  = Color(red: 0.30, green: 0.90, blue: 0.55)
-    private let cardBg  = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let pageBg  = Color(red: 0.07, green: 0.05, blue: 0.12)
+    private var accent: Color { ThemeStore.shared.accent }
+    private let cardBg  = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private let pageBg  = Color(red: 0.05, green: 0.05, blue: 0.07)
 
     var body: some View {
         ScrollView {
@@ -185,10 +185,10 @@ struct WorkoutDuelView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "chart.bar.fill")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+                            .foregroundStyle(ThemeStore.shared.accent)
                         Text("Macro Goal Adjustments")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+                            .foregroundStyle(ThemeStore.shared.accent)
                     }
 
                     HStack(spacing: 8) {
@@ -352,7 +352,7 @@ private struct EditWorkoutSheet: View {
                         }
                     }
                     Button {
-                        exercises.append(Exercise(name: "", sets: 3, reps: 10))
+                        exercises.append(Exercise(name: "", sets: [ExerciseSet(reps: 10)]))
                     } label: {
                         Label("Add Exercise", systemImage: "plus.circle.fill")
                     }
@@ -403,15 +403,15 @@ private struct EditWorkoutSheet: View {
                             showSaveError = true
                             return
                         }
-                        // Strip rows with blank names so saving is idempotent.
+                        // Strip blank-name exercises and normalize set counts/reps.
                         let cleaned: [Exercise] = exercises.compactMap { ex in
                             let trimmed = ex.name.trimmingCharacters(in: .whitespaces)
                             guard !trimmed.isEmpty else { return nil }
-                            return Exercise(id: ex.id,
-                                            name: trimmed,
-                                            sets: max(1, ex.sets),
-                                            reps: max(1, ex.reps),
-                                            weight: ex.weight)
+                            let src = ex.sets.isEmpty ? [ExerciseSet(reps: 1)] : ex.sets
+                            let sets = src.map { s in
+                                ExerciseSet(id: s.id, reps: max(1, s.reps), weight: s.weight)
+                            }
+                            return Exercise(id: ex.id, name: trimmed, sets: sets)
                         }
                         onSave(name, workoutType, dur, cal, loggedAt, cleaned)
                         dismiss()
@@ -425,29 +425,42 @@ private struct EditWorkoutSheet: View {
 
     @ViewBuilder
     private func exerciseEditRow(exercise: Binding<Exercise>) -> some View {
-        let setsBinding = Binding<String>(
-            get: { String(exercise.wrappedValue.sets) },
-            set: { newVal in
-                if let n = Int(newVal.filter { $0.isNumber }), n > 0 {
-                    exercise.wrappedValue.sets = n
-                } else if newVal.isEmpty {
-                    exercise.wrappedValue.sets = 0
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            TextField("Exercise name", text: exercise.name)
+                .font(.system(size: 15, weight: .semibold))
+
+            ForEach(Array(exercise.wrappedValue.sets.enumerated()), id: \.element.id) { idx, _ in
+                setEditRow(exercise: exercise, setIndex: idx)
             }
-        )
+
+            Button {
+                let prev = exercise.wrappedValue.sets.last
+                exercise.wrappedValue.sets.append(
+                    ExerciseSet(reps: prev?.reps ?? 10, weight: prev?.weight)
+                )
+            } label: {
+                Label("Add Set", systemImage: "plus.circle")
+                    .font(.caption)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func setEditRow(exercise: Binding<Exercise>, setIndex: Int) -> some View {
         let repsBinding = Binding<String>(
-            get: { String(exercise.wrappedValue.reps) },
+            get: { String(exercise.wrappedValue.sets[setIndex].reps) },
             set: { newVal in
                 if let n = Int(newVal.filter { $0.isNumber }), n > 0 {
-                    exercise.wrappedValue.reps = n
+                    exercise.wrappedValue.sets[setIndex].reps = n
                 } else if newVal.isEmpty {
-                    exercise.wrappedValue.reps = 0
+                    exercise.wrappedValue.sets[setIndex].reps = 0
                 }
             }
         )
         let weightBinding = Binding<String>(
             get: {
-                if let w = exercise.wrappedValue.weight {
+                if let w = exercise.wrappedValue.sets[setIndex].weight {
                     return w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(w)
                 }
                 return ""
@@ -455,41 +468,43 @@ private struct EditWorkoutSheet: View {
             set: { newVal in
                 let t = newVal.trimmingCharacters(in: .whitespaces)
                 if t.isEmpty {
-                    exercise.wrappedValue.weight = nil
+                    exercise.wrappedValue.sets[setIndex].weight = nil
                 } else if let d = Double(t) {
-                    exercise.wrappedValue.weight = d
+                    exercise.wrappedValue.sets[setIndex].weight = d
                 }
             }
         )
 
-        VStack(alignment: .leading, spacing: 8) {
-            TextField("Exercise name", text: exercise.name)
-                .font(.system(size: 15, weight: .medium))
-            HStack(spacing: 8) {
-                TextField("Sets", text: setsBinding)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.center)
-                    .frame(width: 44)
-                    .padding(6)
-                    .background(Color.gray.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
-                Text("×").foregroundStyle(.secondary)
-                TextField("Reps", text: repsBinding)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.center)
-                    .frame(width: 48)
-                    .padding(6)
-                    .background(Color.gray.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
-                TextField("lb", text: weightBinding)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.center)
-                    .frame(width: 60)
-                    .padding(6)
-                    .background(Color.gray.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
-                Text("lb").font(.caption).foregroundStyle(.secondary)
-                Spacer()
+        HStack(spacing: 8) {
+            Text("Set \(setIndex + 1)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 44, alignment: .leading)
+            TextField("Reps", text: repsBinding)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.center)
+                .frame(width: 48)
+                .padding(6)
+                .background(Color.gray.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
+            Text("reps").font(.caption).foregroundStyle(.secondary)
+            TextField("lb", text: weightBinding)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.center)
+                .frame(width: 60)
+                .padding(6)
+                .background(Color.gray.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
+            Text("lb").font(.caption).foregroundStyle(.secondary)
+            Spacer()
+            Button {
+                guard exercise.wrappedValue.sets.count > 1 else { return }
+                exercise.wrappedValue.sets.remove(at: setIndex)
+            } label: {
+                Image(systemName: "minus.circle.fill")
+                    .foregroundStyle(.red.opacity(exercise.wrappedValue.sets.count > 1 ? 0.7 : 0.25))
             }
+            .buttonStyle(.plain)
+            .disabled(exercise.wrappedValue.sets.count <= 1)
         }
-        .padding(.vertical, 4)
     }
 }
 
@@ -561,26 +576,11 @@ private struct WorkoutRow: View {
             .onTapGesture { onEdit() }
 
             if isExpanded && hasExercises {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 10) {
                     Divider().background(.white.opacity(0.08))
-                        .padding(.bottom, 4)
+                        .padding(.bottom, 2)
                     ForEach(entry.exercises) { ex in
-                        HStack(spacing: 6) {
-                            Text(ex.name)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(.white.opacity(0.85))
-                            Text("·")
-                                .foregroundStyle(.white.opacity(0.25))
-                            Text("\(ex.sets) × \(ex.reps)")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(accent.opacity(0.85))
-                            if let w = ex.weight {
-                                Text("@ \(formatWeight(w)) lb")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.white.opacity(0.55))
-                            }
-                            Spacer()
-                        }
+                        exerciseDetail(ex)
                     }
                 }
                 .padding(.horizontal, 14)
@@ -598,5 +598,52 @@ private struct WorkoutRow: View {
 
     private func formatWeight(_ w: Double) -> String {
         w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(format: "%.1f", w)
+    }
+
+    @ViewBuilder
+    private func exerciseDetail(_ ex: Exercise) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(ex.name)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.90))
+
+            if ex.hasUniformSets, let first = ex.sets.first {
+                // Compact form when every set has identical reps & weight.
+                HStack(spacing: 4) {
+                    Text("\(ex.sets.count) × \(first.reps)")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(accent.opacity(0.90))
+                    if let w = first.weight {
+                        Text("@ \(formatWeight(w)) lb")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
+                    Spacer()
+                }
+                .padding(.leading, 8)
+            } else {
+                // Per-set detail for varying sets (e.g. pyramid).
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(Array(ex.sets.enumerated()), id: \.element.id) { idx, s in
+                        HStack(spacing: 6) {
+                            Text("Set \(idx + 1)")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.35))
+                                .frame(width: 40, alignment: .leading)
+                            Text("\(s.reps) reps")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(accent.opacity(0.90))
+                            if let w = s.weight {
+                                Text("@ \(formatWeight(w)) lb")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.white.opacity(0.55))
+                            }
+                            Spacer()
+                        }
+                    }
+                }
+                .padding(.leading, 8)
+            }
+        }
     }
 }

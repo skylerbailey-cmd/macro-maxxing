@@ -230,7 +230,7 @@ struct HomeView: View {
     private var greetingHeader: some View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 20)
-                .fill(Color(red: 0.11, green: 0.08, blue: 0.20))
+                .fill(Color.cardBg)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
                         .stroke(Color.purpleHi.opacity(0.20), lineWidth: 1)
@@ -292,7 +292,7 @@ struct HomeView: View {
                     Text(_title.uppercased())
                         .font(.system(size: 11, weight: .black))
                         .tracking(1.5)
-                        .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
+                        .foregroundStyle(ThemeStore.shared.accent)
                     Spacer()
                     Text("🔥 \(viewModel.macroStreak) day streak")
                         .font(.system(size: 12, weight: .bold))
@@ -404,8 +404,8 @@ struct HomeView: View {
         let pctText    = level >= 100 ? "MAX" : "\(Int(progress * 100))%"
         let nextLabel  = level >= 100 ? "Max level" : "to Lv \(level + 1)"
         let barColor  = LinearGradient(
-            colors: [Color(red: 0.65, green: 0.45, blue: 1.00),
-                     Color(red: 1.00, green: 0.80, blue: 0.20)],
+            colors: [ThemeStore.shared.accent,
+                     ThemeStore.shared.accent],
             startPoint: .leading, endPoint: .trailing
         )
 
@@ -428,7 +428,7 @@ struct HomeView: View {
 
                 Text(pctText)
                     .font(.system(size: 10, weight: .black, design: .rounded))
-                    .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
+                    .foregroundStyle(ThemeStore.shared.accent)
                     .frame(width: 34, alignment: .trailing)
 
                 Text(nextLabel)
@@ -458,8 +458,8 @@ struct HomeView: View {
     }
 
     private var profileAvatarIcon: some View {
-        let purpl = Color(red: 0.65, green: 0.45, blue: 1.00)
-        let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+        let purpl = ThemeStore.shared.accent
+        let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
         return Group {
             if let data = viewModel.userSettings.profileImageData,
                let uiImg = UIImage(data: data) {
@@ -617,7 +617,7 @@ struct HomeView: View {
                         .font(.system(size: 12, weight: .black, design: .rounded))
                         .foregroundStyle(disciplineProgress >= 1.0
                             ? Color(red: 0.35, green: 1.00, blue: 0.60)
-                            : Color(red: 0.65, green: 0.45, blue: 1.00))
+                            : ThemeStore.shared.accent)
                         .animation(.easeOut(duration: 0.5), value: disciplineProgress)
                 }
                 .tutorialAnchor("hub.discipline")
@@ -717,11 +717,11 @@ struct HomeView: View {
             HStack(spacing: 10) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 9)
-                        .fill(Color(red: 1.0, green: 0.80, blue: 0.20).opacity(0.16))
+                        .fill(ThemeStore.shared.accent.opacity(0.16))
                         .frame(width: 30, height: 30)
                     Image(systemName: "lightbulb.fill")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+                        .foregroundStyle(ThemeStore.shared.accent)
                 }
                 VStack(alignment: .leading, spacing: 1) {
                     Text("AI Meal Planner")
@@ -761,7 +761,7 @@ struct HomeView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
-                        .background(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.5))
+                        .background(ThemeStore.shared.accent.opacity(0.5))
                         .cornerRadius(10)
                     }
                 }
@@ -795,6 +795,7 @@ struct HomeView: View {
                     }
                 }
                 .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.black)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 11)
             }
@@ -802,7 +803,7 @@ struct HomeView: View {
             .tint(
                 aiSubscription.isSubscribed && viewModel.userSettings.brainstormLimitReached
                 ? Color.gray
-                : Color(red: 0.65, green: 0.45, blue: 1.0)
+                : ThemeStore.shared.accent
             )
             .disabled(viewModel.brainstormState == .loading)
             .alert(item: $brainstormAlert) { alert in
@@ -835,12 +836,12 @@ struct HomeView: View {
             }
         }
         .padding(16)
-        .background(Color(red: 0.11, green: 0.08, blue: 0.20))
+        .background(Color.cardBg)
         .cornerRadius(18)
         .overlay(
             ShootingStarBorder(
                 cornerRadius: 18,
-                color: Color(red: 1.0, green: 0.80, blue: 0.20),
+                color: ThemeStore.shared.accent,
                 lineWidth: 1.5,
                 duration: 2.8,
                 reversed: true
@@ -885,7 +886,7 @@ struct HomeView: View {
 
         return Text(summary)
             .font(.subheadline.weight(.medium))
-            .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20).opacity(0.85))
+            .foregroundStyle(ThemeStore.shared.accent.opacity(0.85))
             .lineSpacing(2)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.bottom, 4)
@@ -979,7 +980,7 @@ struct DateNavigatorView: View {
                     selectedDate = calendar.startOfDay(for: Date())
                 }
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
+                .foregroundStyle(ThemeStore.shared.accent)
                 .buttonStyle(.plain)
                 .padding(.leading, 6)
                 .padding(.trailing, 12)
@@ -988,7 +989,7 @@ struct DateNavigatorView: View {
         }
         .padding(.leading, 4)
         .frame(maxWidth: .infinity)
-        .background(Color(red: 0.13, green: 0.10, blue: 0.22))
+        .background(Color(red: 0.11, green: 0.11, blue: 0.14))
         .cornerRadius(12)
         .animation(.easeInOut(duration: 0.2), value: isToday)
         .sheet(isPresented: $showingPicker) {
@@ -1196,7 +1197,7 @@ private struct MacroGaugeCard: View {
         .padding(.horizontal, 8)
         .background(
             ZStack {
-                Color(red: 0.11, green: 0.08, blue: 0.20)
+                Color.cardBg
                 if isGoalMet {
                     color.opacity(0.06)
                 }
@@ -1261,7 +1262,7 @@ struct WindowPickerSheet: View {
 private struct BrainstormSkeletonView: View {
     @State private var pulse = false
 
-    private let purpl = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private var purpl: Color { ThemeStore.shared.accent }
     private let lines = ["████████████████████", "████████████", "██████████████████"]
 
     var body: some View {

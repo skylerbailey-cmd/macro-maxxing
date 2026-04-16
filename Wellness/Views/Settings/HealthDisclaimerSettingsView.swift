@@ -9,7 +9,7 @@ import SwiftUI
 
 struct HealthDisclaimerSettingsView: View {
 
-    private let purpl = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private var purpl: Color { ThemeStore.shared.accent }
 
     var body: some View {
         ScrollView {

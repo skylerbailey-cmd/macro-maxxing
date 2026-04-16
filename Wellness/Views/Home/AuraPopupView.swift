@@ -56,8 +56,8 @@ struct AuraPopupView: View {
     @State private var opacity: Double  = 0
     @State private var bgOpacity: Double = 0
 
-    private let gold  = Color(red: 1.00, green: 0.82, blue: 0.20)
-    private let purpl = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private var gold: Color { ThemeStore.shared.accent }
+    private var purpl: Color { ThemeStore.shared.accent }
 
     private var level: Int    { userSettings.auraLevel }
     private var title: String { userSettings.auraTitle }

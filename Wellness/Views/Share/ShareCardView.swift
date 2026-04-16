@@ -39,8 +39,8 @@ struct ShareCardView: View {
     private let bg1   = Color(red: 0.08, green: 0.04, blue: 0.15)
     private let bg2   = Color(red: 0.03, green: 0.01, blue: 0.08)
     private let card  = Color(red: 0.13, green: 0.09, blue: 0.22)
-    private let purpl = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold  = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private var purpl: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
 
     // Macro colours
     private let colCal  = Color(red: 1.00, green: 0.55, blue: 0.15)

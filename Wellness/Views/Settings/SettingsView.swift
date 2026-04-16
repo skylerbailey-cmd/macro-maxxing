@@ -108,6 +108,7 @@ struct SettingsView: View {
     @FocusState private var nameFocused: Bool
 
     // Local state — only writes to userSettings on commit, preventing re-renders on every input
+    @State private var theme = ThemeStore.shared
     @State private var activeFAQ: FAQItem? = nil
     @State private var nameText:         String = ""
     @State private var usernameText:     String = ""
@@ -269,6 +270,29 @@ struct SettingsView: View {
                 Text("Location")
             } footer: {
                 Text("Profile Location is shown on your profile and used as a fallback. GPS Location uses your real-time position for posts and the local leaderboard.")
+            }
+
+            // MARK: Appearance
+            Section {
+                NavigationLink {
+                    AccentColorPickerView()
+                } label: {
+                    HStack {
+                        Label("Accent Color", systemImage: "paintpalette.fill")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Circle()
+                            .fill(theme.accent)
+                            .frame(width: 20, height: 20)
+                            .overlay(Circle().stroke(.white.opacity(0.3), lineWidth: 1))
+                        Text(theme.selectedAccent.displayName)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Appearance")
+            } footer: {
+                Text("Choose the accent color used throughout the app.")
             }
 
             // MARK: Socials
@@ -752,7 +776,7 @@ struct SettingsView: View {
                 Text(label).foregroundStyle(.primary)
                 Spacer()
                 Text(display)
-                    .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0))
+                    .foregroundStyle(ThemeStore.shared.accent)
                     .monospacedDigit()
                     .fontWeight(.semibold)
             }

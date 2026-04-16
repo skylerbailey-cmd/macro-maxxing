@@ -609,17 +609,20 @@ final class ClaudeAnalysisService {
         If the user mentions calories, use that number. Otherwise estimate accurately \
         based on workout type and duration for an average adult.
 
-        If the user describes specific exercises (e.g. "3 sets of 10 bench press at 135 pounds"), \
-        include them in an "exercises" array. Each entry: \
-        {"name": "Bench Press", "sets": 3, "reps": 10, "weight": 135}. \
-        Set "weight" to null when the user does not mention a weight. \
+        If the user describes specific exercises (e.g. "3 sets of 10 bench press at 135 pounds" \
+        or "pyramid bench: 10 at 135, 8 at 145, 6 at 155"), include them in an "exercises" array. \
+        Each exercise entry has: \
+        {"name": "Bench Press", "sets": [{"reps": 10, "weight": 135}, {"reps": 10, "weight": 135}, {"reps": 10, "weight": 135}]}. \
+        The "sets" array contains one object per set performed; if the user says "3 sets of 10 at 135", \
+        emit 3 identical set objects. If they describe pyramid/varying sets, emit each set's actual reps and weight. \
+        Set "weight" to null when the user does not mention a weight for that set. \
         Always output weight in pounds (lb); if the user says kilograms, convert to pounds (1 kg ≈ 2.2046 lb) and round to the nearest pound. \
         If the user doesn't mention any specific exercises, return an empty "exercises" array.
 
         User said: "\(transcript)"
 
         Respond ONLY with a valid JSON object and nothing else — no explanation, no markdown:
-        {"name": "...", "workoutType": "Strength", "durationMinutes": 45, "caloriesBurned": 350, "exercises": [{"name": "Bench Press", "sets": 3, "reps": 10, "weight": 135}]}
+        {"name": "...", "workoutType": "Strength", "durationMinutes": 45, "caloriesBurned": 350, "exercises": [{"name": "Bench Press", "sets": [{"reps": 10, "weight": 135}, {"reps": 10, "weight": 135}, {"reps": 10, "weight": 135}]}]}
         """
 
         let payload: [String: Any] = [
@@ -649,7 +652,30 @@ final class ClaudeAnalysisService {
         let exercises: [Exercise] = rawExercises.compactMap { e in
             guard let exName = (e["name"] as? String)?.trimmingCharacters(in: .whitespaces),
                   !exName.isEmpty else { return nil }
-            let sets: Int = {
+
+            func parseWeight(_ v: Any?) -> Double? {
+                if v is NSNull { return nil }
+                if let d = v as? Double { return d }
+                if let i = v as? Int    { return Double(i) }
+                return nil
+            }
+
+            // New shape: "sets" is an array of {reps, weight}
+            if let setsArr = e["sets"] as? [[String: Any]] {
+                let parsed: [ExerciseSet] = setsArr.map { s in
+                    let reps: Int = {
+                        if let i = s["reps"] as? Int    { return max(1, i) }
+                        if let d = s["reps"] as? Double { return max(1, Int(d)) }
+                        return 1
+                    }()
+                    return ExerciseSet(reps: reps, weight: parseWeight(s["weight"]))
+                }
+                let sets = parsed.isEmpty ? [ExerciseSet(reps: 1, weight: nil)] : parsed
+                return Exercise(name: exName, sets: sets)
+            }
+
+            // Fallback shape: "sets" is an Int with top-level "reps"/"weight"
+            let setCount: Int = {
                 if let i = e["sets"] as? Int    { return max(1, i) }
                 if let d = e["sets"] as? Double { return max(1, Int(d)) }
                 return 1
@@ -659,13 +685,8 @@ final class ClaudeAnalysisService {
                 if let d = e["reps"] as? Double { return max(1, Int(d)) }
                 return 1
             }()
-            let weight: Double? = {
-                if e["weight"] is NSNull { return nil }
-                if let d = e["weight"] as? Double { return d }
-                if let i = e["weight"] as? Int    { return Double(i) }
-                return nil
-            }()
-            return Exercise(name: exName, sets: sets, reps: reps, weight: weight)
+            let weight = parseWeight(e["weight"])
+            return Exercise(name: exName, setCount: setCount, reps: reps, weight: weight)
         }
 
         return WorkoutParseResult(name: name, workoutType: workoutType,

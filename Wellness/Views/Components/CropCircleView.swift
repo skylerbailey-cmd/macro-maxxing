@@ -21,7 +21,7 @@ struct CropCircleView: View {
     @GestureState private var gestureDrag:  CGSize  = .zero
 
     private let cropDiameter: CGFloat = 280
-    private let gold = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private var gold: Color { ThemeStore.shared.accent }
 
     // Base display size so the image fills the crop circle at scale = 1
     private var baseSize: CGSize {

@@ -23,11 +23,11 @@ struct ProfileShareCardData {
 struct ProfileShareCardView: View {
     let data: ProfileShareCardData
 
-    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private var purpl: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
     private let neon   = Color(red: 0.35, green: 1.00, blue: 0.60)
-    private let bg     = Color(red: 0.04, green: 0.03, blue: 0.08)
-    private let cardBg = Color(red: 0.08, green: 0.06, blue: 0.12)
+    private let bg     = Color(red: 0.03, green: 0.03, blue: 0.04)
+    private let cardBg = Color(red: 0.08, green: 0.08, blue: 0.10)
 
     private var scoreColor: Color {
         guard let s = data.balanceScore else { return purpl }

@@ -23,7 +23,7 @@ struct ProfileShareView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(red: 0.07, green: 0.05, blue: 0.12).ignoresSafeArea()
+                Color(red: 0.05, green: 0.05, blue: 0.07).ignoresSafeArea()
 
                 VStack(spacing: 24) {
                     cardPreview
@@ -41,7 +41,7 @@ struct ProfileShareView: View {
                             title: "Share / Save / More",
                             subtitle: "Messages, AirDrop, save to Photos…",
                             icon: "square.and.arrow.up",
-                            colors: [Color(red: 0.65, green: 0.45, blue: 1.00),
+                            colors: [ThemeStore.shared.accent,
                                      Color(red: 0.40, green: 0.20, blue: 0.85)]
                         ) { showingActivitySheet = true }
                     }
@@ -78,12 +78,12 @@ struct ProfileShareView: View {
                     .padding(.horizontal, 40)
             } else {
                 RoundedRectangle(cornerRadius: 18)
-                    .fill(Color(red: 0.13, green: 0.10, blue: 0.22))
+                    .fill(Color(red: 0.11, green: 0.11, blue: 0.14))
                     .frame(height: 280)
                     .padding(.horizontal, 40)
                     .overlay {
                         VStack(spacing: 10) {
-                            ProgressView().tint(Color(red: 0.65, green: 0.45, blue: 1.0))
+                            ProgressView().tint(ThemeStore.shared.accent)
                             Text("Rendering…")
                                 .font(.caption)
                                 .foregroundStyle(.white.opacity(0.40))
@@ -128,7 +128,7 @@ struct ProfileShareView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(Color(red: 0.13, green: 0.10, blue: 0.22))
+            .background(Color(red: 0.11, green: 0.11, blue: 0.14))
             .cornerRadius(14)
         }
         .buttonStyle(.plain)

@@ -114,10 +114,10 @@ struct NewPostView: View {
 
     private enum Field: Hashable { case title, body }
 
-    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var purpl: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
 
     private var statusPrompt: String { dailyStatusPrompts[dailyIndex(for: dailyStatusPrompts)] }
     private var bodyPrompt:   String { dailyBodyPrompts[dailyIndex(for: dailyBodyPrompts)] }
@@ -490,7 +490,7 @@ struct NewPostView: View {
         let goalPro  = ud("goalProtein",  fallback: 150)
         let goalCarb = ud("goalCarbs",    fallback: 200)
         let goalFat  = ud("goalFat",      fallback: 65)
-        let goalPurple = Color(red: 0.65, green: 0.45, blue: 1.00)
+        let goalPurple = ThemeStore.shared.accent
 
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -673,7 +673,7 @@ struct NewPostView: View {
         case .transformation: return Color(red: 0.35, green: 0.75, blue: 1.00)
         case .fuelLog:        return Color(red: 1.00, green: 0.55, blue: 0.15)
         case .mealInspo:      return Color(red: 1.00, green: 0.30, blue: 0.55)
-        case .mogBoard:       return Color(red: 1.00, green: 0.80, blue: 0.20)
+        case .mogBoard:       return Color(red: 0.65, green: 0.45, blue: 1.00)
         case .advice:         return Color(red: 1.00, green: 0.90, blue: 0.20)
         case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
         case .goalPost:       return Color(red: 0.65, green: 0.45, blue: 1.00)

@@ -25,14 +25,16 @@ final class WorkoutService {
     func save(entry: WorkoutEntry, userID: String) async throws {
         guard !userID.isEmpty else { return }
         let exerciseDicts: [[String: Any]] = entry.exercises.map { ex in
-            var d: [String: Any] = [
+            let setDicts: [[String: Any]] = ex.sets.map { s in
+                var sd: [String: Any] = ["id": s.id, "reps": s.reps]
+                if let w = s.weight { sd["weight"] = w }
+                return sd
+            }
+            return [
                 "id":   ex.id,
                 "name": ex.name,
-                "sets": ex.sets,
-                "reps": ex.reps
+                "sets": setDicts
             ]
-            if let w = ex.weight { d["weight"] = w }
-            return d
         }
         let data: [String: Any] = [
             "workoutID":          entry.workoutID,
@@ -78,15 +80,35 @@ final class WorkoutService {
             let rawEx      = d["exercises"]          as? [[String: Any]] ?? []
             let exercises: [Exercise] = rawEx.compactMap { e in
                 guard let exName = e["name"] as? String, !exName.isEmpty else { return nil }
-                let sets = (e["sets"] as? Int) ?? (e["sets"] as? NSNumber)?.intValue ?? 1
-                let reps = (e["reps"] as? Int) ?? (e["reps"] as? NSNumber)?.intValue ?? 1
+                let exID = (e["id"] as? String) ?? UUID().uuidString
+
+                // New shape: sets is an array of {reps, weight, id?}
+                if let setArr = e["sets"] as? [[String: Any]] {
+                    let sets: [ExerciseSet] = setArr.map { sd in
+                        let sid = (sd["id"] as? String) ?? UUID().uuidString
+                        let reps = (sd["reps"] as? Int) ?? (sd["reps"] as? NSNumber)?.intValue ?? 1
+                        let weight: Double? = {
+                            if let w = sd["weight"] as? Double { return w }
+                            if let w = sd["weight"] as? NSNumber { return w.doubleValue }
+                            return nil
+                        }()
+                        return ExerciseSet(id: sid, reps: reps, weight: weight)
+                    }
+                    return Exercise(id: exID, name: exName, sets: sets)
+                }
+
+                // Legacy shape: sets is an Int with top-level reps/weight.
+                let setCount = (e["sets"] as? Int) ?? (e["sets"] as? NSNumber)?.intValue ?? 1
+                let reps     = (e["reps"] as? Int) ?? (e["reps"] as? NSNumber)?.intValue ?? 1
                 let weight: Double? = {
-                    if let w = e["weight"] as? Double { return w }
+                    if let w = e["weight"] as? Double   { return w }
                     if let w = e["weight"] as? NSNumber { return w.doubleValue }
                     return nil
                 }()
-                let id = (e["id"] as? String) ?? UUID().uuidString
-                return Exercise(id: id, name: exName, sets: sets, reps: reps, weight: weight)
+                let sets = (0..<max(1, setCount)).map { _ in
+                    ExerciseSet(reps: reps, weight: weight)
+                }
+                return Exercise(id: exID, name: exName, sets: sets)
             }
             return WorkoutEntry(workoutID: wid, name: name, workoutType: wType,
                                 durationMinutes: duration, caloriesBurned: calories,

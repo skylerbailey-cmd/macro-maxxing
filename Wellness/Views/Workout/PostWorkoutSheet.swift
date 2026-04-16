@@ -27,12 +27,16 @@ struct PostWorkoutSheet: View {
 
     // MARK: - Colors
 
-    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let accent = Color(red: 0.30, green: 0.90, blue: 0.55)
+    private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var accent: Color { ThemeStore.shared.accent }
 
-    private var workoutHeadline: String { "\(workoutName) 💪" }
+    private var workoutHeadline: String { workoutName }
     private var workoutStats: String { "\(durationMinutes) min · \(caloriesBurned) kcal · \(workoutType.rawValue)" }
+
+    /// Aura points the user will earn for sharing this workout (once per day).
+    private static let workoutPostAuraReward = 25
+    private var auraRewardAvailable: Bool { !userSettings.hasEarnedWorkoutPostAuraToday }
 
     // MARK: - Body
 
@@ -44,6 +48,7 @@ struct PostWorkoutSheet: View {
                 ScrollView {
                     VStack(spacing: 20) {
                         promptHeader
+                        auraRewardBanner
                         previewCard
                         photoSection
                         captionSection
@@ -90,6 +95,54 @@ struct PostWorkoutSheet: View {
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
+    // MARK: - Aura Reward Banner
+
+    private var auraRewardBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(accent)
+
+            VStack(alignment: .leading, spacing: 2) {
+                if auraRewardAvailable {
+                    Text("Earn +\(Self.workoutPostAuraReward) Aura")
+                        .font(.system(size: 14, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text("Post this workout to claim your points.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.55))
+                } else {
+                    Text("Aura Claimed Today")
+                        .font(.system(size: 14, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text("Workout-post Aura resets tomorrow.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.55))
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            if auraRewardAvailable {
+                Text("+\(Self.workoutPostAuraReward)")
+                    .font(.system(size: 15, weight: .black, design: .rounded))
+                    .foregroundStyle(accent)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(accent.opacity(0.15), in: Capsule())
+                    .overlay(Capsule().stroke(accent.opacity(0.35), lineWidth: 0.75))
+            } else {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(accent.opacity(0.6))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.30), lineWidth: 1))
+    }
+
     // MARK: - Preview Card
 
     private var previewCard: some View {
@@ -118,7 +171,7 @@ struct PostWorkoutSheet: View {
                 .foregroundStyle(.white)
 
             HStack(spacing: 8) {
-                statBadge(icon: "timer",             value: "\(durationMinutes) min",      color: Color(red: 0.65, green: 0.45, blue: 1.00))
+                statBadge(icon: "timer",             value: "\(durationMinutes) min",      color: ThemeStore.shared.accent)
                 statBadge(icon: "flame.fill",         value: "\(caloriesBurned) kcal",      color: Color(red: 1.00, green: 0.55, blue: 0.15))
                 statBadge(icon: workoutType.icon,     value: workoutType.shortLabel,        color: accent)
             }
@@ -335,6 +388,23 @@ struct PostWorkoutSheet: View {
             )
         } catch {
             AppLogger.log("[PostWorkoutSheet] Firebase sync failed: \(error.localizedDescription)")
+        }
+
+        // Award aura for sharing the workout — once per day only.
+        if !userSettings.hasEarnedWorkoutPostAuraToday {
+            let reward = Self.workoutPostAuraReward
+            if RemoteConfigService.shared.auraRewardAdRequired {
+                let settings = userSettings
+                AdManager.shared.showRewarded(onReward: {
+                    Task { @MainActor in
+                        settings.awardAura(points: reward)
+                        settings.lastWorkoutPostDate = Date()
+                    }
+                })
+            } else {
+                userSettings.awardAura(points: reward)
+                userSettings.lastWorkoutPostDate = Date()
+            }
         }
 
         Task {

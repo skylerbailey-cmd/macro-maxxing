@@ -31,9 +31,9 @@ struct FoodConfirmationView: View {
 
     private enum MacroKind { case protein, carbs, fat }
 
-    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let accent = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var accent: Color { ThemeStore.shared.accent }
 
     // Scaled macros based on portion multiplier
     private var scaledCalories: Int {

@@ -644,7 +644,7 @@ struct FoodLogView: View {
         .overlay(
             ShootingStarBorder(
                 cornerRadius: 16,
-                color: Color(red: 1.0, green: 0.80, blue: 0.20),
+                color: ThemeStore.shared.accent,
                 lineWidth: 1.5,
                 duration: 3.2,
                 reversed: true
@@ -788,7 +788,7 @@ struct FoodLogView: View {
                 )
             }
             .padding(16)
-            .background(Color(red: 0.11, green: 0.08, blue: 0.20))
+            .background(Color.cardBg)
             .cornerRadius(18)
             .overlay(
                 RoundedRectangle(cornerRadius: 18)
@@ -877,10 +877,10 @@ private struct AnalysisSheet: View {
         }
     }
 
-    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let accent = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var accent: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
 
     private var hasPhoto: Bool { viewModel.selectedImage != nil }
     private var showFields: Bool {
@@ -1731,9 +1731,9 @@ private struct MealScoreInfoSheet: View {
     let score:      Int
     let goalRatios: (protein: Double, carbs: Double, fat: Double)
 
-    private let purpleHi = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let cardBg   = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let pageBg   = Color(red: 0.07, green: 0.05, blue: 0.12)
+    private var purpleHi: Color { ThemeStore.shared.accent }
+    private let cardBg   = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private let pageBg   = Color(red: 0.05, green: 0.05, blue: 0.07)
 
     private var scoreColor: Color {
         score >= 75 ? Color(red: 0.25, green: 0.85, blue: 0.50)
@@ -1932,7 +1932,7 @@ private struct EditEntrySheet: View {
                             Text("Reanalyze with AI")
                         }
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
+                        .foregroundStyle(ThemeStore.shared.accent)
                     }
                     .disabled(foodName.trimmingCharacters(in: .whitespaces).isEmpty || isReanalyzing)
                 }
@@ -2075,9 +2075,9 @@ private struct FuelLogPostSheet: View {
     @State private var messageText = ""
     @FocusState private var focused: Bool
 
-    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var purpl: Color { ThemeStore.shared.accent }
 
     // Totals
     private var totalCalories: Double { entries.reduce(0) { $0 + $1.calories } }
@@ -2242,7 +2242,7 @@ private struct FuelLogPostSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Post") { submit() }
                         .fontWeight(.bold)
-                        .foregroundStyle(Color(red: 1.00, green: 0.80, blue: 0.20))
+                        .foregroundStyle(ThemeStore.shared.accent)
                 }
             }
         }

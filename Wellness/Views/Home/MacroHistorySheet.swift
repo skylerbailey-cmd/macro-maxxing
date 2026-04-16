@@ -135,40 +135,19 @@ struct MacroHistorySheet: View {
                         .foregroundStyle(macro.color.opacity(0.75))
                 }
 
-            // Area under line
+            // Bars
             ForEach(dataPoints) { point in
-                AreaMark(
-                    x: .value("Date", point.date),
+                BarMark(
+                    x: .value("Date", point.date, unit: barUnit),
                     y: .value(macro.displayName, point.value)
                 )
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [macro.color.opacity(0.25), macro.color.opacity(0.03)],
+                        colors: [macro.color, macro.color.opacity(0.55)],
                         startPoint: .top, endPoint: .bottom
                     )
                 )
-                .interpolationMethod(.catmullRom)
-            }
-
-            // Line
-            ForEach(dataPoints) { point in
-                LineMark(
-                    x: .value("Date", point.date),
-                    y: .value(macro.displayName, point.value)
-                )
-                .foregroundStyle(macro.color)
-                .lineStyle(StrokeStyle(lineWidth: 2.5))
-                .interpolationMethod(.catmullRom)
-            }
-
-            // Dots
-            ForEach(dataPoints) { point in
-                PointMark(
-                    x: .value("Date", point.date),
-                    y: .value(macro.displayName, point.value)
-                )
-                .foregroundStyle(macro.color)
-                .symbolSize(40)
+                .cornerRadius(4)
             }
         }
         .chartXAxis {
@@ -364,6 +343,15 @@ struct MacroHistorySheet: View {
     private var yDomain: ClosedRange<Double> {
         let maxVal = max(dataPoints.map { $0.value }.max() ?? 0, goalValue)
         return 0...(maxVal * 1.2)
+    }
+
+    /// Calendar unit each bar spans — keeps bars correctly sized across periods.
+    private var barUnit: Calendar.Component {
+        switch period {
+        case .days:   return .day
+        case .weeks:  return .weekOfYear
+        case .months: return .month
+        }
     }
 }
 

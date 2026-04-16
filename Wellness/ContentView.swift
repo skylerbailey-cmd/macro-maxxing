@@ -328,8 +328,8 @@ private struct QuickActionFAB: View {
     let onFindPeople: () -> Void
 
 
-    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
-    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private var gold: Color { ThemeStore.shared.accent }
+    private var purpl: Color { ThemeStore.shared.accent }
     private let teal   = Color(red: 0.20, green: 0.80, blue: 0.70)
     private let green  = Color(red: 0.30, green: 0.90, blue: 0.55)
 
@@ -360,9 +360,8 @@ private struct QuickActionFAB: View {
                         .fill(
                             LinearGradient(
                                 colors: expanded
-                                    ? [Color(red: 0.18, green: 0.13, blue: 0.30),
-                                       Color(red: 0.12, green: 0.09, blue: 0.22)]
-                                    : [gold, Color(red: 1.00, green: 0.60, blue: 0.10)],
+                                    ? [Color.cardBg, Color.cardBgDeep]
+                                    : [gold, gold.opacity(0.80)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )

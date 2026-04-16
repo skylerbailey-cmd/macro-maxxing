@@ -44,10 +44,10 @@ struct NotificationsView: View {
         let photoURL: String
     }
 
-    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var purpl: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
 
     var body: some View {
         NavigationStack {
@@ -312,9 +312,9 @@ struct NotificationsView: View {
     private func typeBadgeColor(_ type: AppNotification.NotifType) -> Color {
         switch type {
         case .follow:      return Color(red: 0.35, green: 1.00, blue: 0.60)
-        case .rep:         return Color(red: 1.00, green: 0.80, blue: 0.20)
-        case .comment:     return Color(red: 0.65, green: 0.45, blue: 1.00)
-        case .leaderboard: return Color(red: 1.00, green: 0.80, blue: 0.20)
+        case .rep:         return ThemeStore.shared.accent
+        case .comment:     return ThemeStore.shared.accent
+        case .leaderboard: return ThemeStore.shared.accent
         case .newPost:     return Color(red: 1.00, green: 0.60, blue: 0.20)
         }
     }

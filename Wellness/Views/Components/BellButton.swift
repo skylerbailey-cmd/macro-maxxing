@@ -11,8 +11,8 @@ struct BellButton: View {
 
     @State private var ringTrigger = 0
 
-    private let purpl = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold  = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private var purpl: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
 
     private var hasUnread: Bool { notificationState.unreadCount > 0 }
 

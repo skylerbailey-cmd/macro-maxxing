@@ -17,9 +17,6 @@ struct LogWorkoutSheet: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    // Entry mode
-    @State private var mode: Mode = .manual
-
     // Form fields
     @State private var workoutName    = ""
     @State private var workoutType    = WorkoutType.strength
@@ -31,6 +28,11 @@ struct LogWorkoutSheet: View {
 
     // Optional per-exercise detail (name / sets / reps / weight)
     @State private var exercises: [Exercise] = []
+
+    /// True once the calories field holds a specific value the user (or AI /
+    /// saved template / prefill) wants preserved. While this is false, the
+    /// calories field tracks the live estimate as duration or type change.
+    @State private var caloriesEdited: Bool = false
 
     // Voice / AI
     @State private var speechRecognizer = SpeechRecognizer()
@@ -56,15 +58,14 @@ struct LogWorkoutSheet: View {
 
     // MARK: - Sub-types
 
-    enum Mode { case manual, voice }
     enum AIState: Equatable { case idle, analyzing, error(String) }
 
     // MARK: - Colors
 
-    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let accent = Color(red: 0.30, green: 0.90, blue: 0.55)
-    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var accent: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
 
     // MARK: - Init
 
@@ -86,8 +87,10 @@ struct LogWorkoutSheet: View {
             _logTime         = State(initialValue: e.loggedAt)
             _applyAdjustment = State(initialValue: e.adjustmentApplied)
             _exercises       = State(initialValue: e.exercises)
+            _caloriesEdited  = State(initialValue: true)
         } else {
-            _logTime         = State(initialValue: Date())
+            let oneHourAgo = Date().addingTimeInterval(-60 * 60)
+            _logTime         = State(initialValue: oneHourAgo)
             _applyAdjustment = State(initialValue: autoAdjustByDefault)
         }
     }
@@ -107,19 +110,11 @@ struct LogWorkoutSheet: View {
                             savedWorkoutsSection
                         }
 
-                        // Mode picker
-                        modePicker
+                        // Optional voice / AI assist — fills in the manual form below
+                        voiceAssistCard
 
-                        // Entry form
-                        if mode == .manual {
-                            manualForm
-                        } else {
-                            voiceForm
-
-                            // Workout type grid (voice mode: shown separately so the
-                            // user can pick a type before the AI parses the transcript)
-                            workoutTypeGrid
-                        }
+                        // Manual entry form (always visible)
+                        manualForm
 
                         // Macro adjustment preview
                         macroAdjustmentCard
@@ -227,11 +222,12 @@ struct LogWorkoutSheet: View {
 
     private func savedChip(_ saved: SavedWorkout) -> some View {
         Button {
-            workoutName  = saved.name
-            workoutType  = saved.workoutType
-            durationText = "\(saved.durationMinutes)"
-            caloriesText = "\(saved.caloriesBurned)"
-            exercises    = saved.exercises
+            workoutName    = saved.name
+            workoutType    = saved.workoutType
+            durationText   = "\(saved.durationMinutes)"
+            caloriesText   = "\(saved.caloriesBurned)"
+            caloriesEdited = true
+            exercises      = saved.exercises
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(saved.name)
@@ -255,40 +251,6 @@ struct LogWorkoutSheet: View {
         }
     }
 
-    // MARK: - Mode Picker
-
-    private var modePicker: some View {
-        HStack(spacing: 0) {
-            modeTab(label: "Manual", icon: "keyboard",  tag: .manual)
-            modeTab(label: "Voice",  icon: "mic.fill",  tag: .voice)
-        }
-        .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.08), lineWidth: 1))
-    }
-
-    private func modeTab(label: String, icon: String, tag: Mode) -> some View {
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) { mode = tag }
-            if tag == .manual { speechRecognizer.reset() }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: icon).font(.system(size: 13, weight: .semibold))
-                Text(label).font(.system(size: 14, weight: .semibold))
-            }
-            .foregroundStyle(mode == tag ? .black : .white.opacity(0.45))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(
-                mode == tag
-                    ? RoundedRectangle(cornerRadius: 10).fill(gold)
-                    : RoundedRectangle(cornerRadius: 10).fill(Color.clear)
-            )
-            .padding(3)
-        }
-        .buttonStyle(.plain)
-        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: mode)
-    }
-
     // MARK: - Manual Form
 
     private var manualForm: some View {
@@ -297,7 +259,7 @@ struct LogWorkoutSheet: View {
             workoutTypeGrid
             HStack(spacing: 14) {
                 field(label: "Duration (min)",  placeholder: "45",  text: $durationText, keyboardType: .numberPad)
-                field(label: "Calories Burned", placeholder: "\(estimatedCaloriesPlaceholder)", text: $caloriesText, keyboardType: .numberPad)
+                field(label: "Calories Burned", placeholder: "\(estimatedCaloriesPlaceholder)", text: caloriesFieldBinding, keyboardType: .numberPad)
             }
             exercisesSection
             timePickerRow
@@ -322,42 +284,56 @@ struct LogWorkoutSheet: View {
         }
     }
 
-    // MARK: - Voice Form
+    // MARK: - Voice / AI Assist
 
-    private var voiceForm: some View {
-        VStack(spacing: 18) {
-            Button {
-                if speechRecognizer.status == .recording { speechRecognizer.stop() }
-                else { speechRecognizer.start() }
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(speechRecognizer.status == .recording ? accent.opacity(0.20) : cardBg)
-                        .frame(width: 80, height: 80)
-                        .overlay(Circle().stroke(
-                            speechRecognizer.status == .recording ? accent : .white.opacity(0.15),
-                            lineWidth: 2))
-                    Image(systemName: speechRecognizer.status == .recording ? "stop.fill" : "mic.fill")
-                        .font(.system(size: 30, weight: .semibold))
-                        .foregroundStyle(speechRecognizer.status == .recording ? accent : .white.opacity(0.65))
-                }
+    /// Compact voice-input card. Tapping the mic records a description of the
+    /// workout; "Generate with AI" parses it and fills in the manual form below.
+    private var voiceAssistCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(accent)
+                Text("Describe Your Workout (optional)")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.55))
+                Spacer()
             }
-            .buttonStyle(.plain)
 
-            Text(micHint)
-                .font(.system(size: 13))
-                .foregroundStyle(.white.opacity(0.45))
-                .multilineTextAlignment(.center)
+            HStack(spacing: 12) {
+                Button {
+                    if speechRecognizer.status == .recording { speechRecognizer.stop() }
+                    else { speechRecognizer.start() }
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(speechRecognizer.status == .recording ? accent.opacity(0.20) : pageBg)
+                            .frame(width: 48, height: 48)
+                            .overlay(Circle().stroke(
+                                speechRecognizer.status == .recording ? accent : .white.opacity(0.15),
+                                lineWidth: 1.5))
+                        Image(systemName: speechRecognizer.status == .recording ? "stop.fill" : "mic.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(speechRecognizer.status == .recording ? accent : .white.opacity(0.75))
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Text(micHint)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             if !editableTranscript.isEmpty || !speechRecognizer.transcript.isEmpty {
                 TextEditor(text: $editableTranscript)
                     .font(.system(size: 14))
-                    .foregroundStyle(.white.opacity(0.80))
+                    .foregroundStyle(.white.opacity(0.85))
                     .scrollContentBackground(.hidden)
-                    .frame(minHeight: 80, maxHeight: 160)
-                    .padding(14)
-                    .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(accent.opacity(0.20), lineWidth: 1))
+                    .frame(minHeight: 70, maxHeight: 140)
+                    .padding(10)
+                    .background(pageBg, in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.20), lineWidth: 1))
             }
 
             if speechRecognizer.status == .done && !editableTranscript.isEmpty {
@@ -371,11 +347,10 @@ struct LogWorkoutSheet: View {
             if case .error(let msg) = aiState {
                 Text(msg).font(.caption).foregroundStyle(.red).multilineTextAlignment(.center)
             }
-
-            if !workoutName.isEmpty && mode == .voice {
-                parsedSummary
-            }
         }
+        .padding(14)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.08), lineWidth: 1))
         .onChange(of: speechRecognizer.transcript) { _, newValue in
             editableTranscript = newValue
         }
@@ -423,26 +398,9 @@ struct LogWorkoutSheet: View {
         .disabled(aiState == .analyzing)
     }
 
-    private var parsedSummary: some View {
-        VStack(spacing: 14) {
-            Divider().background(.white.opacity(0.10))
-            Text("AI Filled In")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.40))
-                .frame(maxWidth: .infinity, alignment: .leading)
-            field(label: "Workout Name", placeholder: "e.g. Upper Body", text: $workoutName)
-            HStack(spacing: 14) {
-                field(label: "Duration (min)",  placeholder: "45",  text: $durationText, keyboardType: .numberPad)
-                field(label: "Calories Burned", placeholder: "350", text: $caloriesText, keyboardType: .numberPad)
-            }
-            exercisesSection
-            timePickerRow
-        }
-    }
-
     private var timePickerRow: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Time Completed")
+            Text("Time Started")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.45))
             DatePicker("", selection: $logTime, displayedComponents: .hourAndMinute)
@@ -480,7 +438,7 @@ struct LogWorkoutSheet: View {
             }
 
             Button {
-                exercises.append(Exercise(name: "", sets: 3, reps: 10))
+                exercises.append(Exercise(name: "", sets: [ExerciseSet(reps: 10)]))
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "plus.circle.fill")
@@ -500,101 +458,135 @@ struct LogWorkoutSheet: View {
     }
 
     private func exerciseRow(index: Int) -> some View {
-        // Bindings that convert the underlying Int/Double? to String for TextField.
-        let setsBinding = Binding<String>(
-            get: { String(exercises[index].sets) },
-            set: { newVal in
-                if let n = Int(newVal.filter { $0.isNumber }), n > 0 {
-                    exercises[index].sets = n
-                } else if newVal.isEmpty {
-                    exercises[index].sets = 0
+        VStack(alignment: .leading, spacing: 8) {
+            // Header: exercise name + delete-exercise button
+            HStack(spacing: 8) {
+                TextField("Exercise name", text: $exercises[index].name)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(10)
+                    .background(pageBg, in: RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.08), lineWidth: 1))
+
+                Button {
+                    exercises.remove(at: index)
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.45))
+                        .padding(10)
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Set rows
+            VStack(spacing: 6) {
+                ForEach(Array(exercises[index].sets.enumerated()), id: \.element.id) { setIdx, _ in
+                    setRow(exerciseIndex: index, setIndex: setIdx)
                 }
             }
-        )
+
+            // Add Set button
+            Button {
+                // Copy the previous set's values so adding a new set is fast.
+                let template = exercises[index].sets.last
+                exercises[index].sets.append(
+                    ExerciseSet(reps: template?.reps ?? 10, weight: template?.weight)
+                )
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("Add Set")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .foregroundStyle(accent.opacity(0.85))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(10)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.15), lineWidth: 1))
+    }
+
+    /// One set-row within an exercise: "Set N · [reps] × [lb]  [trash]"
+    private func setRow(exerciseIndex: Int, setIndex: Int) -> some View {
         let repsBinding = Binding<String>(
-            get: { String(exercises[index].reps) },
+            get: { String(exercises[exerciseIndex].sets[setIndex].reps) },
             set: { newVal in
                 if let n = Int(newVal.filter { $0.isNumber }), n > 0 {
-                    exercises[index].reps = n
+                    exercises[exerciseIndex].sets[setIndex].reps = n
                 } else if newVal.isEmpty {
-                    exercises[index].reps = 0
+                    exercises[exerciseIndex].sets[setIndex].reps = 0
                 }
             }
         )
         let weightBinding = Binding<String>(
             get: {
-                if let w = exercises[index].weight {
-                    // Drop trailing .0 for whole numbers
+                if let w = exercises[exerciseIndex].sets[setIndex].weight {
                     return w.truncatingRemainder(dividingBy: 1) == 0
                         ? String(Int(w)) : String(w)
                 }
                 return ""
             },
             set: { newVal in
-                let trimmed = newVal.trimmingCharacters(in: .whitespaces)
-                if trimmed.isEmpty {
-                    exercises[index].weight = nil
-                } else if let d = Double(trimmed) {
-                    exercises[index].weight = d
+                let t = newVal.trimmingCharacters(in: .whitespaces)
+                if t.isEmpty {
+                    exercises[exerciseIndex].sets[setIndex].weight = nil
+                } else if let d = Double(t) {
+                    exercises[exerciseIndex].sets[setIndex].weight = d
                 }
             }
         )
 
         return HStack(spacing: 8) {
-            TextField("Exercise", text: $exercises[index].name)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.white)
-                .padding(10)
-                .background(pageBg, in: RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.08), lineWidth: 1))
-
-            TextField("3", text: setsBinding)
-                .keyboardType(.numberPad)
-                .multilineTextAlignment(.center)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 40)
-                .padding(.vertical, 10)
-                .background(pageBg, in: RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.08), lineWidth: 1))
-
-            Text("×")
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(.white.opacity(0.50))
+            Text("Set \(setIndex + 1)")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.40))
+                .frame(width: 40, alignment: .leading)
 
             TextField("10", text: repsBinding)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 44)
-                .padding(.vertical, 10)
-                .background(pageBg, in: RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.08), lineWidth: 1))
+                .frame(width: 48)
+                .padding(.vertical, 8)
+                .background(pageBg, in: RoundedRectangle(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(.white.opacity(0.08), lineWidth: 1))
+            Text("reps")
+                .font(.system(size: 11))
+                .foregroundStyle(.white.opacity(0.40))
 
             TextField("lb", text: weightBinding)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.center)
-                .font(.system(size: 13))
-                .foregroundStyle(.white.opacity(0.80))
-                .frame(width: 52)
-                .padding(.vertical, 10)
-                .background(pageBg, in: RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.08), lineWidth: 1))
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 56)
+                .padding(.vertical, 8)
+                .background(pageBg, in: RoundedRectangle(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(.white.opacity(0.08), lineWidth: 1))
+            Text("lb")
+                .font(.system(size: 11))
+                .foregroundStyle(.white.opacity(0.40))
+
+            Spacer()
 
             Button {
-                exercises.remove(at: index)
+                guard exercises[exerciseIndex].sets.count > 1 else { return }
+                exercises[exerciseIndex].sets.remove(at: setIndex)
             } label: {
-                Image(systemName: "trash")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.45))
-                    .padding(8)
+                Image(systemName: "minus.circle.fill")
+                    .font(.system(size: 15))
+                    .foregroundStyle(.white.opacity(exercises[exerciseIndex].sets.count > 1 ? 0.35 : 0.15))
             }
             .buttonStyle(.plain)
+            .disabled(exercises[exerciseIndex].sets.count <= 1)
         }
-        .padding(8)
-        .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.15), lineWidth: 1))
     }
 
     // MARK: - Workout Type Grid
@@ -784,22 +776,59 @@ struct LogWorkoutSheet: View {
 
     // MARK: - Calorie Estimation
 
-    /// Rough kcal estimate using METs × body-weight × hours.
-    /// MET values are typical mid-range figures from the ACSM Compendium of Physical Activities.
-    private func estimateCalories(type: WorkoutType, durationMinutes: Int) -> Int {
-        guard durationMinutes > 0 else { return 0 }
-        let met: Double
+    /// MET value for a workout type. Mid-range figures from the ACSM
+    /// Compendium of Physical Activities. These double as the activity
+    /// factor in the BMR-based calculation below — 1 MET is by definition
+    /// the resting kcal-per-kg-per-hour rate, so multiplying MET by
+    /// (BMR / 24) gives a personalized kcal/hour estimate.
+    private func metValue(for type: WorkoutType) -> Double {
         switch type {
-        case .strength:    met = 5.5
-        case .cardio:      met = 7.5
-        case .hiit:        met = 9.0
-        case .flexibility: met = 2.5
+        case .strength:    return 5.5
+        case .cardio:      return 7.5
+        case .hiit:        return 9.0
+        case .flexibility: return 2.5
         case .restDay:     return 0
-        case .other:       met = 5.0
+        case .other:       return 5.0
         }
-        let kg = max(40, bodyWeightLbs) / 2.20462
-        let kcal = met * kg * (Double(durationMinutes) / 60.0)
-        return Int(kcal.rounded())
+    }
+
+    /// Resting kcal/hour from Mifflin-St Jeor BMR, or nil if the profile
+    /// is missing height — in which case the caller falls back to a
+    /// pure weight-based MET estimate.
+    ///
+    /// Formula mirrors `HomeViewModel.recalculateMacrosFromGoalWeight` so
+    /// the two calorie codepaths stay in sync. Age defaults to 20 via
+    /// `ageInYears`; gender falls back to the midpoint offset (-78) when
+    /// unset, same as the goal-weight calculation.
+    private var restingKcalPerHour: Double? {
+        let heightIn = userSettings.heightInches
+        guard heightIn > 0 else { return nil }
+        let weightKg = max(40, bodyWeightLbs) * 0.453592
+        let heightCm = Double(heightIn) * 2.54
+        let age      = Double(userSettings.ageInYears)
+        let g        = userSettings.gender
+        let genderOffset: Double = g == "male" ? 5.0 : g == "female" ? -161.0 : -78.0
+        let bmr      = 10.0 * weightKg + 6.25 * heightCm - 5.0 * age + genderOffset
+        return max(bmr, 800) / 24.0
+    }
+
+    /// kcal estimate for a workout. Uses Mifflin-St Jeor BMR × activity
+    /// factor when the user's profile has height (and weight), so that
+    /// age, sex, and height all feed in. Falls back to the simpler
+    /// MET × body-weight formula for profiles missing height.
+    private func estimateCalories(type: WorkoutType, durationMinutes: Int) -> Int {
+        guard durationMinutes > 0, type != .restDay else { return 0 }
+        let met   = metValue(for: type)
+        let hours = Double(durationMinutes) / 60.0
+        let kcalPerHour: Double
+        if let resting = restingKcalPerHour {
+            // BMR/24 is 1-MET energy expenditure for this specific body.
+            kcalPerHour = met * resting
+        } else {
+            let kg = max(40, bodyWeightLbs) / 2.20462
+            kcalPerHour = met * kg
+        }
+        return Int((kcalPerHour * hours).rounded())
     }
 
     /// Placeholder text for the Calories field: shows the live estimate once a duration is entered.
@@ -810,13 +839,32 @@ struct LogWorkoutSheet: View {
         return "350"
     }
 
-    /// Fills the Calories field with an estimate when it's empty. Will not overwrite a value the
-    /// user (or AI / saved template) already entered — they can clear and re-type freely.
+    /// Keeps the Calories field in sync with the live estimate as long as the
+    /// user hasn't manually overridden it. Once `caloriesEdited` is true (user
+    /// typed a value, AI filled it, a saved template set it, or an existing
+    /// entry loaded it), auto-updates stop.
     private func autoFillCaloriesIfNeeded() {
-        guard caloriesText.isEmpty,
+        guard !caloriesEdited,
               let mins = Int(durationText), mins > 0,
               workoutType != .restDay else { return }
         caloriesText = "\(estimateCalories(type: workoutType, durationMinutes: mins))"
+    }
+
+    /// Binding for the Calories TextField that flips `caloriesEdited` on any
+    /// user edit so the live estimate stops tracking. Clearing the field
+    /// resumes tracking.
+    private var caloriesFieldBinding: Binding<String> {
+        Binding(
+            get: { caloriesText },
+            set: { newValue in
+                let trimmed = newValue.trimmingCharacters(in: .whitespaces)
+                caloriesText   = newValue
+                caloriesEdited = !trimmed.isEmpty
+                // When the user clears the field, immediately resume tracking
+                // the live estimate so the placeholder is replaced.
+                if trimmed.isEmpty { autoFillCaloriesIfNeeded() }
+            }
+        )
     }
 
     // MARK: - Actions
@@ -826,12 +874,19 @@ struct LogWorkoutSheet: View {
         aiState = .analyzing
         do {
             let result = try await ClaudeAnalysisService().parseWorkout(transcript: editableTranscript)
-            workoutName  = result.name
-            workoutType  = result.workoutType
-            durationText = "\(result.durationMinutes)"
-            caloriesText = "\(result.caloriesBurned)"
+            workoutName    = result.name
+            workoutType    = result.workoutType
+            durationText   = "\(result.durationMinutes)"
+            caloriesText   = "\(result.caloriesBurned)"
+            caloriesEdited = true
             if !result.exercises.isEmpty {
                 exercises = result.exercises
+            }
+            // Default start time to (now − duration) so the picker reflects when
+            // the workout actually began. Only for new entries; don't overwrite
+            // a user-edited start time on an existing workout.
+            if editingEntry == nil, result.durationMinutes > 0 {
+                logTime = Date().addingTimeInterval(-Double(result.durationMinutes) * 60)
             }
             aiState = .idle
         } catch {
@@ -866,15 +921,17 @@ struct LogWorkoutSheet: View {
         // Combine the selected calendar date with the user-chosen time
         let loggedAt = combinedDate(date: selectedDate, time: logTime)
 
-        // Drop half-filled exercise rows (blank name) so we never persist empty placeholders.
+        // Drop half-filled exercise rows (blank name) and normalize empty set counts.
         let cleanedExercises: [Exercise] = exercises.compactMap { ex in
             let trimmedName = ex.name.trimmingCharacters(in: .whitespaces)
             guard !trimmedName.isEmpty else { return nil }
-            return Exercise(id: ex.id,
-                            name: trimmedName,
-                            sets: max(1, ex.sets),
-                            reps: max(1, ex.reps),
-                            weight: ex.weight)
+            let normalizedSets: [ExerciseSet] = {
+                let src = ex.sets.isEmpty ? [ExerciseSet(reps: 1)] : ex.sets
+                return src.map { s in
+                    ExerciseSet(id: s.id, reps: max(1, s.reps), weight: s.weight)
+                }
+            }()
+            return Exercise(id: ex.id, name: trimmedName, sets: normalizedSets)
         }
 
         // Preserve the original workoutID when editing so Firestore overwrites the same document

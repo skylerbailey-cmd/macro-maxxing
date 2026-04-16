@@ -288,8 +288,8 @@ struct FeedPostCard: View {
     @State private var showReportUserConfirm = false
     @State private var showReportPostConfirm = false
 
-    private let cardBg   = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let purpleHi = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let cardBg   = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var purpleHi: Color { ThemeStore.shared.accent }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -385,7 +385,7 @@ struct FeedPostCard: View {
                             .padding(.vertical, 2)
                             .background(
                                 LinearGradient(
-                                    colors: [Color(red: 1.00, green: 0.80, blue: 0.20),
+                                    colors: [ThemeStore.shared.accent,
                                              Color(red: 1.00, green: 0.65, blue: 0.10)],
                                     startPoint: .leading,
                                     endPoint: .trailing
@@ -397,7 +397,7 @@ struct FeedPostCard: View {
                     if post.auraPoints > 0 {
                         Text("⭐ Lv \(post.auraLevel)")
                             .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+                            .foregroundStyle(ThemeStore.shared.accent)
                     }
 
                     if showStreak && post.streak > 0 {
@@ -526,7 +526,7 @@ struct FeedPostCard: View {
 
     @ViewBuilder
     private var mogBoardSnapshotCard: some View {
-        let gold    = Color(red: 1.0, green: 0.80, blue: 0.20)
+        let gold    = ThemeStore.shared.accent
         let entries = mogBoardSnapshotEntries
         let scoreLabel: String = {
             switch post.mogBoardType {
@@ -653,7 +653,7 @@ struct FeedPostCard: View {
 
     private var fuelLogTable: some View {
         let sorted    = post.fuelLogItems.sorted { $0.sortOrder < $1.sortOrder }
-        let purpl     = Color(red: 0.65, green: 0.45, blue: 1.00)
+        let purpl     = ThemeStore.shared.accent
         let totalCal  = sorted.reduce(0.0) { $0 + $1.calories }
         let totalPro  = sorted.reduce(0.0) { $0 + $1.protein  }
         let totalCarb = sorted.reduce(0.0) { $0 + $1.carbs    }
@@ -868,12 +868,12 @@ struct FeedPostCard: View {
 
     private func initialCircle(size: CGFloat, name: String) -> some View {
         Circle()
-            .fill(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.22))
+            .fill(ThemeStore.shared.accent.opacity(0.22))
             .frame(width: size, height: size)
             .overlay {
                 Text(String(name.prefix(1)).uppercased())
                     .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0))
+                    .foregroundStyle(ThemeStore.shared.accent)
             }
     }
 
@@ -882,7 +882,7 @@ struct FeedPostCard: View {
         case .transformation: return Color(red: 0.35, green: 0.75, blue: 1.00)
         case .fuelLog:        return Color(red: 1.00, green: 0.55, blue: 0.15)
         case .mealInspo:      return Color(red: 1.00, green: 0.30, blue: 0.55)
-        case .mogBoard:       return Color(red: 1.00, green: 0.80, blue: 0.20)
+        case .mogBoard:       return Color(red: 0.65, green: 0.45, blue: 1.00)
         case .advice:         return Color(red: 1.00, green: 0.90, blue: 0.20)
         case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
         case .goalPost:       return Color(red: 0.65, green: 0.45, blue: 1.00)
@@ -909,9 +909,9 @@ struct MacroDisciplineCard: View {
     let totalCarbs:    Double; let goalCarbs:     Double
     let totalFat:      Double; let goalFat:       Double
 
-    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private var purpl: Color { ThemeStore.shared.accent }
     private let neon   = Color(red: 0.35, green: 1.00, blue: 0.60)
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
 
     private var disciplineProgress: Double {
         let pairs = [(totalCalories, goalCalories), (totalProtein, goalProtein),
@@ -1000,7 +1000,7 @@ struct MacroDisciplineCard: View {
 private struct SkeletonCard: View {
     @State private var opacity: Double = 0.4
 
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

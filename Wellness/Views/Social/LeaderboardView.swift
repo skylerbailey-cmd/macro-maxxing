@@ -85,10 +85,10 @@ struct LeaderboardView: View {
         let entries: [LeaderboardEntry]
     }
 
-    private let pageBg  = Color(red: 0.07, green: 0.05, blue: 0.12)
-    private let cardBg  = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let purpl   = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold    = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private let pageBg  = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg  = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var purpl: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
 
     var body: some View {
         ZStack {
@@ -527,7 +527,7 @@ struct LeaderboardView: View {
 
             if isLoading {
                 ProgressView()
-                    .tint(Color(red: 0.65, green: 0.45, blue: 1.00))
+                    .tint(ThemeStore.shared.accent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
             } else if entries.isEmpty || localTooFew {
@@ -977,10 +977,10 @@ private struct LastWeekResultsSheet: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var purpl: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -1105,9 +1105,9 @@ private struct WeeklyWinnerPopup: View {
     @Environment(\.dismiss) private var dismiss
 
     private let pageBg = Color(red: 0.05, green: 0.03, blue: 0.12)
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var purpl: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
 
     private var totalXP: Int { arenaXP + localXP }
 
@@ -1264,10 +1264,10 @@ private struct MogBoardShareCard: View {
     let scoreLabel:  String
     let entries:     [LeaderboardEntry]
 
-    private let purpl = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold  = Color(red: 1.00, green: 0.80, blue: 0.20)
-    private let bg    = Color(red: 0.04, green: 0.03, blue: 0.08)
-    private let card  = Color(red: 0.10, green: 0.08, blue: 0.18)
+    private var purpl: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
+    private let bg    = Color(red: 0.03, green: 0.03, blue: 0.04)
+    private let card  = Color(red: 0.11, green: 0.11, blue: 0.14)
 
     var body: some View {
         ZStack {
@@ -1394,10 +1394,10 @@ private struct BoardPreviewSheet: View {
     @State private var renderedImage: UIImage?  = nil
     @State private var showCrop     = false
 
-    private let pageBg = Color(red: 0.07, green: 0.05, blue: 0.12)
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var purpl: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
 
     var body: some View {
         NavigationStack {
@@ -1578,8 +1578,8 @@ private struct LeaderboardRow: View {
     let board:         LeaderboardView.Board
     let isCurrentUser: Bool
 
-    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private var purpl: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
     private let silver = Color(red: 0.75, green: 0.75, blue: 0.82)
     private let bronze = Color(red: 0.80, green: 0.50, blue: 0.20)
 
@@ -1597,7 +1597,7 @@ private struct LeaderboardRow: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(isCurrentUser
                       ? purpl.opacity(0.12)
-                      : rank <= 3 ? rankColor.opacity(0.05) : Color(red: 0.10, green: 0.08, blue: 0.18))
+                      : rank <= 3 ? rankColor.opacity(0.05) : Color(red: 0.11, green: 0.11, blue: 0.14))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(
@@ -1678,7 +1678,7 @@ private struct LeaderboardRow: View {
                     .foregroundStyle(.white.opacity(0.32))
                 Text("· Lv \(entry.auraLevel)")
                     .font(.caption2)
-                    .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20).opacity(0.70))
+                    .foregroundStyle(ThemeStore.shared.accent.opacity(0.70))
             }
         }
     }
@@ -1701,10 +1701,10 @@ private struct LeaderboardRow: View {
     private var rankColor: Color {
         if isCurrentUser { return purpl }
         switch rank {
-        case 1: return Color(red: 1.00, green: 0.80, blue: 0.20)
+        case 1: return ThemeStore.shared.accent
         case 2: return Color(red: 0.75, green: 0.75, blue: 0.82)
         case 3: return Color(red: 0.80, green: 0.50, blue: 0.20)
-        default: return Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.75)
+        default: return ThemeStore.shared.accent.opacity(0.75)
         }
     }
 }

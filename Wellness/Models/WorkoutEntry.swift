@@ -5,16 +5,90 @@
 
 import Foundation
 
+// MARK: - Exercise Set
+
+/// One set within an exercise — reps, and an optional weight in pounds.
+struct ExerciseSet: Codable, Identifiable, Hashable {
+    var id:     String  = UUID().uuidString
+    var reps:   Int
+    var weight: Double? = nil
+
+    init(id: String = UUID().uuidString, reps: Int, weight: Double? = nil) {
+        self.id     = id
+        self.reps   = reps
+        self.weight = weight
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, reps, weight }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id     = try c.decodeIfPresent(String.self, forKey: .id)   ?? UUID().uuidString
+        self.reps   = try c.decodeIfPresent(Int.self,    forKey: .reps) ?? 1
+        self.weight = try c.decodeIfPresent(Double.self, forKey: .weight)
+    }
+}
+
 // MARK: - Exercise
 
 /// A single exercise within a workout — optional detail the user can attach
-/// to any logged workout (e.g. "Bench Press · 3 × 10 @ 135 lb").
+/// to any logged workout. Each set has its own reps and optional weight, so
+/// users can record pyramid/ramping schemes like 10×135, 8×145, 6×155.
 struct Exercise: Codable, Identifiable, Hashable {
-    var id:     String  = UUID().uuidString
-    var name:   String
-    var sets:   Int
-    var reps:   Int
-    var weight: Double? = nil   // lb, optional
+    var id:   String  = UUID().uuidString
+    var name: String
+    var sets: [ExerciseSet]
+
+    init(id: String = UUID().uuidString, name: String, sets: [ExerciseSet]) {
+        self.id   = id
+        self.name = name
+        self.sets = sets
+    }
+
+    /// Convenience for creating a simple exercise with N identical sets.
+    init(id: String = UUID().uuidString, name: String, setCount: Int, reps: Int, weight: Double? = nil) {
+        self.id   = id
+        self.name = name
+        self.sets = (0..<max(1, setCount)).map { _ in ExerciseSet(reps: reps, weight: weight) }
+    }
+
+    /// Every set has the same reps AND weight — lets the UI collapse to the
+    /// compact "3 × 10 @ 135 lb" form.
+    var hasUniformSets: Bool {
+        guard let first = sets.first else { return true }
+        return sets.allSatisfy { $0.reps == first.reps && $0.weight == first.weight }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        // new
+        case id, name, sets
+        // legacy (flat) fields — only used when decoding older payloads
+        case reps, weight
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id   = try c.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
+        self.name = try c.decode(String.self, forKey: .name)
+
+        if let newSets = try? c.decode([ExerciseSet].self, forKey: .sets) {
+            self.sets = newSets
+        } else if let count = try? c.decode(Int.self, forKey: .sets) {
+            // Legacy shape: { sets: Int, reps: Int, weight: Double? }
+            let reps   = (try? c.decodeIfPresent(Int.self,    forKey: .reps))   ?? 1
+            let weight = (try? c.decodeIfPresent(Double.self, forKey: .weight)) ?? nil
+            self.sets = (0..<max(1, count)).map { _ in ExerciseSet(reps: reps, weight: weight) }
+        } else {
+            self.sets = []
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id,   forKey: .id)
+        try c.encode(name, forKey: .name)
+        try c.encode(sets, forKey: .sets)
+    }
 }
 
 // MARK: - Workout Entry

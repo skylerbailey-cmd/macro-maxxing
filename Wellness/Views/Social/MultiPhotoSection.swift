@@ -25,7 +25,7 @@ struct MultiPhotoSection: View {
     @State private var showLibrary    = false
     @State private var croppingPhoto: PostPhoto? = nil
 
-    private let cardBg = Color(red: 0.13, green: 0.10, blue: 0.22)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
 
     private var canAddMore: Bool { photos.count < 4 }
 

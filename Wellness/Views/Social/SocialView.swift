@@ -166,7 +166,7 @@ struct SocialView: View {
                                 .padding(.vertical, 8)
                                 .background(
                                     Capsule().fill(selectedFeed == feed
-                                        ? Color(red: 1.00, green: 0.80, blue: 0.20)
+                                        ? ThemeStore.shared.accent
                                         : Color.clear)
                                 )
                         }
@@ -734,7 +734,7 @@ func postLabelColor(_ label: PostLabel) -> Color {
     case .transformation: return Color(red: 0.35, green: 0.75, blue: 1.00)
     case .fuelLog:        return Color(red: 1.00, green: 0.55, blue: 0.15)
     case .mealInspo:      return Color(red: 1.00, green: 0.30, blue: 0.55)
-    case .mogBoard:       return Color(red: 1.00, green: 0.80, blue: 0.20)
+    case .mogBoard:       return Color(red: 0.65, green: 0.45, blue: 1.00)
     case .advice:         return Color(red: 1.00, green: 0.90, blue: 0.20)
     case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
     case .goalPost:       return Color(red: 0.65, green: 0.45, blue: 1.00)
@@ -776,12 +776,12 @@ func avatarCircle(size: CGFloat, data: Data?, urlString: String, initial: String
 
 private func avatarPlaceholder(size: CGFloat, initial: String) -> some View {
     Circle()
-        .fill(Color(red: 0.65, green: 0.45, blue: 1.0).opacity(0.25))
+        .fill(ThemeStore.shared.accent.opacity(0.25))
         .frame(width: size, height: size)
         .overlay {
             Text(String(initial.prefix(1)).uppercased())
                 .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
-                .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.0))
+                .foregroundStyle(ThemeStore.shared.accent)
         }
 }
 
@@ -913,10 +913,10 @@ struct PostCard: View {
                                     .font(.system(size: 10, weight: .semibold, design: .rounded))
                             }
                         }
-                        .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+                        .foregroundStyle(ThemeStore.shared.accent)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 3)
-                        .background(Color(red: 1.0, green: 0.80, blue: 0.20).opacity(0.12))
+                        .background(ThemeStore.shared.accent.opacity(0.12))
                         .clipShape(Capsule())
                     }
                 }
@@ -950,7 +950,7 @@ struct PostCard: View {
     }
 
     private let neon = Color(red: 0.35, green: 1.00, blue: 0.60)
-    private let gold = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private var gold: Color { ThemeStore.shared.accent }
 
     private var followButton: some View {
         ZStack {
@@ -1122,7 +1122,7 @@ struct PostCard: View {
 
     @ViewBuilder
     private var mogBoardSnapshotCard: some View {
-        let snapshotGold = Color(red: 1.0, green: 0.80, blue: 0.20)
+        let snapshotGold = ThemeStore.shared.accent
         let entries = mogBoardSnapshotEntries
         let scoreLabel: String = {
             switch post.mogBoardType {
@@ -1206,7 +1206,7 @@ struct PostCard: View {
             HStack(spacing: 6) {
                 Image(systemName: "moon.zzz.fill")
                     .font(.system(size: 11))
-                    .foregroundStyle(Color(red: 0.65, green: 0.45, blue: 1.00))
+                    .foregroundStyle(ThemeStore.shared.accent)
                 Text(post.fastingWindowDisplay)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.60))
@@ -1345,7 +1345,7 @@ struct PostCard: View {
     @ViewBuilder
     private var fuelLogBody: some View {
         let sorted = post.fuelLogEntries.sorted { $0.sortOrder < $1.sortOrder }
-        let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+        let purpl  = ThemeStore.shared.accent
         let totalCal = sorted.reduce(0.0) { $0 + $1.calories }
         let totalPro = sorted.reduce(0.0) { $0 + $1.protein  }
         let totalCarb = sorted.reduce(0.0) { $0 + $1.carbs   }

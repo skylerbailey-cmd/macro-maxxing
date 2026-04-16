@@ -90,7 +90,7 @@ struct OnboardingView: View {
     @State private var didWritePublicFields  = false
 
     private let totalPages = 7
-    private let purpl    = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private var purpl: Color { ThemeStore.shared.accent }
     // Matches TutorialOverlayView: pure black dim behind a floating purple-bordered card.
     private let backdrop = Color.black.opacity(0.85)
     private let cardBg   = Color(red: 0.10, green: 0.10, blue: 0.14)
@@ -918,7 +918,7 @@ struct OnboardingView: View {
                                     onboardingPromoError != nil
                                         ? Color.red.opacity(0.6)
                                         : (onboardingPromoSuccess != nil
-                                           ? Color(red: 1.00, green: 0.80, blue: 0.20).opacity(0.6)
+                                           ? ThemeStore.shared.accent.opacity(0.6)
                                            : Color.clear),
                                     lineWidth: 1
                                 )

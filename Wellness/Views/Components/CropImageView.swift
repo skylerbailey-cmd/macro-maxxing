@@ -400,7 +400,7 @@ struct CropImageView: View {
                         .foregroundStyle(.black)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 10)
-                        .background(Color(red: 1.00, green: 0.80, blue: 0.20))
+                        .background(ThemeStore.shared.accent)
                         .clipShape(Capsule())
                 }
                 .padding(.trailing, 8)

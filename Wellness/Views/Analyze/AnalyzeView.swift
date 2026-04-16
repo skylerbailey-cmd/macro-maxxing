@@ -138,6 +138,7 @@ struct AnalyzeView: View {
                         : "Unlock AI Nutrition Coach"))
                     .font(.headline)
             }
+            .foregroundStyle(.black)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
         }

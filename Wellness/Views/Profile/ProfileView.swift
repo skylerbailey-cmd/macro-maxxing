@@ -109,10 +109,10 @@ struct ProfileView: View {
     }
 
     // MARK: - Palette
-    private let pageBg  = Color(red: 0.04, green: 0.03, blue: 0.08)
-    private let cardBg  = Color(red: 0.07, green: 0.06, blue: 0.11)
-    private let purpl   = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold    = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private let pageBg  = Color(red: 0.03, green: 0.03, blue: 0.04)
+    private let cardBg  = Color(red: 0.08, green: 0.08, blue: 0.10)
+    private var purpl: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
     private let neon    = Color(red: 0.35, green: 1.00, blue: 0.60)
 
     var body: some View {
@@ -346,7 +346,7 @@ struct ProfileView: View {
                                 .padding(.vertical, 3)
                                 .background(
                                     LinearGradient(
-                                        colors: [Color(red: 1.00, green: 0.80, blue: 0.20),
+                                        colors: [ThemeStore.shared.accent,
                                                  Color(red: 1.00, green: 0.65, blue: 0.10)],
                                         startPoint: .leading,
                                         endPoint: .trailing
@@ -697,7 +697,7 @@ struct ProfileView: View {
 
 
     private var balanceInfoSheet: some View {
-        let pageBg2  = Color(red: 0.07, green: 0.05, blue: 0.12)
+        let pageBg2  = Color(red: 0.05, green: 0.05, blue: 0.07)
         let cardBg2  = Color(red: 0.13, green: 0.10, blue: 0.22)
         return NavigationStack {
             ZStack {
@@ -1066,10 +1066,10 @@ struct ProfileView: View {
             case .transformation: return Color(red: 0.35, green: 0.75, blue: 1.00)
             case .fuelLog:        return Color(red: 1.00, green: 0.55, blue: 0.15)
             case .mealInspo:      return Color(red: 1.00, green: 0.30, blue: 0.55)
-            case .mogBoard:       return Color(red: 1.00, green: 0.80, blue: 0.20)
+            case .mogBoard:       return ThemeStore.shared.accent
             case .advice:         return Color(red: 1.00, green: 0.90, blue: 0.20)
             case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
-            case .goalPost:       return Color(red: 0.65, green: 0.45, blue: 1.00)
+            case .goalPost:       return ThemeStore.shared.accent
             }
         }()
 

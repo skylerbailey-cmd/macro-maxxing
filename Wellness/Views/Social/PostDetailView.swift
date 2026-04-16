@@ -22,9 +22,9 @@ struct PostDetailView: View {
     @State private var showingProfile  = false
     @FocusState private var commentFocused: Bool
 
-    private let purpl   = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let pageBg  = Color(red: 0.07, green: 0.05, blue: 0.12)
-    private let cardBg  = Color(red: 0.13, green: 0.10, blue: 0.22)
+    private var purpl: Color { ThemeStore.shared.accent }
+    private let pageBg  = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg  = Color(red: 0.11, green: 0.11, blue: 0.14)
 
     private var isOwnPost: Bool { post.authorID == userSettings.userID }
 
@@ -116,7 +116,7 @@ struct PostDetailView: View {
                         if post.authorAuraPoints > 0 {
                             Text("⭐ Lv \(post.authorAuraLevel) · \(post.authorAuraPoints) pts")
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+                                .foregroundStyle(ThemeStore.shared.accent)
                         }
                     }
                     Text("@\(post.authorUsername)  ·  \(post.macroDate, style: .date)")
@@ -174,7 +174,7 @@ struct PostDetailView: View {
     @ViewBuilder
     private var fuelLogContent: some View {
         let sorted    = post.fuelLogEntries.sorted { $0.sortOrder < $1.sortOrder }
-        let purpl     = Color(red: 0.65, green: 0.45, blue: 1.00)
+        let purpl     = ThemeStore.shared.accent
         let totalCal  = sorted.reduce(0.0) { $0 + $1.calories }
         let totalPro  = sorted.reduce(0.0) { $0 + $1.protein  }
         let totalCarb = sorted.reduce(0.0) { $0 + $1.carbs    }
@@ -384,7 +384,7 @@ struct PostDetailView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .background(Color(red: 0.07, green: 0.05, blue: 0.12))
+                .background(Color(red: 0.05, green: 0.05, blue: 0.07))
             }
 
             HStack(spacing: 10) {
@@ -408,7 +408,7 @@ struct PostDetailView: View {
 
                 TextField("Add a comment…", text: $commentText)
                     .padding(10)
-                    .background(Color(red: 0.13, green: 0.10, blue: 0.22))
+                    .background(Color(red: 0.11, green: 0.11, blue: 0.14))
                     .cornerRadius(20)
                     .foregroundStyle(.white)
                     .focused($commentFocused)
@@ -424,7 +424,7 @@ struct PostDetailView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(Color(red: 0.07, green: 0.05, blue: 0.12))
+            .background(Color(red: 0.05, green: 0.05, blue: 0.07))
         }
     }
 

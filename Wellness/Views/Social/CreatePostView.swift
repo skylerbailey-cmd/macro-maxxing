@@ -44,9 +44,9 @@ struct CreatePostView: View {
 
     // MARK: - Design tokens (matches rest of app)
 
-    private let pageBg   = Color(red: 0.07, green: 0.05, blue: 0.12)
-    private let cardBg   = Color(red: 0.13, green: 0.10, blue: 0.22)
-    private let purpleHi = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let pageBg   = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg   = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var purpleHi: Color { ThemeStore.shared.accent }
     private let calColor  = Color(red: 1.00, green: 0.55, blue: 0.15)
     private let proColor  = Color(red: 0.35, green: 0.75, blue: 1.00)
     private let carbColor = Color(red: 0.40, green: 0.90, blue: 0.72)
@@ -248,10 +248,10 @@ struct CreatePostView: View {
                 if userSettings.auraPoints > 0 {
                     Text("⭐ Lv \(userSettings.auraLevel)")
                         .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color(red: 1.0, green: 0.80, blue: 0.20))
+                        .foregroundStyle(ThemeStore.shared.accent)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color(red: 1.0, green: 0.80, blue: 0.20).opacity(0.12))
+                        .background(ThemeStore.shared.accent.opacity(0.12))
                         .cornerRadius(8)
                 }
             }

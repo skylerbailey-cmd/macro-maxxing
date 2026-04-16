@@ -30,10 +30,10 @@ struct UserSearchView: View {
 
     // MARK: Palette
 
-    private let pageBg = Color(red: 0.04, green: 0.03, blue: 0.08)
-    private let cardBg = Color(red: 0.10, green: 0.08, blue: 0.18)
-    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
-    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private let pageBg = Color(red: 0.03, green: 0.03, blue: 0.04)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var purpl: Color { ThemeStore.shared.accent }
+    private var gold: Color { ThemeStore.shared.accent }
     private let neon   = Color(red: 0.35, green: 1.00, blue: 0.60)
 
     // MARK: Body

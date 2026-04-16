@@ -15,9 +15,9 @@ struct BlockedUsersView: View {
     @State private var isLoading      = true
     @State private var unblockingIDs: Set<String> = []
 
-    private let pageBg = Color(red: 0.04, green: 0.03, blue: 0.08)
-    private let cardBg = Color(red: 0.10, green: 0.08, blue: 0.18)
-    private let purpl  = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let pageBg = Color(red: 0.03, green: 0.03, blue: 0.04)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var purpl: Color { ThemeStore.shared.accent }
 
     var body: some View {
         ZStack {
