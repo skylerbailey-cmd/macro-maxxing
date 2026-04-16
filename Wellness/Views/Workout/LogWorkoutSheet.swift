@@ -294,7 +294,7 @@ struct LogWorkoutSheet: View {
                 Image(systemName: "sparkles")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(accent)
-                Text("Describe Your Workout (optional)")
+                Text("Describe Your Workout and have AI generate your routine")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.55))
                 Spacer()
@@ -305,17 +305,11 @@ struct LogWorkoutSheet: View {
                     if speechRecognizer.status == .recording { speechRecognizer.stop() }
                     else { speechRecognizer.start() }
                 } label: {
-                    ZStack {
-                        Circle()
-                            .fill(speechRecognizer.status == .recording ? accent.opacity(0.20) : pageBg)
-                            .frame(width: 48, height: 48)
-                            .overlay(Circle().stroke(
-                                speechRecognizer.status == .recording ? accent : .white.opacity(0.15),
-                                lineWidth: 1.5))
-                        Image(systemName: speechRecognizer.status == .recording ? "stop.fill" : "mic.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(speechRecognizer.status == .recording ? accent : .white.opacity(0.75))
-                    }
+                    PulsingMicButton(
+                        isRecording: speechRecognizer.status == .recording,
+                        accent: accent,
+                        background: pageBg
+                    )
                 }
                 .buttonStyle(.plain)
 
@@ -659,13 +653,13 @@ struct LogWorkoutSheet: View {
                     .foregroundStyle(.white.opacity(0.40))
             } else {
                 HStack(spacing: 0) {
-                    adjustRow(label: "Calories", base: Int(base.calories), adjusted: Int(preview.calories), delta: adj.caloriesDelta, unit: "kcal")
+                    adjustRow(label: "Calories", base: Int(base.calories), adjusted: Int(preview.calories), delta: adj.caloriesDelta, unit: "kcal", macroColor: .orange)
                     Divider().frame(height: 32).background(.white.opacity(0.10))
-                    adjustRow(label: "Carbs",    base: Int(base.carbs),    adjusted: Int(preview.carbs),    delta: adj.carbsDelta,    unit: "g")
+                    adjustRow(label: "Carbs",    base: Int(base.carbs),    adjusted: Int(preview.carbs),    delta: adj.carbsDelta,    unit: "g",    macroColor: .macroMint)
                     Divider().frame(height: 32).background(.white.opacity(0.10))
-                    adjustRow(label: "Protein",  base: Int(base.protein),  adjusted: Int(preview.protein),  delta: adj.proteinDelta,  unit: "g")
+                    adjustRow(label: "Protein",  base: Int(base.protein),  adjusted: Int(preview.protein),  delta: adj.proteinDelta,  unit: "g",    macroColor: .macroBlue)
                     Divider().frame(height: 32).background(.white.opacity(0.10))
-                    adjustRow(label: "Fat",      base: Int(base.fat),      adjusted: Int(preview.fat),      delta: adj.fatDelta,      unit: "g")
+                    adjustRow(label: "Fat",      base: Int(base.fat),      adjusted: Int(preview.fat),      delta: adj.fatDelta,      unit: "g",    macroColor: .macroRose)
                 }
                 .frame(maxWidth: .infinity)
 
@@ -680,18 +674,18 @@ struct LogWorkoutSheet: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.75), value: workoutType)
     }
 
-    private func adjustRow(label: String, base: Int, adjusted: Int, delta: Int, unit: String) -> some View {
-        let color: Color = delta > 0 ? accent : delta < 0 ? Color(red: 1, green: 0.45, blue: 0.45) : .white.opacity(0.40)
+    private func adjustRow(label: String, base: Int, adjusted: Int, delta: Int, unit: String, macroColor: Color) -> some View {
+        let deltaColor: Color = delta > 0 ? macroColor : delta < 0 ? Color(red: 1, green: 0.45, blue: 0.45) : .white.opacity(0.40)
         return VStack(spacing: 3) {
             Text(label)
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.35))
+                .foregroundStyle(macroColor)
             Text("\(adjusted)\(unit)")
                 .font(.system(size: 14, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
             Text(delta == 0 ? "—" : (delta > 0 ? "+\(delta)" : "\(delta)"))
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(color)
+                .foregroundStyle(deltaColor)
         }
         .frame(maxWidth: .infinity)
     }
@@ -1005,5 +999,50 @@ struct LogWorkoutSheet: View {
             isSaving  = false
             saveError = "Failed to save rest day. Please try again."
         }
+    }
+}
+
+// MARK: - Pulsing Mic Button
+
+/// Mic button that pulses (ring + subtle scale) while idle to invite taps,
+/// and shows a steady "stop" state while recording.
+private struct PulsingMicButton: View {
+    let isRecording: Bool
+    let accent: Color
+    let background: Color
+
+    @State private var pulse: Bool = false
+
+    var body: some View {
+        ZStack {
+            // Outer pulsing ring (only while idle)
+            if !isRecording {
+                Circle()
+                    .stroke(accent.opacity(pulse ? 0.0 : 0.55), lineWidth: 2)
+                    .frame(width: 48, height: 48)
+                    .scaleEffect(pulse ? 1.35 : 1.0)
+                    .animation(
+                        .easeOut(duration: 1.3).repeatForever(autoreverses: false),
+                        value: pulse
+                    )
+            }
+
+            Circle()
+                .fill(isRecording ? accent.opacity(0.20) : background)
+                .frame(width: 48, height: 48)
+                .overlay(
+                    Circle().stroke(accent.opacity(isRecording ? 1.0 : 0.55), lineWidth: 1.5)
+                )
+                .scaleEffect(isRecording ? 1.0 : (pulse ? 1.04 : 1.0))
+                .animation(
+                    .easeInOut(duration: 1.3).repeatForever(autoreverses: true),
+                    value: pulse
+                )
+
+            Image(systemName: isRecording ? "stop.fill" : "mic.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(accent)
+        }
+        .onAppear { pulse = true }
     }
 }
