@@ -392,20 +392,123 @@ final class ClaudeAnalysisService {
             """
         }
 
-        // Shuffle example foods so the model doesn't always gravitate to
-        // whichever items appear first in the list.
-        var exampleFoods = [
-            "chicken", "beef", "fish", "eggs", "Greek yogurt",
-            "cottage cheese", "tofu", "turkey", "tuna", "lentils",
-            "oats", "rice", "fruit", "nuts", "seeds", "pasta",
-            "bread", "potatoes", "sweet potatoes", "granola",
-            "cereal", "juice", "dried fruit", "protein shake",
-            "shrimp", "salmon", "pork tenderloin", "edamame",
-            "beef jerky", "deli turkey slices", "egg whites",
-            "protein bar", "chickpeas", "tempeh", "sardines",
-            "skyr", "bone broth", "collagen peptides"
+        // Example foods tagged by their dominant macro(s). When a macro is
+        // over goal or nearly met, foods whose dominant macro is that one are
+        // filtered out so the model isn't prompted with options that would
+        // push the user further over.
+        struct TaggedFood {
+            let name: String
+            let isProteinDominant: Bool
+            let isCarbDominant: Bool
+            let isFatDominant: Bool
+        }
+        let taggedFoods: [TaggedFood] = [
+            .init(name: "chicken breast",     isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "lean beef",          isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "white fish",         isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "whole eggs",         isProteinDominant: true,  isCarbDominant: false, isFatDominant: true),
+            .init(name: "egg whites",         isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "Greek yogurt (nonfat)", isProteinDominant: true, isCarbDominant: false, isFatDominant: false),
+            .init(name: "full-fat Greek yogurt", isProteinDominant: true, isCarbDominant: false, isFatDominant: true),
+            .init(name: "cottage cheese",     isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "cheese",             isProteinDominant: true,  isCarbDominant: false, isFatDominant: true),
+            .init(name: "tofu",               isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "turkey",             isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "tuna (in water)",    isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "tuna (in oil)",      isProteinDominant: true,  isCarbDominant: false, isFatDominant: true),
+            .init(name: "shrimp",             isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "salmon",             isProteinDominant: true,  isCarbDominant: false, isFatDominant: true),
+            .init(name: "sardines",           isProteinDominant: true,  isCarbDominant: false, isFatDominant: true),
+            .init(name: "mackerel",           isProteinDominant: true,  isCarbDominant: false, isFatDominant: true),
+            .init(name: "pork tenderloin",    isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "beef jerky",         isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "deli turkey slices", isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "protein shake",      isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "whey isolate",       isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "tempeh",             isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "edamame",            isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "skyr",               isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "bone broth",         isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "collagen peptides",  isProteinDominant: true,  isCarbDominant: false, isFatDominant: false),
+            .init(name: "oats",               isProteinDominant: false, isCarbDominant: true,  isFatDominant: false),
+            .init(name: "rice",               isProteinDominant: false, isCarbDominant: true,  isFatDominant: false),
+            .init(name: "rice cakes",         isProteinDominant: false, isCarbDominant: true,  isFatDominant: false),
+            .init(name: "pasta",              isProteinDominant: false, isCarbDominant: true,  isFatDominant: false),
+            .init(name: "bread",              isProteinDominant: false, isCarbDominant: true,  isFatDominant: false),
+            .init(name: "potatoes",           isProteinDominant: false, isCarbDominant: true,  isFatDominant: false),
+            .init(name: "sweet potatoes",     isProteinDominant: false, isCarbDominant: true,  isFatDominant: false),
+            .init(name: "granola",            isProteinDominant: false, isCarbDominant: true,  isFatDominant: false),
+            .init(name: "cereal",             isProteinDominant: false, isCarbDominant: true,  isFatDominant: false),
+            .init(name: "juice",              isProteinDominant: false, isCarbDominant: true,  isFatDominant: false),
+            .init(name: "dried fruit",        isProteinDominant: false, isCarbDominant: true,  isFatDominant: false),
+            .init(name: "fruit",              isProteinDominant: false, isCarbDominant: true,  isFatDominant: false),
+            .init(name: "lentils",            isProteinDominant: false, isCarbDominant: true,  isFatDominant: false),
+            .init(name: "chickpeas",          isProteinDominant: false, isCarbDominant: true,  isFatDominant: false),
+            .init(name: "protein bar",        isProteinDominant: true,  isCarbDominant: true,  isFatDominant: false),
+            .init(name: "nuts",               isProteinDominant: false, isCarbDominant: false, isFatDominant: true),
+            .init(name: "nut butter",         isProteinDominant: false, isCarbDominant: false, isFatDominant: true),
+            .init(name: "seeds",              isProteinDominant: false, isCarbDominant: false, isFatDominant: true),
+            .init(name: "avocado",            isProteinDominant: false, isCarbDominant: false, isFatDominant: true),
+            .init(name: "olive oil",          isProteinDominant: false, isCarbDominant: false, isFatDominant: true),
         ]
+
+        // Drop foods whose dominant macro is over goal or nearly met. A food
+        // only gets dropped if ALL of its dominant macros are constrained —
+        // e.g. whole eggs (protein + fat) stay in when protein is the deficit
+        // and fat has room, but drop out when both protein and fat are over.
+        let proteinConstrained = proteinMet || proteinNearlyMet
+        let carbsConstrained   = carbsMet   || carbsNearlyMet
+        let fatConstrained     = fatMet     || fatNearlyMet
+        var exampleFoods: [String] = taggedFoods.compactMap { food in
+            var dominantMacros: [Bool] = []
+            var constrainedMacros: [Bool] = []
+            if food.isProteinDominant { dominantMacros.append(true); constrainedMacros.append(proteinConstrained) }
+            if food.isCarbDominant    { dominantMacros.append(true); constrainedMacros.append(carbsConstrained) }
+            if food.isFatDominant     { dominantMacros.append(true); constrainedMacros.append(fatConstrained) }
+            // If every dominant macro is constrained, skip this food.
+            if !dominantMacros.isEmpty && constrainedMacros.allSatisfy({ $0 }) { return nil }
+            return food.name
+        }
         exampleFoods.shuffle()
+
+        // Explicit "do not suggest" list built from the over/nearly-met macros.
+        // This is stronger than the filter above: the filter hides options
+        // from the prompt, this explicitly forbids them even if the model
+        // knows about them from training.
+        var forbiddenFoodCategories: [String] = []
+        if carbsConstrained {
+            forbiddenFoodCategories.append("carb-dominant foods (rice, rice cakes, bread, pasta, oats, potatoes, sweet potatoes, granola, cereal, juice, fruit, dried fruit, tortillas, crackers, beans/lentils as the main component)")
+        }
+        if fatConstrained {
+            forbiddenFoodCategories.append("fat-dominant foods (nuts, nut butter, seeds, avocado, oils, butter, full-fat cheese, fatty cuts of meat)")
+        }
+        if proteinConstrained {
+            forbiddenFoodCategories.append("high-protein foods (chicken breast, lean beef, fish, egg whites, protein shakes, Greek yogurt)")
+        }
+        let forbiddenFoodsRule = forbiddenFoodCategories.isEmpty
+            ? ""
+            : "\n- DO NOT suggest \(forbiddenFoodCategories.joined(separator: " or ")). Not as a main component, not as a side, not as a garnish."
+
+        // Build a "calorie vehicle" strategy: which under-goal macro should
+        // carry the remaining calorie budget. When carbs are over and fat has
+        // room, the AI should reach for eggs/cheese/salmon/nuts — not pair
+        // lean protein with rice. And vice versa.
+        var strategyLines: [String] = []
+        let proteinIsDeficit = !proteinMet && !proteinNearlyMet
+        let carbsHaveRoom    = !carbsConstrained
+        let fatHasRoom       = !fatConstrained
+        if proteinIsDeficit {
+            if !carbsHaveRoom && fatHasRoom {
+                strategyLines.append("Protein is the priority. Carbs are over/nearly met but fat has room — use FAT as the calorie vehicle. Prefer fattier protein sources (whole eggs, salmon, sardines, full-fat Greek yogurt, cheese, tuna in oil, fatty beef) over lean-protein-plus-carb pairings.")
+            } else if carbsHaveRoom && !fatHasRoom {
+                strategyLines.append("Protein is the priority. Fat is over/nearly met but carbs have room — use CARBS as the calorie vehicle. Prefer lean proteins (chicken breast, white fish, egg whites, nonfat Greek yogurt, shrimp) with starchy sides.")
+            } else if !carbsHaveRoom && !fatHasRoom {
+                strategyLines.append("Protein is the priority and BOTH carbs and fat are over/nearly met. Suggest only the leanest, lowest-carb protein sources (egg whites, chicken breast, white fish, nonfat Greek yogurt, whey isolate, shrimp, deli turkey). No sides, no sauces, no oils.")
+            } else {
+                strategyLines.append("Protein is the priority and both carbs and fat have room. Favor whole-food protein sources and keep portions tight to the calorie budget.")
+            }
+        }
+        let strategyBlock = strategyLines.isEmpty ? "" : "\n**Strategy:** \(strategyLines.joined(separator: " "))\n"
 
         let prompt = """
         You are a no-nonsense nutrition coach who's been in the gym long enough to know what actually works. \
@@ -421,14 +524,17 @@ final class ClaudeAnalysisService {
         \(macroLines.joined(separator: "\n"))
 
         **Summary:** \(deficitSummary)\(avoidSummary)\(minimizeSummary)
+        \(strategyBlock)\
         \(dietaryRestrictionsPrompt)
         \(formatInstruction)
 
         Rules:
         - CRITICAL: Every suggestion must fit within the calorie room to the upper limit (\(Int(roomCalories)) kcal max). \
           Do NOT suggest anything that would push the user over their upper limit.
-        - CRITICAL: For any macro marked OVER GOAL, stay within the remaining room to the upper limit shown above. \
-          Choose foods that are naturally low in those macros.
+        - CRITICAL: For any macro marked OVER GOAL, do NOT suggest foods where that macro is the primary nutrient. \
+          "Naturally low" means near zero — not "fits under the remaining room." A food with 7g of carbs still \
+          counts as a carb choice when the user is over on carbs. Pick foods whose dominant macro is one the \
+          user still needs, not one they're over on.\(forbiddenFoodsRule)
         - IMPORTANT: Any macro marked NEARLY MET should be kept as low as possible. Do NOT build meals \
           around nearly-met macros. For example, if protein is nearly met, do NOT suggest chicken breast \
           or other high-protein foods — instead choose carb-dominant or fat-dominant foods as needed.
