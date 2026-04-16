@@ -544,6 +544,16 @@ struct WorkoutRow: View {
                         }
                         .foregroundStyle(accent.opacity(0.85))
                     }
+                    if !entry.taggedFriends.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "person.2.fill")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text(entry.taggedFriends.map { "@\($0.username)" }.joined(separator: ", "))
+                                .font(.system(size: 11, weight: .semibold))
+                                .lineLimit(1)
+                        }
+                        .foregroundStyle(accent.opacity(0.85))
+                    }
                     if hasExercises {
                         Button {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {

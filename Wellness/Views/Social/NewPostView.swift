@@ -300,7 +300,7 @@ struct NewPostView: View {
 
                     ForEach(PostLabel.allCases, id: \.self) { label in
                         let isSelected = selectedLabel == label
-                        let color = labelColor(label)
+                        let color = label.color
                         Button {
                             withAnimation(.spring(duration: 0.2)) {
                                 selectedLabel = isSelected ? nil : label
@@ -666,18 +666,6 @@ struct NewPostView: View {
                 .sorted { $0.score != $1.score ? $0.score > $1.score : $0.displayName < $1.displayName }
                 .prefix(10)
         )
-    }
-
-    private func labelColor(_ label: PostLabel) -> Color {
-        switch label {
-        case .transformation: return Color(red: 0.35, green: 0.75, blue: 1.00)
-        case .fuelLog:        return Color(red: 1.00, green: 0.55, blue: 0.15)
-        case .mealInspo:      return Color(red: 1.00, green: 0.30, blue: 0.55)
-        case .mogBoard:       return Color(red: 0.65, green: 0.45, blue: 1.00)
-        case .advice:         return Color(red: 1.00, green: 0.90, blue: 0.20)
-        case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
-        case .goalPost:       return Color(red: 0.65, green: 0.45, blue: 1.00)
-        }
     }
 
     // MARK: - Photo preview (feed-style)

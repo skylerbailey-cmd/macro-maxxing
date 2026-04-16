@@ -21,7 +21,7 @@ struct FoodLogView: View {
     @State private var tutorialAnchors:       [String: Anchor<CGRect>] = [:]
     @State private var editingEntry: FoodEntry? = nil
     @State private var showingFuelLogPost    = false
-    @State private var showingProfile        = false
+    @State private var showingSettings       = false
     @State private var showingNotifications  = false
 
     // Single active-sheet enum for the meal-logging flow
@@ -98,8 +98,8 @@ struct FoodLogView: View {
             .sheet(isPresented: $showingNotifications) {
                 NotificationsView(userSettings: userSettings, notificationState: notificationState)
             }
-            .sheet(isPresented: $showingProfile) {
-                profileSheet
+            .sheet(isPresented: $showingSettings) {
+                NavigationStack { SettingsView(userSettings: userSettings) }
             }
             // Surfaces the first sync failure of the session (once).
             // The per-row badge keeps signalling stranded meals after
@@ -254,14 +254,17 @@ struct FoodLogView: View {
 
             BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
 
-            Button { showingProfile = true } label: {
-                profileAvatarIcon
+            Button { showingSettings = true } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(ThemeStore.shared.accent)
             }
-            .accessibilityLabel("Profile")
-            .accessibilityHint("Opens your profile")
+            .buttonStyle(.plain)
+            .accessibilityLabel("Settings")
+            .accessibilityHint("Opens settings")
         }
     }
-    
+
     // MARK: - Day View Content
 
     private var dayViewContent: some View {
@@ -491,23 +494,7 @@ struct FoodLogView: View {
     }
     
     // MARK: - Sheet Views
-    
-    private var profileSheet: some View {
-        NavigationStack {
-            ProfileView(
-                profileUserID:      userSettings.userID,
-                profileUsername:    userSettings.username,
-                profileDisplayName: userSettings.name,
-                profileAuraLevel:   userSettings.auraLevel,
-                profileAuraPoints:  userSettings.auraPoints,
-                profileImageData:   userSettings.profileImageData,
-                profileLocation:    userSettings.location,
-                ownUserSettings:    userSettings,
-                isDismissable:      true
-            )
-        }
-    }
-    
+
     private func editSheet(for entry: FoodEntry) -> some View {
         EditEntrySheet(entry: entry, onSave: { name, cal, pro, carb, fat, time in
             viewModel.updateEntry(entry, foodName: name,
@@ -628,26 +615,6 @@ struct FoodLogView: View {
         // and opens either the consent sheet or the analysis sheet.
     }
 
-    private var profileAvatarIcon: some View {
-        let purpl  = Color.purpleHi
-        let cardBg = Color.cardBg
-        return Group {
-            if let data = userSettings.profileImageData, let uiImg = UIImage(data: data) {
-                Image(uiImage: uiImg)
-                    .resizable().scaledToFill()
-                    .frame(width: 30, height: 30)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(purpl, lineWidth: 1.5))
-            } else {
-                ZStack {
-                    Circle().fill(cardBg).frame(width: 30, height: 30)
-                        .overlay(Circle().stroke(purpl, lineWidth: 1.5))
-                    Image(systemName: "person.fill").font(.system(size: 14)).foregroundStyle(purpl)
-                }
-            }
-        }
-    }
-
     // MARK: - FAB with label
 
     private func fabWithLabel(icon: String, label: String, color: Color, disabled: Bool = false, action: @escaping () -> Void) -> some View {
@@ -726,6 +693,12 @@ struct FoodLogView: View {
                     showLogMealsConfirm = true
                 }
             } label: {
+                // Gold background drawn directly on the label (plain button
+                // style) so the .shimmering overlay sits on top of the gold
+                // instead of getting swallowed by .borderedProminent's own
+                // shape/clipping.
+                let done = analyzeVM.hasRunToday && aiSubscription.isSubscribed
+                let background: Color = done ? .gray : .premiumGold
                 HStack(spacing: 6) {
                     if !aiSubscription.isSubscribed {
                         Image(systemName: "sparkles")
@@ -744,10 +717,10 @@ struct FoodLogView: View {
                 .foregroundStyle(.black)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
+                .background(background, in: RoundedRectangle(cornerRadius: 10))
+                .shimmering(cornerRadius: 10)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(analyzeVM.hasRunToday && aiSubscription.isSubscribed ? .gray : Color.premiumGold)
-            .shimmering(cornerRadius: 10)
+            .buttonStyle(.plain)
             .disabled(aiSubscription.isSubscribed && (analyzeVM.state == .analyzing || analyzeVM.hasRunToday))
             .alert("Get My Recommendation?", isPresented: $showLogMealsConfirm) {
                 Button("Let's Go", role: .none) {

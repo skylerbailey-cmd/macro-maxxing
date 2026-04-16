@@ -33,6 +33,10 @@ struct LogWorkoutSheet: View {
     @State private var selectedGym: WorkoutLocation? = nil
     @State private var showingGymPicker = false
 
+    // Optional tagged friends on the workout. Populated via FriendTagPickerView.
+    @State private var taggedFriends: [TaggedFriend] = []
+    @State private var showingFriendPicker = false
+
     /// True once the calories field holds a specific value the user (or AI /
     /// saved template / prefill) wants preserved. While this is false, the
     /// calories field tracks the live estimate as duration or type change.
@@ -60,6 +64,7 @@ struct LogWorkoutSheet: View {
     @State private var savedDuration        = 0
     @State private var savedCalories        = 0
     @State private var savedGym:             WorkoutLocation? = nil
+    @State private var savedTaggedFriends:   [TaggedFriend]   = []
 
     // MARK: - Sub-types
 
@@ -93,6 +98,7 @@ struct LogWorkoutSheet: View {
             _applyAdjustment = State(initialValue: e.adjustmentApplied)
             _exercises       = State(initialValue: e.exercises)
             _selectedGym     = State(initialValue: e.location)
+            _taggedFriends   = State(initialValue: e.taggedFriends)
             _caloriesEdited  = State(initialValue: true)
         } else {
             let oneHourAgo = Date().addingTimeInterval(-60 * 60)
@@ -202,7 +208,8 @@ struct LogWorkoutSheet: View {
                     workoutType:     savedWorkoutType,
                     durationMinutes: savedDuration,
                     caloriesBurned:  savedCalories,
-                    gym:             savedGym
+                    gym:             savedGym,
+                    taggedFriends:   savedTaggedFriends
                 )
             }
         }
@@ -270,6 +277,7 @@ struct LogWorkoutSheet: View {
             }
             exercisesSection
             gymRow
+            friendsRow
             timePickerRow
         }
         .onChange(of: workoutType)  { _, _ in autoFillCaloriesIfNeeded() }
@@ -331,6 +339,72 @@ struct LogWorkoutSheet: View {
                 selectedGym = picked
             }
             .presentationDetents([.large])
+        }
+    }
+
+    /// Inline friends-tag row — shows a compact "people" icon + either the
+    /// comma-separated list of tagged friend display names or a "Tag friends"
+    /// CTA. Tap opens the `FriendTagPickerView` multi-select sheet.
+    private var friendsRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Tag Friends")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.45))
+
+            Button { showingFriendPicker = true } label: {
+                HStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(accent.opacity(0.16))
+                            .frame(width: 28, height: 28)
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(accent)
+                    }
+                    if taggedFriends.isEmpty {
+                        Text("Tag friends")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.55))
+                    } else {
+                        Text(taggedFriendsSummary)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.35))
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10)
+                    .stroke(accent.opacity(0.20), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+        }
+        .sheet(isPresented: $showingFriendPicker) {
+            FriendTagPickerView(
+                currentUserID:    userID,
+                initialSelection: taggedFriends,
+                onDone: { picked in taggedFriends = picked }
+            )
+            .presentationDetents([.large])
+        }
+    }
+
+    /// Condensed label — "@alice", "@alice & @bob", "@alice, @bob & 3 others".
+    private var taggedFriendsSummary: String {
+        let tags = taggedFriends
+        let handles = tags.map { "@\($0.username)" }
+        switch handles.count {
+        case 0: return ""
+        case 1: return handles[0]
+        case 2: return "\(handles[0]) & \(handles[1])"
+        default:
+            let extras = handles.count - 2
+            return "\(handles[0]), \(handles[1]) & \(extras) other\(extras == 1 ? "" : "s")"
         }
     }
 
@@ -1004,7 +1078,8 @@ struct LogWorkoutSheet: View {
             loggedAt:           loggedAt,
             adjustmentApplied:  applyAdjustment,
             exercises:          cleanedExercises,
-            location:           selectedGym
+            location:           selectedGym,
+            taggedFriends:      taggedFriends
         )
         do {
             try await WorkoutService.shared.save(entry: entry, userID: userID)
@@ -1031,8 +1106,9 @@ struct LogWorkoutSheet: View {
             savedWorkoutType  = workoutType
             savedDuration     = duration
             savedCalories     = calories
-            savedGym          = selectedGym
-            isSaving          = false
+            savedGym           = selectedGym
+            savedTaggedFriends = taggedFriends
+            isSaving           = false
             // Skip the post prompt when editing an existing workout
             if editingEntry != nil {
                 onSaved()

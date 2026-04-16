@@ -17,6 +17,8 @@ struct PostWorkoutSheet: View {
     /// Optional gym tagged at log time. Surfaces in the post's workout
     /// item (visible in feed rows) and in the preview card here.
     var gym:             WorkoutLocation? = nil
+    /// Friends tagged at log time — mirrored into the post's FeedWorkoutItem.
+    var taggedFriends:   [TaggedFriend]   = []
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss)      private var dismiss
@@ -358,7 +360,8 @@ struct PostWorkoutSheet: View {
             gymName:         gym?.name      ?? "",
             gymAddress:      gym?.address   ?? "",
             gymLatitude:     gym?.latitude  ?? 0,
-            gymLongitude:    gym?.longitude ?? 0
+            gymLongitude:    gym?.longitude ?? 0,
+            taggedFriends:   taggedFriends
         )
 
         let post = SocialPost(

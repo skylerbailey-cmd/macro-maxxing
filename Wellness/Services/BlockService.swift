@@ -183,4 +183,26 @@ final class BlockService {
         _ = try? await db.collection("reports").addDocument(data: reportData)
         AppLogger.log("[BlockService] User \(reporterID) reported post \(postID)")
     }
+
+    // MARK: - Report Comment
+
+    /// Logs a report for a specific comment. Admins review the `reports` collection.
+    func reportComment(
+        postID:           String,
+        commentID:        String,
+        commentAuthorID:  String,
+        reporterID:       String
+    ) async throws {
+        guard !postID.isEmpty, !commentID.isEmpty, !reporterID.isEmpty else { return }
+        let data: [String: Any] = [
+            "reporterID":        reporterID,
+            "reportedPostID":    postID,
+            "reportedCommentID": commentID,
+            "reportedUserID":    commentAuthorID,
+            "type":              "comment",
+            "createdAt":         FieldValue.serverTimestamp()
+        ]
+        try await db.collection("reports").addDocument(data: data)
+        AppLogger.log("[BlockService] User \(reporterID) reported comment \(commentID) on post \(postID)")
+    }
 }

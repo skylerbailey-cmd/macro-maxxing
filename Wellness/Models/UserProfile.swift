@@ -57,6 +57,12 @@ struct UserProfile: Codable, Identifiable {
     /// Empty string when the user hasn't picked one — client falls back to
     /// whatever's cached locally (or the default purple on a fresh install).
     var accentColor:          String
+    /// Home gym tagged on the profile. Empty `homeGymName` = none set.
+    /// Mirrored as flat fields so older Firestore docs decode cleanly.
+    var homeGymName:          String
+    var homeGymAddress:       String
+    var homeGymLatitude:      Double
+    var homeGymLongitude:     Double
     /// Comma-separated streak milestone days already awarded, e.g. "3,7,14".
     /// Synced to Firestore so milestones survive reinstalls and device switches.
     var achievedMilestones:   String
@@ -130,6 +136,10 @@ struct UserProfile: Codable, Identifiable {
         excludeDairy:         Bool     = false,
         excludeGluten:        Bool     = false,
         accentColor:          String   = "",
+        homeGymName:          String   = "",
+        homeGymAddress:       String   = "",
+        homeGymLatitude:      Double   = 0,
+        homeGymLongitude:     Double   = 0,
         achievedMilestones:   String   = "",
         goalsMetDates:        [String] = [],
         lastGoalsMetDate:     String   = "",
@@ -173,6 +183,10 @@ struct UserProfile: Codable, Identifiable {
         self.excludeDairy        = excludeDairy
         self.excludeGluten       = excludeGluten
         self.accentColor         = accentColor
+        self.homeGymName         = homeGymName
+        self.homeGymAddress      = homeGymAddress
+        self.homeGymLatitude     = homeGymLatitude
+        self.homeGymLongitude    = homeGymLongitude
         self.achievedMilestones  = achievedMilestones
         self.goalsMetDates       = goalsMetDates
         self.lastGoalsMetDate    = lastGoalsMetDate
@@ -230,6 +244,8 @@ extension UserProfile {
             "goalWeight":    160.0,
             "proteinPerLb":  0.9,
             "weeklyAuraWeekStartTimestamp": 0.0,
+            "homeGymLatitude":  0.0,
+            "homeGymLongitude": 0.0,
         ]
         for (key, value) in doubleDefaults where data[key] == nil {
             data[key] = value
@@ -261,6 +277,8 @@ extension UserProfile {
             "dateOfBirth":     "",
             "gender":          "",
             "accentColor":     "",
+            "homeGymName":     "",
+            "homeGymAddress":  "",
         ]
         for (key, value) in stringDefaults where data[key] == nil {
             data[key] = value

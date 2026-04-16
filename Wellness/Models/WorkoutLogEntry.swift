@@ -23,12 +23,18 @@ import SwiftData
     var gymLatitude:  Double = 0.0
     var gymLongitude: Double = 0.0
 
+    // Friends tagged on this workout — stored as JSON because SwiftData
+    // doesn't hold arrays of Codable structs directly. Empty string =
+    // no tags, which keeps migration of old rows trivial.
+    var taggedFriendsJSON: String = ""
+
     var post: SocialPost?
 
     init(workoutName: String, workoutType: String, durationMinutes: Int,
          caloriesBurned: Int, loggedAt: Date, sortOrder: Int,
          gymName: String = "", gymAddress: String = "",
-         gymLatitude: Double = 0.0, gymLongitude: Double = 0.0) {
+         gymLatitude: Double = 0.0, gymLongitude: Double = 0.0,
+         taggedFriends: [TaggedFriend] = []) {
         self.workoutName     = workoutName
         self.workoutType     = workoutType
         self.durationMinutes = durationMinutes
@@ -39,6 +45,25 @@ import SwiftData
         self.gymAddress      = gymAddress
         self.gymLatitude     = gymLatitude
         self.gymLongitude    = gymLongitude
+        self.taggedFriends   = taggedFriends
+    }
+
+    /// Rehydrated array — nil-safe JSON decode, returns [] for empty or bad data.
+    var taggedFriends: [TaggedFriend] {
+        get {
+            guard let data = taggedFriendsJSON.data(using: .utf8),
+                  !taggedFriendsJSON.isEmpty else { return [] }
+            return (try? JSONDecoder().decode([TaggedFriend].self, from: data)) ?? []
+        }
+        set {
+            guard !newValue.isEmpty,
+                  let data = try? JSONEncoder().encode(newValue),
+                  let json = String(data: data, encoding: .utf8) else {
+                taggedFriendsJSON = ""
+                return
+            }
+            taggedFriendsJSON = json
+        }
     }
 
     var formattedDuration: String {

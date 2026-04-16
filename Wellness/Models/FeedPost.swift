@@ -262,6 +262,10 @@ struct FeedWorkoutItem: Codable, Identifiable {
     var gymLatitude:  Double = 0.0
     var gymLongitude: Double = 0.0
 
+    // Friends tagged on this workout — stored as an array of objects.
+    // Defaults to [] so older Firestore docs decode cleanly.
+    var taggedFriends: [TaggedFriend] = []
+
     var formattedDuration: String {
         durationMinutes >= 60
             ? "\(durationMinutes / 60)h \(durationMinutes % 60)m"

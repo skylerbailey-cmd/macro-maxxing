@@ -19,7 +19,7 @@ struct HomeView: View {
     @State private var showingShare       = false
     @State private var showingTutorial    = false
     @State private var tutorialAnchors:   [String: Anchor<CGRect>] = [:]
-    @State private var showingProfile     = false
+    @State private var showingSettings    = false
     @State private var showingGoalPost    = false
     @State private var showingAIConsent   = false
     @State private var goalPostMeme       = GymMeme.random()
@@ -39,11 +39,21 @@ struct HomeView: View {
     /// compact half-width summary.
     @State private var workoutsExpanded = false
 
-    /// Recent workouts (last 14 days) used to build the weekly summary and
+    /// Recent workouts (last 90 days) used to build the weekly summary and
     /// the recent-workouts list in the expanded card. Refreshed on appear,
     /// on scene foregrounding, and after a workout is saved elsewhere in the
-    /// app.
+    /// app. 90 days gives the user enough history to page backwards through
+    /// roughly a quarter of weeks from the expanded card's week strip.
     @State private var recentWorkouts: [WorkoutEntry] = []
+
+    /// Week the expanded workouts card is currently showing. 0 = current week,
+    /// -1 = last week, and so on. Can't go positive (no future weeks).
+    @State private var workoutsWeekOffset: Int = 0
+
+    /// Day pinned to the top of the "Recent" list in the expanded card. When
+    /// the user taps a day in the strip, that day's workouts bubble above the
+    /// rest of the list. Cleared when the user navigates to a different week.
+    @State private var selectedWorkoutDay: Date? = nil
 
     private enum BrainstormAlert: Identifiable {
         case confirm, limitReached
@@ -84,9 +94,7 @@ struct HomeView: View {
     private var greetingText: String {
         // Rotate daily so it feels fresh but stays stable throughout the day
         let dayOfYear = Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 1
-        let name = viewModel.userSettings.name.trimmingCharacters(in: .whitespaces)
-        let phrase = Self.greetingPhrases[dayOfYear % Self.greetingPhrases.count]
-        return name.isEmpty ? phrase : "\(phrase), \(name)"
+        return Self.greetingPhrases[dayOfYear % Self.greetingPhrases.count]
     }
 
     private func timeString(hour: Int, minute: Int) -> String {
@@ -108,19 +116,9 @@ struct HomeView: View {
             .sheet(isPresented: $showingNotifications) {
                 NotificationsView(userSettings: viewModel.userSettings, notificationState: notificationState)
             }
-            .sheet(isPresented: $showingProfile) {
+            .sheet(isPresented: $showingSettings) {
                 NavigationStack {
-                    ProfileView(
-                        profileUserID:      viewModel.userSettings.userID,
-                        profileUsername:    viewModel.userSettings.username,
-                        profileDisplayName: viewModel.userSettings.name,
-                        profileAuraLevel:   viewModel.userSettings.auraLevel,
-                        profileAuraPoints:  viewModel.userSettings.auraPoints,
-                        profileImageData:   viewModel.userSettings.profileImageData,
-                        profileLocation:    viewModel.userSettings.location,
-                        ownUserSettings:    viewModel.userSettings,
-                        isDismissable:      true
-                    )
+                    SettingsView(userSettings: viewModel.userSettings)
                 }
             }
             .onAppear { handleAppear() }
@@ -292,12 +290,14 @@ struct HomeView: View {
                         .accessibilityLabel("Help")
                         .accessibilityHint("Shows the tutorial")
                         BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
-                        Button { showingProfile = true } label: {
-                            profileAvatarIcon
+                        Button { showingSettings = true } label: {
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(ThemeStore.shared.accent)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Profile")
-                        .accessibilityHint("Opens your profile")
+                        .accessibilityLabel("Settings")
+                        .accessibilityHint("Opens settings")
                     }
                     .tutorialAnchor("hub.notifications")
                 }
@@ -415,6 +415,32 @@ struct HomeView: View {
             .padding(.trailing, 16)
     }
 
+    /// Returns a brighter / less saturated version of the accent for the
+    /// starting (left) edge of the XP bar gradient. Kept as a static helper
+    /// so it can be called from inside the `auraXPBar` body without
+    /// introducing a captured-self reference.
+    private static func lightenedAccent(_ base: Color) -> Color {
+        let ui = UIColor(base)
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ui.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        return Color(UIColor(hue: h,
+                             saturation: max(0, s * 0.55),
+                             brightness: min(1, b * 1.10),
+                             alpha: a))
+    }
+
+    /// Returns a deeper / more saturated version of the accent for the far
+    /// (right) edge of the XP bar gradient — reached only as progress fills.
+    private static func deepenedAccent(_ base: Color) -> Color {
+        let ui = UIColor(base)
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ui.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        return Color(UIColor(hue: h,
+                             saturation: min(1, s * 1.20),
+                             brightness: max(0, b * 0.62),
+                             alpha: a))
+    }
+
     private var auraXPBar: some View {
         let pts        = viewModel.userSettings.auraPoints
         let level      = UserSettings.auraLevel(for: pts)
@@ -425,9 +451,17 @@ struct HomeView: View {
         let progress   = level >= 100 ? 1.0 : Double(inLevel) / Double(forLevel)
         let pctText    = level >= 100 ? "MAX" : "\(Int(progress * 100))%"
         let nextLabel  = level >= 100 ? "Max level" : "to Lv \(level + 1)"
-        let barColor  = LinearGradient(
-            colors: [ThemeStore.shared.accent,
-                     ThemeStore.shared.accent],
+        // Gradient spans the ENTIRE bar: light-accent on the left fading into
+        // a deeper, more saturated accent on the right. Because we mask the
+        // fill to the progress width, only a small slice of the left end is
+        // visible early in a level — the deep right end is revealed as the
+        // user approaches the next level.
+        let barGradient = LinearGradient(
+            colors: [
+                Self.lightenedAccent(ThemeStore.shared.accent),
+                ThemeStore.shared.accent,
+                Self.deepenedAccent(ThemeStore.shared.accent)
+            ],
             startPoint: .leading, endPoint: .trailing
         )
 
@@ -440,9 +474,19 @@ struct HomeView: View {
                         Capsule()
                             .fill(Color.white.opacity(0.08))
                             .frame(height: 5)
+                        // Full-width gradient masked to the progress slice, so
+                        // the "deeper accent" right edge only appears as the
+                        // user nears the next level.
                         Capsule()
-                            .fill(barColor)
-                            .frame(width: max(5, geo.size.width * progress), height: 5)
+                            .fill(barGradient)
+                            .frame(width: geo.size.width, height: 5)
+                            .mask(
+                                HStack(spacing: 0) {
+                                    Capsule()
+                                        .frame(width: max(5, geo.size.width * progress), height: 5)
+                                    Spacer(minLength: 0)
+                                }
+                            )
                             .animation(.easeOut(duration: 0.6), value: progress)
                     }
                 }
@@ -479,32 +523,6 @@ struct HomeView: View {
         }
     }
 
-    private var profileAvatarIcon: some View {
-        let purpl = ThemeStore.shared.accent
-        let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
-        return Group {
-            if let data = viewModel.userSettings.profileImageData,
-               let uiImg = UIImage(data: data) {
-                Image(uiImage: uiImg)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 30, height: 30)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(purpl, lineWidth: 1.5))
-            } else {
-                ZStack {
-                    Circle()
-                        .fill(cardBg)
-                        .frame(width: 30, height: 30)
-                        .overlay(Circle().stroke(purpl, lineWidth: 1.5))
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(purpl)
-                }
-            }
-        }
-    }
-    
     private var shareSheet: some View {
         ShareView(viewModel: viewModel)
             .presentationDetents([.large])
@@ -912,21 +930,51 @@ struct HomeView: View {
 
     // MARK: - Workouts card
 
-    /// Weekly aggregate derived from `recentWorkouts`. Recomputed every time
-    /// SwiftUI renders the section — cheap enough for <20 entries, so no
-    /// memoization needed.
-    private var weeklyWorkoutStats: (count: Int, minutes: Int, calories: Int) {
+    /// Aggregate for the currently displayed week (summary card always uses
+    /// this-week; the expanded card uses `displayedWeekMonday` which follows
+    /// the user's week-navigation offset).
+    private func weeklyWorkoutStats(weekStart: Date) -> (count: Int, minutes: Int, calories: Int) {
         let cal = Calendar.current
-        let weekStart = cal.date(from: cal.dateComponents(
-            [.yearForWeekOfYear, .weekOfYear], from: Date())) ?? Date()
+        guard let weekEnd = cal.date(byAdding: .day, value: 7, to: weekStart) else {
+            return (0, 0, 0)
+        }
         let entries = recentWorkouts.filter {
-            $0.loggedAt >= weekStart && $0.workoutType != .restDay
+            $0.loggedAt >= weekStart && $0.loggedAt < weekEnd && $0.workoutType != .restDay
         }
         return (
             entries.count,
             entries.reduce(0) { $0 + $1.durationMinutes },
             entries.reduce(0) { $0 + $1.caloriesBurned }
         )
+    }
+
+    /// Monday (ISO week start) of this week.
+    private var currentWeekMonday: Date {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let weekdayOffset = (cal.component(.weekday, from: today) + 5) % 7
+        return cal.date(byAdding: .day, value: -weekdayOffset, to: today) ?? today
+    }
+
+    /// Monday of the week the expanded card is currently showing, offset from
+    /// the current week by `workoutsWeekOffset`.
+    private var displayedWeekMonday: Date {
+        let cal = Calendar.current
+        return cal.date(byAdding: .weekOfYear,
+                        value: workoutsWeekOffset,
+                        to: currentWeekMonday) ?? currentWeekMonday
+    }
+
+    /// Short "Apr 10 – Apr 16" style label for the displayed week. Swaps in
+    /// "This Week" / "Last Week" for the two most recent weeks so the common
+    /// case stays glanceable.
+    private var displayedWeekLabel: String {
+        if workoutsWeekOffset == 0  { return "This Week" }
+        if workoutsWeekOffset == -1 { return "Last Week" }
+        let cal = Calendar.current
+        guard let sunday = cal.date(byAdding: .day, value: 6, to: displayedWeekMonday) else { return "" }
+        let f = DateFormatter(); f.dateFormat = "MMM d"
+        return "\(f.string(from: displayedWeekMonday)) – \(f.string(from: sunday))"
     }
 
     /// Consecutive number of days ending today that have at least one logged
@@ -949,7 +997,7 @@ struct HomeView: View {
     }
 
     private func workoutSummaryCard(compact: Bool) -> some View {
-        let stats   = weeklyWorkoutStats
+        let stats   = weeklyWorkoutStats(weekStart: currentWeekMonday)
         let streak  = workoutStreakDays
         return Button {
             withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
@@ -983,21 +1031,6 @@ struct HomeView: View {
                             .foregroundStyle(.white.opacity(0.55))
                     }
                     .frame(maxWidth: .infinity)
-
-                    if streak > 0 {
-                        HStack(spacing: 4) {
-                            Text("🔥")
-                            Text("\(streak) day\(streak == 1 ? "" : "s")")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.75))
-                        }
-                        .frame(maxWidth: .infinity)
-                    } else {
-                        Text("Log a workout today")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.35))
-                            .frame(maxWidth: .infinity)
-                    }
                 } else {
                     // Full-width layout — horizontal row of icon + count + streak.
                     HStack(spacing: 14) {
@@ -1048,7 +1081,8 @@ struct HomeView: View {
     /// recent-workouts list. Matches the macros expanded pattern: tappable
     /// chevron-up to collapse back to the summary.
     private var workoutsExpandedView: some View {
-        let stats = weeklyWorkoutStats
+        let stats = weeklyWorkoutStats(weekStart: displayedWeekMonday)
+        let sortedList = sortedRecentWorkouts
 
         return VStack(alignment: .leading, spacing: 16) {
             // Header with collapse chevron
@@ -1073,10 +1107,11 @@ struct HomeView: View {
                 .accessibilityLabel("Collapse workouts")
             }
 
-            // 7-day dot strip
+            // Week navigator + 7-day dot strip
+            workoutWeekNavigator
             workoutWeekStrip
 
-            // Aggregate row
+            // Aggregate row (reflects the displayed week)
             HStack(spacing: 12) {
                 aggregateBadge(value: "\(stats.count)",
                                unit:  stats.count == 1 ? "workout" : "workouts")
@@ -1088,11 +1123,33 @@ struct HomeView: View {
 
             Divider().background(Color.white.opacity(0.08))
 
-            // Recent workouts list
-            Text("RECENT")
-                .font(.system(size: 11, weight: .black))
-                .tracking(1.5)
-                .foregroundStyle(.white.opacity(0.40))
+            // Recent workouts list — header changes when a day is pinned so
+            // the user knows why the order is different.
+            HStack(spacing: 8) {
+                Text(selectedWorkoutDay == nil ? "RECENT" : "SELECTED DAY")
+                    .font(.system(size: 11, weight: .black))
+                    .tracking(1.5)
+                    .foregroundStyle(.white.opacity(0.40))
+                if let day = selectedWorkoutDay {
+                    Text(selectedDayLabel(day))
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(ThemeStore.shared.accent)
+                    Spacer()
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.20)) {
+                            selectedWorkoutDay = nil
+                        }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.white.opacity(0.45))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear selected day")
+                } else {
+                    Spacer()
+                }
+            }
 
             if recentWorkouts.isEmpty {
                 HStack(spacing: 10) {
@@ -1105,9 +1162,28 @@ struct HomeView: View {
                     Spacer()
                 }
                 .padding(.vertical, 8)
+            } else if let day = selectedWorkoutDay,
+                      !sortedList.contains(where: { Calendar.current.isDate($0.loggedAt, inSameDayAs: day) }) {
+                // Day was tapped but has no workouts — tell the user, then
+                // show the rest of the recent list below.
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "calendar.badge.exclamationmark")
+                            .font(.system(size: 18))
+                            .foregroundStyle(.white.opacity(0.35))
+                        Text("No workouts on \(selectedDayLabel(day))")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.45))
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                    ForEach(sortedList.prefix(5)) { entry in
+                        recentWorkoutRow(entry)
+                    }
+                }
             } else {
                 VStack(spacing: 10) {
-                    ForEach(recentWorkouts.prefix(5)) { entry in
+                    ForEach(sortedList.prefix(8)) { entry in
                         recentWorkoutRow(entry)
                     }
                 }
@@ -1123,13 +1199,58 @@ struct HomeView: View {
         )
     }
 
-    /// Mon–Sun dot strip. Filled = at least one non-rest workout that day.
+    /// Header row above the week strip: back/forward chevrons and a label for
+    /// the displayed week. Forward is disabled on the current week so the
+    /// user can't navigate into the future.
+    private var workoutWeekNavigator: some View {
+        HStack(spacing: 10) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.20)) {
+                    workoutsWeekOffset -= 1
+                    selectedWorkoutDay = nil
+                }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.70))
+                    .frame(width: 26, height: 26)
+                    .background(Color.white.opacity(0.06), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Previous week")
+
+            Spacer()
+            Text(displayedWeekLabel)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(.white.opacity(0.75))
+            Spacer()
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.20)) {
+                    workoutsWeekOffset = min(0, workoutsWeekOffset + 1)
+                    selectedWorkoutDay = nil
+                }
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white.opacity(workoutsWeekOffset >= 0 ? 0.25 : 0.70))
+                    .frame(width: 26, height: 26)
+                    .background(Color.white.opacity(0.06), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(workoutsWeekOffset >= 0)
+            .accessibilityLabel("Next week")
+        }
+    }
+
+    /// Mon–Sun strip for the displayed week. Each day is a tap target: tapping
+    /// pins that day to the top of the recent-workouts list. Tapping an
+    /// already-selected day toggles it off. Filled dot = at least one non-rest
+    /// workout that day; ring = today; accent fill = selected day.
     private var workoutWeekStrip: some View {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
-        // Anchor to Monday of this week (ISO weekday 1 = Monday).
-        let weekdayOffset = (cal.component(.weekday, from: today) + 5) % 7
-        let monday = cal.date(byAdding: .day, value: -weekdayOffset, to: today) ?? today
+        let monday = displayedWeekMonday
         let days: [Date] = (0..<7).compactMap {
             cal.date(byAdding: .day, value: $0, to: monday)
         }
@@ -1139,34 +1260,92 @@ struct HomeView: View {
 
         return HStack(spacing: 8) {
             ForEach(days, id: \.self) { day in
-                let isFuture = day > today
+                let isFuture  = day > today
                 let hasWorkout = workoutDays.contains(day)
-                let isToday = cal.isDateInToday(day)
-                VStack(spacing: 6) {
-                    Circle()
-                        .fill(hasWorkout
-                              ? ThemeStore.shared.accent
-                              : Color.white.opacity(isFuture ? 0.05 : 0.10))
-                        .frame(width: 18, height: 18)
-                        .overlay(
-                            Circle()
-                                .stroke(isToday ? Color.white.opacity(0.60) : .clear,
-                                        lineWidth: 1.5)
-                        )
-                        .shadow(color: hasWorkout
-                                ? ThemeStore.shared.accent.opacity(0.50)
-                                : .clear,
-                                radius: 4)
-                    Text(weekdayInitial(day))
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(
-                            isToday ? .white.opacity(0.85)
-                                    : .white.opacity(isFuture ? 0.25 : 0.45)
-                        )
+                let isToday    = cal.isDateInToday(day)
+                let isSelected = selectedWorkoutDay.map { cal.isDate($0, inSameDayAs: day) } ?? false
+                Button {
+                    // Don't allow selecting a future day — nothing to show.
+                    guard !isFuture else { return }
+                    withAnimation(.easeInOut(duration: 0.20)) {
+                        selectedWorkoutDay = isSelected ? nil : day
+                    }
+                } label: {
+                    VStack(spacing: 6) {
+                        Circle()
+                            .fill(isSelected
+                                  ? ThemeStore.shared.accent
+                                  : (hasWorkout
+                                     ? ThemeStore.shared.accent.opacity(0.85)
+                                     : Color.white.opacity(isFuture ? 0.05 : 0.10)))
+                            .frame(width: 22, height: 22)
+                            .overlay(
+                                Circle()
+                                    .stroke(isToday ? Color.white.opacity(0.75) : .clear,
+                                            lineWidth: 1.5)
+                            )
+                            .shadow(color: (hasWorkout || isSelected)
+                                    ? ThemeStore.shared.accent.opacity(0.50)
+                                    : .clear,
+                                    radius: 4)
+                        Text(weekdayInitial(day))
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(
+                                isSelected ? .white
+                                : (isToday ? .white.opacity(0.85)
+                                           : .white.opacity(isFuture ? 0.25 : 0.45))
+                            )
+                        Text("\(cal.component(.day, from: day))")
+                            .font(.system(size: 9, weight: .semibold, design: .rounded))
+                            .foregroundStyle(
+                                isSelected ? .white.opacity(0.90)
+                                           : .white.opacity(isFuture ? 0.20 : 0.35)
+                            )
+                    }
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
                 }
-                .frame(maxWidth: .infinity)
+                .buttonStyle(.plain)
+                .disabled(isFuture)
+                .accessibilityLabel(accessibilityLabel(for: day, hasWorkout: hasWorkout,
+                                                       isToday: isToday, isSelected: isSelected))
             }
         }
+    }
+
+    private func accessibilityLabel(for day: Date,
+                                    hasWorkout: Bool,
+                                    isToday: Bool,
+                                    isSelected: Bool) -> String {
+        let f = DateFormatter(); f.dateFormat = "EEEE, MMM d"
+        var label = f.string(from: day)
+        if isToday     { label += ", today" }
+        if hasWorkout  { label += ", has workout" }
+        if isSelected  { label += ", selected" }
+        return label
+    }
+
+    private func selectedDayLabel(_ day: Date) -> String {
+        let cal = Calendar.current
+        if cal.isDateInToday(day)     { return "Today" }
+        if cal.isDateInYesterday(day) { return "Yesterday" }
+        let f = DateFormatter(); f.dateFormat = "EEE, MMM d"
+        return f.string(from: day)
+    }
+
+    /// Sort workouts by recency, but bubble the selected day's workouts to
+    /// the top so tapping a day in the strip "pins" that day.
+    private var sortedRecentWorkouts: [WorkoutEntry] {
+        let cal = Calendar.current
+        let byDateDesc: (WorkoutEntry, WorkoutEntry) -> Bool = { $0.loggedAt > $1.loggedAt }
+        guard let day = selectedWorkoutDay else {
+            return recentWorkouts.sorted(by: byDateDesc)
+        }
+        let onDay   = recentWorkouts.filter { cal.isDate($0.loggedAt, inSameDayAs: day) }
+                                     .sorted(by: byDateDesc)
+        let offDay  = recentWorkouts.filter { !cal.isDate($0.loggedAt, inSameDayAs: day) }
+                                     .sorted(by: byDateDesc)
+        return onDay + offDay
     }
 
     private func weekdayInitial(_ date: Date) -> String {
@@ -1221,6 +1400,16 @@ struct HomeView: View {
                             .lineLimit(1)
                     }
                 }
+                if !entry.taggedFriends.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 9, weight: .semibold))
+                        Text(entry.taggedFriends.map { "@\($0.username)" }.joined(separator: ", "))
+                            .font(.system(size: 11, weight: .semibold))
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(ThemeStore.shared.accent.opacity(0.80))
+                }
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 2) {
@@ -1250,16 +1439,17 @@ struct HomeView: View {
         return "\(days)d ago"
     }
 
-    /// Loads the last 14 days of workouts for the workouts card. Called on
+    /// Loads the last 90 days of workouts for the workouts card. Called on
     /// appear, when the user returns to the foreground, and when a workout
     /// is saved elsewhere in the app (via WorkoutService's notification).
+    /// 90 days is enough for the week strip to page back roughly a quarter.
     @MainActor
     private func loadRecentWorkouts() async {
         let userID = viewModel.userSettings.userID
         guard !userID.isEmpty else { return }
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
-        guard let start = cal.date(byAdding: .day, value: -14, to: today),
+        guard let start = cal.date(byAdding: .day, value: -90, to: today),
               let end   = cal.date(byAdding: .day, value:   1, to: today) else { return }
         do {
             recentWorkouts = try await WorkoutService.shared.fetchRange(
@@ -1345,6 +1535,13 @@ struct HomeView: View {
                     brainstormAlert = .confirm
                 }
             } label: {
+                // Inner label — styled as a gold pill with the shimmer
+                // overlay placed DIRECTLY on the background. Using a plain
+                // button (rather than .borderedProminent) means the system
+                // doesn't re-wrap the view and swallow the shimmer.
+                let limitReached = aiSubscription.isSubscribed
+                    && viewModel.userSettings.brainstormLimitReached
+                let background: Color = limitReached ? .gray : .premiumGold
                 HStack(spacing: 6) {
                     if !aiSubscription.isSubscribed {
                         Image(systemName: "sparkles")
@@ -1365,14 +1562,10 @@ struct HomeView: View {
                 .foregroundStyle(.black)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 11)
+                .background(background, in: RoundedRectangle(cornerRadius: 10))
+                .shimmering(cornerRadius: 10)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(
-                aiSubscription.isSubscribed && viewModel.userSettings.brainstormLimitReached
-                ? Color.gray
-                : Color.premiumGold
-            )
-            .shimmering(cornerRadius: 10)
+            .buttonStyle(.plain)
             .disabled(viewModel.brainstormState == .loading)
             .alert(item: $brainstormAlert) { alert in
                 switch alert {

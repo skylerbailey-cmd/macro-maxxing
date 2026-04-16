@@ -57,10 +57,11 @@ struct FastingTimelineView: View {
                 .cornerRadius(4)
             }
 
-            // Meal log indicators — solid red line per meal
+            // Meal log indicators — one line per logged meal, tinted with
+            // the user's accent color so they match the chrome elsewhere.
             ForEach(Array(mealLogTimes.enumerated()), id: \.offset) { _, mealTime in
                 RuleMark(x: .value("Meal", mealTime))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(ThemeStore.shared.accent)
                     .lineStyle(StrokeStyle(lineWidth: 2))
             }
 

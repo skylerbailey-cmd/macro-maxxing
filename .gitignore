@@ -26,6 +26,8 @@ Package.resolved
 
 # API Keys — never commit secrets
 Wellness/Config.swift
+.env
+.env.*
 
 # macOS
 .DS_Store

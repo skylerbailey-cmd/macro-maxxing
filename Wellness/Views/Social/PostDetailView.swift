@@ -20,6 +20,7 @@ struct PostDetailView: View {
     @State private var showCommentCamera   = false
     @State private var showCommentLibrary  = false
     @State private var showingProfile  = false
+    @State private var showDeleteConfirm = false
     @FocusState private var commentFocused: Bool
 
     private var purpl: Color { ThemeStore.shared.accent }
@@ -85,14 +86,22 @@ struct PostDetailView: View {
                 if isOwnPost {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button(role: .destructive) {
-                            modelContext.delete(post)
-                            dismiss()
+                            showDeleteConfirm = true
                         } label: {
                             Image(systemName: "trash")
                                 .foregroundStyle(.red.opacity(0.75))
                         }
                     }
                 }
+            }
+            .alert("Delete this post?", isPresented: $showDeleteConfirm) {
+                Button("Delete", role: .destructive) {
+                    modelContext.delete(post)
+                    dismiss()
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This can't be undone.")
             }
         }
         .keyboardDoneToolbar()
@@ -249,14 +258,21 @@ struct PostDetailView: View {
                 .background(purpl.opacity(0.40))
                 .padding(.top, 4)
 
-            HStack {
+            HStack(spacing: 6) {
                 Text("Total")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.white)
                 Spacer()
-                Text("\(Int(totalCal)) kcal · \(Int(totalPro))g P · \(Int(totalCarb))g C · \(Int(totalFat))g F")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(purpl)
+                HStack(spacing: 4) {
+                    Text("\(Int(totalCal)) kcal").foregroundStyle(Color.calClr)
+                    Text("·").foregroundStyle(.white.opacity(0.30))
+                    Text("\(Int(totalPro))g P").foregroundStyle(Color.proClr)
+                    Text("·").foregroundStyle(.white.opacity(0.30))
+                    Text("\(Int(totalCarb))g C").foregroundStyle(Color.carbClr)
+                    Text("·").foregroundStyle(.white.opacity(0.30))
+                    Text("\(Int(totalFat))g F").foregroundStyle(Color.fatClr)
+                }
+                .font(.caption.weight(.semibold))
             }
             .padding(.top, 8)
         }
@@ -288,11 +304,14 @@ struct PostDetailView: View {
                     ForEach(sorted) { comment in
                         commentRow(comment)
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    post.comments.removeAll { $0.id == comment.id }
-                                    modelContext.delete(comment)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
+                                // Only the comment's author (or post owner) can delete.
+                                if comment.authorID == userSettings.userID || isOwnPost {
+                                    Button(role: .destructive) {
+                                        post.comments.removeAll { $0.id == comment.id }
+                                        modelContext.delete(comment)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
                                 }
                             }
                             .listRowBackground(Color.clear)

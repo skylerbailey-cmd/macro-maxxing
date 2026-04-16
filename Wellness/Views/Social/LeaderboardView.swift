@@ -54,7 +54,7 @@ struct LeaderboardView: View {
     @State private var selectedProfile:  LeaderboardEntry? = nil
     @State private var showingTutorial   = false
     @State private var tutorialAnchors:  [String: Anchor<CGRect>] = [:]
-    @State private var showingProfile    = false
+    @State private var showingSettings   = false
     @State private var showPostPicker    = false
     @State private var showingNotifications = false
     @State private var previewBoard:       ShareableBoard?    = nil
@@ -108,9 +108,14 @@ struct LeaderboardView: View {
                         }
                         .buttonStyle(.plain)
                         BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
-                        Button { showingProfile = true } label: {
-                            leaderboardProfileAvatarIcon
+                        Button { showingSettings = true } label: {
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(ThemeStore.shared.accent)
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Settings")
+                        .accessibilityHint("Opens settings")
                     }
                 }
                 .padding(.horizontal, 16)
@@ -278,20 +283,8 @@ struct LeaderboardView: View {
         .sheet(isPresented: $showingNotifications) {
             NotificationsView(userSettings: userSettings, notificationState: notificationState)
         }
-        .sheet(isPresented: $showingProfile) {
-            NavigationStack {
-                ProfileView(
-                    profileUserID:      userSettings.userID,
-                    profileUsername:    userSettings.username,
-                    profileDisplayName: userSettings.name,
-                    profileAuraLevel:   userSettings.auraLevel,
-                    profileAuraPoints:  userSettings.auraPoints,
-                    profileImageData:   userSettings.profileImageData,
-                    profileLocation:    userSettings.location,
-                    ownUserSettings:    userSettings,
-                    isDismissable:      true
-                )
-            }
+        .sheet(isPresented: $showingSettings) {
+            NavigationStack { SettingsView(userSettings: userSettings) }
         }
         .navigationDestination(item: $selectedProfile) { entry in
             if entry.isCurrentUser {
@@ -317,24 +310,6 @@ struct LeaderboardView: View {
                     profileStreak:      entry.streak,
                     currentUserSettings: userSettings
                 )
-            }
-        }
-    }
-
-    private var leaderboardProfileAvatarIcon: some View {
-        Group {
-            if let data = userSettings.profileImageData, let uiImg = UIImage(data: data) {
-                Image(uiImage: uiImg)
-                    .resizable().scaledToFill()
-                    .frame(width: 30, height: 30)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(purpl, lineWidth: 1.5))
-            } else {
-                ZStack {
-                    Circle().fill(cardBg).frame(width: 30, height: 30)
-                        .overlay(Circle().stroke(purpl, lineWidth: 1.5))
-                    Image(systemName: "person.fill").font(.system(size: 14)).foregroundStyle(purpl)
-                }
             }
         }
     }

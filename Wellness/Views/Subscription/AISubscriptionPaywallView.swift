@@ -56,8 +56,12 @@ struct AISubscriptionPaywallView: View {
 
     private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
     private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
-    private var accent: Color { ThemeStore.shared.accent }
-    private var gold: Color { ThemeStore.shared.accent }
+    // Fixed per-feature colors — each AI tile has its own identity on the
+    // paywall instead of all collapsing onto one accent.
+    //   `gold`  — Meal Planner (also the trial CTA color)
+    //   `accent` — Coach (originally the app's purple)
+    private let accent = Color(red: 0.65, green: 0.45, blue: 1.00)
+    private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
 
     // Known affiliate pricing — mirrors what's configured in App Store Connect.
     // Used to show a live discount preview when the user applies a promo code
@@ -287,7 +291,7 @@ struct AISubscriptionPaywallView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(gold)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Promo \(code) applied")
+                    Text("Code \(code) applied")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(.white)
                     Text("Discount will be confirmed at checkout.")
@@ -381,7 +385,7 @@ struct AISubscriptionPaywallView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "tag.fill")
                         .font(.system(size: 13, weight: .semibold))
-                    Text("Have a promo code?")
+                    Text("Have a code?")
                         .font(.system(size: 14, weight: .bold))
                 }
                 .foregroundStyle(accent)
@@ -450,10 +454,10 @@ struct AISubscriptionPaywallView: View {
             HStack(alignment: .center, spacing: 12) {
                 ZStack {
                     Circle()
-                        .stroke(isSelected ? accent : Color.white.opacity(0.25), lineWidth: 2)
+                        .stroke(isSelected ? gold : Color.white.opacity(0.25), lineWidth: 2)
                         .frame(width: 22, height: 22)
                     if isSelected {
-                        Circle().fill(accent).frame(width: 12, height: 12)
+                        Circle().fill(gold).frame(width: 12, height: 12)
                     }
                 }
                 VStack(alignment: .leading, spacing: 3) {
@@ -497,7 +501,7 @@ struct AISubscriptionPaywallView: View {
                         in: RoundedRectangle(cornerRadius: 14))
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
-                    .stroke(isSelected ? accent : Color.white.opacity(0.08),
+                    .stroke(isSelected ? gold : Color.white.opacity(0.08),
                             lineWidth: isSelected ? 1.5 : 1)
             )
         }
@@ -599,20 +603,24 @@ struct AISubscriptionPaywallView: View {
                     RoundedRectangle(cornerRadius: 14)
                         .fill(
                             LinearGradient(
-                                colors: [accent, Color(red: 0.45, green: 0.30, blue: 0.95)],
+                                // Warm gold → amber. Black text reads cleaner
+                                // than white on this tone.
+                                colors: [gold, Color(red: 1.00, green: 0.60, blue: 0.10)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
                         .frame(height: 54)
+                        .shadow(color: gold.opacity(0.35), radius: 14, y: 4)
                     if store.isPurchasing || isRedeemingPromo {
-                        ProgressView().tint(.white)
+                        ProgressView().tint(.black)
                     } else {
                         Text(ctaText)
                             .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.black)
                     }
                 }
+                .shimmering(cornerRadius: 14)
             }
             .buttonStyle(.plain)
             .disabled(store.isPurchasing || store.isRestoring || isRedeemingPromo)
@@ -647,7 +655,7 @@ struct AISubscriptionPaywallView: View {
 
     private var ctaText: String {
         if appliedPromoCode != nil {
-            return "Redeem Promo & Subscribe"
+            return "Redeem Code & Subscribe"
         }
         if store.isEligibleForIntroOffer {
             return "Start 3-Day Free Trial"
@@ -694,7 +702,7 @@ struct AISubscriptionPaywallView: View {
         let price  = store.displayPrice(for: selectedProductID)
         let period = store.period(for: selectedProductID)
         if appliedPromoCode != nil {
-            return "Promo pricing applies to your first \(period) when the code is accepted in Apple's secure redemption sheet. After that your subscription auto-renews at \(price)/\(period) unless canceled at least 24 hours before the end of the current period."
+            return "Code pricing applies to your first \(period) when the code is accepted in Apple's secure redemption sheet. After that your subscription auto-renews at \(price)/\(period) unless canceled at least 24 hours before the end of the current period."
         }
         if store.isEligibleForIntroOffer {
             return "Your \(store.trialDayCount)-day free trial begins after purchase. You won't be charged during the trial. After \(store.trialDayCount) days your subscription auto-renews at \(price)/\(period). Cancel anytime in Apple ID settings at least 24 hours before the end of the current period."
@@ -707,7 +715,7 @@ struct AISubscriptionPaywallView: View {
     /// when the real issue was just an invalid code.
     private var alertTitle: String {
         if let msg = store.errorMessage, msg.contains("could not be redeemed") {
-            return "Invalid Promo Code"
+            return "Invalid Code"
         }
         return "Purchase Failed"
     }

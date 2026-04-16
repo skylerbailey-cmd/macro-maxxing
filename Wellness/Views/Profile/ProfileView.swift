@@ -51,6 +51,7 @@ struct ProfileView: View {
     @State private var newProfileImage:    UIImage?
     @State private var showingProfileShare = false
     @State private var showingSettings     = false
+    @State private var showingHomeGymPicker = false
 
     // Firestore posts (primary source for profile grid)
     @State private var firestorePosts: [FeedPost] = []
@@ -67,6 +68,10 @@ struct ProfileView: View {
     @State private var viewerProfilePhotoURL: String = ""
     @State private var targetProfilePhotoURL: String = ""
     @State private var fetchedBio:            String = ""
+    // Home gym — used when viewing a non-own profile so we can show the
+    // owner's tagged gym after the remote fetch resolves.
+    @State private var fetchedHomeGymName:    String = ""
+    @State private var fetchedHomeGymAddress: String = ""
     @State private var showingConnections:    Bool   = false
     @State private var followErrorMessage:    String?   = nil
 
@@ -378,6 +383,9 @@ struct ProfileView: View {
                 // Bio
                 bioSection
 
+                // Home gym
+                homeGymSection
+
                 // Balance Score
                 if isOwnProfile {
                     balanceScoreBubble
@@ -563,6 +571,95 @@ struct ProfileView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+
+    // MARK: - Home Gym
+
+    /// Shows a compact pin + gym name when set, plus a pencil button that
+    /// opens the `GymPickerView`. Also surfaces an "Add a home gym" CTA for
+    /// own profile when empty. Non-own profiles see the chip only when the
+    /// profile owner has a gym tagged.
+    @ViewBuilder
+    private var homeGymSection: some View {
+        let gymName    = ownUserSettings?.homeGymName ?? fetchedHomeGymName
+        let gymAddress = ownUserSettings?.homeGymAddress ?? fetchedHomeGymAddress
+
+        if isOwnProfile || !gymName.isEmpty {
+            HStack(alignment: .center, spacing: 6) {
+                if !gymName.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "mappin.and.ellipse")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(purpl.opacity(0.80))
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(gymName)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.75))
+                                .lineLimit(1)
+                            if !gymAddress.isEmpty {
+                                Text(gymAddress)
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.white.opacity(0.35))
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+                } else if isOwnProfile {
+                    Text("Add a home gym")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.25))
+                }
+
+                if isOwnProfile {
+                    Button {
+                        showingHomeGymPicker = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(purpl.opacity(0.70))
+                            .padding(4)
+                            .background(purpl.opacity(0.12), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 24)
+            .sheet(isPresented: $showingHomeGymPicker) {
+                GymPickerView(current: ownUserSettings?.homeGym) { picked in
+                    saveHomeGym(picked)
+                }
+                .presentationDetents([.large])
+            }
+        }
+    }
+
+    /// Persists the newly-picked gym to local UserSettings (which also
+    /// caches to UserDefaults) and fires an update to Firestore so the
+    /// home gym survives reinstalls and travels across devices.
+    private func saveHomeGym(_ location: WorkoutLocation?) {
+        guard let settings = ownUserSettings else { return }
+        let name    = location?.name      ?? ""
+        let addr    = location?.address   ?? ""
+        let lat     = location?.latitude  ?? 0
+        let lng     = location?.longitude ?? 0
+        settings.homeGymName      = name
+        settings.homeGymAddress   = addr
+        settings.homeGymLatitude  = lat
+        settings.homeGymLongitude = lng
+        fetchedHomeGymName    = name
+        fetchedHomeGymAddress = addr
+        Task {
+            try? await UserProfileService.shared.updateProfile(
+                userID: settings.userID,
+                fields: [
+                    "homeGymName":      name,
+                    "homeGymAddress":   addr,
+                    "homeGymLatitude":  lat,
+                    "homeGymLongitude": lng
+                ]
+            )
         }
     }
 
@@ -1066,7 +1163,7 @@ struct ProfileView: View {
             case .transformation: return Color(red: 0.35, green: 0.75, blue: 1.00)
             case .fuelLog:        return Color(red: 1.00, green: 0.55, blue: 0.15)
             case .mealInspo:      return Color(red: 1.00, green: 0.30, blue: 0.55)
-            case .mogBoard:       return ThemeStore.shared.accent
+            case .mogBoard:       return Color.premiumGold
             case .advice:         return Color(red: 1.00, green: 0.90, blue: 0.20)
             case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
             case .goalPost:       return ThemeStore.shared.accent
@@ -1421,6 +1518,8 @@ struct ProfileView: View {
         if let profile = try? await targetProfile {
             targetProfilePhotoURL = profile.profilePhotoURL
             fetchedBio            = profile.bio
+            fetchedHomeGymName    = profile.homeGymName
+            fetchedHomeGymAddress = profile.homeGymAddress
         }
         guard !Task.isCancelled else { return }
         if let vp = try? await viewerProfile { viewerProfilePhotoURL = vp.profilePhotoURL }

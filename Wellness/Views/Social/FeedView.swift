@@ -32,6 +32,11 @@ struct FeedView: View {
     }
     @State private var activePresentation: PostPresentation? = nil
 
+    /// Tracked separately from `activePresentation` because share uses a
+    /// standard .sheet (detents + easy dismiss) while detail/comment/profile
+    /// use a fullScreenCover.
+    @State private var postToShare: FeedPost? = nil
+
     var body: some View {
         ZStack {
             Color.pageBg.ignoresSafeArea()
@@ -69,6 +74,9 @@ struct FeedView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.errorMessage)
+        .sheet(item: $postToShare) { post in
+            PostShareView(post: post)
+        }
         .fullScreenCover(item: $activePresentation) { presentation in
             NavigationStack {
                 switch presentation {
@@ -97,14 +105,19 @@ struct FeedView: View {
 
     /// Extracted to a helper so the ForEach body stays simple enough for the Swift type-checker.
     private func postCard(for post: FeedPost) -> some View {
-        let deleteAction: (() -> Void)? = post.userID == userSettings.userID
+        let isOwnPost = post.userID == userSettings.userID
+        let deleteAction: (() -> Void)? = isOwnPost
             ? { Task { await viewModel.deletePost(post) } }
+            : nil
+        let shareAction: (() -> Void)? = isOwnPost
+            ? { postToShare = post }
             : nil
         return FeedPostCard(
             post:              post,
             currentUserID:     userSettings.userID,
             onRep:             { Task { await viewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
             onDelete:          deleteAction,
+            onShare:           shareAction,
             onTap:             { activePresentation = .detail(post) },
             onAvatarTap:       { activePresentation = .profile(post) },
             onCommentTap:      { activePresentation = .comment(post) },
@@ -274,6 +287,7 @@ struct FeedPostCard: View {
     let currentUserID: String
     let onRep:         () -> Void
     var onDelete:      (() -> Void)? = nil
+    var onShare:       (() -> Void)? = nil
     var onTap:         (() -> Void)? = nil
     var onAvatarTap:   (() -> Void)? = nil
     var onCommentTap:  (() -> Void)? = nil
@@ -287,9 +301,10 @@ struct FeedPostCard: View {
     @State private var showBlockConfirm      = false
     @State private var showReportUserConfirm = false
     @State private var showReportPostConfirm = false
+    @State private var showDeleteConfirm     = false
 
     private let cardBg   = Color(red: 0.11, green: 0.11, blue: 0.14)
-    private var purpleHi: Color { ThemeStore.shared.accent }
+    private var purpleHi: Color { post.themeColor }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -343,6 +358,12 @@ struct FeedPostCard: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This user will be flagged for review.")
+        }
+        .alert("Delete this post?", isPresented: $showDeleteConfirm) {
+            Button("Delete", role: .destructive) { onDelete?() }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This can't be undone. The post will be removed from everyone's feed.")
         }
         .alert("Report this post?", isPresented: $showReportPostConfirm) {
             Button("Report", role: .destructive) { onReportPost?() }
@@ -407,7 +428,7 @@ struct FeedPostCard: View {
                     }
 
                     if let label = PostLabel(rawValue: post.postLabel) {
-                        let labelColor = feedPostLabelColor(label)
+                        let labelColor = label.color
                         HStack(spacing: 3) {
                             Image(systemName: label.icon)
                                 .font(.system(size: 8, weight: .bold))
@@ -526,7 +547,7 @@ struct FeedPostCard: View {
 
     @ViewBuilder
     private var mogBoardSnapshotCard: some View {
-        let gold    = ThemeStore.shared.accent
+        let gold    = post.themeColor
         let entries = mogBoardSnapshotEntries
         let scoreLabel: String = {
             switch post.mogBoardType {
@@ -578,14 +599,16 @@ struct FeedPostCard: View {
             }
             .padding(.vertical, 4)
         }
-        .background(Color(red: 0.10, green: 0.07, blue: 0.18))
+        .background(Color.cardBg)
         .cornerRadius(10)
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(gold.opacity(0.20), lineWidth: 1))
     }
 
     // MARK: Workout table
 
-    private let workoutGreen = Color(red: 0.30, green: 0.90, blue: 0.55)
+    // Follows the post's label color when one is set (so a "Workout" labeled
+    // post uses the workout-label green), otherwise the app accent.
+    private var workoutGreen: Color { post.themeColor }
 
     @ViewBuilder
     private var workoutTable: some View {
@@ -609,7 +632,7 @@ struct FeedPostCard: View {
                 .padding(.vertical, 6)
             }
         }
-        .background(Color(red: 0.10, green: 0.07, blue: 0.18))
+        .background(Color.cardBg)
         .cornerRadius(10)
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(workoutGreen.opacity(0.20), lineWidth: 1))
     }
@@ -645,6 +668,16 @@ struct FeedPostCard: View {
                         }
                         .foregroundStyle(workoutGreen.opacity(0.80))
                     }
+                    if !item.taggedFriends.isEmpty {
+                        HStack(spacing: 3) {
+                            Image(systemName: "person.2.fill")
+                                .font(.system(size: 9, weight: .semibold))
+                            Text(item.taggedFriends.map { "@\($0.username)" }.joined(separator: ", "))
+                                .font(.system(size: 11, weight: .semibold))
+                                .lineLimit(1)
+                        }
+                        .foregroundStyle(workoutGreen.opacity(0.80))
+                    }
                 }
                 Spacer()
                 Text("\(item.caloriesBurned) cal")
@@ -663,7 +696,7 @@ struct FeedPostCard: View {
 
     private var fuelLogTable: some View {
         let sorted    = post.fuelLogItems.sorted { $0.sortOrder < $1.sortOrder }
-        let purpl     = ThemeStore.shared.accent
+        let purpl     = post.themeColor
         let totalCal  = sorted.reduce(0.0) { $0 + $1.calories }
         let totalPro  = sorted.reduce(0.0) { $0 + $1.protein  }
         let totalCarb = sorted.reduce(0.0) { $0 + $1.carbs    }
@@ -718,17 +751,37 @@ struct FeedPostCard: View {
                 }
             }
             Divider().background(purpl.opacity(0.40)).padding(.top, 4)
-            HStack {
+            HStack(spacing: 6) {
                 Text("Total")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.white)
                 Spacer()
-                Text("\(Int(totalCal)) kcal · \(Int(totalPro))g P · \(Int(totalCarb))g C · \(Int(totalFat))g F")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(purpl)
+                macroTotalLine(cal: Int(totalCal), pro: Int(totalPro),
+                               carb: Int(totalCarb), fat: Int(totalFat))
             }
             .padding(.top, 8)
         }
+    }
+
+    /// Fuel-log "Total" line rendered as per-macro colored segments
+    /// (orange / blue / mint / rose) separated by dim dots. Keeps each
+    /// macro visually tied to the KPI color used throughout the app
+    /// rather than a single accent tint.
+    private func macroTotalLine(cal: Int, pro: Int, carb: Int, fat: Int) -> some View {
+        HStack(spacing: 4) {
+            Text("\(cal) kcal")
+                .foregroundStyle(Color.calClr)
+            Text("·").foregroundStyle(.white.opacity(0.30))
+            Text("\(pro)g P")
+                .foregroundStyle(Color.proClr)
+            Text("·").foregroundStyle(.white.opacity(0.30))
+            Text("\(carb)g C")
+                .foregroundStyle(Color.carbClr)
+            Text("·").foregroundStyle(.white.opacity(0.30))
+            Text("\(fat)g F")
+                .foregroundStyle(Color.fatClr)
+        }
+        .font(.caption.weight(.semibold))
     }
 
     // MARK: Macro row
@@ -835,8 +888,19 @@ struct FeedPostCard: View {
     private var postMenu: some View {
         Menu {
             if post.userID == currentUserID {
+                if onShare != nil {
+                    Button {
+                        onShare?()
+                    } label: {
+                        Label("Share Post", systemImage: "square.and.arrow.up")
+                    }
+                }
                 if onDelete != nil {
-                    Button("Delete Post", role: .destructive) { onDelete?() }
+                    Button(role: .destructive) {
+                        showDeleteConfirm = true
+                    } label: {
+                        Label("Delete Post", systemImage: "trash")
+                    }
                 }
             } else {
                 Button {
@@ -885,18 +949,6 @@ struct FeedPostCard: View {
                     .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
                     .foregroundStyle(ThemeStore.shared.accent)
             }
-    }
-
-    private func feedPostLabelColor(_ label: PostLabel) -> Color {
-        switch label {
-        case .transformation: return Color(red: 0.35, green: 0.75, blue: 1.00)
-        case .fuelLog:        return Color(red: 1.00, green: 0.55, blue: 0.15)
-        case .mealInspo:      return Color(red: 1.00, green: 0.30, blue: 0.55)
-        case .mogBoard:       return Color(red: 0.65, green: 0.45, blue: 1.00)
-        case .advice:         return Color(red: 1.00, green: 0.90, blue: 0.20)
-        case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
-        case .goalPost:       return Color(red: 0.65, green: 0.45, blue: 1.00)
-        }
     }
 
     private func timeAgo(from date: Date) -> String {

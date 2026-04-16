@@ -25,7 +25,7 @@ struct SocialView: View {
     @State private var tutorialAnchors:  [String: Anchor<CGRect>] = [:]
     @State private var showingNewPost    = false
     @State private var selectedFeed:     Feed        = .arena
-    @State private var showingOwnProfile = false
+    @State private var showingSettings = false
     @State private var showingSearch     = false
     @State private var showingNotifications = false
     @State private var labelFilter:      PostLabel?  = nil
@@ -146,9 +146,14 @@ struct SocialView: View {
                         }
                         .buttonStyle(.plain)
                         BellButton(showingNotifications: $showingNotifications, notificationState: notificationState)
-                        Button { showingOwnProfile = true } label: {
-                            socialProfileAvatarIcon
+                        Button { showingSettings = true } label: {
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(ThemeStore.shared.accent)
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Settings")
+                        .accessibilityHint("Opens settings")
                     }
                 }
                 .padding(.horizontal, 16)
@@ -370,20 +375,8 @@ struct SocialView: View {
         .sheet(isPresented: $showingNotifications) {
             NotificationsView(userSettings: userSettings, notificationState: notificationState)
         }
-        .sheet(isPresented: $showingOwnProfile) {
-            NavigationStack {
-                ProfileView(
-                    profileUserID:      userSettings.userID,
-                    profileUsername:    userSettings.username,
-                    profileDisplayName: userSettings.name,
-                    profileAuraLevel:   userSettings.auraLevel,
-                    profileAuraPoints:  userSettings.auraPoints,
-                    profileImageData:   userSettings.profileImageData,
-                    profileLocation:    userSettings.location,
-                    ownUserSettings:    userSettings,
-                    isDismissable:      true
-                )
-            }
+        .sheet(isPresented: $showingSettings) {
+            NavigationStack { SettingsView(userSettings: userSettings) }
         }
         .fullScreenCover(item: $activeFeedPresentation, onDismiss: { Task { await loadFollowingIDs() } }) { presentation in
             NavigationStack {
@@ -411,24 +404,6 @@ struct SocialView: View {
         .sheet(isPresented: $showingSearch) {
             NavigationStack {
                 UserSearchView(currentUserSettings: userSettings)
-            }
-        }
-    }
-
-    private var socialProfileAvatarIcon: some View {
-        Group {
-            if let data = userSettings.profileImageData, let uiImg = UIImage(data: data) {
-                Image(uiImage: uiImg)
-                    .resizable().scaledToFill()
-                    .frame(width: 30, height: 30)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.purpleHi, lineWidth: 1.5))
-            } else {
-                ZStack {
-                    Circle().fill(Color.cardBg).frame(width: 30, height: 30)
-                        .overlay(Circle().stroke(Color.purpleHi, lineWidth: 1.5))
-                    Image(systemName: "person.fill").font(.system(size: 14)).foregroundStyle(Color.purpleHi)
-                }
             }
         }
     }
@@ -734,7 +709,7 @@ func postLabelColor(_ label: PostLabel) -> Color {
     case .transformation: return Color(red: 0.35, green: 0.75, blue: 1.00)
     case .fuelLog:        return Color(red: 1.00, green: 0.55, blue: 0.15)
     case .mealInspo:      return Color(red: 1.00, green: 0.30, blue: 0.55)
-    case .mogBoard:       return Color(red: 0.65, green: 0.45, blue: 1.00)
+    case .mogBoard:       return Color.premiumGold
     case .advice:         return Color(red: 1.00, green: 0.90, blue: 0.20)
     case .workout:        return Color(red: 0.30, green: 0.90, blue: 0.55)
     case .goalPost:       return Color(red: 0.65, green: 0.45, blue: 1.00)
@@ -1047,7 +1022,8 @@ struct PostCard: View {
         }
     }
 
-    private let socialWorkoutGreen = Color(red: 0.30, green: 0.90, blue: 0.55)
+    // Follows the user's accent so workout posts stay cohesive with chrome.
+    private var socialWorkoutGreen: Color { ThemeStore.shared.accent }
 
     @ViewBuilder
     private var workoutCard: some View {
@@ -1071,7 +1047,7 @@ struct PostCard: View {
                 .padding(.vertical, 6)
             }
         }
-        .background(Color(red: 0.10, green: 0.07, blue: 0.18))
+        .background(Color.cardBg)
         .cornerRadius(10)
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(socialWorkoutGreen.opacity(0.20), lineWidth: 1))
         .padding(.top, 4)
@@ -1103,6 +1079,16 @@ struct PostCard: View {
                             Image(systemName: "mappin.and.ellipse")
                                 .font(.system(size: 9, weight: .semibold))
                             Text(item.gymName)
+                                .font(.system(size: 11, weight: .semibold))
+                                .lineLimit(1)
+                        }
+                        .foregroundStyle(socialWorkoutGreen.opacity(0.80))
+                    }
+                    if !item.taggedFriends.isEmpty {
+                        HStack(spacing: 3) {
+                            Image(systemName: "person.2.fill")
+                                .font(.system(size: 9, weight: .semibold))
+                            Text(item.taggedFriends.map { "@\($0.username)" }.joined(separator: ", "))
                                 .font(.system(size: 11, weight: .semibold))
                                 .lineLimit(1)
                         }
@@ -1184,7 +1170,7 @@ struct PostCard: View {
             }
             .padding(.vertical, 4)
         }
-        .background(Color(red: 0.10, green: 0.07, blue: 0.18))
+        .background(Color.cardBg)
         .cornerRadius(10)
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(snapshotGold.opacity(0.20), lineWidth: 1))
         .padding(.top, 4)

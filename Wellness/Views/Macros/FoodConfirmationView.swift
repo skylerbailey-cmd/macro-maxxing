@@ -87,14 +87,41 @@ struct FoodConfirmationView: View {
                             }
                         }
 
-                        // Warning banner
+                        // Warning banner — includes a small inline
+                        // "Try better scan" link beneath the message so
+                        // the escalation path lives next to the reason.
                         if recognitionResult.needsUserConfirmation {
-                            HStack(spacing: 8) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(.orange)
-                                Text("We're not 100% sure about this one — please review")
-                                    .font(.caption)
-                                    .foregroundStyle(.white.opacity(0.70))
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundStyle(.orange)
+                                    Text("We're not 100% sure about this one — please review")
+                                        .font(.caption)
+                                        .foregroundStyle(.white.opacity(0.70))
+                                }
+                                if recognitionResult.tier < 2 {
+                                    Button {
+                                        isEscalating = true
+                                        onEscalate()
+                                    } label: {
+                                        HStack(spacing: 5) {
+                                            if isEscalating {
+                                                ProgressView()
+                                                    .progressViewStyle(.circular)
+                                                    .tint(.orange)
+                                                    .scaleEffect(0.6)
+                                            } else {
+                                                Image(systemName: "arrow.triangle.2.circlepath")
+                                                    .font(.system(size: 11, weight: .semibold))
+                                            }
+                                            Text("Try better scan")
+                                                .font(.caption.weight(.semibold))
+                                        }
+                                        .foregroundStyle(.orange)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .disabled(isEscalating)
+                                }
                             }
                             .padding(12)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -504,34 +531,6 @@ struct FoodConfirmationView: View {
                 .background(accent, in: RoundedRectangle(cornerRadius: 12))
             }
             .buttonStyle(.plain)
-
-            // Try better scan (only if not already at Tier 2 / Sonnet full vision)
-            if recognitionResult.tier < 2 {
-                Button {
-                    isEscalating = true
-                    onEscalate()
-                } label: {
-                    HStack(spacing: 8) {
-                        if isEscalating {
-                            ProgressView()
-                                .progressViewStyle(.circular)
-                                .tint(.white)
-                                .scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                        }
-                        Text("Try better scan")
-                    }
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.70))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.10), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-                .disabled(isEscalating)
-            }
         }
     }
 

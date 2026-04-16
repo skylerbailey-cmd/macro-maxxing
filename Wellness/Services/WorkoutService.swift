@@ -54,6 +54,17 @@ final class WorkoutService {
             data["gymLatitude"]  = loc.latitude
             data["gymLongitude"] = loc.longitude
         }
+        // Tagged friends — stored as an array of flat dicts. Skipped
+        // when empty so we don't bloat untagged workouts.
+        if !entry.taggedFriends.isEmpty {
+            data["taggedFriends"] = entry.taggedFriends.map {
+                [
+                    "userID":      $0.userID,
+                    "username":    $0.username,
+                    "displayName": $0.displayName
+                ]
+            }
+        }
         try await db.collection("users").document(userID)
             .collection("workoutEntries").document(entry.workoutID)
             .setData(data)
@@ -143,10 +154,22 @@ final class WorkoutService {
                                        latitude: lat, longitude: lng)
             }()
 
+            // Tagged friends — tolerated if missing (older docs).
+            let rawTags = (d["taggedFriends"] as? [[String: Any]]) ?? []
+            let taggedFriends: [TaggedFriend] = rawTags.compactMap { dict in
+                guard let userID = dict["userID"] as? String, !userID.isEmpty else { return nil }
+                return TaggedFriend(
+                    userID:      userID,
+                    username:    (dict["username"]    as? String) ?? "",
+                    displayName: (dict["displayName"] as? String) ?? ""
+                )
+            }
+
             return WorkoutEntry(workoutID: wid, name: name, workoutType: wType,
                                 durationMinutes: duration, caloriesBurned: calories,
                                 loggedAt: ts.dateValue(), adjustmentApplied: adjApplied,
-                                exercises: exercises, location: location)
+                                exercises: exercises, location: location,
+                                taggedFriends: taggedFriends)
         }
         .sorted { $0.loggedAt > $1.loggedAt }
     }

@@ -45,6 +45,12 @@ struct FeedPostDetailView: View {
     @State private var showReportUserConfirm = false
     @State private var showReportPostConfirm = false
     @State private var followErrorMessage:  String? = nil
+    @State private var showingShareSheet          = false
+    @State private var commentPendingDelete:      FeedComment? = nil
+    @State private var commentPendingBlock:       FeedComment? = nil
+    @State private var commentPendingReport:      FeedComment? = nil
+    @State private var commentPendingReportUser:  FeedComment? = nil
+    @State private var followedCommentAuthors:    Set<String>  = []
     @FocusState private var commentFocused: Bool
 
     private let pageBg  = Color(red: 0.05, green: 0.05, blue: 0.07)
@@ -64,6 +70,134 @@ struct FeedPostDetailView: View {
     // MARK: - Body
 
     var body: some View {
+        // The modifier chain below was exceeding the Swift type-checker's
+        // budget (8 stacked .alert calls + 2 sheets + toolbar + nav modifiers).
+        // Split into `postLevelContent` (base + toolbar + post-author alerts)
+        // and apply the comment-level alerts + sheets here so each computed
+        // property has its own isolated inference context.
+        postLevelContent
+        .alert(
+            "Delete comment?",
+            isPresented: Binding(
+                get: { commentPendingDelete != nil },
+                set: { if !$0 { commentPendingDelete = nil } }
+            ),
+            presenting: commentPendingDelete
+        ) { comment in
+            Button("Delete", role: .destructive) {
+                Task { await deleteComment(comment) }
+            }
+            Button("Cancel", role: .cancel) { commentPendingDelete = nil }
+        } message: { _ in
+            Text("This can't be undone.")
+        }
+        .alert(
+            "Report this comment?",
+            isPresented: Binding(
+                get: { commentPendingReport != nil },
+                set: { if !$0 { commentPendingReport = nil } }
+            ),
+            presenting: commentPendingReport
+        ) { comment in
+            Button("Report", role: .destructive) {
+                Task {
+                    guard let uid = currentUserSettings?.userID,
+                          let postID = post.postID,
+                          let commentID = comment.commentID else { return }
+                    try? await BlockService.shared.reportComment(
+                        postID: postID, commentID: commentID,
+                        commentAuthorID: comment.authorID, reporterID: uid)
+                }
+            }
+            Button("Cancel", role: .cancel) { commentPendingReport = nil }
+        } message: { _ in
+            Text("This comment will be flagged for review.")
+        }
+        .alert(
+            Text(commentPendingReportUser.map { "Report @\($0.authorUsername)?" } ?? "Report user?"),
+            isPresented: Binding(
+                get: { commentPendingReportUser != nil },
+                set: { if !$0 { commentPendingReportUser = nil } }
+            ),
+            presenting: commentPendingReportUser
+        ) { comment in
+            Button("Report", role: .destructive) {
+                Task {
+                    guard let uid = currentUserSettings?.userID else { return }
+                    try? await BlockService.shared.reportUser(
+                        reporterID: uid, reportedUserID: comment.authorID)
+                }
+            }
+            Button("Cancel", role: .cancel) { commentPendingReportUser = nil }
+        } message: { _ in
+            Text("This user will be flagged for review.")
+        }
+        .alert(
+            Text(commentPendingBlock.map { "Block @\($0.authorUsername)?" } ?? "Block user?"),
+            isPresented: Binding(
+                get: { commentPendingBlock != nil },
+                set: { if !$0 { commentPendingBlock = nil } }
+            ),
+            presenting: commentPendingBlock
+        ) { comment in
+            Button("Block", role: .destructive) {
+                Task {
+                    guard let uid = currentUserSettings?.userID else { return }
+                    try? await BlockService.shared.blockUser(
+                        currentUserID: uid, targetUserID: comment.authorID,
+                        targetUsername: comment.authorUsername,
+                        targetDisplayName: comment.authorDisplayName,
+                        targetProfilePhotoURL: comment.authorPhotoURL)
+                    // Hide this user's comments immediately
+                    comments.removeAll { $0.authorID == comment.authorID }
+                }
+            }
+            Button("Cancel", role: .cancel) { commentPendingBlock = nil }
+        } message: { _ in
+            Text("They won't be able to see your posts and you won't see theirs.")
+        }
+        .task {
+            // Load follow state for the menu
+            if let uid = currentUserSettings?.userID, uid != post.userID {
+                isFollowingAuthor = (try? await FollowService.shared.isFollowing(
+                    currentUserID: uid, targetUserID: post.userID)) ?? false
+            }
+            await loadComments()
+            guard !Task.isCancelled else { return }
+            if focusComment {
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                guard !Task.isCancelled else { return }
+                commentFocused = true
+            }
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            PostShareView(post: post)
+        }
+        .sheet(isPresented: $showingAuthorProfile) {
+            NavigationStack {
+                ProfileView(
+                    profileUserID:       post.userID,
+                    profileUsername:     post.username,
+                    profileDisplayName:  post.whoName,
+                    profileAuraLevel:    post.auraLevel,
+                    profileAuraPoints:   post.auraPoints,
+                    profileImageData:    nil,
+                    currentUserSettings: currentUserSettings,
+                    isDismissable:       true,
+                    profileIsPrivate:    !post.isPublic
+                )
+            }
+            .presentationDetents([.large])
+        }
+        .keyboardDoneToolbar()
+    }
+
+    // MARK: - Post-level content (first half of modifier chain)
+
+    /// Base content + toolbar + the 4 post-author alerts. Kept as its own
+    /// computed property so the Swift type-checker can infer it independently
+    /// from the 4 comment-level alerts + sheets applied in `body`.
+    private var postLevelContent: some View {
         ZStack(alignment: .bottom) {
             pageBg.ignoresSafeArea()
 
@@ -91,9 +225,15 @@ struct FeedPostDetailView: View {
                         .foregroundStyle(.white.opacity(0.70))
                 }
             }
-            if post.userID != currentUserSettings?.userID {
-                ToolbarItem(placement: .primaryAction) {
-                    Menu {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    if post.userID == currentUserSettings?.userID {
+                        Button {
+                            showingShareSheet = true
+                        } label: {
+                            Label("Share Post", systemImage: "square.and.arrow.up")
+                        }
+                    } else {
                         Button {
                             Task { await toggleFollow() }
                         } label: {
@@ -112,11 +252,11 @@ struct FeedPostDetailView: View {
                         Button(role: .destructive) { showBlockConfirm = true } label: {
                             Label("Block @\(post.username)", systemImage: "hand.raised")
                         }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.70))
                     }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.70))
                 }
             }
         }
@@ -169,37 +309,6 @@ struct FeedPostDetailView: View {
         } message: { msg in
             Text(msg)
         }
-        .task {
-            // Load follow state for the menu
-            if let uid = currentUserSettings?.userID, uid != post.userID {
-                isFollowingAuthor = (try? await FollowService.shared.isFollowing(
-                    currentUserID: uid, targetUserID: post.userID)) ?? false
-            }
-            await loadComments()
-            guard !Task.isCancelled else { return }
-            if focusComment {
-                try? await Task.sleep(nanoseconds: 400_000_000)
-                guard !Task.isCancelled else { return }
-                commentFocused = true
-            }
-        }
-        .sheet(isPresented: $showingAuthorProfile) {
-            NavigationStack {
-                ProfileView(
-                    profileUserID:       post.userID,
-                    profileUsername:     post.username,
-                    profileDisplayName:  post.whoName,
-                    profileAuraLevel:    post.auraLevel,
-                    profileAuraPoints:   post.auraPoints,
-                    profileImageData:    nil,
-                    currentUserSettings: currentUserSettings,
-                    isDismissable:       true,
-                    profileIsPrivate:    !post.isPublic
-                )
-            }
-            .presentationDetents([.large])
-        }
-        .keyboardDoneToolbar()
     }
 
     // MARK: - Author header
@@ -341,12 +450,20 @@ struct FeedPostDetailView: View {
                     Divider().background(Color.white.opacity(0.08))
                 }
             }
-            Divider().background(purpl.opacity(0.40)).padding(.top, 4)
-            HStack {
+            Divider().background(post.themeColor.opacity(0.40)).padding(.top, 4)
+            HStack(spacing: 6) {
                 Text("Total").font(.subheadline.weight(.bold)).foregroundStyle(.white)
                 Spacer()
-                Text("\(post.calories) kcal · \(Int(post.protein))g P · \(Int(post.carbs))g C · \(Int(post.fat))g F")
-                    .font(.caption.weight(.semibold)).foregroundStyle(purpl)
+                HStack(spacing: 4) {
+                    Text("\(post.calories) kcal").foregroundStyle(Color.calClr)
+                    Text("·").foregroundStyle(.white.opacity(0.30))
+                    Text("\(Int(post.protein))g P").foregroundStyle(Color.proClr)
+                    Text("·").foregroundStyle(.white.opacity(0.30))
+                    Text("\(Int(post.carbs))g C").foregroundStyle(Color.carbClr)
+                    Text("·").foregroundStyle(.white.opacity(0.30))
+                    Text("\(Int(post.fat))g F").foregroundStyle(Color.fatClr)
+                }
+                .font(.caption.weight(.semibold))
             }
             .padding(.top, 8)
         }
@@ -361,7 +478,10 @@ struct FeedPostDetailView: View {
 
     // MARK: - Workout table
 
-    private let workoutGreen = Color(red: 0.30, green: 0.90, blue: 0.55)
+    // Uses the post's label color when one was picked in the composer,
+    // otherwise the app accent. Keeps workout chrome consistent with the
+    // label chip at the top of the card.
+    private var workoutGreen: Color { post.themeColor }
 
     @ViewBuilder
     private var workoutTable: some View {
@@ -400,7 +520,7 @@ struct FeedPostDetailView: View {
             }
         }
         .padding(12)
-        .background(Color(red: 0.10, green: 0.07, blue: 0.18))
+        .background(Color.cardBg)
         .cornerRadius(10)
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(workoutGreen.opacity(0.20), lineWidth: 1))
     }
@@ -459,7 +579,12 @@ struct FeedPostDetailView: View {
     }
 
     private func commentRow(_ comment: FeedComment) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+        let myID      = currentUserSettings?.userID ?? ""
+        let isOwn     = comment.authorID == myID
+        let isPostOwner = myID == post.userID
+        let isFollowing = followedCommentAuthors.contains(comment.authorID)
+
+        return HStack(alignment: .top, spacing: 10) {
             CachedAsyncImage(
                 url: URL(string: comment.authorPhotoURL),
                 content: { img in img.resizable().scaledToFill().frame(width: 30, height: 30).clipShape(Circle()) },
@@ -478,6 +603,57 @@ struct FeedPostDetailView: View {
                     .font(.subheadline).foregroundStyle(.white.opacity(0.85))
             }
             Spacer()
+
+            Menu {
+                if isOwn {
+                    Button(role: .destructive) {
+                        commentPendingDelete = comment
+                    } label: {
+                        Label("Delete Comment", systemImage: "trash")
+                    }
+                } else {
+                    Button {
+                        Task { await toggleFollowCommentAuthor(comment) }
+                    } label: {
+                        Label(
+                            isFollowing ? "Unfollow @\(comment.authorUsername)" : "Follow @\(comment.authorUsername)",
+                            systemImage: isFollowing ? "person.badge.minus" : "person.badge.plus"
+                        )
+                    }
+                    Divider()
+                    Button(role: .destructive) {
+                        commentPendingReport = comment
+                    } label: {
+                        Label("Report Comment", systemImage: "flag")
+                    }
+                    Button(role: .destructive) {
+                        commentPendingReportUser = comment
+                    } label: {
+                        Label("Report @\(comment.authorUsername)", systemImage: "exclamationmark.bubble")
+                    }
+                    Button(role: .destructive) {
+                        commentPendingBlock = comment
+                    } label: {
+                        Label("Block @\(comment.authorUsername)", systemImage: "hand.raised")
+                    }
+                    if isPostOwner {
+                        Divider()
+                        Button(role: .destructive) {
+                            commentPendingDelete = comment
+                        } label: {
+                            Label("Delete Comment", systemImage: "trash")
+                        }
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .padding(.vertical, 2).padding(.horizontal, 4)
+                    .contentShape(Rectangle())
+            }
+            .menuStyle(.borderlessButton)
+            .accessibilityLabel("Comment options")
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
     }
@@ -567,11 +743,86 @@ struct FeedPostDetailView: View {
             if let postID = post.postID, comments.count != post.commentsCount {
                 try? await PostService.shared.setCommentCount(postID: postID, count: comments.count)
             }
+            await refreshFollowedCommentAuthors()
         } catch {
             guard !Task.isCancelled else { return }
             AppLogger.log("[FeedPostDetailView] Failed to load comments: \(error)")
         }
         isLoadingComments = false
+    }
+
+    /// Looks up follow state for each unique comment author so the per-comment
+    /// menu can show Follow vs. Unfollow correctly.
+    private func refreshFollowedCommentAuthors() async {
+        guard let uid = currentUserSettings?.userID else { return }
+        let authorIDs = Set(comments.map(\.authorID)).subtracting([uid])
+        var followed = Set<String>()
+        await withTaskGroup(of: (String, Bool).self) { group in
+            for authorID in authorIDs {
+                group.addTask {
+                    let isFollowing = (try? await FollowService.shared.isFollowing(
+                        currentUserID: uid, targetUserID: authorID)) ?? false
+                    return (authorID, isFollowing)
+                }
+            }
+            for await (authorID, isFollowing) in group where isFollowing {
+                followed.insert(authorID)
+            }
+        }
+        guard !Task.isCancelled else { return }
+        followedCommentAuthors = followed
+    }
+
+    private func toggleFollowCommentAuthor(_ comment: FeedComment) async {
+        guard let settings = currentUserSettings else { return }
+        let wasFollowing = followedCommentAuthors.contains(comment.authorID)
+        do {
+            if wasFollowing {
+                try await FollowService.shared.unfollowUser(
+                    currentUserID: settings.userID, targetUserID: comment.authorID)
+                followedCommentAuthors.remove(comment.authorID)
+            } else {
+                try await FollowService.shared.followUser(
+                    currentUserID:          settings.userID,
+                    currentUsername:        settings.username,
+                    currentDisplayName:     settings.name,
+                    currentProfilePhotoURL: settings.profilePhotoURL,
+                    targetUserID:           comment.authorID,
+                    targetUsername:         comment.authorUsername,
+                    targetDisplayName:      comment.authorDisplayName,
+                    targetProfilePhotoURL:  comment.authorPhotoURL)
+                followedCommentAuthors.insert(comment.authorID)
+            }
+        } catch {
+            AppLogger.log("[FeedPostDetailView] toggleFollowCommentAuthor error: \(error)")
+            followErrorMessage = wasFollowing
+                ? "Couldn't unfollow @\(comment.authorUsername). \(error.localizedDescription)"
+                : "Couldn't follow @\(comment.authorUsername). \(error.localizedDescription)"
+        }
+    }
+
+    private func deleteComment(_ comment: FeedComment) async {
+        guard let ref = commentsRef,
+              let commentID = comment.commentID,
+              let uid = currentUserSettings?.userID
+        else { return }
+
+        // Permitted if the viewer authored the comment, or owns the post.
+        guard comment.authorID == uid || post.userID == uid else { return }
+
+        // Optimistic local removal
+        let previous = comments
+        comments.removeAll { $0.id == comment.id }
+
+        do {
+            try await ref.document(commentID).delete()
+            if let postID = post.postID {
+                try? await PostService.shared.decrementCommentCount(postID: postID)
+            }
+        } catch {
+            AppLogger.log("[FeedPostDetailView] Failed to delete comment: \(error)")
+            comments = previous
+        }
     }
 
     private func submitComment() async {

@@ -64,6 +64,29 @@ struct AuraGain: Identifiable, Equatable {
     var tiktokHandle:     String = "" {
         didSet { UserDefaults.standard.set(tiktokHandle, forKey: "cached_tiktokHandle") }
     }
+    // Home gym — user's default workout location (stored as flat fields so
+    // they can be written as a single Firestore merge). Empty `homeGymName`
+    // = no home gym set.
+    var homeGymName:      String = "" {
+        didSet { UserDefaults.standard.set(homeGymName, forKey: "cached_homeGymName") }
+    }
+    var homeGymAddress:   String = "" {
+        didSet { UserDefaults.standard.set(homeGymAddress, forKey: "cached_homeGymAddress") }
+    }
+    var homeGymLatitude:  Double = 0 {
+        didSet { UserDefaults.standard.set(homeGymLatitude, forKey: "cached_homeGymLatitude") }
+    }
+    var homeGymLongitude: Double = 0 {
+        didSet { UserDefaults.standard.set(homeGymLongitude, forKey: "cached_homeGymLongitude") }
+    }
+
+    /// Convenience accessor — rebuilds a `WorkoutLocation` from the flat
+    /// fields, or nil when no home gym is set.
+    var homeGym: WorkoutLocation? {
+        guard !homeGymName.isEmpty else { return nil }
+        return WorkoutLocation(name: homeGymName, address: homeGymAddress,
+                               latitude: homeGymLatitude, longitude: homeGymLongitude)
+    }
     var isPrivateAccount: Bool   = false {
         didSet { UserDefaults.standard.set(isPrivateAccount, forKey: "cached_isPrivateAccount") }
     }
@@ -816,6 +839,11 @@ struct AuraGain: Identifiable, Equatable {
                 ThemeStore.shared.applyRemoteAccent(profile.accentColor)
             }
         }
+        // Sync home gym from Firestore.
+        homeGymName      = profile.homeGymName
+        homeGymAddress   = profile.homeGymAddress
+        homeGymLatitude  = profile.homeGymLatitude
+        homeGymLongitude = profile.homeGymLongitude
         // Merge achieved milestones from Firestore with any local values
         if !profile.achievedMilestones.isEmpty {
             var local = achievedMilestones   // existing local Set<Int>
@@ -945,6 +973,8 @@ struct AuraGain: Identifiable, Equatable {
             "cached_userID", "cached_username", "cached_name", "cached_location",
             "cached_profilePhotoURL", "cached_bio", "cached_instagramHandle",
             "cached_tiktokHandle", "cached_isPrivateAccount", "cached_dateOfBirth",
+            "cached_homeGymName", "cached_homeGymAddress",
+            "cached_homeGymLatitude", "cached_homeGymLongitude",
             "cached_currentWeight", "cached_goalWeight", "cached_heightInches",
             "cached_proteinPerLb", "cached_gender", "cached_auraPoints",
             "cached_auraPopupsEnabled",
@@ -976,6 +1006,10 @@ struct AuraGain: Identifiable, Equatable {
         self.bio              = ud.string(forKey: "cached_bio")              ?? ""
         self.instagramHandle  = ud.string(forKey: "cached_instagramHandle")  ?? ""
         self.tiktokHandle     = ud.string(forKey: "cached_tiktokHandle")     ?? ""
+        self.homeGymName      = ud.string(forKey: "cached_homeGymName")      ?? ""
+        self.homeGymAddress   = ud.string(forKey: "cached_homeGymAddress")   ?? ""
+        self.homeGymLatitude  = ud.double(forKey: "cached_homeGymLatitude")
+        self.homeGymLongitude = ud.double(forKey: "cached_homeGymLongitude")
         self.isPrivateAccount = ud.bool(forKey: "cached_isPrivateAccount")
         self.dateOfBirth      = ud.string(forKey: "cached_dateOfBirth")      ?? ""
         // Body metrics — fall back to existing defaults when no cache exists
