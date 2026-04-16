@@ -67,7 +67,7 @@ struct WorkoutDuelView: View {
             Task { await load() }
         }
         .sheet(item: $editingEntry) { entry in
-            EditWorkoutSheet(entry: entry, onSave: { name, type, duration, calories, time in
+            EditWorkoutSheet(entry: entry, onSave: { name, type, duration, calories, time, exercises in
                 Task {
                     var updated = entry
                     updated.name            = name
@@ -75,6 +75,7 @@ struct WorkoutDuelView: View {
                     updated.durationMinutes = duration
                     updated.caloriesBurned  = calories
                     updated.loggedAt        = time
+                    updated.exercises       = exercises
                     try? await WorkoutService.shared.save(entry: updated, userID: userID)
                     await load()
                 }
@@ -261,7 +262,7 @@ struct WorkoutDuelView: View {
 
 private struct EditWorkoutSheet: View {
     let entry:    WorkoutEntry
-    let onSave:   (String, WorkoutType, Int, Int, Date) -> Void
+    let onSave:   (String, WorkoutType, Int, Int, Date, [Exercise]) -> Void
     var onDelete: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
@@ -272,13 +273,14 @@ private struct EditWorkoutSheet: View {
     @State private var durationText:     String
     @State private var caloriesText:     String
     @State private var loggedAt:         Date
+    @State private var exercises:        [Exercise]
     @State private var showSaveError     = false
     @State private var showDeleteConfirm = false
 
     private enum Field: Hashable { case name, duration, calories }
 
     init(entry: WorkoutEntry,
-         onSave: @escaping (String, WorkoutType, Int, Int, Date) -> Void,
+         onSave: @escaping (String, WorkoutType, Int, Int, Date, [Exercise]) -> Void,
          onDelete: (() -> Void)? = nil) {
         self.entry    = entry
         self.onSave   = onSave
@@ -288,6 +290,7 @@ private struct EditWorkoutSheet: View {
         _durationText = State(initialValue: String(entry.durationMinutes))
         _caloriesText = State(initialValue: String(entry.caloriesBurned))
         _loggedAt     = State(initialValue: entry.loggedAt)
+        _exercises    = State(initialValue: entry.exercises)
     }
 
     var body: some View {
@@ -335,6 +338,28 @@ private struct EditWorkoutSheet: View {
                         Text("kcal").foregroundStyle(.secondary)
                     }
                 }
+                Section {
+                    if exercises.isEmpty {
+                        Text("No exercises — tap below to add sets & reps.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach($exercises) { $ex in
+                            exerciseEditRow(exercise: $ex)
+                        }
+                        .onDelete { offsets in
+                            exercises.remove(atOffsets: offsets)
+                        }
+                    }
+                    Button {
+                        exercises.append(Exercise(name: "", sets: 3, reps: 10))
+                    } label: {
+                        Label("Add Exercise", systemImage: "plus.circle.fill")
+                    }
+                } header: {
+                    Text("Exercises (optional)")
+                }
+
                 Section("Time Logged") {
                     DatePicker("Time", selection: $loggedAt, displayedComponents: .hourAndMinute)
                 }
@@ -378,12 +403,93 @@ private struct EditWorkoutSheet: View {
                             showSaveError = true
                             return
                         }
-                        onSave(name, workoutType, dur, cal, loggedAt)
+                        // Strip rows with blank names so saving is idempotent.
+                        let cleaned: [Exercise] = exercises.compactMap { ex in
+                            let trimmed = ex.name.trimmingCharacters(in: .whitespaces)
+                            guard !trimmed.isEmpty else { return nil }
+                            return Exercise(id: ex.id,
+                                            name: trimmed,
+                                            sets: max(1, ex.sets),
+                                            reps: max(1, ex.reps),
+                                            weight: ex.weight)
+                        }
+                        onSave(name, workoutType, dur, cal, loggedAt, cleaned)
                         dismiss()
                     }
                 }
             }
         }
+    }
+
+    // MARK: - Exercise edit row (Form-style)
+
+    @ViewBuilder
+    private func exerciseEditRow(exercise: Binding<Exercise>) -> some View {
+        let setsBinding = Binding<String>(
+            get: { String(exercise.wrappedValue.sets) },
+            set: { newVal in
+                if let n = Int(newVal.filter { $0.isNumber }), n > 0 {
+                    exercise.wrappedValue.sets = n
+                } else if newVal.isEmpty {
+                    exercise.wrappedValue.sets = 0
+                }
+            }
+        )
+        let repsBinding = Binding<String>(
+            get: { String(exercise.wrappedValue.reps) },
+            set: { newVal in
+                if let n = Int(newVal.filter { $0.isNumber }), n > 0 {
+                    exercise.wrappedValue.reps = n
+                } else if newVal.isEmpty {
+                    exercise.wrappedValue.reps = 0
+                }
+            }
+        )
+        let weightBinding = Binding<String>(
+            get: {
+                if let w = exercise.wrappedValue.weight {
+                    return w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(w)
+                }
+                return ""
+            },
+            set: { newVal in
+                let t = newVal.trimmingCharacters(in: .whitespaces)
+                if t.isEmpty {
+                    exercise.wrappedValue.weight = nil
+                } else if let d = Double(t) {
+                    exercise.wrappedValue.weight = d
+                }
+            }
+        )
+
+        VStack(alignment: .leading, spacing: 8) {
+            TextField("Exercise name", text: exercise.name)
+                .font(.system(size: 15, weight: .medium))
+            HStack(spacing: 8) {
+                TextField("Sets", text: setsBinding)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.center)
+                    .frame(width: 44)
+                    .padding(6)
+                    .background(Color.gray.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
+                Text("×").foregroundStyle(.secondary)
+                TextField("Reps", text: repsBinding)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.center)
+                    .frame(width: 48)
+                    .padding(6)
+                    .background(Color.gray.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
+                TextField("lb", text: weightBinding)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.center)
+                    .frame(width: 60)
+                    .padding(6)
+                    .background(Color.gray.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
+                Text("lb").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -396,46 +502,101 @@ private struct WorkoutRow: View {
     let onEdit:   () -> Void
     let onDelete: () -> Void
 
+    @State private var isExpanded = false
+
+    private var hasExercises: Bool { !entry.exercises.isEmpty }
+
     var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(accent.opacity(0.12))
-                    .frame(width: 42, height: 42)
-                Image(systemName: "flame.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(accent)
+        VStack(spacing: 0) {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(accent.opacity(0.12))
+                        .frame(width: 42, height: 42)
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(accent)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(entry.name)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    Text("\(entry.formattedDuration) · \(entry.caloriesBurned) cal burned")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.45))
+                    if hasExercises {
+                        Button {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                                isExpanded.toggle()
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text("\(entry.exercises.count) exercise\(entry.exercises.count == 1 ? "" : "s")")
+                                    .font(.system(size: 11, weight: .semibold))
+                                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                    .font(.system(size: 9, weight: .bold))
+                            }
+                            .foregroundStyle(accent)
+                        }
+                        .buttonStyle(.plain)
+                        // Keep this tap to the exercises toggle only — don't trigger edit.
+                    }
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(entry.loggedAt.formatted(date: .omitted, time: .shortened))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.30))
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.20))
+                }
             }
+            .padding(14)
+            .contentShape(Rectangle())
+            .onTapGesture { onEdit() }
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(entry.name)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                Text("\(entry.formattedDuration) · \(entry.caloriesBurned) cal burned")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.45))
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(entry.loggedAt.formatted(date: .omitted, time: .shortened))
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.30))
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.20))
+            if isExpanded && hasExercises {
+                VStack(alignment: .leading, spacing: 6) {
+                    Divider().background(.white.opacity(0.08))
+                        .padding(.bottom, 4)
+                    ForEach(entry.exercises) { ex in
+                        HStack(spacing: 6) {
+                            Text(ex.name)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.85))
+                            Text("·")
+                                .foregroundStyle(.white.opacity(0.25))
+                            Text("\(ex.sets) × \(ex.reps)")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(accent.opacity(0.85))
+                            if let w = ex.weight {
+                                Text("@ \(formatWeight(w)) lb")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.white.opacity(0.55))
+                            }
+                            Spacer()
+                        }
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 14)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(14)
         .background(cardBg, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.06), lineWidth: 1))
-        .contentShape(Rectangle())
-        .onTapGesture { onEdit() }
         .contextMenu {
             Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
             Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
         }
+    }
+
+    private func formatWeight(_ w: Double) -> String {
+        w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(format: "%.1f", w)
     }
 }

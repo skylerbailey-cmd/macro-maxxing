@@ -29,6 +29,9 @@ struct LogWorkoutSheet: View {
     @State private var saveAsTemplate = false
     @State private var applyAdjustment: Bool
 
+    // Optional per-exercise detail (name / sets / reps / weight)
+    @State private var exercises: [Exercise] = []
+
     // Voice / AI
     @State private var speechRecognizer = SpeechRecognizer()
     @State private var aiState: AIState = .idle
@@ -82,6 +85,7 @@ struct LogWorkoutSheet: View {
             _caloriesText    = State(initialValue: "\(e.caloriesBurned)")
             _logTime         = State(initialValue: e.loggedAt)
             _applyAdjustment = State(initialValue: e.adjustmentApplied)
+            _exercises       = State(initialValue: e.exercises)
         } else {
             _logTime         = State(initialValue: Date())
             _applyAdjustment = State(initialValue: autoAdjustByDefault)
@@ -185,10 +189,19 @@ struct LogWorkoutSheet: View {
                     Text("Are you sure you want to delete \"\(workout.name)\"? This cannot be undone.")
                 }
             }
-            .alert("Share for Points?", isPresented: $showingPostPrompt) {
-                Button("Got it") { onSaved(); dismiss() }
-            } message: {
-                Text("Tap the gold + icon and select the Workout label to post your workout and earn points.")
+            .sheet(isPresented: $showingPostPrompt, onDismiss: {
+                // When the user finishes (or skips) the post composer, close
+                // this sheet too and let the parent refresh.
+                onSaved()
+                dismiss()
+            }) {
+                PostWorkoutSheet(
+                    userSettings:    userSettings,
+                    workoutName:     savedWorkoutName,
+                    workoutType:     savedWorkoutType,
+                    durationMinutes: savedDuration,
+                    caloriesBurned:  savedCalories
+                )
             }
         }
         .keyboardDoneToolbar()
@@ -218,6 +231,7 @@ struct LogWorkoutSheet: View {
             workoutType  = saved.workoutType
             durationText = "\(saved.durationMinutes)"
             caloriesText = "\(saved.caloriesBurned)"
+            exercises    = saved.exercises
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(saved.name)
@@ -285,6 +299,7 @@ struct LogWorkoutSheet: View {
                 field(label: "Duration (min)",  placeholder: "45",  text: $durationText, keyboardType: .numberPad)
                 field(label: "Calories Burned", placeholder: "\(estimatedCaloriesPlaceholder)", text: $caloriesText, keyboardType: .numberPad)
             }
+            exercisesSection
             timePickerRow
         }
         .onChange(of: workoutType)  { _, _ in autoFillCaloriesIfNeeded() }
@@ -420,6 +435,7 @@ struct LogWorkoutSheet: View {
                 field(label: "Duration (min)",  placeholder: "45",  text: $durationText, keyboardType: .numberPad)
                 field(label: "Calories Burned", placeholder: "350", text: $caloriesText, keyboardType: .numberPad)
             }
+            exercisesSection
             timePickerRow
         }
     }
@@ -437,6 +453,148 @@ struct LogWorkoutSheet: View {
                 .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.20), lineWidth: 1))
         }
+    }
+
+    // MARK: - Exercises (optional)
+
+    private var exercisesSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Exercises")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.45))
+                Text("optional")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.30))
+                Spacer()
+            }
+
+            if !exercises.isEmpty {
+                VStack(spacing: 8) {
+                    ForEach(exercises) { ex in
+                        if let idx = exercises.firstIndex(where: { $0.id == ex.id }) {
+                            exerciseRow(index: idx)
+                        }
+                    }
+                }
+            }
+
+            Button {
+                exercises.append(Exercise(name: "", sets: 3, reps: 10))
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("Add Exercise")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .foregroundStyle(accent)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10)
+                    .stroke(accent.opacity(0.25), style: StrokeStyle(lineWidth: 1, dash: [4])))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func exerciseRow(index: Int) -> some View {
+        // Bindings that convert the underlying Int/Double? to String for TextField.
+        let setsBinding = Binding<String>(
+            get: { String(exercises[index].sets) },
+            set: { newVal in
+                if let n = Int(newVal.filter { $0.isNumber }), n > 0 {
+                    exercises[index].sets = n
+                } else if newVal.isEmpty {
+                    exercises[index].sets = 0
+                }
+            }
+        )
+        let repsBinding = Binding<String>(
+            get: { String(exercises[index].reps) },
+            set: { newVal in
+                if let n = Int(newVal.filter { $0.isNumber }), n > 0 {
+                    exercises[index].reps = n
+                } else if newVal.isEmpty {
+                    exercises[index].reps = 0
+                }
+            }
+        )
+        let weightBinding = Binding<String>(
+            get: {
+                if let w = exercises[index].weight {
+                    // Drop trailing .0 for whole numbers
+                    return w.truncatingRemainder(dividingBy: 1) == 0
+                        ? String(Int(w)) : String(w)
+                }
+                return ""
+            },
+            set: { newVal in
+                let trimmed = newVal.trimmingCharacters(in: .whitespaces)
+                if trimmed.isEmpty {
+                    exercises[index].weight = nil
+                } else if let d = Double(trimmed) {
+                    exercises[index].weight = d
+                }
+            }
+        )
+
+        return HStack(spacing: 8) {
+            TextField("Exercise", text: $exercises[index].name)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.white)
+                .padding(10)
+                .background(pageBg, in: RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.08), lineWidth: 1))
+
+            TextField("3", text: setsBinding)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.center)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 40)
+                .padding(.vertical, 10)
+                .background(pageBg, in: RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.08), lineWidth: 1))
+
+            Text("×")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(.white.opacity(0.50))
+
+            TextField("10", text: repsBinding)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.center)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 44)
+                .padding(.vertical, 10)
+                .background(pageBg, in: RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.08), lineWidth: 1))
+
+            TextField("lb", text: weightBinding)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.center)
+                .font(.system(size: 13))
+                .foregroundStyle(.white.opacity(0.80))
+                .frame(width: 52)
+                .padding(.vertical, 10)
+                .background(pageBg, in: RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.08), lineWidth: 1))
+
+            Button {
+                exercises.remove(at: index)
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .padding(8)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(8)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.15), lineWidth: 1))
     }
 
     // MARK: - Workout Type Grid
@@ -672,6 +830,9 @@ struct LogWorkoutSheet: View {
             workoutType  = result.workoutType
             durationText = "\(result.durationMinutes)"
             caloriesText = "\(result.caloriesBurned)"
+            if !result.exercises.isEmpty {
+                exercises = result.exercises
+            }
             aiState = .idle
         } catch {
             aiState = .error(error.localizedDescription)
@@ -705,6 +866,17 @@ struct LogWorkoutSheet: View {
         // Combine the selected calendar date with the user-chosen time
         let loggedAt = combinedDate(date: selectedDate, time: logTime)
 
+        // Drop half-filled exercise rows (blank name) so we never persist empty placeholders.
+        let cleanedExercises: [Exercise] = exercises.compactMap { ex in
+            let trimmedName = ex.name.trimmingCharacters(in: .whitespaces)
+            guard !trimmedName.isEmpty else { return nil }
+            return Exercise(id: ex.id,
+                            name: trimmedName,
+                            sets: max(1, ex.sets),
+                            reps: max(1, ex.reps),
+                            weight: ex.weight)
+        }
+
         // Preserve the original workoutID when editing so Firestore overwrites the same document
         let entry = WorkoutEntry(
             workoutID:          editingEntry?.workoutID ?? UUID().uuidString,
@@ -713,7 +885,8 @@ struct LogWorkoutSheet: View {
             durationMinutes:    duration,
             caloriesBurned:     calories,
             loggedAt:           loggedAt,
-            adjustmentApplied:  applyAdjustment
+            adjustmentApplied:  applyAdjustment,
+            exercises:          cleanedExercises
         )
         do {
             try await WorkoutService.shared.save(entry: entry, userID: userID)
@@ -721,7 +894,8 @@ struct LogWorkoutSheet: View {
             if saveAsTemplate {
                 WorkoutService.shared.addSavedWorkout(
                     SavedWorkout(name: name, workoutType: workoutType,
-                                 durationMinutes: duration, caloriesBurned: calories)
+                                 durationMinutes: duration, caloriesBurned: calories,
+                                 exercises: cleanedExercises)
                 )
             }
 

@@ -24,6 +24,16 @@ final class WorkoutService {
 
     func save(entry: WorkoutEntry, userID: String) async throws {
         guard !userID.isEmpty else { return }
+        let exerciseDicts: [[String: Any]] = entry.exercises.map { ex in
+            var d: [String: Any] = [
+                "id":   ex.id,
+                "name": ex.name,
+                "sets": ex.sets,
+                "reps": ex.reps
+            ]
+            if let w = ex.weight { d["weight"] = w }
+            return d
+        }
         let data: [String: Any] = [
             "workoutID":          entry.workoutID,
             "name":               entry.name,
@@ -31,7 +41,8 @@ final class WorkoutService {
             "durationMinutes":    entry.durationMinutes,
             "caloriesBurned":     entry.caloriesBurned,
             "loggedAt":           Timestamp(date: entry.loggedAt),
-            "adjustmentApplied":  entry.adjustmentApplied
+            "adjustmentApplied":  entry.adjustmentApplied,
+            "exercises":          exerciseDicts
         ]
         try await db.collection("users").document(userID)
             .collection("workoutEntries").document(entry.workoutID)
@@ -64,9 +75,23 @@ final class WorkoutService {
             let typeRaw    = d["workoutType"]        as? String ?? ""
             let wType      = WorkoutType(rawValue: typeRaw) ?? .other
             let adjApplied = d["adjustmentApplied"]  as? Bool ?? false
+            let rawEx      = d["exercises"]          as? [[String: Any]] ?? []
+            let exercises: [Exercise] = rawEx.compactMap { e in
+                guard let exName = e["name"] as? String, !exName.isEmpty else { return nil }
+                let sets = (e["sets"] as? Int) ?? (e["sets"] as? NSNumber)?.intValue ?? 1
+                let reps = (e["reps"] as? Int) ?? (e["reps"] as? NSNumber)?.intValue ?? 1
+                let weight: Double? = {
+                    if let w = e["weight"] as? Double { return w }
+                    if let w = e["weight"] as? NSNumber { return w.doubleValue }
+                    return nil
+                }()
+                let id = (e["id"] as? String) ?? UUID().uuidString
+                return Exercise(id: id, name: exName, sets: sets, reps: reps, weight: weight)
+            }
             return WorkoutEntry(workoutID: wid, name: name, workoutType: wType,
                                 durationMinutes: duration, caloriesBurned: calories,
-                                loggedAt: ts.dateValue(), adjustmentApplied: adjApplied)
+                                loggedAt: ts.dateValue(), adjustmentApplied: adjApplied,
+                                exercises: exercises)
         }
         .sorted { $0.loggedAt > $1.loggedAt }
     }

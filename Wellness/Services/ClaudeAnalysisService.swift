@@ -593,9 +593,11 @@ final class ClaudeAnalysisService {
         let workoutType:     WorkoutType
         let durationMinutes: Int
         let caloriesBurned:  Int
+        let exercises:       [Exercise]
     }
 
-    /// Parses a free-form workout description into structured fields including workout type.
+    /// Parses a free-form workout description into structured fields including workout type
+    /// and (optionally) a list of exercises the user mentioned.
     func parseWorkout(transcript: String) async throws -> WorkoutParseResult {
         let typeOptions = WorkoutType.allCases.map { "\"\($0.rawValue)\"" }.joined(separator: ", ")
         let prompt = """
@@ -607,15 +609,22 @@ final class ClaudeAnalysisService {
         If the user mentions calories, use that number. Otherwise estimate accurately \
         based on workout type and duration for an average adult.
 
+        If the user describes specific exercises (e.g. "3 sets of 10 bench press at 135 pounds"), \
+        include them in an "exercises" array. Each entry: \
+        {"name": "Bench Press", "sets": 3, "reps": 10, "weight": 135}. \
+        Set "weight" to null when the user does not mention a weight. \
+        Always output weight in pounds (lb); if the user says kilograms, convert to pounds (1 kg ≈ 2.2046 lb) and round to the nearest pound. \
+        If the user doesn't mention any specific exercises, return an empty "exercises" array.
+
         User said: "\(transcript)"
 
         Respond ONLY with a valid JSON object and nothing else — no explanation, no markdown:
-        {"name": "...", "workoutType": "Strength", "durationMinutes": 45, "caloriesBurned": 350}
+        {"name": "...", "workoutType": "Strength", "durationMinutes": 45, "caloriesBurned": 350, "exercises": [{"name": "Bench Press", "sets": 3, "reps": 10, "weight": 135}]}
         """
 
         let payload: [String: Any] = [
             "model": model,
-            "maxTokens": 150,
+            "maxTokens": 600,
             "messages": [["role": "user", "content": prompt]]
         ]
 
@@ -633,10 +642,35 @@ final class ClaudeAnalysisService {
               let calories = (json["caloriesBurned"] as? Int) ?? (json["caloriesBurned"] as? Double).map({ Int($0) })
         else { throw ClaudeServiceError.noContent }
 
-        let typeRaw    = json["workoutType"] as? String ?? ""
+        let typeRaw     = json["workoutType"] as? String ?? ""
         let workoutType = WorkoutType(rawValue: typeRaw) ?? .other
+
+        let rawExercises = json["exercises"] as? [[String: Any]] ?? []
+        let exercises: [Exercise] = rawExercises.compactMap { e in
+            guard let exName = (e["name"] as? String)?.trimmingCharacters(in: .whitespaces),
+                  !exName.isEmpty else { return nil }
+            let sets: Int = {
+                if let i = e["sets"] as? Int    { return max(1, i) }
+                if let d = e["sets"] as? Double { return max(1, Int(d)) }
+                return 1
+            }()
+            let reps: Int = {
+                if let i = e["reps"] as? Int    { return max(1, i) }
+                if let d = e["reps"] as? Double { return max(1, Int(d)) }
+                return 1
+            }()
+            let weight: Double? = {
+                if e["weight"] is NSNull { return nil }
+                if let d = e["weight"] as? Double { return d }
+                if let i = e["weight"] as? Int    { return Double(i) }
+                return nil
+            }()
+            return Exercise(name: exName, sets: sets, reps: reps, weight: weight)
+        }
+
         return WorkoutParseResult(name: name, workoutType: workoutType,
-                                  durationMinutes: duration, caloriesBurned: calories)
+                                  durationMinutes: duration, caloriesBurned: calories,
+                                  exercises: exercises)
     }
 
     private nonisolated func stripMarkdownFences(_ text: String) -> String {
