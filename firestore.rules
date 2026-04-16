@@ -3,7 +3,11 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // =====================================================================
-    // USERS — only the owner can read/write their own document
+    // USERS — the owner reads / writes their own document. Any authenticated
+    // user can read limited profile fields (for leaderboard, feed, follow
+    // lookups). Follower / friend counters are maintained by Cloud Functions
+    // (onFollowCreate / onFollowDelete) via the admin SDK, which bypasses
+    // these rules — so clients never need write access to another user's doc.
     // =====================================================================
     match /users/{userID} {
       allow read:   if request.auth != null && request.auth.uid == userID;
@@ -12,14 +16,6 @@ service cloud.firestore {
       // Other authenticated users can read limited profile fields
       // (needed for leaderboard, feed avatars, follow lookups)
       allow read: if request.auth != null;
-
-      // Other authenticated users can update ONLY the follower/friend counters
-      // on this profile. Needed so FollowService can atomically keep
-      // followerCount / friendCount in sync when someone follows or unfollows.
-      allow update: if request.auth != null
-                    && request.auth.uid != userID
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['followerCount', 'friendCount']);
 
       // --- User subcollections: scoped to the owning user ---
 
@@ -58,18 +54,20 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userID;
       }
 
-      // Following/followers: owner can read/write, others can read
-      // (needed for follow state checks and follower counts)
+      // Following: only the owner writes (adds/removes who they follow).
+      // Any authenticated user can read (for follower lists, follow-state checks).
       match /following/{targetID} {
         allow read:  if request.auth != null;
         allow write: if request.auth != null && request.auth.uid == userID;
       }
 
+      // Followers: mirrored from /following by the onFollowCreate /
+      // onFollowDelete Cloud Functions using the admin SDK (which bypasses
+      // rules). Clients should never write here directly — doing so would
+      // skip the counter updates and produce a split-brain follow graph.
       match /followers/{followerID} {
         allow read:  if request.auth != null;
-        // Write allowed by the follower (adding themselves) or the owner (removing)
-        allow write: if request.auth != null
-                     && (request.auth.uid == userID || request.auth.uid == followerID);
+        allow write: if false;
       }
 
       // Notifications: only the owner reads; other users can create (send notifications)

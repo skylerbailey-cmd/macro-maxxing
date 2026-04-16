@@ -68,6 +68,7 @@ struct ProfileView: View {
     @State private var targetProfilePhotoURL: String = ""
     @State private var fetchedBio:            String = ""
     @State private var showingConnections:    Bool   = false
+    @State private var followErrorMessage:    String?   = nil
 
     // Subscription state
     @State private var isSubscribed:     Bool = false
@@ -261,6 +262,18 @@ struct ProfileView: View {
             )
         }
         .keyboardDoneToolbar()
+        .alert(
+            "Follow failed",
+            isPresented: Binding(
+                get: { followErrorMessage != nil },
+                set: { if !$0 { followErrorMessage = nil } }
+            ),
+            presenting: followErrorMessage
+        ) { _ in
+            Button("OK", role: .cancel) { followErrorMessage = nil }
+        } message: { msg in
+            Text(msg)
+        }
     }
 
     // MARK: - Header Banner
@@ -1424,8 +1437,9 @@ struct ProfileView: View {
         followLoading = true
         defer { followLoading = false }
 
+        let wasFollowing = isFollowing
         do {
-            if isFollowing {
+            if wasFollowing {
                 try await FollowService.shared.unfollowUser(
                     currentUserID: viewerSettings.userID,
                     targetUserID:  profileUserID
@@ -1454,6 +1468,9 @@ struct ProfileView: View {
             }
         } catch {
             AppLogger.log("[ProfileView] toggleFollow error: \(error)")
+            followErrorMessage = wasFollowing
+                ? "Couldn't unfollow @\(profileUsername). \(error.localizedDescription)"
+                : "Couldn't follow @\(profileUsername). \(error.localizedDescription)"
         }
     }
 

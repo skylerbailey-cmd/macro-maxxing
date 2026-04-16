@@ -44,6 +44,7 @@ struct FeedPostDetailView: View {
     @State private var showBlockConfirm     = false
     @State private var showReportUserConfirm = false
     @State private var showReportPostConfirm = false
+    @State private var followErrorMessage:  String? = nil
     @FocusState private var commentFocused: Bool
 
     private let pageBg  = Color(red: 0.07, green: 0.05, blue: 0.12)
@@ -155,6 +156,18 @@ struct FeedPostDetailView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This post will be flagged for review.")
+        }
+        .alert(
+            "Follow failed",
+            isPresented: Binding(
+                get: { followErrorMessage != nil },
+                set: { if !$0 { followErrorMessage = nil } }
+            ),
+            presenting: followErrorMessage
+        ) { _ in
+            Button("OK", role: .cancel) { followErrorMessage = nil }
+        } message: { msg in
+            Text(msg)
         }
         .task {
             // Load follow state for the menu
@@ -509,21 +522,29 @@ struct FeedPostDetailView: View {
 
     private func toggleFollow() async {
         guard let settings = currentUserSettings else { return }
-        if isFollowingAuthor {
-            try? await FollowService.shared.unfollowUser(
-                currentUserID: settings.userID, targetUserID: post.userID)
-            isFollowingAuthor = false
-        } else {
-            try? await FollowService.shared.followUser(
-                currentUserID:          settings.userID,
-                currentUsername:        settings.username,
-                currentDisplayName:     settings.name,
-                currentProfilePhotoURL: settings.profilePhotoURL,
-                targetUserID:           post.userID,
-                targetUsername:         post.username,
-                targetDisplayName:      post.whoName,
-                targetProfilePhotoURL:  post.userProfilePhotoURL)
-            isFollowingAuthor = true
+        let wasFollowing = isFollowingAuthor
+        do {
+            if wasFollowing {
+                try await FollowService.shared.unfollowUser(
+                    currentUserID: settings.userID, targetUserID: post.userID)
+                isFollowingAuthor = false
+            } else {
+                try await FollowService.shared.followUser(
+                    currentUserID:          settings.userID,
+                    currentUsername:        settings.username,
+                    currentDisplayName:     settings.name,
+                    currentProfilePhotoURL: settings.profilePhotoURL,
+                    targetUserID:           post.userID,
+                    targetUsername:         post.username,
+                    targetDisplayName:      post.whoName,
+                    targetProfilePhotoURL:  post.userProfilePhotoURL)
+                isFollowingAuthor = true
+            }
+        } catch {
+            AppLogger.log("[FeedPostDetailView] toggleFollow error: \(error)")
+            followErrorMessage = wasFollowing
+                ? "Couldn't unfollow @\(post.username). \(error.localizedDescription)"
+                : "Couldn't follow @\(post.username). \(error.localizedDescription)"
         }
     }
 

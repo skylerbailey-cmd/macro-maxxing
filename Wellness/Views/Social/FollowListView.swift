@@ -31,6 +31,7 @@ struct FollowListView: View {
     @State private var isLoading:    Bool          = true
     @State private var followingIDs: Set<String>   = []
     @State private var loadingIDs:   Set<String>   = []
+    @State private var followErrorMessage: String? = nil
 
     // MARK: Palette
 
@@ -69,6 +70,18 @@ struct FollowListView: View {
         .navigationTitle(navTitle)
         .navigationBarTitleDisplayMode(.inline)
         .task { await loadData() }
+        .alert(
+            "Follow failed",
+            isPresented: Binding(
+                get: { followErrorMessage != nil },
+                set: { if !$0 { followErrorMessage = nil } }
+            ),
+            presenting: followErrorMessage
+        ) { _ in
+            Button("OK", role: .cancel) { followErrorMessage = nil }
+        } message: { msg in
+            Text(msg)
+        }
     }
 
     // MARK: - Nav Title
@@ -275,8 +288,9 @@ struct FollowListView: View {
         loadingIDs.insert(targetID)
         defer { loadingIDs.remove(targetID) }
 
+        let wasFollowing = followingIDs.contains(targetID)
         do {
-            if followingIDs.contains(targetID) {
+            if wasFollowing {
                 try await FollowService.shared.unfollowUser(
                     currentUserID: viewer.userID,
                     targetUserID:  targetID
@@ -299,6 +313,9 @@ struct FollowListView: View {
             }
         } catch {
             AppLogger.log("[FollowListView] toggleFollow error: \(error)")
+            followErrorMessage = wasFollowing
+                ? "Couldn't unfollow @\(entry.username). \(error.localizedDescription)"
+                : "Couldn't follow @\(entry.username). \(error.localizedDescription)"
         }
     }
 }

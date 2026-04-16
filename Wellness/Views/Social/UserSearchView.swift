@@ -26,6 +26,7 @@ struct UserSearchView: View {
     @State private var loadingIDs:     Set<String>   = []
     @State private var isSearching     = false
     @State private var searchTask:     Task<Void, Never>?
+    @State private var followErrorMessage: String?   = nil
 
     // MARK: Palette
 
@@ -89,6 +90,18 @@ struct UserSearchView: View {
             }
         }
         .keyboardDoneToolbar()
+        .alert(
+            "Follow failed",
+            isPresented: Binding(
+                get: { followErrorMessage != nil },
+                set: { if !$0 { followErrorMessage = nil } }
+            ),
+            presenting: followErrorMessage
+        ) { _ in
+            Button("OK", role: .cancel) { followErrorMessage = nil }
+        } message: { msg in
+            Text(msg)
+        }
     }
 
     // MARK: - Search Bar
@@ -408,8 +421,9 @@ struct UserSearchView: View {
         loadingIDs.insert(targetID)
         defer { loadingIDs.remove(targetID) }
 
+        let wasFollowing = followingIDs.contains(targetID)
         do {
-            if followingIDs.contains(targetID) {
+            if wasFollowing {
                 try await FollowService.shared.unfollowUser(
                     currentUserID: currentUserSettings.userID,
                     targetUserID:  targetID
@@ -446,6 +460,9 @@ struct UserSearchView: View {
             }
         } catch {
             AppLogger.log("[UserSearchView] toggleFollow error: \(error)")
+            followErrorMessage = wasFollowing
+                ? "Couldn't unfollow @\(profile.username). \(error.localizedDescription)"
+                : "Couldn't follow @\(profile.username). \(error.localizedDescription)"
         }
     }
 
