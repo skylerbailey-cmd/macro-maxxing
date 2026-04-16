@@ -559,6 +559,14 @@ final class PostService {
         ])
     }
 
+    /// Sets `commentsCount` to an exact value. Used to self-heal posts whose
+    /// cached count has drifted from the actual number of comment documents.
+    func setCommentCount(postID: String, count: Int) async throws {
+        try await db.collection(collectionName).document(postID).updateData([
+            "commentsCount": count
+        ])
+    }
+
     /// Uploads `data` to `ref` using the callback API wrapped in a continuation.
     /// More reliable than `putDataAsync` under task cancellation or context switching.
     private func uploadData(_ data: Data, to ref: StorageReference, metadata: StorageMetadata) async throws {

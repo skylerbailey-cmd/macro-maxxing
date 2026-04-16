@@ -186,6 +186,7 @@ struct FeedPostDetailView: View {
             }
             .presentationDetents([.large])
         }
+        .keyboardDoneToolbar()
     }
 
     // MARK: - Author header
@@ -537,6 +538,13 @@ struct FeedPostDetailView: View {
                 guard var comment = try? doc.data(as: FeedComment.self) else { return nil }
                 comment.commentID = doc.documentID
                 return comment
+            }
+            // Self-heal: if the cached commentsCount on the post doc has drifted
+            // from the actual number of comment documents, write the true count
+            // back. This fixes older posts whose comments were added before the
+            // count was being maintained.
+            if let postID = post.postID, comments.count != post.commentsCount {
+                try? await PostService.shared.setCommentCount(postID: postID, count: comments.count)
             }
         } catch {
             guard !Task.isCancelled else { return }

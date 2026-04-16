@@ -73,6 +73,7 @@ struct PostWorkoutSheet: View {
         .sheet(isPresented: $showingLibrary) {
             ImagePickerView(sourceType: .photoLibrary, selectedImage: $photo)
         }
+        .keyboardDoneToolbar()
     }
 
     // MARK: - Prompt Header

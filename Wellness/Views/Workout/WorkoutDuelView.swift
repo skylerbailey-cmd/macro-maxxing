@@ -86,6 +86,7 @@ struct WorkoutDuelView: View {
                 }
             })
         }
+        .keyboardDoneToolbar()
     }
 
     // MARK: - Sub-views

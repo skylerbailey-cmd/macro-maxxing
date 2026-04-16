@@ -2,12 +2,19 @@
 //  FollowService.swift
 //  Wellness
 //
-//  Manages follow/unfollow relationships in Firestore using batch writes
-//  so both sides of the relationship always succeed or fail together.
+//  Manages follow/unfollow relationships in Firestore.
 //
-//  Following:  users/{userA}/following/{userB}
-//  Followers:  users/{userB}/followers/{userA}
+//  The client writes only one document — `users/{currentUser}/following/{target}`.
+//  A Cloud Function trigger (`onFollowCreate` / `onFollowDelete`) mirrors the
+//  relationship into `users/{target}/followers/{currentUser}` and updates the
+//  cached counters (followingCount, followerCount, friendCount) on both user
+//  docs. This keeps rules tight: each user can only write to their own
+//  document and their own subcollections.
+//
+//  Following:  users/{userA}/following/{userB}   (written by client)
+//  Followers:  users/{userB}/followers/{userA}   (written by trigger, admin SDK)
 //  Counts:     users/{userA}.followingCount  |  users/{userB}.followerCount
+//              users/{X}.friendCount                 (mutual follows)
 //
 
 import Foundation
@@ -40,10 +47,13 @@ final class FollowService {
 
     // MARK: - 1. Follow User
 
-    /// Writes a following document for userA and a followers document for userB
-    /// in a single batch, then increments followingCount on userA and
-    /// followerCount on userB — all atomically.
-    /// If the target already follows back, both users' friendCount is also incremented.
+    /// Writes `users/{currentUser}/following/{targetUser}`. The onFollowCreate
+    /// Cloud Function mirrors this into the target's followers subcollection
+    /// and updates the cached follower / friend counters.
+    ///
+    /// The current / target username / photo parameters are kept on the
+    /// signature for backwards-compatibility and are stored on the following
+    /// doc so the caller's "Following" list renders without a join.
     func followUser(
         currentUserID:          String,
         currentUsername:        String,
@@ -56,105 +66,31 @@ final class FollowService {
     ) async throws {
         guard !currentUserID.isEmpty, !targetUserID.isEmpty, currentUserID != targetUserID else { return }
 
-        // Check for mutual follow before batching (determines if friendship is created)
-        let becomesFriends = (try? await isFollowing(
-            currentUserID: targetUserID, targetUserID: currentUserID)) ?? false
-
-        let now   = Date()
-        let batch = db.batch()
-
-        // 1a. users/{currentUser}/following/{targetUser}
         let followingEntry = FollowEntry(
             userID:          targetUserID,
             username:        targetUsername,
             displayName:     targetDisplayName,
             profilePhotoURL: targetProfilePhotoURL,
-            followedAt:      now
+            followedAt:      Date()
         )
         let followingRef = db.collection("users").document(currentUserID)
             .collection("following").document(targetUserID)
-        batch.setData(try Firestore.Encoder().encode(followingEntry), forDocument: followingRef)
+        try await followingRef.setData(try Firestore.Encoder().encode(followingEntry))
 
-        // 1b. users/{targetUser}/followers/{currentUser}
-        let followerEntry = FollowEntry(
-            userID:          currentUserID,
-            username:        currentUsername,
-            displayName:     currentDisplayName,
-            profilePhotoURL: currentProfilePhotoURL,
-            followedAt:      now
-        )
-        let followersRef = db.collection("users").document(targetUserID)
-            .collection("followers").document(currentUserID)
-        batch.setData(try Firestore.Encoder().encode(followerEntry), forDocument: followersRef)
-
-        // 2a. Increment followingCount on currentUser's profile
-        let currentUserRef = db.collection("users").document(currentUserID)
-        batch.updateData(
-            ["followingCount": FieldValue.increment(Int64(1))],
-            forDocument: currentUserRef
-        )
-
-        // 2b. Increment followerCount on targetUser's profile
-        let targetUserRef = db.collection("users").document(targetUserID)
-        batch.updateData(
-            ["followerCount": FieldValue.increment(Int64(1))],
-            forDocument: targetUserRef
-        )
-
-        // 2c. If mutual follow, increment friendCount on both
-        if becomesFriends {
-            batch.updateData(["friendCount": FieldValue.increment(Int64(1))], forDocument: currentUserRef)
-            batch.updateData(["friendCount": FieldValue.increment(Int64(1))], forDocument: targetUserRef)
-        }
-
-        try await batch.commit()
-        AppLogger.log("[FollowService] \(currentUserID) followed \(targetUserID) (friends: \(becomesFriends))")
+        AppLogger.log("[FollowService] \(currentUserID) followed \(targetUserID)")
     }
 
     // MARK: - 2. Unfollow User
 
-    /// Deletes both relationship documents and decrements the counts atomically.
-    /// If the two users were mutual friends, friendCount is also decremented on both.
+    /// Deletes `users/{currentUser}/following/{targetUser}`. The onFollowDelete
+    /// Cloud Function removes the mirrored followers doc and decrements the
+    /// cached counters.
     func unfollowUser(currentUserID: String, targetUserID: String) async throws {
         guard !currentUserID.isEmpty, !targetUserID.isEmpty else { return }
-        // Check for mutual follow before batching (determines if friendship is broken)
-        let wasFriends = (try? await isFollowing(
-            currentUserID: targetUserID, targetUserID: currentUserID)) ?? false
-
-        let batch = db.batch()
-
-        // Delete following doc
-        let followingRef = db.collection("users").document(currentUserID)
+        try await db.collection("users").document(currentUserID)
             .collection("following").document(targetUserID)
-        batch.deleteDocument(followingRef)
-
-        // Delete followers doc
-        let followersRef = db.collection("users").document(targetUserID)
-            .collection("followers").document(currentUserID)
-        batch.deleteDocument(followersRef)
-
-        // Decrement counts (floor at 0 via max in Cloud Functions if needed;
-        // FieldValue.increment with a negative value is safe in practice)
-        let currentUserRef = db.collection("users").document(currentUserID)
-        batch.updateData(
-            ["followingCount": FieldValue.increment(Int64(-1))],
-            forDocument: currentUserRef
-        )
-
-        let targetUserRef = db.collection("users").document(targetUserID)
-        batch.updateData(
-            ["followerCount": FieldValue.increment(Int64(-1))],
-            forDocument: targetUserRef
-        )
-
-        // If they were mutual friends, decrement friendCount on both
-        if wasFriends {
-            batch.updateData(["friendCount": FieldValue.increment(Int64(-1))], forDocument: currentUserRef)
-            batch.updateData(["friendCount": FieldValue.increment(Int64(-1))], forDocument: targetUserRef)
-        }
-
-        try await batch.commit()
-        AppLogger.log("[FollowService] \(currentUserID) unfollowed \(targetUserID) (wasFriends: \(wasFriends))")
+            .delete()
+        AppLogger.log("[FollowService] \(currentUserID) unfollowed \(targetUserID)")
     }
 
     // MARK: - 3. Is Following

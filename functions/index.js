@@ -1,5 +1,6 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onDocumentCreated, onDocumentDeleted } = require("firebase-functions/v2/firestore");
 const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestore");
@@ -424,6 +425,131 @@ exports.exchangeAppleAuthCode = onCall(
 );
 
 // ---------------------------------------------------------------------------
+// onFollowCreate / onFollowDelete — authoritative follow-graph maintenance
+// ---------------------------------------------------------------------------
+//
+// Clients only write `users/{userID}/following/{targetID}`. These triggers
+// mirror that write into the target's `followers` subcollection and keep the
+// cached counters (`followingCount`, `followerCount`, `friendCount`) on both
+// user documents in sync. Counters live on the user document so the rest of
+// the app can display them without a collection scan.
+//
+// Rationale: previously, clients did a 4-doc batch that included writing
+// `followerCount` on a doc they don't own. Firestore rules correctly
+// rejected it, so follow silently failed in release. Moving this work to a
+// trigger lets us keep rules tight (only the owner can write to their own
+// user doc) and still maintain the counters.
+
+// Writes a followers-subcollection mirror doc and increments counts.
+// Running independently so a single failure (e.g. target user was deleted
+// mid-flight) doesn't roll back the other writes.
+async function applyFollowDelta(userID, targetID, delta, mirrorData) {
+  const db = getFirestore();
+
+  // Mirror write / delete under the target's followers subcollection.
+  const mirrorRef = db.collection("users").doc(targetID)
+    .collection("followers").doc(userID);
+  try {
+    if (delta > 0) {
+      await mirrorRef.set(mirrorData);
+    } else {
+      await mirrorRef.delete();
+    }
+  } catch (e) {
+    console.warn(`[applyFollowDelta] mirror ${delta > 0 ? "write" : "delete"} failed for ${userID}→${targetID}: ${e.message}`);
+  }
+
+  // Mutual-follow check determines whether friendCount also changes.
+  // If +1 and target already follows user → becomes friends.
+  // If -1 and target still follows user → friendship is being broken.
+  let friendDelta = 0;
+  try {
+    const mutualSnap = await db.collection("users").doc(targetID)
+      .collection("following").doc(userID).get();
+    if (mutualSnap.exists) friendDelta = delta;
+  } catch (e) {
+    console.warn(`[applyFollowDelta] mutual check failed for ${userID}↔${targetID}: ${e.message}`);
+  }
+
+  // Each count update runs independently so a missing (deleted) user doc
+  // doesn't abort the whole operation.
+  const userUpdate = { followingCount: FieldValue.increment(delta) };
+  if (friendDelta !== 0) userUpdate.friendCount = FieldValue.increment(friendDelta);
+  try {
+    await db.collection("users").doc(userID).update(userUpdate);
+  } catch (e) {
+    console.warn(`[applyFollowDelta] user (${userID}) count update failed: ${e.message}`);
+  }
+
+  const targetUpdate = { followerCount: FieldValue.increment(delta) };
+  if (friendDelta !== 0) targetUpdate.friendCount = FieldValue.increment(friendDelta);
+  try {
+    await db.collection("users").doc(targetID).update(targetUpdate);
+  } catch (e) {
+    console.warn(`[applyFollowDelta] target (${targetID}) count update failed: ${e.message}`);
+  }
+
+  return friendDelta;
+}
+
+/**
+ * Fires when `users/{userID}/following/{targetID}` is created.
+ * Writes the mirror doc under `users/{targetID}/followers/{userID}` and
+ * increments followingCount (userID) + followerCount (targetID). If targetID
+ * already follows userID, increments friendCount on both.
+ */
+exports.onFollowCreate = onDocumentCreated(
+  "users/{userID}/following/{targetID}",
+  async (event) => {
+    const { userID, targetID } = event.params;
+    if (!userID || !targetID || userID === targetID) return;
+
+    const data = event.data ? event.data.data() : {};
+    const db   = getFirestore();
+
+    // Look up the initiator's public profile so we can populate the mirror
+    // doc with their current username / display name / photo. Keeping these
+    // on the mirror avoids a join when rendering a follower list.
+    let initiator = {};
+    try {
+      const userDoc = await db.collection("users").doc(userID).get();
+      initiator = userDoc.exists ? userDoc.data() : {};
+    } catch (e) {
+      console.warn(`[onFollowCreate] could not load initiator ${userID}: ${e.message}`);
+    }
+
+    const mirrorData = {
+      userID,
+      username:        initiator.username        || "",
+      displayName:     initiator.name            || null,
+      profilePhotoURL: initiator.profilePhotoURL || "",
+      followedAt:      data.followedAt || Timestamp.now(),
+    };
+
+    const friendDelta = await applyFollowDelta(userID, targetID, 1, mirrorData);
+    console.log(`[onFollowCreate] ${userID} → ${targetID} (friendDelta=${friendDelta})`);
+  }
+);
+
+/**
+ * Fires when `users/{userID}/following/{targetID}` is deleted.
+ * Deletes the mirror under `users/{targetID}/followers/{userID}` and
+ * decrements followingCount / followerCount. If targetID still follows userID
+ * at the time of deletion, the pair were mutual friends — decrements
+ * friendCount on both.
+ */
+exports.onFollowDelete = onDocumentDeleted(
+  "users/{userID}/following/{targetID}",
+  async (event) => {
+    const { userID, targetID } = event.params;
+    if (!userID || !targetID || userID === targetID) return;
+
+    const friendDelta = await applyFollowDelta(userID, targetID, -1, null);
+    console.log(`[onFollowDelete] ${userID} ↛ ${targetID} (friendDelta=${friendDelta})`);
+  }
+);
+
+// ---------------------------------------------------------------------------
 // deleteAccount  (callable — cascading delete of all user data)
 // ---------------------------------------------------------------------------
 
@@ -511,29 +637,29 @@ exports.deleteAccount = onCall(
     }
   }
 
-  // 1. Clean up follow relationships and decrement counts on other users
+  // 1. Clean up follow relationships. The onFollowDelete trigger handles the
+  //    mirror subcollection cleanup and count decrements on the OTHER user,
+  //    so we only need to delete the "following" docs on both sides.
+  //
+  //   a) For each follower X of uid, delete users/X/following/uid
+  //      → trigger decrements X.followingCount and uid.followerCount,
+  //        and deletes the mirror users/uid/followers/X.
+  //   b) Delete each users/uid/following/V
+  //      → trigger decrements uid.followingCount and V.followerCount,
+  //        and deletes the mirror users/V/followers/uid.
   const followersSnap = await db.collection("users").doc(uid).collection("followers").get();
   for (const doc of followersSnap.docs) {
     const followerID = doc.id;
-    // Remove this user from their "following" subcollection
-    await db.collection("users").doc(followerID).collection("following").doc(uid).delete().catch(() => {});
-    // Decrement their followingCount
-    await db.collection("users").doc(followerID).update({
-      followingCount: FieldValue.increment(-1),
-    }).catch(() => {});
+    await db.collection("users").doc(followerID)
+      .collection("following").doc(uid)
+      .delete().catch(() => {});
   }
 
   const followingSnap = await db.collection("users").doc(uid).collection("following").get();
   for (const doc of followingSnap.docs) {
-    const followedID = doc.id;
-    // Remove this user from their "followers" subcollection
-    await db.collection("users").doc(followedID).collection("followers").doc(uid).delete().catch(() => {});
-    // Decrement their followerCount
-    await db.collection("users").doc(followedID).update({
-      followerCount: FieldValue.increment(-1),
-    }).catch(() => {});
+    await doc.ref.delete().catch(() => {});
   }
-  console.log(`[deleteAccount] Cleaned up ${followersSnap.size} followers, ${followingSnap.size} following`);
+  console.log(`[deleteAccount] Cleaned up ${followersSnap.size} followers, ${followingSnap.size} following (triggers will finalize counts)`);
 
   // 2. Delete all user subcollections
   const subcollections = [

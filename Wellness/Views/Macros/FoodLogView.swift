@@ -192,8 +192,9 @@ struct FoodLogView: View {
                 UserDefaults.standard.set(newVal, forKey: "windowDurationHours")
                 saveWindowToFirestore()
             }
+            .keyboardDoneToolbar()
     }
-    
+
     // MARK: - Main Content
     
     private var mainContent: some View {

@@ -98,6 +98,7 @@ struct SavedMealsView: View {
                 }
             }
         }
+        .keyboardDoneToolbar()
     }
 
     private func savedMealRow(_ meal: FoodEntry) -> some View {

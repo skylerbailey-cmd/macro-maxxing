@@ -95,6 +95,7 @@ struct PostDetailView: View {
                 }
             }
         }
+        .keyboardDoneToolbar()
     }
 
     // MARK: Post card

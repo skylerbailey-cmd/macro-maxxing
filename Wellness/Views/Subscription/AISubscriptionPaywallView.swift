@@ -116,6 +116,7 @@ struct AISubscriptionPaywallView: View {
         .onChange(of: store.errorMessage) { _, msg in
             showError = (msg != nil && !msg!.isEmpty)
         }
+        .keyboardDoneToolbar()
     }
 
     // MARK: - Header

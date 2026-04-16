@@ -260,6 +260,7 @@ struct ProfileView: View {
                 balanceScore:    balanceScore
             )
         }
+        .keyboardDoneToolbar()
     }
 
     // MARK: - Header Banner

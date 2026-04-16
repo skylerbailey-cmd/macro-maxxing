@@ -197,6 +197,7 @@ struct CelebrationView: View {
                 withAnimation { postedToFeed = true }
             }
         }
+        .keyboardDoneToolbar()
     }
 
     // MARK: - Macro row

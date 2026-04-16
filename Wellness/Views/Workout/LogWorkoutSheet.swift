@@ -111,10 +111,11 @@ struct LogWorkoutSheet: View {
                             manualForm
                         } else {
                             voiceForm
-                        }
 
-                        // Workout type grid (always visible)
-                        workoutTypeGrid
+                            // Workout type grid (voice mode: shown separately so the
+                            // user can pick a type before the AI parses the transcript)
+                            workoutTypeGrid
+                        }
 
                         // Macro adjustment preview
                         macroAdjustmentCard
@@ -190,6 +191,7 @@ struct LogWorkoutSheet: View {
                 Text("Tap the gold + icon and select the Workout label to post your workout and earn points.")
             }
         }
+        .keyboardDoneToolbar()
     }
 
     // MARK: - Saved Workouts
@@ -278,12 +280,15 @@ struct LogWorkoutSheet: View {
     private var manualForm: some View {
         VStack(spacing: 14) {
             field(label: "Workout Name", placeholder: "e.g. Upper Body, 5 Mile Run", text: $workoutName)
+            workoutTypeGrid
             HStack(spacing: 14) {
                 field(label: "Duration (min)",  placeholder: "45",  text: $durationText, keyboardType: .numberPad)
-                field(label: "Calories Burned", placeholder: "350", text: $caloriesText, keyboardType: .numberPad)
+                field(label: "Calories Burned", placeholder: "\(estimatedCaloriesPlaceholder)", text: $caloriesText, keyboardType: .numberPad)
             }
             timePickerRow
         }
+        .onChange(of: workoutType)  { _, _ in autoFillCaloriesIfNeeded() }
+        .onChange(of: durationText) { _, _ in autoFillCaloriesIfNeeded() }
     }
 
     private func field(label: String, placeholder: String, text: Binding<String>,
@@ -617,6 +622,43 @@ struct LogWorkoutSheet: View {
         }
         .buttonStyle(.plain)
         .disabled(isSaving)
+    }
+
+    // MARK: - Calorie Estimation
+
+    /// Rough kcal estimate using METs × body-weight × hours.
+    /// MET values are typical mid-range figures from the ACSM Compendium of Physical Activities.
+    private func estimateCalories(type: WorkoutType, durationMinutes: Int) -> Int {
+        guard durationMinutes > 0 else { return 0 }
+        let met: Double
+        switch type {
+        case .strength:    met = 5.5
+        case .cardio:      met = 7.5
+        case .hiit:        met = 9.0
+        case .flexibility: met = 2.5
+        case .restDay:     return 0
+        case .other:       met = 5.0
+        }
+        let kg = max(40, bodyWeightLbs) / 2.20462
+        let kcal = met * kg * (Double(durationMinutes) / 60.0)
+        return Int(kcal.rounded())
+    }
+
+    /// Placeholder text for the Calories field: shows the live estimate once a duration is entered.
+    private var estimatedCaloriesPlaceholder: String {
+        if let mins = Int(durationText), mins > 0 {
+            return "\(estimateCalories(type: workoutType, durationMinutes: mins))"
+        }
+        return "350"
+    }
+
+    /// Fills the Calories field with an estimate when it's empty. Will not overwrite a value the
+    /// user (or AI / saved template) already entered — they can clear and re-type freely.
+    private func autoFillCaloriesIfNeeded() {
+        guard caloriesText.isEmpty,
+              let mins = Int(durationText), mins > 0,
+              workoutType != .restDay else { return }
+        caloriesText = "\(estimateCalories(type: workoutType, durationMinutes: mins))"
     }
 
     // MARK: - Actions

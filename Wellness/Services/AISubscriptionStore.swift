@@ -28,6 +28,7 @@
 
 import Foundation
 import StoreKit
+import UIKit
 
 @MainActor
 @Observable
@@ -265,8 +266,15 @@ final class AISubscriptionStore {
     /// transaction lands.
     func redeemPromoCode(stashedCode: String?) async {
         PromoCodeTrackingService.shared.stashPendingCode(stashedCode)
+        guard let scene = UIApplication.shared.connectedScenes
+                .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene
+                ?? UIApplication.shared.connectedScenes.first as? UIWindowScene else {
+            errorMessage = "Couldn't open the promo code sheet. Please try again."
+            _ = PromoCodeTrackingService.shared.consumePendingCode()
+            return
+        }
         do {
-            try await AppStore.presentOfferCodeRedeemSheet()
+            try await AppStore.presentOfferCodeRedeemSheet(in: scene)
         } catch {
             AppLogger.log("[AISubscriptionStore] Offer-code sheet error: \(error)")
             errorMessage = "Couldn't open the promo code sheet. Please try again."

@@ -245,6 +245,7 @@ struct NewPostView: View {
                 }
             }
         }
+        .keyboardDoneToolbar()
     }
 
     // MARK: - Post scope picker

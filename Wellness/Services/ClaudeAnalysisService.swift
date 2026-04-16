@@ -525,7 +525,7 @@ final class ClaudeAnalysisService {
     /// Splits the brainstorm response into numbered suggestions and parses the
     /// estimated macros from each one. Returns any macros that exceed the
     /// remaining room to the upper limit.
-    fileprivate func validateBrainstormText(_ text: String, against limits: MacroLimits) -> [BrainstormViolation] {
+    private func validateBrainstormText(_ text: String, against limits: MacroLimits) -> [BrainstormViolation] {
         let suggestions = splitNumberedSuggestions(text)
         // Tolerance: allow up to 5% slop on top of the computed room to avoid
         // false positives from rounding in the model's macro estimates.

@@ -88,6 +88,7 @@ struct UserSearchView: View {
                 )
             }
         }
+        .keyboardDoneToolbar()
     }
 
     // MARK: - Search Bar

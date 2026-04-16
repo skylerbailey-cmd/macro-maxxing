@@ -148,6 +148,7 @@ struct CreatePostView: View {
                 }
             }
         }
+        .keyboardDoneToolbar()
     }
 
     // MARK: - Photo Section

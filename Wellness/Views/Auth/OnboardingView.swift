@@ -179,6 +179,7 @@ struct OnboardingView: View {
                 page = 1
             }
         }
+        .keyboardDoneToolbar()
     }
 
     // MARK: Page switcher

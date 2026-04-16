@@ -150,6 +150,7 @@ struct FoodConfirmationView: View {
                 editableFoodName = recognitionResult.foodName
             }
         }
+        .keyboardDoneToolbar()
     }
 
     // MARK: - Macro Card

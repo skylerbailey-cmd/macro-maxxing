@@ -100,6 +100,7 @@ struct AuthView: View {
         .sheet(isPresented: $showForgotPassword) {
             ForgotPasswordView().environment(auth)
         }
+        .keyboardDoneToolbar()
     }
 
     // MARK: - Background

@@ -717,6 +717,7 @@ struct SettingsView: View {
             await aiSubscription.loadProduct()
             await aiSubscription.refreshEntitlement()
         }
+        .keyboardDoneToolbar()
     }
 
     private var notificationsFooterText: String {
