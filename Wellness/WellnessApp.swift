@@ -24,10 +24,13 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         NotificationService.shared.requestAuthorization()
 
-        // 50 MB memory + 200 MB disk cache so food photos survive across sessions
+        // 50 MB memory + 500 MB disk cache so food and post photos survive
+        // across sessions. The feed re-serves the same ~20-60 thumbnails
+        // every session; a larger disk cache means far fewer cache-miss
+        // downloads from Firebase Storage (which bills per-GB egress).
         URLCache.shared = URLCache(
-            memoryCapacity: 50 * 1024 * 1024,
-            diskCapacity:   200 * 1024 * 1024,
+            memoryCapacity: 50  * 1024 * 1024,
+            diskCapacity:   500 * 1024 * 1024,
             diskPath:       "image_cache"
         )
 
