@@ -63,6 +63,12 @@ struct FeedPost: Codable, Identifiable, Hashable {
 
     var commentsCount: Int
 
+    /// Celebrate count (🎉 reactions).
+    var celebrates: Int = 0
+
+    /// UserIDs of everyone who celebrated this post.
+    var celebratedBy: [String] = []
+
     /// Number of times this post has been reported.
     var reportCount: Int = 0
 
@@ -147,6 +153,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
 
     /// Whether the given user has repped (liked) this post.
     func hasRepped(userID: String) -> Bool { reppedBy.contains(userID) }
+    func hasCelebrated(userID: String) -> Bool { celebratedBy.contains(userID) }
 
     /// Calorie completion percentage clamped to 0–1.
     var calorieProgress: Double {
@@ -326,6 +333,8 @@ extension FeedPost {
         for (key, value) in doubleDefaults where data[key] == nil {
             data[key] = value
         }
+        if data["celebrates"]          == nil { data["celebrates"]          = 0 }
+        if data["celebratedBy"]        == nil { data["celebratedBy"]        = [String]() }
         if data["reppedBy"]            == nil { data["reppedBy"]            = [String]() }
         if data["reportCount"]         == nil { data["reportCount"]         = 0 }
         if data["reportedBy"]          == nil { data["reportedBy"]          = [String]() }

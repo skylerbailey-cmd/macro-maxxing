@@ -351,4 +351,79 @@ final class FoodEntryService {
         }
         return false
     }
+
+    // MARK: - Meal Plans (Firestore)
+
+    private func encodeDays(_ days: [PlanDay]) -> [[String: Any]] {
+        days.map { ["id": $0.id, "label": $0.label, "itemIDs": $0.itemIDs] }
+    }
+
+    private func decodeDays(_ raw: [[String: Any]]) -> [PlanDay] {
+        raw.compactMap { d in
+            guard let id    = d["id"]    as? String,
+                  let label = d["label"] as? String else { return nil }
+            let ids = d["itemIDs"] as? [String] ?? []
+            return PlanDay(id: id, label: label, itemIDs: ids)
+        }
+    }
+
+    func fetchMealPlans(userID: String) async -> [MealPlan] {
+        guard !userID.isEmpty else { return [] }
+        do {
+            let snapshot = try await db.collection("users").document(userID)
+                .collection("mealPlans")
+                .order(by: "createdAt", descending: false)
+                .getDocuments()
+            return snapshot.documents.compactMap { doc in
+                let d = doc.data()
+                guard let name = d["name"] as? String else { return nil }
+                let createdAt = (d["createdAt"] as? Timestamp)?.dateValue() ?? Date()
+
+                var days: [PlanDay]
+                if let rawDays = d["days"] as? [[String: Any]] {
+                    days = decodeDays(rawDays)
+                } else if let flat = d["mealIDs"] as? [String], !flat.isEmpty {
+                    days = [PlanDay(label: "Day 1", itemIDs: flat)]
+                } else {
+                    days = []
+                }
+
+                return MealPlan(id: doc.documentID, name: name,
+                                days: days, createdAt: createdAt)
+            }
+        } catch {
+            AppLogger.log("[FoodEntryService] Failed to fetch meal plans: \(error.localizedDescription)")
+            return []
+        }
+    }
+
+    func addMealPlan(_ plan: MealPlan, userID: String) {
+        guard !userID.isEmpty else { return }
+        let data: [String: Any] = [
+            "name":      plan.name,
+            "days":      encodeDays(plan.days),
+            "createdAt": Timestamp(date: plan.createdAt)
+        ]
+        db.collection("users").document(userID)
+            .collection("mealPlans").document(plan.id)
+            .setData(data)
+    }
+
+    func updateMealPlan(_ plan: MealPlan, userID: String) {
+        guard !userID.isEmpty else { return }
+        let data: [String: Any] = [
+            "name": plan.name,
+            "days": encodeDays(plan.days),
+        ]
+        db.collection("users").document(userID)
+            .collection("mealPlans").document(plan.id)
+            .updateData(data)
+    }
+
+    func deleteMealPlan(id: String, userID: String) {
+        guard !userID.isEmpty, !id.isEmpty else { return }
+        db.collection("users").document(userID)
+            .collection("mealPlans").document(id)
+            .delete()
+    }
 }

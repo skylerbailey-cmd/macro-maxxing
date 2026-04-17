@@ -116,6 +116,7 @@ struct FeedView: View {
             post:              post,
             currentUserID:     userSettings.userID,
             onRep:             { Task { await viewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
+            onCelebrate:       { Task { await viewModel.toggleCelebrate(postID: post.id, currentUserID: userSettings.userID) } },
             onDelete:          deleteAction,
             onShare:           shareAction,
             onTap:             { activePresentation = .detail(post) },
@@ -188,18 +189,20 @@ struct FeedView: View {
             .scrollTransition(axis: .vertical) { content, phase in
                 let tiltDegrees: Double = {
                     switch phase {
-                    case .topLeading:     return -22
+                    case .topLeading:     return -45
                     case .identity:       return 0
-                    case .bottomTrailing: return 22
+                    case .bottomTrailing: return 45
                     }
                 }()
                 return content
-                    .opacity(phase.isIdentity ? 1 : 0.55)
+                    .opacity(phase.isIdentity ? 1 : 0.15)
+                    .scaleEffect(phase.isIdentity ? 1 : 0.88)
+                    .offset(y: phase.isIdentity ? 0 : (phase == .bottomTrailing ? 40 : -40))
                     .rotation3DEffect(
                         .degrees(tiltDegrees),
                         axis: (x: 1, y: 0, z: 0),
-                        anchor: .center,
-                        perspective: 0.6
+                        anchor: phase == .bottomTrailing ? .top : .bottom,
+                        perspective: 0.8
                     )
             }
             .onAppear {
@@ -326,6 +329,7 @@ struct FeedPostCard: View {
     let post:          FeedPost
     let currentUserID: String
     let onRep:         () -> Void
+    var onCelebrate:   (() -> Void)? = nil
     var onDelete:      (() -> Void)? = nil
     var onShare:       (() -> Void)? = nil
     var onTap:         (() -> Void)? = nil
@@ -343,6 +347,7 @@ struct FeedPostCard: View {
     @State private var showReportPostConfirm = false
     @State private var showDeleteConfirm     = false
     @State private var repBurstTrigger       = 0
+    @State private var celebrateBurst        = false
 
     private let cardBg   = Color(red: 0.11, green: 0.11, blue: 0.14)
     private var purpleHi: Color { post.themeColor }
@@ -383,37 +388,6 @@ struct FeedPostCard: View {
         }
         .background(cardBg)
         .cornerRadius(16)
-        // Floating 💪 burst — pops in, grows, floats up, fades out
-        .overlay(alignment: .bottomTrailing) {
-            Text("💪")
-                .font(.system(size: 28))
-                .keyframeAnimator(
-                    initialValue: RepBurstKeyframe(),
-                    trigger: repBurstTrigger
-                ) { content, value in
-                    content
-                        .scaleEffect(value.scale)
-                        .opacity(value.opacity)
-                        .offset(y: value.offset)
-                } keyframes: { _ in
-                    KeyframeTrack(\.scale) {
-                        SpringKeyframe(1.8, duration: 0.15, spring: .bouncy)
-                        SpringKeyframe(2.4, duration: 0.65)
-                    }
-                    KeyframeTrack(\.opacity) {
-                        LinearKeyframe(1.0, duration: 0.1)
-                        LinearKeyframe(1.0, duration: 0.35)
-                        LinearKeyframe(0.0, duration: 0.4)
-                    }
-                    KeyframeTrack(\.offset) {
-                        SpringKeyframe(-10, duration: 0.15)
-                        SpringKeyframe(-80, duration: 0.7)
-                    }
-                }
-                .allowsHitTesting(false)
-                .padding(.trailing, 40)
-                .padding(.bottom, 10)
-        }
         .overlay(alignment: .topTrailing) {
             postMenu
         }
@@ -478,7 +452,7 @@ struct FeedPostCard: View {
                             .padding(.vertical, 2)
                             .background(
                                 LinearGradient(
-                                    colors: [ThemeStore.shared.accent,
+                                    colors: [Color(red: 1.00, green: 0.80, blue: 0.20),
                                              Color(red: 1.00, green: 0.65, blue: 0.10)],
                                     startPoint: .leading,
                                     endPoint: .trailing
@@ -907,7 +881,7 @@ struct FeedPostCard: View {
         }
     }
 
-    // MARK: Action row (reps + comments)
+    // MARK: Action row (reps + celebrate + comments)
 
     private var actionRow: some View {
         HStack(spacing: 16) {
@@ -930,18 +904,69 @@ struct FeedPostCard: View {
                                 ? Color(red: 1.0, green: 0.75, blue: 0.2)
                                 : .white.opacity(0.35)
                         )
-                    Text("Reps")
-                        .font(.caption)
-                        .foregroundStyle(
-                            post.hasRepped(userID: currentUserID)
-                                ? Color(red: 1.0, green: 0.75, blue: 0.2)
-                                : .white.opacity(0.35)
-                        )
                 }
             }
             .buttonStyle(.plain)
             .scaleEffect(post.hasRepped(userID: currentUserID) ? 1.05 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: post.hasRepped(userID: currentUserID))
+            .overlay {
+                Text("💪")
+                    .font(.system(size: 28))
+                    .keyframeAnimator(
+                        initialValue: RepBurstKeyframe(),
+                        trigger: repBurstTrigger
+                    ) { content, value in
+                        content
+                            .scaleEffect(value.scale)
+                            .opacity(value.opacity)
+                            .offset(y: value.offset)
+                    } keyframes: { _ in
+                        KeyframeTrack(\.scale) {
+                            SpringKeyframe(1.8, duration: 0.15, spring: .bouncy)
+                            SpringKeyframe(2.4, duration: 0.65)
+                        }
+                        KeyframeTrack(\.opacity) {
+                            LinearKeyframe(1.0, duration: 0.1)
+                            LinearKeyframe(1.0, duration: 0.35)
+                            LinearKeyframe(0.0, duration: 0.4)
+                        }
+                        KeyframeTrack(\.offset) {
+                            SpringKeyframe(-10, duration: 0.15)
+                            SpringKeyframe(-80, duration: 0.7)
+                        }
+                    }
+                    .allowsHitTesting(false)
+            }
+
+            // 🎉 Celebrate button
+            let isCelebrated = post.hasCelebrated(userID: currentUserID)
+            Button {
+                if !isCelebrated { celebrateBurst = true }
+                onCelebrate?()
+            } label: {
+                HStack(spacing: 5) {
+                    Text("🎉")
+                        .font(.system(size: 15))
+                    Text("\(post.celebrates)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(
+                            isCelebrated
+                                ? Color(red: 1.0, green: 0.55, blue: 0.85)
+                                : .white.opacity(0.35)
+                        )
+                }
+            }
+            .buttonStyle(.plain)
+            .scaleEffect(isCelebrated ? 1.05 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isCelebrated)
+            .overlay {
+                if celebrateBurst {
+                    CelebrateBurstView {
+                        celebrateBurst = false
+                    }
+                    .allowsHitTesting(false)
+                }
+            }
 
             // 💬 Comment count (tappable → open detail with comment focused)
             Button { onCommentTap?() } label: {
@@ -1097,41 +1122,20 @@ struct MacroDisciplineCard: View {
                     Text("\(pct)%")
                         .font(.system(size: 13, weight: .black, design: .rounded))
                         .foregroundStyle(animDiscipline >= 1.0 ? neon : purpl)
-                        .frame(width: 38, alignment: .trailing)
+                        .fixedSize()
+                        .frame(minWidth: 38, alignment: .trailing)
                         .contentTransition(.numericText())
                 }
             }
             Divider().background(purpl.opacity(0.15))
-            // Per-macro rows — each animates with a staggered delay
+            // Per-macro target-zone bars — each animates with a staggered delay
             ForEach(Array(macros.enumerated()), id: \.offset) { idx, macro in
                 let (label, total, goal, unit, color) = macro
-                let shown  = idx < showRow.count && showRow[idx]
-                let ratio  = goal > 0 ? (shown ? min(total / goal, 1.0) : 0) : 0
-                let macPct = goal > 0 ? (shown ? Int((total / goal) * 100) : 0) : 0
-                HStack(spacing: 8) {
-                    Text(label)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.70))
-                        .frame(width: 60, alignment: .leading)
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(Color.white.opacity(0.07)).frame(height: 6)
-                            Capsule()
-                                .fill(color.opacity(0.85))
-                                .frame(width: shown ? max(4, geo.size.width * ratio) : 0, height: 6)
-                        }
-                    }
-                    .frame(height: 6)
-                    Text("\(macPct)%")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(color)
-                        .frame(width: 38, alignment: .trailing)
-                        .contentTransition(.numericText())
-                    Text("\(Int(total)) / \(Int(goal)) \(unit)")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.28))
-                        .frame(width: 80, alignment: .trailing)
-                }
+                let shown = idx < showRow.count && showRow[idx]
+                TargetZoneRow(
+                    label: label, total: total, goal: goal,
+                    unit: unit, color: color, shown: shown
+                )
             }
         }
         .padding(14)
@@ -1149,6 +1153,132 @@ struct MacroDisciplineCard: View {
                     showRow[i] = true
                 }
             }
+        }
+    }
+}
+
+// MARK: - Target Zone Row
+//
+// Horizontal bar with a highlighted "zone" (85%–115% of goal) and three tick
+// marks: min, target, max. A colored indicator dot shows current intake.
+// The bar spans 0 → 130% of goal so overshoot is visible but capped.
+
+private struct TargetZoneRow: View {
+    let label: String
+    let total: Double
+    let goal:  Double
+    let unit:  String
+    let color: Color
+    let shown: Bool
+
+    // Zone boundaries as fractions of goal
+    private let minFrac:   Double = 0.85
+    private let maxFrac:   Double = 1.15
+    private let floorFrac: Double = 0.60
+    private let capFrac:   Double = 1.30
+    private var rangeFrac: Double { capFrac - floorFrac }
+
+    /// Maps a goal-fraction to a 0…1 bar position.
+    private func barX(_ frac: Double) -> Double {
+        max(0, min(1, (frac - floorFrac) / rangeFrac))
+    }
+
+    private var intakeFrac: Double {
+        guard goal > 0 else { return 0 }
+        return shown ? min(total / goal, capFrac) : floorFrac
+    }
+
+    private var inZone: Bool {
+        guard goal > 0 else { return false }
+        let pct = total / goal
+        return pct >= minFrac && pct <= maxFrac
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // Label + value
+            HStack {
+                Text(label)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.75))
+                Spacer()
+                Text("\(Int(total)) / \(Int(goal)) \(unit)")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(inZone && shown ? color : .white.opacity(0.45))
+            }
+
+            // Bar
+            GeometryReader { geo in
+                let w = geo.size.width
+                let zoneStartX = barX(minFrac) * w
+                let zoneEndX   = barX(maxFrac) * w
+                let indicatorX = barX(intakeFrac) * w
+
+                ZStack(alignment: .leading) {
+                    // Track
+                    Capsule()
+                        .fill(Color.white.opacity(0.06))
+                        .frame(height: 8)
+
+                    // Target zone highlight (85%–115%)
+                    Capsule()
+                        .fill(color.opacity(shown ? 0.18 : 0))
+                        .frame(width: zoneEndX - zoneStartX, height: 8)
+                        .offset(x: zoneStartX)
+
+                    // Tick marks: min, target, max
+                    tickMark(at: minFrac, width: w)
+                    tickMark(at: 1.0,     width: w)
+                    tickMark(at: maxFrac,  width: w)
+
+                    // Current intake indicator — upward triangle below the bar
+                    TriangleIndicator()
+                        .fill(color)
+                        .frame(width: 10, height: 8)
+                        .shadow(color: inZone && shown ? color.opacity(0.60) : .clear, radius: 4)
+                        .offset(x: shown ? indicatorX - 5 : -5, y: 8)
+                        .animation(.spring(response: 0.6, dampingFraction: 0.72), value: intakeFrac)
+                }
+            }
+            .frame(height: 20)
+
+            // Min / Target / Max labels below the bar
+            GeometryReader { geo in
+                let w = geo.size.width
+                ZStack(alignment: .leading) {
+                    Text("min")
+                        .offset(x: max(0, barX(minFrac) * w - 8))
+                    Text("target")
+                        .offset(x: max(0, barX(1.0) * w - 14))
+                    Text("max")
+                        .offset(x: min(w - 16, barX(maxFrac) * w - 8))
+                }
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.25))
+            }
+            .frame(height: 10)
+        }
+    }
+
+    private func tickMark(at frac: Double, width: CGFloat) -> some View {
+        let x = barX(frac) * width
+        return Rectangle()
+            .fill(Color.white.opacity(shown ? 0.30 : 0))
+            .frame(width: 1, height: 14)
+            .offset(x: x - 0.5, y: -3)
+    }
+}
+
+// MARK: - Triangle Indicator Shape
+
+/// Upward-pointing triangle whose tip touches the bar above.
+private struct TriangleIndicator: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { p in
+            p.move(to:    CGPoint(x: rect.midX, y: rect.minY))  // tip (top center)
+            p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))  // bottom-left
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))  // bottom-right
+            p.closeSubpath()
         }
     }
 }
@@ -1255,9 +1385,63 @@ private struct FlickerStreakBadge: View {
 
 // MARK: - Card Tilt-In Animation
 //
-// Wraps any content so it starts tilted 25° on the X-axis (the top edge
-// rotated away from the viewer), shifted down 30 pt, and fully transparent.
-// On appear it springs to flat / zero offset / fully opaque. In a LazyVStack
-// the view struct is created fresh each time the cell enters the viewport,
-// so the animation replays every time the user scrolls a card into view.
+// MARK: - Celebrate Burst
+//
+// Mini confetti explosion that fires outward from the 🎉 button when a user
+// taps it. 12 tiny colored circles shoot out in random directions, fade, and
+// shrink, then the view calls `onComplete` to remove itself.
+
+private struct CelebrateBurstView: View {
+    var onComplete: () -> Void
+
+    private struct Particle: Identifiable {
+        let id = UUID()
+        let color: Color
+        let angle: Double   // radians
+        let distance: CGFloat
+        let size: CGFloat
+    }
+
+    @State private var fired = false
+    @State private var particles: [Particle] = []
+
+    private static let colors: [Color] = [
+        .yellow, .orange, .pink, .purple,
+        Color(red: 0.35, green: 0.75, blue: 1.00),
+        Color(red: 0.40, green: 0.90, blue: 0.72),
+        Color(red: 1.00, green: 0.50, blue: 0.72),
+    ]
+
+    var body: some View {
+        ZStack {
+            ForEach(particles) { p in
+                Circle()
+                    .fill(p.color)
+                    .frame(width: p.size, height: p.size)
+                    .offset(
+                        x: fired ? cos(p.angle) * p.distance : 0,
+                        y: fired ? sin(p.angle) * p.distance : 0
+                    )
+                    .opacity(fired ? 0 : 1)
+                    .scaleEffect(fired ? 0.3 : 1.2)
+            }
+        }
+        .onAppear {
+            particles = (0..<12).map { _ in
+                Particle(
+                    color:    Self.colors.randomElement()!,
+                    angle:    Double.random(in: 0 ..< .pi * 2),
+                    distance: CGFloat.random(in: 45...85),
+                    size:     CGFloat.random(in: 6...12)
+                )
+            }
+            withAnimation(.easeOut(duration: 0.55)) {
+                fired = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                onComplete()
+            }
+        }
+    }
+}
 

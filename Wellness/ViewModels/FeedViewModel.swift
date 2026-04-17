@@ -111,6 +111,32 @@ import FirebaseFirestore
         }
     }
 
+    // MARK: - Toggle celebrate (optimistic)
+
+    func toggleCelebrate(postID: String, currentUserID: String) async {
+        guard let idx = posts.firstIndex(where: { $0.id == postID }) else { return }
+
+        let original = posts[idx]
+        var updated  = posts[idx]
+        if updated.hasCelebrated(userID: currentUserID) {
+            updated.celebrates = max(0, updated.celebrates - 1)
+            updated.celebratedBy.removeAll { $0 == currentUserID }
+        } else {
+            updated.celebrates += 1
+            updated.celebratedBy.append(currentUserID)
+        }
+        posts[idx] = updated
+
+        do {
+            try await PostService.shared.toggleCelebrate(postID: postID, currentUserID: currentUserID)
+        } catch {
+            if let revertIdx = posts.firstIndex(where: { $0.id == postID }) {
+                posts[revertIdx] = original
+            }
+            errorMessage = error.localizedDescription
+        }
+    }
+
     // MARK: - Delete (own posts)
 
     func deletePost(_ post: FeedPost) async {

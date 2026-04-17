@@ -110,6 +110,21 @@ struct ContentView: View {
                 }
                 .tabItem { Label("Board", systemImage: "crown.fill") }
                 .tag(3)
+
+                NavigationStack {
+                    ProfileView(
+                        profileUserID:      userSettings.userID,
+                        profileUsername:    userSettings.username,
+                        profileDisplayName: userSettings.name,
+                        profileAuraLevel:   userSettings.auraLevel,
+                        profileAuraPoints:  userSettings.auraPoints,
+                        profileImageData:   userSettings.profileImageData,
+                        profileLocation:    userSettings.location,
+                        ownUserSettings:    userSettings
+                    )
+                }
+                .tabItem { Label("Profile", systemImage: "person.fill") }
+                .tag(4)
             }
             .environment(locationManager)
             .environment(notificationState)

@@ -46,3 +46,16 @@ import SwiftData
         self.imageData = imageData
     }
 }
+
+// MARK: - Meal Plan
+
+/// A named group of saved meals organized by day.
+struct MealPlan: Codable, Identifiable {
+    var id:        String     = UUID().uuidString
+    var name:      String
+    var days:      [PlanDay]  = []
+    var createdAt: Date       = Date()
+
+    /// Flat list of all meal IDs across all days (for card previews).
+    var allMealIDs: [String] { days.flatMap(\.itemIDs) }
+}

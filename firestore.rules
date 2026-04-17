@@ -54,6 +54,16 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userID;
       }
 
+      // Workout routines: only the owner can read/write
+      match /workoutRoutines/{routineID} {
+        allow read, write: if request.auth != null && request.auth.uid == userID;
+      }
+
+      // Meal plans: only the owner can read/write
+      match /mealPlans/{planID} {
+        allow read, write: if request.auth != null && request.auth.uid == userID;
+      }
+
       // Following: only the owner writes (adds/removes who they follow).
       // Any authenticated user can read (for follower lists, follow-state checks).
       match /following/{targetID} {
@@ -103,12 +113,12 @@ service cloud.firestore {
       allow create: if request.auth != null
                     && request.resource.data.userID == request.auth.uid;
       // Author can update their own posts; other users can only update
-      // reps/reportCount/reportedBy/commentsCount fields (for likes, reports, and comments)
+      // engagement fields (reps, celebrates, reports, comments)
       allow update: if request.auth != null
                     && (resource.data.userID == request.auth.uid
                         || (request.resource.data.diff(resource.data).affectedKeys()
-                            .hasOnly(['reps', 'reppedBy', 'reportCount', 'reportedBy', 'commentsCount'])
-                            && request.resource.data.reportedBy.size() <= 200));
+                            .hasOnly(['reps', 'reppedBy', 'celebrates', 'celebratedBy', 'reportCount', 'reportedBy', 'commentsCount'])
+                            && (!('reportedBy' in request.resource.data) || request.resource.data.reportedBy.size() <= 200)));
       allow delete: if request.auth != null
                     && resource.data.userID == request.auth.uid;
 

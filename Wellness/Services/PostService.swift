@@ -343,6 +343,52 @@ final class PostService {
         }
     }
 
+    // MARK: - 5b. Toggle Celebrate (🎉)
+
+    /// Atomically toggles the celebrate state for `currentUserID` on the given post.
+    /// Mirrors `toggleRep` — transaction-safe for concurrent users.
+    func toggleCelebrate(postID: String, currentUserID: String) async throws {
+        let docRef = db.collection(collectionName).document(postID)
+
+        _ = try await db.runTransaction { transaction, errorPointer in
+            let snapshot: DocumentSnapshot
+            do {
+                snapshot = try transaction.getDocument(docRef)
+            } catch {
+                errorPointer?.pointee = error as NSError
+                return nil
+            }
+
+            guard snapshot.exists,
+                  let data = snapshot.data() else {
+                errorPointer?.pointee = NSError(
+                    domain: "PostService",
+                    code: 404,
+                    userInfo: [NSLocalizedDescriptionKey: "Post not found"]
+                )
+                return nil
+            }
+
+            let current       = data["celebrates"] as? Int ?? 0
+            let celebratedBy  = data["celebratedBy"] as? [String] ?? []
+            let already       = celebratedBy.contains(currentUserID)
+
+            if already {
+                transaction.updateData([
+                    "celebrates":   max(0, current - 1),
+                    "celebratedBy": FieldValue.arrayRemove([currentUserID])
+                ], forDocument: docRef)
+            } else {
+                transaction.updateData([
+                    "celebrates":   current + 1,
+                    "celebratedBy": FieldValue.arrayUnion([currentUserID])
+                ], forDocument: docRef)
+            }
+
+            return nil
+        }
+    }
+
     // MARK: - 6. Create Custom Post (text + optional photos, no macro data)
 
     /// Saves a general-purpose post (from NewPostView) to Firestore.

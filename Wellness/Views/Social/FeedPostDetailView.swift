@@ -341,7 +341,7 @@ struct FeedPostDetailView: View {
                             .padding(.vertical, 2)
                             .background(
                                 LinearGradient(
-                                    colors: [ThemeStore.shared.accent,
+                                    colors: [Color(red: 1.00, green: 0.80, blue: 0.20),
                                              Color(red: 1.00, green: 0.65, blue: 0.10)],
                                     startPoint: .leading,
                                     endPoint: .trailing

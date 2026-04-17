@@ -806,28 +806,42 @@ struct HomeView: View {
         }
     }
 
+    @State private var macroRowShown: [Bool] = [false, false, false, false]
+
     private var macrosGrid: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            MacroGaugeCard(label: "Calories", value: viewModel.totalCalories,
-                           goal: viewModel.displayGoalCalories, unit: "kcal",
-                           format: "%.0f", color: .orange,
-                           action: { selectedMacro = .calories },
-                           rangeText: caloriesRange)
-            MacroGaugeCard(label: "Protein",  value: viewModel.totalProtein,
-                           goal: viewModel.displayGoalProtein,  unit: "g",
-                           format: "%.0f", color: .macroBlue,
-                           action: { selectedMacro = .protein },
-                           rangeText: minRange(viewModel.displayGoalProtein))
-            MacroGaugeCard(label: "Carbs",    value: viewModel.totalCarbs,
-                           goal: viewModel.displayGoalCarbs,    unit: "g",
-                           format: "%.0f", color: .macroMint,
-                           action: { selectedMacro = .carbs },
-                           rangeText: minRange(viewModel.displayGoalCarbs))
-            MacroGaugeCard(label: "Fat",      value: viewModel.totalFat,
-                           goal: viewModel.displayGoalFat,      unit: "g",
-                           format: "%.0f", color: .macroRose,
-                           action: { selectedMacro = .fat },
-                           rangeText: minRange(viewModel.displayGoalFat))
+        let macros: [(String, Double, Double, String, Color, MacroType)] = [
+            ("Calories", viewModel.totalCalories, viewModel.displayGoalCalories, "kcal", .orange,    .calories),
+            ("Protein",  viewModel.totalProtein,  viewModel.displayGoalProtein,  "g",    .macroBlue, .protein),
+            ("Carbs",    viewModel.totalCarbs,     viewModel.displayGoalCarbs,    "g",    .macroMint, .carbs),
+            ("Fat",      viewModel.totalFat,       viewModel.displayGoalFat,      "g",    .macroRose, .fat),
+        ]
+        return VStack(spacing: 14) {
+            ForEach(Array(macros.enumerated()), id: \.offset) { idx, macro in
+                let (label, total, goal, unit, color, macroType) = macro
+                let shown = idx < macroRowShown.count && macroRowShown[idx]
+                HubTargetZoneRow(
+                    label: label, total: total, goal: goal,
+                    unit: unit, color: color, shown: shown
+                ) {
+                    selectedMacro = macroType
+                }
+            }
+        }
+        .padding(14)
+        .background(Color.cardBg)
+        .cornerRadius(18)
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(Color.white.opacity(0.07), lineWidth: 1)
+        )
+        .onAppear {
+            // Reset and stagger the rows in
+            macroRowShown = [false, false, false, false]
+            for i in 0..<4 {
+                withAnimation(.easeOut(duration: 0.65).delay(0.1 + Double(i) * 0.12)) {
+                    macroRowShown[i] = true
+                }
+            }
         }
     }
 
@@ -854,10 +868,7 @@ struct HomeView: View {
                 }
 
                 if compact {
-                    // Half-width layout — 4 concentric rings (calories outer,
-                    // then protein, carbs, fat). Condenses all four macro KPIs
-                    // into one glanceable visual that matches the workouts
-                    // card's footprint. Center shows "X/4 met".
+                    // Half-width layout — concentric rings
                     VStack(spacing: 8) {
                         macroRingStack
                             .frame(width: 92, height: 92)
@@ -867,7 +878,7 @@ struct HomeView: View {
                     }
                     .frame(maxWidth: .infinity)
                 } else {
-                    // Full-width layout — single row of four mini gauges.
+                    // Full-width layout — single row of four mini gauges
                     HStack(spacing: 6) {
                         miniGaugeCalories
                         miniGaugeProtein
@@ -899,7 +910,7 @@ struct HomeView: View {
     /// each ring so 0-progress macros are still visible.
     private var macroRingStack: some View {
         let lineWidth: CGFloat = 6
-        let spacing:   CGFloat = 3   // gap between adjacent rings
+        let spacing:   CGFloat = 3
         let step = lineWidth + spacing
         return ZStack {
             macroRing(progress: macroRingProgress(viewModel.totalCalories,
@@ -2181,6 +2192,274 @@ struct WindowPickerSheet: View {
 
 
 /// MARK: - Brainstorm skeleton
+
+// MARK: - Neon Mini Slider
+//
+// Compact horizontal range slider with a neon glow for the collapsed macros
+// card. Shows the target zone (85%–115%) as a subtle band, a center tick at
+// 100%, and a glowing indicator dot. Label + percentage sit alongside.
+
+private struct NeonMiniSlider: View {
+    let label: String
+    let value: Double
+    let goal:  Double
+    let color: Color
+
+    private let minFrac:   Double = 0.85
+    private let maxFrac:   Double = 1.15
+    private let floorFrac: Double = 0.60
+    private let capFrac:   Double = 1.30
+    private var rangeFrac: Double { capFrac - floorFrac }
+
+    private func barX(_ frac: Double) -> Double {
+        max(0, min(1, (frac - floorFrac) / rangeFrac))
+    }
+
+    @State private var animatedFrac: Double = 0
+
+    private var targetFrac: Double {
+        guard goal > 0 else { return 0 }
+        return min(value / goal, capFrac)
+    }
+
+    private var inZone: Bool {
+        guard goal > 0 else { return false }
+        let pct = value / goal
+        return pct >= minFrac && pct <= maxFrac
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white.opacity(0.50))
+                .frame(width: 30, alignment: .leading)
+
+            GeometryReader { geo in
+                let w = geo.size.width
+                let zoneStartX = barX(minFrac) * w
+                let zoneEndX   = barX(maxFrac) * w
+                let targetX    = barX(1.0) * w
+                let dotX       = barX(animatedFrac) * w
+
+                ZStack(alignment: .leading) {
+                    // Track
+                    Capsule()
+                        .fill(Color.white.opacity(0.06))
+                        .frame(height: 6)
+
+                    // Zone band
+                    Capsule()
+                        .fill(color.opacity(0.15))
+                        .frame(width: zoneEndX - zoneStartX, height: 6)
+                        .offset(x: zoneStartX)
+
+                    // Center tick
+                    Rectangle()
+                        .fill(Color.white.opacity(0.30))
+                        .frame(width: 1, height: 10)
+                        .offset(x: targetX - 0.5, y: -2)
+
+                    // Neon indicator dot
+                    Circle()
+                        .fill(color)
+                        .frame(width: 10, height: 10)
+                        .shadow(color: inZone ? color.opacity(0.80) : color.opacity(0.30), radius: inZone ? 8 : 3)
+                        .overlay(Circle().stroke(Color.black, lineWidth: 1))
+                        .offset(x: dotX - 5)
+                }
+            }
+            .frame(height: 10)
+
+            // Percentage
+            let pct = goal > 0 ? Int((value / goal) * 100) : 0
+            Text("\(pct)%")
+                .font(.system(size: 10, weight: .black, design: .rounded))
+                .foregroundStyle(inZone ? color : .white.opacity(0.40))
+                .frame(width: 32, alignment: .trailing)
+        }
+        .onAppear {
+            animatedFrac = 0
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.75, dampingFraction: 0.72)) {
+                    animatedFrac = targetFrac
+                }
+            }
+        }
+        .onChange(of: targetFrac) { _, newValue in
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.75)) {
+                animatedFrac = newValue
+            }
+        }
+    }
+}
+
+// MARK: - Triangle Indicator Shape
+
+/// Upward-pointing triangle whose tip touches the bar above.
+private struct TriangleIndicator: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { p in
+            p.move(to:    CGPoint(x: rect.midX, y: rect.minY))  // tip (top center)
+            p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))  // bottom-left
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))  // bottom-right
+            p.closeSubpath()
+        }
+    }
+}
+
+// MARK: - Hub Target Zone Row
+//
+// Horizontal target-zone bar for the Hub expanded macros section. Shows:
+// • Track bar from 0 → 130% of goal
+// • Highlighted "zone" band from 85% → 115%
+// • Tick marks at min (85%), target (100%), max (115%)
+// • Colored indicator dot at the user's current intake
+// • Tappable — opens the macro history sheet
+
+private struct HubTargetZoneRow: View {
+    let label:  String
+    let total:  Double
+    let goal:   Double
+    let unit:   String
+    let color:  Color
+    let shown:  Bool
+    var onTap:  (() -> Void)? = nil
+
+    private let minFrac:   Double = 0.85
+    private let maxFrac:   Double = 1.15
+    // The bar spans floorFrac → capFrac of goal. Compressing the low end
+    // gives the 85–115% target zone ~43% of the bar width instead of ~23%.
+    private let floorFrac: Double = 0.60
+    private let capFrac:   Double = 1.30
+    private var rangeFrac: Double { capFrac - floorFrac }
+
+    /// Maps a goal-fraction to a 0…1 bar position.
+    private func barX(_ frac: Double) -> Double {
+        max(0, min(1, (frac - floorFrac) / rangeFrac))
+    }
+
+    private var intakeFrac: Double {
+        guard goal > 0 else { return 0 }
+        return shown ? min(total / goal, capFrac) : floorFrac
+    }
+
+    private var inZone: Bool {
+        guard goal > 0 else { return false }
+        let pct = total / goal
+        return pct >= minFrac && pct <= maxFrac
+    }
+
+    private var delta: Double { goal - total }
+
+    private var deltaLabel: String {
+        guard goal > 0, abs(delta) >= 1 else { return "" }
+        let n = Int(abs(delta))
+        return delta > 0 ? "+\(n) left" : "–\(n) over"
+    }
+
+    private var deltaColor: Color {
+        guard goal > 0 else { return .yellow }
+        let pct = total / goal
+        if pct >= 0.85 && pct <= 1.15 { return .green }
+        return pct > 1.15 ? Color(red: 1.0, green: 0.35, blue: 0.35) : .yellow
+    }
+
+    var body: some View {
+        Button { onTap?() } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                // Top row: label + value + delta
+                HStack {
+                    Text(label)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    HStack(spacing: 6) {
+                        if !deltaLabel.isEmpty && shown {
+                            Text(deltaLabel)
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                .foregroundStyle(deltaColor)
+                        }
+                        Text("\(Int(total))")
+                            .font(.system(size: 18, weight: .black, design: .rounded))
+                            .foregroundStyle(inZone && shown ? color : .white)
+                            .contentTransition(.numericText())
+                        Text("/ \(Int(goal)) \(unit)")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.35))
+                    }
+                }
+
+                // Target zone bar
+                GeometryReader { geo in
+                    let w = geo.size.width
+                    let zoneStartX  = barX(minFrac) * w
+                    let zoneEndX    = barX(maxFrac) * w
+                    let targetX     = barX(1.0) * w
+                    let indicatorX  = barX(intakeFrac) * w
+
+                    ZStack(alignment: .leading) {
+                        // Track
+                        Capsule()
+                            .fill(Color.white.opacity(0.06))
+                            .frame(height: 10)
+
+                        // Zone highlight
+                        Capsule()
+                            .fill(color.opacity(shown ? 0.20 : 0))
+                            .frame(width: zoneEndX - zoneStartX, height: 10)
+                            .offset(x: zoneStartX)
+
+                        // Tick: min (85%)
+                        Rectangle()
+                            .fill(Color.white.opacity(shown ? 0.25 : 0))
+                            .frame(width: 1, height: 16)
+                            .offset(x: zoneStartX - 0.5, y: -3)
+
+                        // Tick: target (100%) — slightly taller
+                        Rectangle()
+                            .fill(Color.white.opacity(shown ? 0.40 : 0))
+                            .frame(width: 1.5, height: 18)
+                            .offset(x: targetX - 0.75, y: -4)
+
+                        // Tick: max (115%)
+                        Rectangle()
+                            .fill(Color.white.opacity(shown ? 0.25 : 0))
+                            .frame(width: 1, height: 16)
+                            .offset(x: zoneEndX - 0.5, y: -3)
+
+                        // Intake indicator — upward triangle below the bar
+                        TriangleIndicator()
+                            .fill(color)
+                            .frame(width: 12, height: 10)
+                            .shadow(color: inZone && shown ? color.opacity(0.60) : .clear, radius: 5)
+                            .offset(x: shown ? indicatorX - 6 : -6, y: 10)
+                            .animation(.spring(response: 0.65, dampingFraction: 0.72), value: intakeFrac)
+                    }
+                }
+                .frame(height: 22)
+
+                // Sub-labels: min / target / max
+                GeometryReader { geo in
+                    let w = geo.size.width
+                    ZStack(alignment: .leading) {
+                        Text("\(Int(goal * minFrac))")
+                            .offset(x: max(0, barX(minFrac) * w - 10))
+                        Text("\(Int(goal))")
+                            .fontWeight(.bold)
+                            .offset(x: max(0, barX(1.0) * w - 8))
+                        Text("\(Int(goal * maxFrac))")
+                            .offset(x: min(w - 20, barX(maxFrac) * w - 10))
+                    }
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.25))
+                }
+                .frame(height: 12)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
 
 private struct BrainstormSkeletonView: View {
     @State private var pulse = false

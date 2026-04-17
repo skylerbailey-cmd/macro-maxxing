@@ -206,4 +206,80 @@ final class WorkoutService {
             UserDefaults.standard.set(data, forKey: savedWorkoutsKey)
         }
     }
+
+    // MARK: - Workout Routines (Firestore)
+
+    private func encodeDays(_ days: [PlanDay]) -> [[String: Any]] {
+        days.map { ["id": $0.id, "label": $0.label, "itemIDs": $0.itemIDs] }
+    }
+
+    private func decodeDays(_ raw: [[String: Any]]) -> [PlanDay] {
+        raw.compactMap { d in
+            guard let id    = d["id"]    as? String,
+                  let label = d["label"] as? String else { return nil }
+            let ids = d["itemIDs"] as? [String] ?? []
+            return PlanDay(id: id, label: label, itemIDs: ids)
+        }
+    }
+
+    func fetchRoutines(userID: String) async -> [WorkoutRoutine] {
+        guard !userID.isEmpty else { return [] }
+        do {
+            let snapshot = try await db.collection("users").document(userID)
+                .collection("workoutRoutines")
+                .order(by: "createdAt", descending: false)
+                .getDocuments()
+            return snapshot.documents.compactMap { doc in
+                let d = doc.data()
+                guard let name = d["name"] as? String else { return nil }
+                let createdAt = (d["createdAt"] as? Timestamp)?.dateValue() ?? Date()
+
+                // Parse days array; fall back to legacy flat workoutIDs
+                var days: [PlanDay]
+                if let rawDays = d["days"] as? [[String: Any]] {
+                    days = decodeDays(rawDays)
+                } else if let flat = d["workoutIDs"] as? [String], !flat.isEmpty {
+                    days = [PlanDay(label: "Day 1", itemIDs: flat)]
+                } else {
+                    days = []
+                }
+
+                return WorkoutRoutine(id: doc.documentID, name: name,
+                                      days: days, createdAt: createdAt)
+            }
+        } catch {
+            AppLogger.log("[WorkoutService] Failed to fetch routines: \(error.localizedDescription)")
+            return []
+        }
+    }
+
+    func addRoutine(_ routine: WorkoutRoutine, userID: String) {
+        guard !userID.isEmpty else { return }
+        let data: [String: Any] = [
+            "name":      routine.name,
+            "days":      encodeDays(routine.days),
+            "createdAt": Timestamp(date: routine.createdAt)
+        ]
+        db.collection("users").document(userID)
+            .collection("workoutRoutines").document(routine.id)
+            .setData(data)
+    }
+
+    func updateRoutine(_ routine: WorkoutRoutine, userID: String) {
+        guard !userID.isEmpty else { return }
+        let data: [String: Any] = [
+            "name": routine.name,
+            "days": encodeDays(routine.days),
+        ]
+        db.collection("users").document(userID)
+            .collection("workoutRoutines").document(routine.id)
+            .updateData(data)
+    }
+
+    func deleteRoutine(id: String, userID: String) {
+        guard !userID.isEmpty, !id.isEmpty else { return }
+        db.collection("users").document(userID)
+            .collection("workoutRoutines").document(id)
+            .delete()
+    }
 }

@@ -508,6 +508,7 @@ struct SocialView: View {
             post:              post,
             currentUserID:     userSettings.userID,
             onRep:             { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
+            onCelebrate:       { Task { await arenaViewModel.toggleCelebrate(postID: post.id, currentUserID: userSettings.userID) } },
             onDelete:          isOwn ? { Task { await arenaViewModel.deletePost(post) } } : nil,
             onShare:           isOwn ? { postToShare = post } : nil,
             onTap:             { activeFeedPresentation = .detail(post) },

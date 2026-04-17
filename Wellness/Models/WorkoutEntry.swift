@@ -177,3 +177,23 @@ struct SavedWorkout: Codable, Identifiable {
         self.exercises       = try c.decodeIfPresent([Exercise].self,   forKey: .exercises)       ?? []
     }
 }
+
+// MARK: - Workout Routine
+
+/// A single day within a routine or meal plan — holds an ordered list of item IDs.
+struct PlanDay: Codable, Identifiable, Hashable {
+    var id:      String   = UUID().uuidString
+    var label:   String                         // "Day 1", "Monday", etc.
+    var itemIDs: [String] = []
+}
+
+/// A named group of saved workouts organized by day.
+struct WorkoutRoutine: Codable, Identifiable {
+    var id:        String     = UUID().uuidString
+    var name:      String
+    var days:      [PlanDay]  = []
+    var createdAt: Date       = Date()
+
+    /// Flat list of all workout IDs across all days (for backward compat + card previews).
+    var allWorkoutIDs: [String] { days.flatMap(\.itemIDs) }
+}

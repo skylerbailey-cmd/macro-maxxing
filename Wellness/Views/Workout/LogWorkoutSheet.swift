@@ -867,9 +867,12 @@ struct LogWorkoutSheet: View {
     // MARK: - Save Button
 
     private var canSave: Bool {
-        !workoutName.trimmingCharacters(in: .whitespaces).isEmpty
-            && (Int(durationText) ?? 0) > 0
-            && (Int(caloriesText) ?? 0) >= 0
+        let name = !workoutName.trimmingCharacters(in: .whitespaces).isEmpty
+        let dur  = (Int(durationText) ?? 0)
+        let cal  = (Int(caloriesText) ?? 0) >= 0
+        // Rest days don't need a duration — everything else does.
+        if workoutType == .restDay { return name && cal }
+        return name && dur > 0 && cal
     }
 
     private var saveButton: some View {
@@ -892,10 +895,20 @@ struct LogWorkoutSheet: View {
     // MARK: - Rest Day Button
 
     private var restDayButton: some View {
-        Button { Task { await logRestDay() } } label: {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                workoutName   = "Rest Day"
+                workoutType   = .restDay
+                durationText  = "0"
+                caloriesText  = "0"
+                exercises     = []
+                selectedGym   = nil
+                taggedFriends = []
+            }
+        } label: {
             HStack(spacing: 8) {
                 Image(systemName: "moon.zzz.fill")
-                Text("Log Rest Day")
+                Text("Rest Day")
             }
             .font(.system(size: 15, weight: .semibold))
             .foregroundStyle(.white.opacity(0.70))
@@ -1047,7 +1060,7 @@ struct LogWorkoutSheet: View {
         let name     = workoutName.trimmingCharacters(in: .whitespaces)
         let duration = Int(durationText) ?? 0
         let calories = Int(caloriesText) ?? 0
-        guard !name.isEmpty, duration > 0 else { return }
+        guard !name.isEmpty, (duration > 0 || workoutType == .restDay) else { return }
 
         isSaving  = true
         saveError = nil
@@ -1122,28 +1135,6 @@ struct LogWorkoutSheet: View {
         }
     }
 
-    private func logRestDay() async {
-        isSaving  = true
-        saveError = nil
-
-        let entry = WorkoutEntry(name: "Rest Day", workoutType: .restDay,
-                                 durationMinutes: 0, caloriesBurned: 0,
-                                 loggedAt: combinedDate(date: selectedDate, time: Date()))
-        do {
-            try await WorkoutService.shared.save(entry: entry, userID: userID)
-
-            if applyAdjustment {
-                MacroAdjustmentEngine.apply(for: .restDay, bodyWeightLbs: bodyWeightLbs)
-            }
-
-            isSaving = false
-            onSaved()
-            dismiss()
-        } catch {
-            isSaving  = false
-            saveError = "Failed to save rest day. Please try again."
-        }
-    }
 }
 
 // MARK: - Pulsing Mic Button

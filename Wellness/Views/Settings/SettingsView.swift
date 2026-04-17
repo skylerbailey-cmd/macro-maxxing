@@ -199,9 +199,6 @@ struct SettingsView: View {
                          heightInches:  userSettings.heightInches,
                          proteinPerLb:  userSettings.proteinPerLb)
         }
-        .onChange(of: currentWeightVal) { _, newWeight in
-            // (No clamp — the user can pick any goal weight.)
-        }
         .onDisappear { Task { await saveProfile() } }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
@@ -276,25 +273,30 @@ struct SettingsView: View {
     // MARK: You (identity)
     /// Custom-rendered card (doesn't go through `settingCard`) so we can put
     /// a "View My Profile" button on the right side of the card header.
+    @State private var showingOwnProfile = false
+
     private var youCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        // Snapshot values once so we don't repeatedly read from the
+        // @Observable during the same render pass. This prevents a
+        // data-race EXC_BAD_ACCESS when Firestore callbacks mutate
+        // userSettings on a background queue mid-render.
+        let uid         = userSettings.userID
+        let uname       = userSettings.username
+        let dname       = userSettings.name
+        let aLevel      = userSettings.auraLevel
+        let aPoints     = userSettings.auraPoints
+        let imgData     = userSettings.profileImageData
+        let loc         = userSettings.location
+
+        return VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
                 iconBadge("person.fill", color: theme.accent)
                 Text("You")
                     .font(.system(size: 15, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
                 Spacer()
-                NavigationLink {
-                    ProfileView(
-                        profileUserID:      userSettings.userID,
-                        profileUsername:    userSettings.username,
-                        profileDisplayName: userSettings.name,
-                        profileAuraLevel:   userSettings.auraLevel,
-                        profileAuraPoints:  userSettings.auraPoints,
-                        profileImageData:   userSettings.profileImageData,
-                        profileLocation:    userSettings.location,
-                        ownUserSettings:    userSettings
-                    )
+                Button {
+                    showingOwnProfile = true
                 } label: {
                     HStack(spacing: 4) {
                         Text("View My Profile")
@@ -338,7 +340,7 @@ struct SettingsView: View {
             divider
             tapRow(title: "Profile Location",
                    icon: "mappin.circle.fill",
-                   detail: userSettings.location.isEmpty ? "Set city" : userSettings.location,
+                   detail: loc.isEmpty ? "Set city" : loc,
                    chevron: true) { showCitySearch = true }
             divider
             toggleRow(label: "Use GPS on posts",
@@ -355,6 +357,22 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.cardBg, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.06), lineWidth: 1))
+        .sheet(isPresented: $showingOwnProfile) {
+            NavigationStack {
+                ProfileView(
+                    profileUserID:      uid,
+                    profileUsername:    uname,
+                    profileDisplayName: dname,
+                    profileAuraLevel:   aLevel,
+                    profileAuraPoints:  aPoints,
+                    profileImageData:   imgData,
+                    profileLocation:    loc,
+                    ownUserSettings:    userSettings,
+                    isDismissable:      true
+                )
+            }
+            .presentationDetents([.large])
+        }
     }
 
     private var usernameRow: some View {
@@ -446,6 +464,42 @@ struct SettingsView: View {
             toggleRow(label: "Track intermittent fasting",
                       icon: "moon.stars.fill",
                       isOn: $userSettings.fastingEnabled)
+            divider
+            NavigationLink {
+                WorkoutRoutinesView(userSettings: userSettings)
+            } label: {
+                HStack(spacing: 10) {
+                    iconBadge("figure.strengthtraining.traditional", color: .orange)
+                    Text("Workout Routines")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.30))
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 11)
+            }
+            .buttonStyle(.plain)
+            divider
+            NavigationLink {
+                MealPlansView(userSettings: userSettings)
+            } label: {
+                HStack(spacing: 10) {
+                    iconBadge("fork.knife.circle", color: .orange)
+                    Text("Meal Plans")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.30))
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 11)
+            }
+            .buttonStyle(.plain)
         } footer: {
             "Protein per lb: general fitness 0.7–0.8, strength training 0.8–1.0. Dietary exclusions are applied by the AI meal planner and the photo macro scanner."
         }

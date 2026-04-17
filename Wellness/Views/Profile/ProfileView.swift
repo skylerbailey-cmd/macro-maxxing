@@ -58,6 +58,13 @@ struct ProfileView: View {
     @State private var postsLoading   = false
     @State private var selectedPostLabel: PostLabel? = nil
 
+    private enum ProfileSection: String, CaseIterable {
+        case posts      = "Posts"
+        case mealPlans  = "Meal Plans"
+        case routines   = "Routines"
+    }
+    @State private var selectedSection: ProfileSection = .posts
+
     // Follow state
     @State private var followStateLoaded:     Bool   = false
     @State private var isFollowing:           Bool   = false
@@ -133,14 +140,26 @@ struct ProfileView: View {
                         if isLocked {
                             lockedProfileView
                         } else {
-                            socialStatsBar
-                                .tutorialAnchor("profile.stats")
-                                .padding(.top, 24)
                             socialLinks
                             if !isOwnProfile { addToTeamButton }
                             if !isOwnProfile && isFollowing { subscribeButton }
-                            postsGrid
-                                .padding(.top, 8)
+
+                            if isOwnProfile {
+                                profileSectionPicker
+                                    .padding(.top, 6)
+                            }
+
+                            switch selectedSection {
+                            case .posts:
+                                postsGrid
+                                    .padding(.top, isOwnProfile ? 0 : 4)
+                            case .mealPlans:
+                                mealPlansSection
+                                    .padding(.top, 2)
+                            case .routines:
+                                routinesSection
+                                    .padding(.top, 2)
+                            }
                         }
                     }
                     .padding(.bottom, 40)
@@ -283,75 +302,122 @@ struct ProfileView: View {
 
     // MARK: - Header Banner
 
+    /// Country abbreviation from the profile location string.
+    /// Tries the last comma-separated component (e.g. "Denver, CO" → "CO",
+    /// "Austin, TX, US" → "US"). Falls back to full location if no comma.
+    private var locationAbbrev: String {
+        let loc = profileLocation
+        guard !loc.isEmpty else { return "" }
+        let parts = loc.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        return parts.last ?? loc
+    }
+
     private var headerBanner: some View {
-        ZStack(alignment: .bottom) {
-            // Flat banner background
-            Color(red: 0.06, green: 0.05, blue: 0.10)
-                .frame(height: 200)
+        VStack(spacing: 0) {
+            // Three-column layout: meta | avatar+name | stats
+            HStack(alignment: .top, spacing: 0) {
 
-            // Decorative glow orb
-            Ellipse()
-                .fill(purpl.opacity(0.18))
-                .frame(width: 260, height: 120)
-                .blur(radius: 40)
-                .offset(y: -30)
+                // LEFT: level, location, home gym, @handle
+                VStack(alignment: .leading, spacing: 0) {
+                    Spacer(minLength: 0)
 
-            VStack(spacing: 12) {
-                // Avatar
-                Button {
-                    if isOwnProfile { showingPhotoSource = true }
-                } label: {
-                    ZStack {
-                        // Outer glow ring (gradient)
-                        Circle()
-                            .fill(
-                                AngularGradient(
-                                    colors: [gold, purpl, neon, gold],
-                                    center: .center
-                                )
-                            )
-                            .frame(width: 114, height: 114)
-                            .blur(radius: 3)
-
-                        avatarView(size: 104)
-
-                        if isOwnProfile {
-                            VStack {
-                                Spacer()
-                                HStack {
-                                    Spacer()
-                                    Image(systemName: "camera.fill")
-                                        .font(.system(size: 12, weight: .bold))
-                                        .foregroundStyle(.black)
-                                        .padding(6)
-                                        .background(gold)
-                                        .clipShape(Circle())
-                                        .offset(x: 4, y: 4)
-                                }
-                            }
-                            .frame(width: 104, height: 104)
+                    if !auraTitleString.isEmpty {
+                        HStack(spacing: 3) {
+                            Text("LVL \(max(1, profileAuraLevel))")
+                                .font(.system(size: 11, weight: .black))
+                                .tracking(0.5)
+                                .foregroundStyle(purpl)
+                            Text("·")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(gold.opacity(0.50))
+                            Text(auraTitleString.uppercased())
+                                .font(.system(size: 9, weight: .black))
+                                .tracking(1.2)
+                                .foregroundStyle(gold)
                         }
                     }
-                }
-                .buttonStyle(.plain)
-                .disabled(!isOwnProfile)
-                .padding(.top, 24)
 
-                // Name + handle
-                VStack(spacing: 3) {
-                    HStack(spacing: 8) {
+                    Spacer(minLength: 0)
+
+                    if !locationAbbrev.isEmpty {
+                        HStack(spacing: 3) {
+                            Image(systemName: "mappin.and.ellipse")
+                                .font(.system(size: 9))
+                                .foregroundStyle(purpl.opacity(0.70))
+                            Text(locationAbbrev)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.40))
+                        }
+                    }
+
+                    Spacer(minLength: 0)
+
+                    homeGymSection
+
+                    Spacer(minLength: 0)
+
+                    if !profileUsername.isEmpty {
+                        Text("@\(profileUsername)")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.45))
+                            .lineLimit(1)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // CENTER: avatar + name + PRO
+                VStack(spacing: 6) {
+                    Button {
+                        if isOwnProfile { showingPhotoSource = true }
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    AngularGradient(
+                                        colors: [gold, purpl, neon, gold],
+                                        center: .center
+                                    )
+                                )
+                                .frame(width: 78, height: 78)
+                                .blur(radius: 2)
+
+                            avatarView(size: 70)
+
+                            if isOwnProfile {
+                                VStack {
+                                    Spacer()
+                                    HStack {
+                                        Spacer()
+                                        Image(systemName: "camera.fill")
+                                            .font(.system(size: 9, weight: .bold))
+                                            .foregroundStyle(.black)
+                                            .padding(5)
+                                            .background(gold)
+                                            .clipShape(Circle())
+                                            .offset(x: 3, y: 3)
+                                    }
+                                }
+                                .frame(width: 70, height: 70)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!isOwnProfile)
+
+                    HStack(spacing: 5) {
                         Text(displayName)
-                            .font(.system(size: 24, weight: .black, design: .rounded))
+                            .font(.system(size: 17, weight: .black, design: .rounded))
                             .foregroundStyle(.white)
+                            .lineLimit(1)
                         if isOwnProfile && AISubscriptionStore.shared.isSubscribed {
                             Text("PRO")
-                                .font(.system(size: 10, weight: .black, design: .rounded))
+                                .font(.system(size: 8, weight: .black, design: .rounded))
                                 .foregroundStyle(.black)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
                                 .background(
                                     LinearGradient(
-                                        colors: [ThemeStore.shared.accent,
+                                        colors: [Color(red: 1.00, green: 0.80, blue: 0.20),
                                                  Color(red: 1.00, green: 0.65, blue: 0.10)],
                                         startPoint: .leading,
                                         endPoint: .trailing
@@ -360,59 +426,54 @@ struct ProfileView: View {
                                 )
                         }
                     }
+                }
 
-                    HStack(spacing: 6) {
-                        if !profileUsername.isEmpty {
-                            Text("@\(profileUsername)")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.45))
-                        }
-                        if !profileLocation.isEmpty {
-                            Text("·")
-                                .foregroundStyle(.white.opacity(0.25))
-                            Image(systemName: "mappin.and.ellipse")
-                                .font(.system(size: 9))
-                                .foregroundStyle(purpl.opacity(0.70))
-                            Text(profileLocation)
-                                .font(.system(size: 12))
-                                .foregroundStyle(.white.opacity(0.40))
+                // RIGHT: streak, aura XP, connections
+                VStack(alignment: .trailing, spacing: 0) {
+                    Spacer(minLength: 0)
+
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(resolvedStreak > 0 ? "🔥 \(resolvedStreak)" : "—")
+                            .font(.system(size: 24, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text("STREAK")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.35))
+                            .tracking(1.5)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("⚡️ \(auraPointsFormatted)")
+                            .font(.system(size: 24, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text("AURA XP")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.35))
+                            .tracking(1.5)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    Button { showingConnections = true } label: {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Image(systemName: "person.2.fill")
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundStyle(.white)
+                            Text("CONNECTIONS")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.35))
+                                .tracking(1.5)
                         }
                     }
+                    .buttonStyle(.plain)
                 }
-
-                // Bio
-                bioSection
-
-                // Home gym
-                homeGymSection
-
-                // Balance Score
-                if isOwnProfile {
-                    balanceScoreBubble
-                        .id("balanceScoreAnchor")
-                        .tutorialAnchor("profile.balanceScore")
-                        .padding(.top, 8)
-                }
-
-                // Level + title (no pill, just plain text)
-                if !auraTitleString.isEmpty {
-                    HStack(spacing: 5) {
-                        Text("LVL \(max(1, profileAuraLevel))")
-                            .font(.system(size: 11, weight: .black))
-                            .tracking(1)
-                            .foregroundStyle(purpl)
-                        Text("·")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(gold.opacity(0.50))
-                        Text(auraTitleString.uppercased())
-                            .font(.system(size: 11, weight: .black))
-                            .tracking(2)
-                            .foregroundStyle(gold)
-                    }
-                    .padding(.top, 6)
-                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .padding(.bottom, 20)
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+            .padding(.bottom, 8)
         }
     }
 
@@ -582,50 +643,32 @@ struct ProfileView: View {
     /// profile owner has a gym tagged.
     @ViewBuilder
     private var homeGymSection: some View {
-        let gymName    = ownUserSettings?.homeGymName ?? fetchedHomeGymName
-        let gymAddress = ownUserSettings?.homeGymAddress ?? fetchedHomeGymAddress
+        let gymName = ownUserSettings?.homeGymName ?? fetchedHomeGymName
 
         if isOwnProfile || !gymName.isEmpty {
-            HStack(alignment: .center, spacing: 6) {
+            HStack(spacing: 4) {
                 if !gymName.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: "mappin.and.ellipse")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(purpl.opacity(0.80))
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(gymName)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.white.opacity(0.75))
-                                .lineLimit(1)
-                            if !gymAddress.isEmpty {
-                                Text(gymAddress)
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.white.opacity(0.35))
-                                    .lineLimit(1)
-                            }
-                        }
-                    }
+                    Image(systemName: "dumbbell.fill")
+                        .font(.system(size: 9))
+                        .foregroundStyle(purpl.opacity(0.70))
+                    Text(gymName)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.40))
+                        .lineLimit(1)
                 } else if isOwnProfile {
                     Text("Add a home gym")
-                        .font(.system(size: 12))
+                        .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.25))
                 }
-
                 if isOwnProfile {
-                    Button {
-                        showingHomeGymPicker = true
-                    } label: {
+                    Button { showingHomeGymPicker = true } label: {
                         Image(systemName: "pencil")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(purpl.opacity(0.70))
-                            .padding(4)
-                            .background(purpl.opacity(0.12), in: Circle())
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(purpl.opacity(0.60))
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 24)
             .sheet(isPresented: $showingHomeGymPicker) {
                 GymPickerView(current: ownUserSettings?.homeGym) { picked in
                     saveHomeGym(picked)
@@ -996,7 +1039,7 @@ struct ProfileView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.top, 20)
+                .padding(.top, 8)
             }
         }
     }
@@ -1076,6 +1119,294 @@ struct ProfileView: View {
                 .padding(.top, 4)
         }
         .padding(.bottom, 40)
+    }
+
+    // MARK: - Profile Section Picker (own profile only)
+
+    private var profileSectionPicker: some View {
+        HStack(spacing: 0) {
+            ForEach(ProfileSection.allCases, id: \.self) { section in
+                Button {
+                    withAnimation(.spring(duration: 0.25)) { selectedSection = section }
+                } label: {
+                    Text(section.rawValue)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(selectedSection == section ? .black : .white.opacity(0.55))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .background(
+                            Capsule().fill(selectedSection == section
+                                ? purpl
+                                : Color.white.opacity(0.06))
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(3)
+        .background(Color.white.opacity(0.04), in: Capsule())
+        .padding(.horizontal, 16)
+    }
+
+    // MARK: - Meal Plans Section
+
+    @State private var profileMealPlans: [MealPlan] = []
+    @State private var profileSavedMeals: [FoodEntry] = []
+    @State private var mealPlansLoaded = false
+    @State private var showCreateMealPlan = false
+    @State private var newMealPlanName = ""
+
+    private var mealPlansSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Rectangle()
+                .fill(Color.white.opacity(0.05))
+                .frame(height: 1)
+                .padding(.horizontal, 16)
+
+            HStack {
+                Text("MEAL PLANS")
+                    .font(.system(size: 11, weight: .black))
+                    .tracking(2)
+                    .foregroundStyle(.white.opacity(0.35))
+                Spacer()
+                Text("\(profileMealPlans.count)")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(purpl.opacity(0.60))
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+
+            if !mealPlansLoaded {
+                ProgressView().tint(purpl)
+                    .frame(maxWidth: .infinity).padding(.vertical, 30)
+            } else if profileMealPlans.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "fork.knife.circle")
+                        .font(.system(size: 28))
+                        .foregroundStyle(purpl.opacity(0.30))
+                    Text("No meal plans yet")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.40))
+                    Text("Group your saved meals into plans like\n\"Cutting Plan\" or \"High Protein Week\".")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.25))
+                        .multilineTextAlignment(.center)
+                    Button { showCreateMealPlan = true } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Create Meal Plan")
+                        }
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(purpl, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 30)
+                .alert("New Meal Plan", isPresented: $showCreateMealPlan) {
+                    TextField("Plan name", text: $newMealPlanName)
+                    Button("Create") {
+                        let name = newMealPlanName.trimmingCharacters(in: .whitespaces)
+                        guard !name.isEmpty else { return }
+                        let uid = ownUserSettings?.userID ?? ""
+                        FoodEntryService.shared.addMealPlan(
+                            MealPlan(name: name, days: [PlanDay(label: "Day 1")]),
+                            userID: uid
+                        )
+                        newMealPlanName = ""
+                        Task { profileMealPlans = await FoodEntryService.shared.fetchMealPlans(userID: uid) }
+                    }
+                    Button("Cancel", role: .cancel) { newMealPlanName = "" }
+                } message: {
+                    Text("Give your plan a name")
+                }
+            } else {
+                ForEach(profileMealPlans) { plan in
+                    NavigationLink {
+                        MealPlanDetailView(
+                            plan: plan,
+                            userSettings: ownUserSettings ?? UserSettings(),
+                            savedMeals: profileSavedMeals,
+                            onUpdate: { Task { profileMealPlans = await FoodEntryService.shared.fetchMealPlans(userID: ownUserSettings?.userID ?? "") } }
+                        )
+                    } label: {
+                        mealPlanRow(plan)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .task {
+            guard !mealPlansLoaded else { return }
+            profileMealPlans = await FoodEntryService.shared.fetchMealPlans(userID: ownUserSettings?.userID ?? "")
+            if let uid = ownUserSettings?.userID {
+                profileSavedMeals = (try? await FoodEntryService.shared.fetchSavedMeals(userID: uid)) ?? []
+            }
+            mealPlansLoaded = true
+        }
+    }
+
+    private func mealPlanRow(_ plan: MealPlan) -> some View {
+        let meals = plan.allMealIDs.compactMap { id in profileSavedMeals.first { $0.firebaseEntryID == id } }
+        let totalCal = meals.reduce(0.0) { $0 + $1.calories }
+        let totalPro = meals.reduce(0.0) { $0 + $1.protein }
+
+        return HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(purpl.opacity(0.15))
+                    .frame(width: 40, height: 40)
+                Image(systemName: "fork.knife.circle")
+                    .font(.system(size: 18))
+                    .foregroundStyle(purpl)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(plan.name)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+                Text("\(meals.count) meal\(meals.count == 1 ? "" : "s") \u{00B7} \(Int(totalCal)) cal \u{00B7} \(Int(totalPro))g protein")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.40))
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white.opacity(0.25))
+        }
+        .padding(12)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 16)
+    }
+
+    // MARK: - Routines Section
+
+    @State private var profileRoutines: [WorkoutRoutine] = []
+    @State private var profileSavedWorkouts: [SavedWorkout] = []
+    @State private var routinesLoaded = false
+    @State private var showCreateRoutine = false
+    @State private var newRoutineName = ""
+
+    private var routinesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Rectangle()
+                .fill(Color.white.opacity(0.05))
+                .frame(height: 1)
+                .padding(.horizontal, 16)
+
+            HStack {
+                Text("ROUTINES")
+                    .font(.system(size: 11, weight: .black))
+                    .tracking(2)
+                    .foregroundStyle(.white.opacity(0.35))
+                Spacer()
+                Text("\(profileRoutines.count)")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(purpl.opacity(0.60))
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+
+            if !routinesLoaded {
+                ProgressView().tint(purpl)
+                    .frame(maxWidth: .infinity).padding(.vertical, 30)
+            } else if profileRoutines.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "figure.strengthtraining.traditional")
+                        .font(.system(size: 28))
+                        .foregroundStyle(purpl.opacity(0.30))
+                    Text("No routines yet")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.40))
+                    Text("Group your saved workouts into routines\nlike \"Push/Pull/Legs\" or \"Upper/Lower\".")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.25))
+                        .multilineTextAlignment(.center)
+                    Button { showCreateRoutine = true } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Create Routine")
+                        }
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(purpl, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 30)
+                .alert("New Routine", isPresented: $showCreateRoutine) {
+                    TextField("Routine name", text: $newRoutineName)
+                    Button("Create") {
+                        let name = newRoutineName.trimmingCharacters(in: .whitespaces)
+                        guard !name.isEmpty else { return }
+                        let uid = ownUserSettings?.userID ?? ""
+                        WorkoutService.shared.addRoutine(
+                            WorkoutRoutine(name: name, days: [PlanDay(label: "Day 1")]),
+                            userID: uid
+                        )
+                        newRoutineName = ""
+                        Task { profileRoutines = await WorkoutService.shared.fetchRoutines(userID: uid) }
+                    }
+                    Button("Cancel", role: .cancel) { newRoutineName = "" }
+                } message: {
+                    Text("Give your routine a name")
+                }
+            } else {
+                ForEach(profileRoutines) { routine in
+                    NavigationLink {
+                        RoutineDetailView(
+                            routine: routine,
+                            userID: ownUserSettings?.userID ?? "",
+                            onUpdate: { Task { profileRoutines = await WorkoutService.shared.fetchRoutines(userID: ownUserSettings?.userID ?? "") } }
+                        )
+                    } label: {
+                        routineRow(routine)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .task {
+            guard !routinesLoaded else { return }
+            profileRoutines = await WorkoutService.shared.fetchRoutines(userID: ownUserSettings?.userID ?? "")
+            profileSavedWorkouts = WorkoutService.shared.savedWorkouts
+            routinesLoaded = true
+        }
+    }
+
+    private func routineRow(_ routine: WorkoutRoutine) -> some View {
+        let workouts = routine.allWorkoutIDs.compactMap { id in profileSavedWorkouts.first { $0.id == id } }
+
+        return HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(purpl.opacity(0.15))
+                    .frame(width: 40, height: 40)
+                Image(systemName: "figure.strengthtraining.traditional")
+                    .font(.system(size: 18))
+                    .foregroundStyle(purpl)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(routine.name)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+                Text("\(workouts.count) workout\(workouts.count == 1 ? "" : "s")")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.40))
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white.opacity(0.25))
+        }
+        .padding(12)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 16)
     }
 
     private var filteredPosts: [FeedPost] {
