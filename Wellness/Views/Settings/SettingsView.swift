@@ -157,40 +157,8 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 14) {
-                SettingsHeroCard(userSettings:      userSettings,
-                                 nameText:          nameText,
-                                 usernameText:      usernameText,
-                                 aiSubscription:    aiSubscription,
-                                 theme:             theme,
-                                 showingAIPaywall:  $showingAIPaywall)
-                youCard
-                bodyNutritionCard
-                notificationsCard
-                socialsCard
-                appearanceCard
-                SettingsSubscriptionCard(aiSubscription:            aiSubscription,
-                                         theme:                     theme,
-                                         showingAIPaywall:          $showingAIPaywall,
-                                         subscriptionStatusMessage: $subscriptionStatusMessage)
-                helpSupportCard
-                privacyDataCard
-                SettingsDangerZoneCard(userSettings:      userSettings,
-                                       session:           session,
-                                       showDeleteAccount: $showDeleteAccount,
-                                       onSave:            { await saveProfile() })
-
-                Text("Macro Maxxing")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.25))
-                    .padding(.top, 8)
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 10)
-            .padding(.bottom, 40)
-        }
-        .background(Color.pageBg.ignoresSafeArea())
+        settingsScrollContent
+            .background(Color.pageBg.ignoresSafeArea())
         .onAppear {
             applyProfile(name:          userSettings.name,
                          username:      userSettings.username,
@@ -271,108 +239,72 @@ struct SettingsView: View {
     // MARK: - Branded Cards
 
     // MARK: You (identity)
+    // MARK: - Scroll content (split to reduce type-nesting depth)
+
+    /// The full settings scroll body, split into two halves so SwiftUI's
+    /// type-checker doesn't overflow the stack instantiating the combined
+    /// TupleView metadata for a 1700-line struct.
+    private var settingsScrollContent: some View {
+        ScrollView {
+            VStack(spacing: 14) {
+                settingsTopHalf
+                settingsBottomHalf
+                Text("Macro Maxxing")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.25))
+                    .padding(.top, 8)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, 40)
+        }
+    }
+
+    private var settingsTopHalf: some View {
+        Group {
+            SettingsHeroCard(userSettings:      userSettings,
+                             nameText:          nameText,
+                             usernameText:      usernameText,
+                             aiSubscription:    aiSubscription,
+                             theme:             theme,
+                             showingAIPaywall:  $showingAIPaywall)
+            youCard
+            bodyNutritionCard
+            notificationsCard
+            socialsCard
+        }
+    }
+
+    private var settingsBottomHalf: some View {
+        Group {
+            appearanceCard
+            SettingsSubscriptionCard(aiSubscription:            aiSubscription,
+                                     theme:                     theme,
+                                     showingAIPaywall:          $showingAIPaywall,
+                                     subscriptionStatusMessage: $subscriptionStatusMessage)
+            helpSupportCard
+            privacyDataCard
+            SettingsDangerZoneCard(userSettings:      userSettings,
+                                   session:           session,
+                                   showDeleteAccount: $showDeleteAccount,
+                                   onSave:            { await saveProfile() })
+        }
+    }
+
     /// Custom-rendered card (doesn't go through `settingCard`) so we can put
     /// a "View My Profile" button on the right side of the card header.
     @State private var showingOwnProfile = false
 
+    // DIAGNOSTIC: placeholder to isolate crash. If Settings opens without
+    // crashing, the bug is inside youCard's real content. If it still
+    // crashes, the bug is in another card or the parent.
     private var youCard: some View {
-        // Snapshot values once so we don't repeatedly read from the
-        // @Observable during the same render pass. This prevents a
-        // data-race EXC_BAD_ACCESS when Firestore callbacks mutate
-        // userSettings on a background queue mid-render.
-        let uid         = userSettings.userID
-        let uname       = userSettings.username
-        let dname       = userSettings.name
-        let aLevel      = userSettings.auraLevel
-        let aPoints     = userSettings.auraPoints
-        let imgData     = userSettings.profileImageData
-        let loc         = userSettings.location
-
-        return VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
-                iconBadge("person.fill", color: theme.accent)
-                Text("You")
-                    .font(.system(size: 15, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-                Spacer()
-                Button {
-                    showingOwnProfile = true
-                } label: {
-                    HStack(spacing: 4) {
-                        Text("View My Profile")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 9, weight: .bold))
-                    }
-                    .foregroundStyle(theme.accent)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .background(theme.accent.opacity(0.14), in: Capsule())
-                    .overlay(Capsule().stroke(theme.accent.opacity(0.35), lineWidth: 0.75))
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 14)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
-
-            textFieldRow(label: "Name", placeholder: "Your name", text: $nameText, isUsername: false)
-            divider
-            usernameRow
-            if usernameState == .taken {
-                Text("Username already taken")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 6)
-            }
-            divider
-            tapRow(title: "Email",
-                   icon: "envelope.fill",
-                   detail: Auth.auth().currentUser?.email ?? "—",
-                   chevron: true) { showChangeEmail = true }
-            divider
-            toggleRow(label: "Private Account",
-                      icon: "lock.fill",
-                      isOn: $userSettings.isPrivateAccount)
-            divider
-            dobRow
-            divider
-            tapRow(title: "Profile Location",
-                   icon: "mappin.circle.fill",
-                   detail: loc.isEmpty ? "Set city" : loc,
-                   chevron: true) { showCitySearch = true }
-            divider
-            toggleRow(label: "Use GPS on posts",
-                      icon: "location.fill",
-                      isOn: $userSettings.useGPSLocation)
-
-            Text("Profile location shows on your profile as a fallback. GPS uses your real-time position for posts and the local leaderboard.")
-                .font(.system(size: 11))
-                .foregroundStyle(.white.opacity(0.40))
-                .padding(.horizontal, 14)
-                .padding(.top, 8)
-                .padding(.bottom, 12)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.cardBg, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.06), lineWidth: 1))
-        .sheet(isPresented: $showingOwnProfile) {
-            NavigationStack {
-                ProfileView(
-                    profileUserID:      uid,
-                    profileUsername:    uname,
-                    profileDisplayName: dname,
-                    profileAuraLevel:   aLevel,
-                    profileAuraPoints:  aPoints,
-                    profileImageData:   imgData,
-                    profileLocation:    loc,
-                    ownUserSettings:    userSettings,
-                    isDismissable:      true
-                )
-            }
-            .presentationDetents([.large])
-        }
+        Text("You card placeholder")
+            .font(.headline)
+            .foregroundStyle(.white.opacity(0.50))
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color.cardBg, in: RoundedRectangle(cornerRadius: 16))
     }
 
     private var usernameRow: some View {
@@ -431,6 +363,18 @@ struct SettingsView: View {
     // MARK: Body & Nutrition
     private var bodyNutritionCard: some View {
         settingCard(title: "Body & Nutrition", icon: "dumbbell.fill", iconColor: .orange) {
+            bodyNutritionRows
+        } footer: {
+            "Protein per lb: general fitness 0.7–0.8, strength training 0.8–1.0. Dietary exclusions are applied by the AI meal planner and the photo macro scanner."
+        }
+    }
+
+    /// Extracted from bodyNutritionCard's @ViewBuilder closure so the
+    /// generic type collapses to a single opaque `some View`. Keeping
+    /// 15+ rows inline produced a deeply nested TupleView that overflowed
+    /// the main-thread stack during type-metadata instantiation.
+    private var bodyNutritionRows: some View {
+        VStack(spacing: 0) {
             brandedPickerRow(label: "Current Weight",
                              icon: "scalemass.fill",
                              display: "\(Int(currentWeightVal)) lbs") { activePicker = .currentWeight }
@@ -452,6 +396,10 @@ struct SettingsView: View {
             toggleRow(label: "Auto-adjust macros for workouts",
                       icon: "figure.strengthtraining.traditional",
                       isOn: $userSettings.autoAdjustMacrosForWorkout)
+            divider
+            toggleRow(label: "Show weight on posts",
+                      icon: "scalemass.fill",
+                      isOn: $userSettings.showWeightOnPosts)
             divider
             toggleRow(label: "Exclude dairy",
                       icon: "cup.and.saucer.fill",
@@ -500,8 +448,6 @@ struct SettingsView: View {
                 .padding(.vertical, 11)
             }
             .buttonStyle(.plain)
-        } footer: {
-            "Protein per lb: general fitness 0.7–0.8, strength training 0.8–1.0. Dietary exclusions are applied by the AI meal planner and the photo macro scanner."
         }
     }
 
@@ -527,34 +473,36 @@ struct SettingsView: View {
     // MARK: Notifications
     private var notificationsCard: some View {
         settingCard(title: "Notifications", icon: "bell.fill", iconColor: Color(red: 1.00, green: 0.55, blue: 0.55)) {
-            toggleRow(label: "Daily Meal Reminder",
-                      icon: "fork.knife",
-                      isOn: $userSettings.mealReminderEnabled)
-            if userSettings.mealReminderEnabled {
-                divider
-                HStack(spacing: 10) {
-                    iconBadge("clock.fill", color: theme.accent)
-                    Text("Reminder Time")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white)
-                    Spacer()
-                    DatePicker("", selection: mealReminderTimeBinding, displayedComponents: .hourAndMinute)
-                        .labelsHidden()
-                        .tint(theme.accent)
+            VStack(spacing: 0) {
+                toggleRow(label: "Daily Meal Reminder",
+                          icon: "fork.knife",
+                          isOn: $userSettings.mealReminderEnabled)
+                if userSettings.mealReminderEnabled {
+                    divider
+                    HStack(spacing: 10) {
+                        iconBadge("clock.fill", color: theme.accent)
+                        Text("Reminder Time")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                        Spacer()
+                        DatePicker("", selection: mealReminderTimeBinding, displayedComponents: .hourAndMinute)
+                            .labelsHidden()
+                            .tint(theme.accent)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 6)
-            }
-            if userSettings.fastingEnabled {
+                if userSettings.fastingEnabled {
+                    divider
+                    toggleRow(label: "Fasting Window Reminder",
+                              icon: "hourglass",
+                              isOn: $userSettings.fastingWindowNotificationEnabled)
+                }
                 divider
-                toggleRow(label: "Fasting Window Reminder",
-                          icon: "hourglass",
-                          isOn: $userSettings.fastingWindowNotificationEnabled)
+                toggleRow(label: "Aura XP Popups",
+                          icon: "sparkles",
+                          isOn: $userSettings.auraPopupsEnabled)
             }
-            divider
-            toggleRow(label: "Aura XP Popups",
-                      icon: "sparkles",
-                      isOn: $userSettings.auraPopupsEnabled)
         } footer: { notificationsFooterText }
     }
 
@@ -635,46 +583,48 @@ struct SettingsView: View {
     // MARK: Help & Support
     private var helpSupportCard: some View {
         settingCard(title: "Help & Support", icon: "lifepreserver", iconColor: theme.accent) {
-            tapRow(title: "Help & FAQs",
-                   icon: "questionmark.circle.fill",
-                   detail: nil,
-                   chevron: true) { showingFAQList = true }
-            divider
-            NavigationLink {
-                HealthDisclaimerSettingsView()
-            } label: {
-                HStack(spacing: 10) {
-                    iconBadge("heart.text.clipboard", color: theme.accent)
-                    Text("Health Disclaimer")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.30))
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 11)
-            }
-            .buttonStyle(.plain)
-            divider
-            if let mailURL = URL(string: "mailto:support@grnd-lab.com?subject=Macro%20Maxxing%20Feedback") {
-                Link(destination: mailURL) {
+            VStack(spacing: 0) {
+                tapRow(title: "Help & FAQs",
+                       icon: "questionmark.circle.fill",
+                       detail: nil,
+                       chevron: true) { showingFAQList = true }
+                divider
+                NavigationLink {
+                    HealthDisclaimerSettingsView()
+                } label: {
                     HStack(spacing: 10) {
-                        iconBadge("envelope.fill", color: theme.accent)
-                        Text("Contact Us")
+                        iconBadge("heart.text.clipboard", color: theme.accent)
+                        Text("Health Disclaimer")
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(.white)
                         Spacer()
-                        Text("support@grnd-lab.com")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.white.opacity(0.45))
-                        Image(systemName: "arrow.up.right")
+                        Image(systemName: "chevron.right")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(.white.opacity(0.30))
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 11)
+                }
+                .buttonStyle(.plain)
+                divider
+                if let mailURL = URL(string: "mailto:support@grnd-lab.com?subject=Macro%20Maxxing%20Feedback") {
+                    Link(destination: mailURL) {
+                        HStack(spacing: 10) {
+                            iconBadge("envelope.fill", color: theme.accent)
+                            Text("Contact Us")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.white)
+                            Spacer()
+                            Text("support@grnd-lab.com")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.white.opacity(0.45))
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.30))
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 11)
+                    }
                 }
             }
         }
@@ -683,66 +633,70 @@ struct SettingsView: View {
     // MARK: Privacy & Data
     private var privacyDataCard: some View {
         settingCard(title: "Privacy & Data", icon: "hand.raised.fill", iconColor: Color(red: 0.35, green: 0.75, blue: 1.00)) {
-            tapRow(title: "Privacy Policy",
-                   icon: "shield.lefthalf.filled",
-                   detail: nil,
-                   chevron: false,
-                   trailing: "arrow.up.right") {
-                if let url = URL(string: "https://macromaxxing.app/privacy-policy") {
-                    UIApplication.shared.open(url)
-                }
-            }
-            divider
-            tapRow(title: "Terms of Service",
-                   icon: "doc.text.fill",
-                   detail: nil,
-                   chevron: false,
-                   trailing: "arrow.up.right") {
-                if let url = URL(string: "https://www.macromaxxing.app/terms") {
-                    UIApplication.shared.open(url)
-                }
-            }
-            divider
-            tapRow(title: "Ad Tracking",
-                   icon: "eye.slash.fill",
-                   detail: attStatusText,
-                   chevron: true) {
-                ATTrackingManager.requestTrackingAuthorization { _ in }
-            }
-            divider
-            Button {
-                guard !isExportingData else { return }
-                isExportingData = true
-                Task {
-                    do {
-                        let uid = Auth.auth().currentUser?.uid ?? ""
-                        let url = try await DataExportService.shared.exportAllData(userID: uid)
-                        exportFileURL = url
-                        showExportShare = true
-                    } catch {
-                        exportError = error.localizedDescription
-                    }
-                    isExportingData = false
-                }
-            } label: {
-                HStack(spacing: 10) {
-                    iconBadge("square.and.arrow.up", color: Color(red: 0.35, green: 0.75, blue: 1.00))
-                    Text("Export My Data")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white)
-                    Spacer()
-                    if isExportingData {
-                        ProgressView().scaleEffect(0.7)
-                    } else {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.30))
+            Group {
+                tapRow(title: "Privacy Policy",
+                       icon: "shield.lefthalf.filled",
+                       detail: nil,
+                       chevron: false,
+                       trailing: "arrow.up.right") {
+                    if let url = URL(string: "https://macromaxxing.app/privacy-policy") {
+                        UIApplication.shared.open(url)
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 11)
+                divider
+                tapRow(title: "Terms of Service",
+                       icon: "doc.text.fill",
+                       detail: nil,
+                       chevron: false,
+                       trailing: "arrow.up.right") {
+                    if let url = URL(string: "https://www.macromaxxing.app/terms") {
+                        UIApplication.shared.open(url)
+                    }
+                }
             }
-            .buttonStyle(.plain)
+            Group {
+                divider
+                tapRow(title: "Ad Tracking",
+                       icon: "eye.slash.fill",
+                       detail: attStatusText,
+                       chevron: true) {
+                    ATTrackingManager.requestTrackingAuthorization { _ in }
+                }
+                divider
+                Button {
+                    guard !isExportingData else { return }
+                    isExportingData = true
+                    Task {
+                        do {
+                            let uid = Auth.auth().currentUser?.uid ?? ""
+                            let url = try await DataExportService.shared.exportAllData(userID: uid)
+                            exportFileURL = url
+                            showExportShare = true
+                        } catch {
+                            exportError = error.localizedDescription
+                        }
+                        isExportingData = false
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        iconBadge("square.and.arrow.up", color: Color(red: 0.35, green: 0.75, blue: 1.00))
+                        Text("Export My Data")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                        Spacer()
+                        if isExportingData {
+                            ProgressView().scaleEffect(0.7)
+                        } else {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.30))
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 11)
+                }
+                .buttonStyle(.plain)
+            }
         } footer: {
             "We don't sell your personal information. Ad tracking controls personalized ads. Export a full copy of your data any time."
         }
@@ -991,6 +945,13 @@ struct SettingsView: View {
             "auraPopupsEnabled": userSettings.auraPopupsEnabled,
             "excludeDairy":      userSettings.excludeDairy,
             "excludeGluten":     userSettings.excludeGluten,
+            "autoAdjustMacrosForWorkout": userSettings.autoAdjustMacrosForWorkout,
+            "showWeightOnPosts":          userSettings.showWeightOnPosts,
+            "aiConsentGiven":             userSettings.aiConsentGiven,
+            "mealReminderEnabled":        userSettings.mealReminderEnabled,
+            "mealReminderHour":           userSettings.mealReminderHour,
+            "mealReminderMinute":         userSettings.mealReminderMinute,
+            "fastingWindowNotificationEnabled": userSettings.fastingWindowNotificationEnabled,
             "dateOfBirth": dobString,
         ]
         try? await session.updateProfile(fields: fields)

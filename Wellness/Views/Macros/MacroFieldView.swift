@@ -20,6 +20,7 @@ struct MacroFieldView: View {
             Text(unit)
                 .foregroundStyle(.secondary)
         }
+        .keyboardDoneToolbar()
     }
 }
 

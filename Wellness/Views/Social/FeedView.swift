@@ -380,6 +380,9 @@ struct FeedPostCard: View {
                         totalFat:      post.fat,               goalFat:      post.goalFat
                     )
                 }
+                if post.currentWeight > 0, post.goalWeight > 0 {
+                    GoalWeightBadge(currentWeight: post.currentWeight, goalWeight: post.goalWeight)
+                }
                 actionRow
             }
             .padding(.horizontal, 14)
@@ -1154,6 +1157,77 @@ struct MacroDisciplineCard: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Goal Weight Badge
+
+struct GoalWeightBadge: View {
+    let currentWeight: Double
+    let goalWeight: Double
+
+    private var phase: String {
+        let diff = goalWeight - currentWeight
+        if diff > 2      { return "Bulking" }
+        else if diff < -2 { return "Cutting" }
+        else              { return "Maintaining" }
+    }
+
+    private var phaseIcon: String {
+        switch phase {
+        case "Bulking":     return "arrow.up.circle.fill"
+        case "Cutting":     return "arrow.down.circle.fill"
+        default:            return "equal.circle.fill"
+        }
+    }
+
+    private var phaseColor: Color {
+        switch phase {
+        case "Bulking":     return Color(red: 0.30, green: 0.90, blue: 0.55)
+        case "Cutting":     return Color(red: 1.00, green: 0.40, blue: 0.40)
+        default:            return Color(red: 0.65, green: 0.45, blue: 1.00)
+        }
+    }
+
+    private func fmt(_ w: Double) -> String {
+        w.truncatingRemainder(dividingBy: 1) == 0
+            ? "\(Int(w))"
+            : String(format: "%.1f", w)
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: phaseIcon)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(phaseColor)
+
+            Text(phase.uppercased())
+                .font(.system(size: 11, weight: .black))
+                .tracking(1.2)
+                .foregroundStyle(phaseColor)
+
+            Spacer()
+
+            HStack(spacing: 4) {
+                Text("\(fmt(currentWeight)) lbs")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.85))
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.35))
+                Text("\(fmt(goalWeight)) lbs")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(phaseColor)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Color(red: 0.11, green: 0.11, blue: 0.14))
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(phaseColor.opacity(0.25), lineWidth: 1)
+        )
     }
 }
 

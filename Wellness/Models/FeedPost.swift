@@ -94,6 +94,10 @@ struct FeedPost: Codable, Identifiable, Hashable {
     /// Fasting window at time of posting, e.g. "9:00 AM – 5:00 PM · 8h window". Empty if not applicable.
     var fastingWindowDisplay: String = ""
 
+    /// Weight snapshot at time of a Goal post. 0 means not set / not a goal post.
+    var currentWeight: Double = 0
+    var goalWeight:    Double = 0
+
     /// Post label (PostLabel.rawValue). Empty string means no label.
     var postLabel: String = ""
 
@@ -194,6 +198,8 @@ struct FeedPost: Codable, Identifiable, Hashable {
         isPublic:            Bool   = true,
         macroDate:           Date?  = nil,
         fastingWindowDisplay: String = "",
+        currentWeight:       Double = 0,
+        goalWeight:          Double = 0,
         postLabel:           String = "",
         mogBoardScope:       String = "",
         mogBoardType:        String = "",
@@ -231,6 +237,8 @@ struct FeedPost: Codable, Identifiable, Hashable {
         self.isPublic             = isPublic
         self.macroDate            = macroDate
         self.fastingWindowDisplay = fastingWindowDisplay
+        self.currentWeight        = currentWeight
+        self.goalWeight           = goalWeight
         self.postLabel            = postLabel
         self.mogBoardScope        = mogBoardScope
         self.mogBoardType         = mogBoardType
@@ -329,6 +337,7 @@ extension FeedPost {
             "protein": 0.0, "carbs": 0.0, "fat": 0.0,
             "goalProtein": 0.0, "goalCarbs": 0.0, "goalFat": 0.0,
             "latitude": 0.0, "longitude": 0.0,
+            "currentWeight": 0.0, "goalWeight": 0.0,
         ]
         for (key, value) in doubleDefaults where data[key] == nil {
             data[key] = value

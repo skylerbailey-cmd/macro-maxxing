@@ -42,13 +42,19 @@ struct PostShareCardView: View {
             background
 
             VStack(spacing: 0) {
-                authorHeader
-                    .padding(.top, 32)
-                    .padding(.horizontal, 22)
+                // Top row: label chip (left) + author (right)
+                HStack(alignment: .top) {
+                    labelChip
+                    Spacer()
+                    authorHeader
+                }
+                .padding(.top, 32)
+                .padding(.horizontal, 22)
 
                 Spacer(minLength: 14)
 
-                photoPanel
+                // Centerpiece: label-driven visual or food photo
+                centerContent
                     .padding(.horizontal, 22)
 
                 Spacer(minLength: 14)
@@ -91,7 +97,17 @@ struct PostShareCardView: View {
     // MARK: Author header
 
     private var authorHeader: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
+            VStack(alignment: .trailing, spacing: 1) {
+                Text(post.whoName.isEmpty ? post.username : post.whoName)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                Text("@\(post.username)")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .lineLimit(1)
+            }
             Group {
                 if let img = authorAvatar {
                     Image(uiImage: img)
@@ -101,41 +117,43 @@ struct PostShareCardView: View {
                     ZStack {
                         Circle().fill(accent.opacity(0.25))
                         Text(String((post.whoName.isEmpty ? post.username : post.whoName).prefix(1)).uppercased())
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                     }
                 }
             }
-            .frame(width: 36, height: 36)
+            .frame(width: 32, height: 32)
             .clipShape(Circle())
             .overlay(Circle().stroke(Color.white.opacity(0.20), lineWidth: 1))
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(post.whoName.isEmpty ? post.username : post.whoName)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                Text("@\(post.username)")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.45))
-                    .lineLimit(1)
-            }
-            Spacer()
-            if post.auraPoints > 0 {
-                Text("Lv \(post.auraLevel)")
-                    .font(.system(size: 10, weight: .black, design: .rounded))
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(accent, in: Capsule())
-            }
         }
     }
 
-    // MARK: Photo panel
+    // MARK: Label chip (upper left)
 
     @ViewBuilder
-    private var photoPanel: some View {
+    private var labelChip: some View {
+        if let label = PostLabel(rawValue: post.postLabel) {
+            HStack(spacing: 5) {
+                Image(systemName: label.icon)
+                    .font(.system(size: 10, weight: .bold))
+                Text(label.rawValue)
+                    .font(.system(size: 11, weight: .black, design: .rounded))
+            }
+            .foregroundStyle(.black)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(label.color, in: Capsule())
+        } else {
+            EmptyView()
+        }
+    }
+
+    // MARK: Center content (label-driven)
+
+    @ViewBuilder
+    private var centerContent: some View {
         if let img = foodImage {
+            // Food photo always wins when present
             Image(uiImage: img)
                 .resizable()
                 .scaledToFill()
@@ -147,23 +165,145 @@ struct PostShareCardView: View {
                     RoundedRectangle(cornerRadius: 20)
                         .stroke(Color.white.opacity(0.08), lineWidth: 1)
                 )
+        } else if !post.workoutItems.isEmpty {
+            workoutVisual
+        } else if !post.fuelLogItems.isEmpty {
+            fuelLogVisual
+        } else if post.goalCalories > 0 {
+            goalVisual
         } else {
-            RoundedRectangle(cornerRadius: 20)
-                .fill(card)
-                .frame(height: 220)
-                .frame(maxWidth: .infinity)
-                .overlay(
-                    Image(systemName: postGlyph)
-                        .font(.system(size: 54, weight: .semibold))
-                        .foregroundStyle(accent.opacity(0.70))
-                )
+            // Text-only fallback — no giant icon
+            titleVisual
         }
     }
 
-    private var postGlyph: String {
-        if !post.workoutItems.isEmpty { return "dumbbell.fill" }
-        if !post.fuelLogItems.isEmpty { return "fork.knife" }
-        return "flame.fill"
+    // MARK: Workout visual
+
+    private var workoutVisual: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(post.workoutItems.prefix(6).enumerated()), id: \.offset) { _, item in
+                HStack(spacing: 8) {
+                    Image(systemName: WorkoutType(rawValue: item.workoutType)?.icon ?? "figure.run")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(accent)
+                        .frame(width: 20)
+                    Text(item.workoutName)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    Spacer()
+                    if item.durationMinutes > 0 {
+                        Text("\(item.durationMinutes)m")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.45))
+                    }
+                    if item.caloriesBurned > 0 {
+                        Text("\(item.caloriesBurned) cal")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(calClr)
+                    }
+                }
+            }
+            if post.workoutItems.count > 6 {
+                Text("+ \(post.workoutItems.count - 6) more")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.35))
+            }
+        }
+        .padding(16)
+        .background(card, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(accent.opacity(0.20), lineWidth: 1))
+    }
+
+    // MARK: Fuel log visual
+
+    private var fuelLogVisual: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(Array(post.fuelLogItems.prefix(5).enumerated()), id: \.offset) { _, item in
+                HStack(spacing: 8) {
+                    Text(item.foodName)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    Spacer()
+                    Text("\(Int(item.calories)) cal")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(calClr)
+                    Text("\(Int(item.protein))g P")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(proClr)
+                }
+            }
+            if post.fuelLogItems.count > 5 {
+                Text("+ \(post.fuelLogItems.count - 5) more")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.35))
+            }
+        }
+        .padding(16)
+        .background(card, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(accent.opacity(0.20), lineWidth: 1))
+    }
+
+    // MARK: Goal visual
+
+    private var goalVisual: some View {
+        let macros: [(String, Int, Int, Color)] = [
+            ("Calories", post.calories, post.goalCalories, calClr),
+            ("Protein",  Int(post.protein), Int(post.goalProtein), proClr),
+            ("Carbs",    Int(post.carbs), Int(post.goalCarbs), carbClr),
+            ("Fat",      Int(post.fat), Int(post.goalFat), fatClr),
+        ]
+        return VStack(spacing: 10) {
+            ForEach(Array(macros.enumerated()), id: \.offset) { _, macro in
+                let (label, actual, goal, color) = macro
+                let pct = goal > 0 ? min(Double(actual) / Double(goal), 1.0) : 0
+                HStack(spacing: 8) {
+                    Text(label)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.70))
+                        .frame(width: 60, alignment: .leading)
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.white.opacity(0.07)).frame(height: 8)
+                            Capsule().fill(color.opacity(0.85))
+                                .frame(width: max(4, geo.size.width * pct), height: 8)
+                        }
+                    }
+                    .frame(height: 8)
+                    Text("\(Int(pct * 100))%")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(color)
+                        .frame(width: 34, alignment: .trailing)
+                }
+            }
+        }
+        .padding(16)
+        .background(card, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(accent.opacity(0.20), lineWidth: 1))
+    }
+
+    // MARK: Text-only fallback
+
+    private var titleVisual: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !post.title.isEmpty {
+                Text(displayTitle)
+                    .font(.system(size: 24, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(4)
+            }
+            if !post.caption.isEmpty {
+                Text(post.caption)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.70))
+                    .lineLimit(6)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
+        .background(card, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(accent.opacity(0.20), lineWidth: 1))
     }
 
     // MARK: Content block (title + caption + macro/workout summary)

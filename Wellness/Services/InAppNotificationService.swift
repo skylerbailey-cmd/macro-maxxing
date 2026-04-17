@@ -105,6 +105,44 @@ final class InAppNotificationService {
         await save(n, to: targetID)
     }
 
+    func sendMention(to targetID: String, postID: String, postHeadline: String,
+                     actorID: String, actorUsername: String, actorDisplayName: String,
+                     actorPhotoURL: String = "") async {
+        guard !targetID.isEmpty, targetID != actorID else { return }
+        let display  = actorDisplayName.isEmpty ? actorUsername : actorDisplayName
+        let headline = postHeadline.isEmpty ? "a post" : "\"\(postHeadline)\""
+        let n = AppNotification(
+            type:                 .mention,
+            actorID:              actorID,
+            actorUsername:        actorUsername,
+            actorDisplayName:     display,
+            actorProfilePhotoURL: actorPhotoURL,
+            message:              "\(display) (@\(actorUsername)) mentioned you in a comment on \(headline).",
+            postID:               postID,
+            postHeadline:         postHeadline
+        )
+        await save(n, to: targetID)
+    }
+
+    func sendWorkoutTag(to targetID: String, postID: String, postHeadline: String,
+                         actorID: String, actorUsername: String, actorDisplayName: String,
+                         actorPhotoURL: String = "") async {
+        guard !targetID.isEmpty, targetID != actorID else { return }
+        let display  = actorDisplayName.isEmpty ? actorUsername : actorDisplayName
+        let headline = postHeadline.isEmpty ? "a workout" : "\"\(postHeadline)\""
+        let n = AppNotification(
+            type:                 .workoutTag,
+            actorID:              actorID,
+            actorUsername:        actorUsername,
+            actorDisplayName:     display,
+            actorProfilePhotoURL: actorPhotoURL,
+            message:              "\(display) (@\(actorUsername)) tagged you in \(headline).",
+            postID:               postID,
+            postHeadline:         postHeadline
+        )
+        await save(n, to: targetID)
+    }
+
     func sendLeaderboard(to userID: String, rank: Int, scope: String) async {
         guard !userID.isEmpty else { return }
         let weekKey  = weekString(for: Date())

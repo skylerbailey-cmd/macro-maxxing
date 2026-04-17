@@ -134,6 +134,7 @@ struct HomeView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: WorkoutService.workoutSavedNotification)) { _ in
                 Task { await loadRecentWorkouts() }
+                viewModel.loadTodayTotals()   // re-check streak (now includes workout requirement)
             }
             .onReceive(NotificationCenter.default.publisher(for: .hubTabReTapped)) { _ in
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
@@ -973,7 +974,7 @@ struct HomeView: View {
             return (0, 0, 0)
         }
         let entries = recentWorkouts.filter {
-            $0.loggedAt >= weekStart && $0.loggedAt < weekEnd && $0.workoutType != .restDay
+            $0.loggedAt >= weekStart && $0.loggedAt < weekEnd
         }
         return (
             entries.count,
@@ -1018,7 +1019,6 @@ struct HomeView: View {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
         let days = Set(recentWorkouts
-            .filter { $0.workoutType != .restDay }
             .map { cal.startOfDay(for: $0.loggedAt) })
         var streak = 0
         var cursor = today
@@ -1028,6 +1028,32 @@ struct HomeView: View {
             cursor = prev
         }
         return streak
+    }
+
+    /// Compact 7-dot strip showing Mon–Sun for the current week.
+    /// Accent-colored dots for days with a workout, gray for days without.
+    private var workoutWeekDots: some View {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let monday = currentWeekMonday
+        let days: [Date] = (0..<7).compactMap {
+            cal.date(byAdding: .day, value: $0, to: monday)
+        }
+        let workoutDays = Set(recentWorkouts
+            .map { cal.startOfDay(for: $0.loggedAt) })
+
+        return HStack(spacing: 0) {
+            ForEach(days, id: \.self) { day in
+                let isFuture   = day > today
+                let hasWorkout = workoutDays.contains(day)
+                Circle()
+                    .fill(hasWorkout
+                          ? ThemeStore.shared.accent
+                          : Color.white.opacity(isFuture ? 0.06 : 0.15))
+                    .frame(width: 8, height: 8)
+                    .frame(maxWidth: .infinity)
+            }
+        }
     }
 
     private func workoutSummaryCard(compact: Bool) -> some View {
@@ -1093,6 +1119,9 @@ struct HomeView: View {
                         Spacer()
                     }
                 }
+
+                // 7-day workout dots (Mon–Sun for current week)
+                workoutWeekDots
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 16)
@@ -1289,7 +1318,6 @@ struct HomeView: View {
             cal.date(byAdding: .day, value: $0, to: monday)
         }
         let workoutDays = Set(recentWorkouts
-            .filter { $0.workoutType != .restDay }
             .map { cal.startOfDay(for: $0.loggedAt) })
 
         return HStack(spacing: 8) {
@@ -1468,9 +1496,9 @@ struct HomeView: View {
         let cal = Calendar.current
         if cal.isDateInToday(date)     { return "Today" }
         if cal.isDateInYesterday(date) { return "Yesterday" }
-        let days = cal.dateComponents([.day], from: cal.startOfDay(for: date),
-                                      to: cal.startOfDay(for: Date())).day ?? 0
-        return "\(days)d ago"
+        let f = DateFormatter()
+        f.dateFormat = "EEEE" // Full day name: Monday, Tuesday, etc.
+        return f.string(from: date)
     }
 
     /// Loads the last 90 days of workouts for the workouts card. Called on

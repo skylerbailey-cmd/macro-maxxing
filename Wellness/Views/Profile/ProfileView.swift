@@ -141,6 +141,18 @@ struct ProfileView: View {
                             lockedProfileView
                         } else {
                             socialLinks
+                            if isOwnProfile,
+                               let settings = ownUserSettings,
+                               settings.showWeightOnPosts,
+                               settings.currentWeight > 0,
+                               settings.goalWeight > 0 {
+                                GoalWeightBadge(
+                                    currentWeight: settings.currentWeight,
+                                    goalWeight:    settings.goalWeight
+                                )
+                                .padding(.horizontal, 16)
+                                .padding(.top, 8)
+                            }
                             if !isOwnProfile { addToTeamButton }
                             if !isOwnProfile && isFollowing { subscribeButton }
 
@@ -1362,6 +1374,7 @@ struct ProfileView: View {
                         RoutineDetailView(
                             routine: routine,
                             userID: ownUserSettings?.userID ?? "",
+                            userSettings: ownUserSettings ?? UserSettings(),
                             onUpdate: { Task { profileRoutines = await WorkoutService.shared.fetchRoutines(userID: ownUserSettings?.userID ?? "") } }
                         )
                     } label: {

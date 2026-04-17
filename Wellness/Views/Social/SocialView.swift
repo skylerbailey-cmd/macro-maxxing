@@ -436,7 +436,7 @@ struct SocialView: View {
         let isActive = labelFilter == label
         let color: Color = label.map { postLabelColor($0) } ?? Color.white
         Button {
-            withAnimation(.spring(duration: 0.2)) { labelFilter = label }
+            withAnimation(.spring(duration: 0.2)) { labelFilter = labelFilter == label ? nil : label }
         } label: {
             HStack(spacing: 4) {
                 if let l = label {

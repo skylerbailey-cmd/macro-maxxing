@@ -903,7 +903,7 @@ struct FoodLogView: View {
 
 // MARK: - Analysis Sheet
 
-private struct AnalysisSheet: View {
+struct AnalysisSheet: View {
     @Bindable var viewModel: FoodLogViewModel
     let userSettings: UserSettings
     let onSaved: () -> Void
@@ -1049,7 +1049,7 @@ private struct AnalysisSheet: View {
                     .padding(.top, 8)
                 }
             }
-            .navigationTitle("Log Food")
+            .navigationTitle(viewModel.savedMealOnlyMode ? "New Saved Meal" : "Log Food")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -1532,7 +1532,7 @@ private struct AnalysisSheet: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "checkmark")
-                Text("Log Food")
+                Text(viewModel.savedMealOnlyMode ? "Save Meal" : "Log Food")
             }
             .font(.system(size: 16, weight: .bold))
             .foregroundStyle(.black)
@@ -2454,6 +2454,8 @@ private struct FuelLogPostSheet: View {
                     goalProtein:  g("goalProtein", fallback: 150),
                     goalCarbs:    g("goalCarbs", fallback: 200),
                     goalFat:      g("goalFat", fallback: 65),
+                    currentWeight: userSettings.showWeightOnPosts ? userSettings.currentWeight : 0,
+                    goalWeight:    userSettings.showWeightOnPosts ? userSettings.goalWeight    : 0,
                     fuelLogItems: firestoreFuelItems,
                     postID:       fbPostID
                 )

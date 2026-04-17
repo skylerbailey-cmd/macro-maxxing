@@ -104,6 +104,10 @@ struct NewPostView: View {
     @State private var postScope:          String     = "arena"
     @FocusState private var focus: Field?
 
+    // @mention autocomplete
+    @State private var followingList:  [FollowEntry] = []
+    @State private var mentionQuery:   String        = ""
+
     // Fuel log pre-fill (loaded from Firestore)
     @State private var todayFoodEntries:  [FoodEntry] = []
     @State private var isLoadingFood      = false
@@ -205,6 +209,7 @@ struct NewPostView: View {
                                     .focused($focus, equals: .body)
                                     .onChange(of: bodyText) { _, v in
                                         if v.count > 300 { bodyText = String(v.prefix(300)) }
+                                        mentionQuery = Self.activeMentionQuery(in: v)
                                     }
                             }
                             .background(cardBg)
@@ -212,6 +217,54 @@ struct NewPostView: View {
                             Text("\(bodyText.count)/300")
                                 .font(.system(size: 11))
                                 .foregroundStyle(bodyText.count >= 300 ? .red : bodyText.count >= 240 ? Color.orange : .white.opacity(0.25))
+                        }
+
+                        // @mention suggestions (max 3 from following list)
+                        if !mentionSuggestions.isEmpty {
+                            VStack(spacing: 0) {
+                                ForEach(mentionSuggestions) { entry in
+                                    Button {
+                                        insertMention(entry.username)
+                                    } label: {
+                                        HStack(spacing: 10) {
+                                            if !entry.profilePhotoURL.isEmpty,
+                                               let url = URL(string: entry.profilePhotoURL) {
+                                                CachedAsyncImage(
+                                                    url: url,
+                                                    content: { img in
+                                                        img.resizable().scaledToFill()
+                                                            .frame(width: 28, height: 28)
+                                                            .clipShape(Circle())
+                                                    },
+                                                    placeholder: {
+                                                        mentionInitialCircle(entry.displayName ?? entry.username)
+                                                    }
+                                                )
+                                            } else {
+                                                mentionInitialCircle(entry.displayName ?? entry.username)
+                                            }
+                                            VStack(alignment: .leading, spacing: 1) {
+                                                Text(entry.displayName ?? entry.username)
+                                                    .font(.system(size: 13, weight: .semibold))
+                                                    .foregroundStyle(.white)
+                                                    .lineLimit(1)
+                                                Text("@\(entry.username)")
+                                                    .font(.system(size: 11))
+                                                    .foregroundStyle(.white.opacity(0.45))
+                                            }
+                                            Spacer()
+                                        }
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 8)
+                                    }
+                                    .buttonStyle(.plain)
+                                    if entry.id != mentionSuggestions.last?.id {
+                                        Divider().background(Color.white.opacity(0.08))
+                                            .padding(.horizontal, 14)
+                                    }
+                                }
+                            }
+                            .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
                         }
 
                         // Photos (buttons only — preview shown above)
@@ -241,6 +294,10 @@ struct NewPostView: View {
             .navigationTitle("New Post")
             .navigationBarTitleDisplayMode(.inline)
             .task { await loadTodayFoodEntries() }
+            .task {
+                followingList = (try? await FollowService.shared.fetchFollowing(
+                    userID: userSettings.userID)) ?? []
+            }
             .onChange(of: selectedLabel) { old, label in
                 // Clear auto-filled title/body when switching away from a label that pre-fills
                 if old == .workout {
@@ -725,6 +782,8 @@ struct NewPostView: View {
         // 1. Save locally to SwiftData so the Aura Stream tab updates immediately
         let fbPostID = UUID().uuidString   // shared ID for SwiftData ↔ Firestore link
         let isGoalPost = selectedLabel == .goalPost
+        let showWeight = userSettings.showWeightOnPosts
+            && (selectedLabel == .goalPost || selectedLabel == .fuelLog || selectedLabel == .workout)
         let post = SocialPost(
             authorID:          userSettings.userID,
             authorUsername:    userSettings.username.isEmpty ? "me" : userSettings.username,
@@ -881,6 +940,8 @@ struct NewPostView: View {
                     goalProtein:   isGoalPost ? ud("goalProtein", fallback: 150)        : 0,
                     goalCarbs:     isGoalPost ? ud("goalCarbs",   fallback: 200)        : 0,
                     goalFat:       isGoalPost ? ud("goalFat",     fallback: 65)         : 0,
+                    currentWeight: showWeight ? userSettings.currentWeight              : 0,
+                    goalWeight:    showWeight ? userSettings.goalWeight                 : 0,
                     fuelLogItems:  feedFuelLogItems,
                     workoutItems:  feedWorkoutItems,
                     postScope:     postScope,
@@ -903,7 +964,79 @@ struct NewPostView: View {
             )
         }
 
+        // Send mention notifications for @usernames in title or body
+        let allText = t + " " + bodyText
+        let mentionedUsernames = Self.parseMentions(from: allText)
+        if !mentionedUsernames.isEmpty {
+            let uid   = userSettings.userID
+            let uname = userSettings.username
+            let dname = userSettings.name
+            let photo = userSettings.profilePhotoURL
+            Task {
+                for username in mentionedUsernames {
+                    guard let targetID = await UserProfileService.shared.fetchUserID(forUsername: username),
+                          targetID != uid else { continue }
+                    await InAppNotificationService.shared.sendMention(
+                        to:               targetID,
+                        postID:           fbPostID,
+                        postHeadline:     t,
+                        actorID:          uid,
+                        actorUsername:    uname,
+                        actorDisplayName: dname,
+                        actorPhotoURL:    photo
+                    )
+                }
+            }
+        }
+
         onPostScope?(postScope)
         dismiss()
+    }
+
+    // MARK: - @Mention helpers
+
+    private var mentionSuggestions: [FollowEntry] {
+        let q = mentionQuery.lowercased()
+        guard !q.isEmpty else { return [] }
+        return followingList
+            .filter { $0.username.lowercased().hasPrefix(q) }
+            .prefix(3)
+            .map { $0 }
+    }
+
+    private static func activeMentionQuery(in text: String) -> String {
+        guard let atIdx = text.lastIndex(of: "@") else { return "" }
+        let after = text[text.index(after: atIdx)...]
+        if after.contains(" ") || after.contains("\n") { return "" }
+        return String(after)
+    }
+
+    private static func parseMentions(from text: String) -> [String] {
+        let pattern = #"@([A-Za-z0-9_.]+)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let range = NSRange(text.startIndex..., in: text)
+        let matches = regex.matches(in: text, range: range)
+        let usernames = matches.compactMap { match -> String? in
+            guard let r = Range(match.range(at: 1), in: text) else { return nil }
+            return String(text[r]).lowercased()
+        }
+        return Array(Set(usernames))
+    }
+
+    private func insertMention(_ username: String) {
+        guard let atIdx = bodyText.lastIndex(of: "@") else { return }
+        bodyText = String(bodyText[..<atIdx]) + "@\(username) "
+        mentionQuery = ""
+    }
+
+    private func mentionInitialCircle(_ name: String) -> some View {
+        Circle()
+            .fill(purpl.opacity(0.22))
+            .frame(width: 28, height: 28)
+            .overlay {
+                Text(String(name.prefix(1)).uppercased())
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(purpl)
+            }
     }
 }

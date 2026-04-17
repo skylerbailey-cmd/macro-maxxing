@@ -23,7 +23,7 @@ struct AuraGain: Identifiable, Equatable {
     }
 }
 
-@Observable final class UserSettings {
+@MainActor @Observable final class UserSettings {
 
     // MARK: - Identity (in-memory only — populated by SessionManager from Firestore)
 
@@ -578,6 +578,11 @@ struct AuraGain: Identifiable, Equatable {
         didSet { UserDefaults.standard.set(autoAdjustMacrosForWorkout, forKey: "autoAdjustMacrosForWorkout") }
     }
 
+    /// Whether to include current/goal weight on posts (goal, fuel log, workout).
+    var showWeightOnPosts: Bool = true {
+        didSet { UserDefaults.standard.set(showWeightOnPosts, forKey: "showWeightOnPosts") }
+    }
+
     /// Last date the user earned aura points by posting with the Workout label (once per day).
     var lastWorkoutPostDate: Date = .distantPast {
         didSet { UserDefaults.standard.set(lastWorkoutPostDate.timeIntervalSince1970, forKey: "lastWorkoutPostDate") }
@@ -831,6 +836,13 @@ struct AuraGain: Identifiable, Equatable {
         auraPopupsEnabled = profile.auraPopupsEnabled
         excludeDairy      = profile.excludeDairy
         excludeGluten     = profile.excludeGluten
+        autoAdjustMacrosForWorkout = profile.autoAdjustMacrosForWorkout
+        showWeightOnPosts          = profile.showWeightOnPosts
+        aiConsentGiven             = profile.aiConsentGiven
+        mealReminderEnabled        = profile.mealReminderEnabled
+        mealReminderHour           = profile.mealReminderHour
+        mealReminderMinute         = profile.mealReminderMinute
+        fastingWindowNotificationEnabled = profile.fastingWindowNotificationEnabled
         // Sync accent color from Firestore so a fresh device picks up the
         // user's previous choice. Empty string = never-set → leave whatever
         // UserDefaults had (or the default purple for a brand-new install).
@@ -1044,6 +1056,9 @@ struct AuraGain: Identifiable, Equatable {
         self.mealReminderMinute = UserDefaults.standard.integer(forKey: "mealReminderMinute")
         self.excludeDairy  = UserDefaults.standard.bool(forKey: "excludeDairy")
         self.excludeGluten = UserDefaults.standard.bool(forKey: "excludeGluten")
+        self.autoAdjustMacrosForWorkout = UserDefaults.standard.bool(forKey: "autoAdjustMacrosForWorkout")
+        self.showWeightOnPosts = UserDefaults.standard.object(forKey: "showWeightOnPosts") == nil
+            ? true : UserDefaults.standard.bool(forKey: "showWeightOnPosts")
         self.achievedMilestonesRaw = UserDefaults.standard.string(forKey: "achievedMilestones") ?? ""
         let storedCelebDate = UserDefaults.standard.double(forKey: "lastCelebrationDate")
         self.lastCelebrationDate = storedCelebDate > 0

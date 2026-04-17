@@ -419,6 +419,8 @@ struct PostWorkoutSheet: View {
                 latitude:     lat,
                 longitude:    lon,
                 postLabel:    PostLabel.workout.rawValue,
+                currentWeight: userSettings.showWeightOnPosts ? userSettings.currentWeight : 0,
+                goalWeight:    userSettings.showWeightOnPosts ? userSettings.goalWeight    : 0,
                 workoutItems: [workoutItem],
                 postID:       fbPostID
             )
@@ -452,6 +454,18 @@ struct PostWorkoutSheet: View {
                 postTitle:         workoutHeadline,
                 posterPhotoURL:    userSettings.profilePhotoURL
             )
+            // Notify each tagged friend
+            for friend in taggedFriends {
+                await InAppNotificationService.shared.sendWorkoutTag(
+                    to:               friend.userID,
+                    postID:           fbPostID,
+                    postHeadline:     workoutHeadline,
+                    actorID:          userSettings.userID,
+                    actorUsername:    userSettings.username,
+                    actorDisplayName: userSettings.name,
+                    actorPhotoURL:    userSettings.profilePhotoURL
+                )
+            }
         }
 
         isPosting = false

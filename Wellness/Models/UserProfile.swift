@@ -53,6 +53,13 @@ struct UserProfile: Codable, Identifiable {
     var auraPopupsEnabled:    Bool
     var excludeDairy:         Bool
     var excludeGluten:        Bool
+    var autoAdjustMacrosForWorkout: Bool
+    var showWeightOnPosts:          Bool
+    var aiConsentGiven:             Bool
+    var mealReminderEnabled:        Bool
+    var mealReminderHour:           Int
+    var mealReminderMinute:         Int
+    var fastingWindowNotificationEnabled: Bool
     /// The user's selected accent color raw value (e.g. "purple", "orange").
     /// Empty string when the user hasn't picked one — client falls back to
     /// whatever's cached locally (or the default purple on a fresh install).
@@ -135,6 +142,13 @@ struct UserProfile: Codable, Identifiable {
         auraPopupsEnabled:    Bool     = true,
         excludeDairy:         Bool     = false,
         excludeGluten:        Bool     = false,
+        autoAdjustMacrosForWorkout: Bool = false,
+        showWeightOnPosts:          Bool = true,
+        aiConsentGiven:             Bool = false,
+        mealReminderEnabled:        Bool = false,
+        mealReminderHour:           Int  = 12,
+        mealReminderMinute:         Int  = 0,
+        fastingWindowNotificationEnabled: Bool = true,
         accentColor:          String   = "",
         homeGymName:          String   = "",
         homeGymAddress:       String   = "",
@@ -182,6 +196,13 @@ struct UserProfile: Codable, Identifiable {
         self.auraPopupsEnabled   = auraPopupsEnabled
         self.excludeDairy        = excludeDairy
         self.excludeGluten       = excludeGluten
+        self.autoAdjustMacrosForWorkout = autoAdjustMacrosForWorkout
+        self.showWeightOnPosts          = showWeightOnPosts
+        self.aiConsentGiven             = aiConsentGiven
+        self.mealReminderEnabled        = mealReminderEnabled
+        self.mealReminderHour           = mealReminderHour
+        self.mealReminderMinute         = mealReminderMinute
+        self.fastingWindowNotificationEnabled = fastingWindowNotificationEnabled
         self.accentColor         = accentColor
         self.homeGymName         = homeGymName
         self.homeGymAddress      = homeGymAddress
@@ -235,6 +256,8 @@ extension UserProfile {
             "weeklyWinnerXP":      0,
             "localWinnerRank":     0,
             "localWinnerXP":       0,
+            "mealReminderHour":    12,
+            "mealReminderMinute":  0,
         ]
         for (key, value) in intDefaults where data[key] == nil {
             data[key] = value
@@ -256,6 +279,11 @@ extension UserProfile {
             "auraPopupsEnabled": true,
             "excludeDairy":      false,
             "excludeGluten":     false,
+            "autoAdjustMacrosForWorkout": false,
+            "showWeightOnPosts":          true,
+            "aiConsentGiven":             false,
+            "mealReminderEnabled":        false,
+            "fastingWindowNotificationEnabled": true,
         ]
         for (key, value) in boolDefaults where data[key] == nil {
             data[key] = value
@@ -304,6 +332,9 @@ extension UserProfile {
     static let privateFieldKeys: Set<String> = [
         "dateOfBirth", "currentWeight", "goalWeight", "heightInches",
         "proteinPerLb", "gender", "excludeDairy", "excludeGluten",
+        "autoAdjustMacrosForWorkout", "showWeightOnPosts", "aiConsentGiven",
+        "mealReminderEnabled", "mealReminderHour", "mealReminderMinute",
+        "fastingWindowNotificationEnabled",
     ]
 
     /// Returns only the sensitive fields, suitable for writing to
@@ -318,6 +349,13 @@ extension UserProfile {
             "gender":        gender,
             "excludeDairy":  excludeDairy,
             "excludeGluten": excludeGluten,
+            "autoAdjustMacrosForWorkout": autoAdjustMacrosForWorkout,
+            "showWeightOnPosts":          showWeightOnPosts,
+            "aiConsentGiven":             aiConsentGiven,
+            "mealReminderEnabled":        mealReminderEnabled,
+            "mealReminderHour":           mealReminderHour,
+            "mealReminderMinute":         mealReminderMinute,
+            "fastingWindowNotificationEnabled": fastingWindowNotificationEnabled,
         ]
     }
 

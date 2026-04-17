@@ -69,6 +69,12 @@ enum AnalysisTier: Equatable {
     var voiceNote = ""
     /// Whether to mark the next saved entry as a saved meal.
     var saveMeal: Bool = false
+    /// When true, the entry is saved only as a saved meal (isSavedMeal = true)
+    /// and is NOT added to todayEntries or the food log. Used by MealPlansView
+    /// to create saved meals via the same UI as logging food.
+    var savedMealOnlyMode: Bool = false
+    /// Called when a meal is saved in savedMealOnlyMode.
+    var onSavedMealOnly: ((FoodEntry) -> Void)? = nil
     /// True when the current entry fields were pre-filled from a saved meal.
     var isFromSavedMeal: Bool = false
 
@@ -571,7 +577,20 @@ enum AnalysisTier: Equatable {
             fat:      fat,
             imageData: imageData
         )
-        entry.isSavedMeal = saveMeal
+        entry.isSavedMeal = saveMeal || savedMealOnlyMode
+
+        if savedMealOnlyMode {
+            // Save-meal-only mode: persist to Firestore as a saved meal,
+            // but don't add to today's food log or notify the Hub.
+            resetFields()
+            Task {
+                let result = try? await FoodEntryService.shared.save(entry: entry, imageData: imageData)
+                entry.firebaseEntryID = result?.docID ?? ""
+                entry.photoURL        = result?.photoURL ?? ""
+                onSavedMealOnly?(entry)
+            }
+            return true
+        }
 
         // Optimistic local insert so UI updates instantly
         todayEntries.insert(entry, at: 0)

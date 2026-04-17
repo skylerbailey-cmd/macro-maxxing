@@ -56,8 +56,8 @@ struct AuraPopupView: View {
     @State private var opacity: Double  = 0
     @State private var bgOpacity: Double = 0
 
-    private var gold: Color { ThemeStore.shared.accent }
-    private var purpl: Color { ThemeStore.shared.accent }
+    private let gold  = Color(red: 1.00, green: 0.80, blue: 0.20)
+    private var accent: Color { ThemeStore.shared.accent }
 
     private var level: Int    { userSettings.auraLevel }
     private var title: String { userSettings.auraTitle }
@@ -80,7 +80,7 @@ struct AuraPopupView: View {
                     .font(.system(size: 36, weight: .black, design: .rounded))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [gold, Color(red: 1.0, green: 0.55, blue: 0.15)],
+                            colors: [gold, Color(red: 1.00, green: 0.65, blue: 0.10)],
                             startPoint: .leading, endPoint: .trailing
                         )
                     )
@@ -96,13 +96,13 @@ struct AuraPopupView: View {
                 HStack(spacing: 6) {
                     Text("Level \(level)")
                         .font(.system(size: 15, weight: .bold, design: .rounded))
-                        .foregroundStyle(purpl)
+                        .foregroundStyle(gold)
                     if !title.isEmpty {
                         Text("·")
                             .foregroundStyle(.white.opacity(0.30))
                         Text(title)
                             .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.80))
+                            .foregroundStyle(gold)
                     }
                 }
 
@@ -114,7 +114,7 @@ struct AuraPopupView: View {
                     if let needed = ptsToNextLevel {
                         Text("\(needed) XP to Level \(level + 1)")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(purpl.opacity(0.80))
+                            .foregroundStyle(gold.opacity(0.80))
                     } else {
                         Text("MAX LEVEL 🔱")
                             .font(.caption.weight(.bold))
@@ -123,7 +123,7 @@ struct AuraPopupView: View {
                 }
                 .padding(.vertical, 8)
                 .padding(.horizontal, 16)
-                .background(Color(red: 0.10, green: 0.07, blue: 0.20))
+                .background(Color.white.opacity(0.06))
                 .cornerRadius(10)
 
                 // Hype message
@@ -137,10 +137,10 @@ struct AuraPopupView: View {
                 Button(action: animatedDismiss) {
                     Text("Got it 💪")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.black)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
-                        .background(purpl.opacity(0.30))
+                        .background(gold)
                         .cornerRadius(14)
                 }
             }
@@ -148,16 +148,12 @@ struct AuraPopupView: View {
             .padding(.vertical, 28)
             .background(
                 RoundedRectangle(cornerRadius: 26)
-                    .fill(LinearGradient(
-                        colors: [Color(red: 0.16, green: 0.10, blue: 0.28),
-                                 Color(red: 0.07, green: 0.04, blue: 0.14)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ))
-                    .shadow(color: gold.opacity(0.30), radius: 30)
+                    .fill(Color(red: 0.11, green: 0.11, blue: 0.14))
+                    .shadow(color: gold.opacity(0.25), radius: 30)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 26)
-                    .stroke(gold.opacity(0.35), lineWidth: 1.5)
+                    .stroke(gold.opacity(0.30), lineWidth: 1)
             )
             .padding(.horizontal, 28)
             .scaleEffect(scale)

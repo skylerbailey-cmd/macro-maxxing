@@ -51,6 +51,8 @@ struct FeedPostDetailView: View {
     @State private var commentPendingReport:      FeedComment? = nil
     @State private var commentPendingReportUser:  FeedComment? = nil
     @State private var followedCommentAuthors:    Set<String>  = []
+    @State private var followingList:            [FollowEntry] = []
+    @State private var mentionQuery:             String        = ""
     @FocusState private var commentFocused: Bool
 
     private let pageBg  = Color(red: 0.05, green: 0.05, blue: 0.07)
@@ -161,6 +163,10 @@ struct FeedPostDetailView: View {
             if let uid = currentUserSettings?.userID, uid != post.userID {
                 isFollowingAuthor = (try? await FollowService.shared.isFollowing(
                     currentUserID: uid, targetUserID: post.userID)) ?? false
+            }
+            // Load following list for @mention suggestions
+            if let uid = currentUserSettings?.userID {
+                followingList = (try? await FollowService.shared.fetchFollowing(userID: uid)) ?? []
             }
             await loadComments()
             guard !Task.isCancelled else { return }
@@ -414,6 +420,9 @@ struct FeedPostDetailView: View {
             } else if post.calories > 0 {
                 macroRow
             }
+            if post.currentWeight > 0, post.goalWeight > 0 {
+                GoalWeightBadge(currentWeight: post.currentWeight, goalWeight: post.goalWeight)
+            }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -599,8 +608,8 @@ struct FeedPostDetailView: View {
                             .font(.caption2).foregroundStyle(.white.opacity(0.30))
                     }
                 }
-                Text(comment.text)
-                    .font(.subheadline).foregroundStyle(.white.opacity(0.85))
+                highlightedMentions(comment.text)
+                    .font(.subheadline)
             }
             Spacer()
 
@@ -660,38 +669,115 @@ struct FeedPostDetailView: View {
 
     // MARK: - Comment bar
 
+    /// Filtered suggestions based on the current @mention query.
+    private var mentionSuggestions: [FollowEntry] {
+        let q = mentionQuery.lowercased()
+        guard !q.isEmpty else { return [] }
+        return followingList
+            .filter { $0.username.lowercased().hasPrefix(q) }
+            .prefix(3)
+            .map { $0 }
+    }
+
+    /// Extracts the partial username the cursor is currently typing after an
+    /// `@` character. Returns "" if the cursor isn't inside an @mention.
+    private static func activeMentionQuery(in text: String) -> String {
+        // Walk backwards from the end to find the last `@`
+        guard let atIdx = text.lastIndex(of: "@") else { return "" }
+        let after = text[text.index(after: atIdx)...]
+        // If there's a space after the @, the mention is already closed
+        if after.contains(" ") { return "" }
+        return String(after)
+    }
+
     private var commentBar: some View {
-        HStack(spacing: 10) {
-            // Own avatar
-            if let settings = currentUserSettings {
-                if let data = settings.profileImageData, let uiImg = UIImage(data: data) {
-                    Image(uiImage: uiImg)
-                        .resizable().scaledToFill()
-                        .frame(width: 30, height: 30).clipShape(Circle())
-                } else {
-                    initialCircle(size: 30, name: settings.name)
+        VStack(spacing: 0) {
+            // @mention suggestions — float above the input bar
+            if !mentionSuggestions.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(mentionSuggestions) { entry in
+                        Button {
+                            insertMention(entry.username)
+                        } label: {
+                            HStack(spacing: 10) {
+                                if !entry.profilePhotoURL.isEmpty, let url = URL(string: entry.profilePhotoURL) {
+                                    CachedAsyncImage(
+                                        url: url,
+                                        content: { img in
+                                            img.resizable().scaledToFill()
+                                                .frame(width: 28, height: 28).clipShape(Circle())
+                                        },
+                                        placeholder: { initialCircle(size: 28, name: entry.displayName ?? entry.username) }
+                                    )
+                                } else {
+                                    initialCircle(size: 28, name: entry.displayName ?? entry.username)
+                                }
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(entry.displayName ?? entry.username)
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(.white)
+                                        .lineLimit(1)
+                                    Text("@\(entry.username)")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.white.opacity(0.45))
+                                }
+                                Spacer()
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                        }
+                        .buttonStyle(.plain)
+                        if entry.id != mentionSuggestions.last?.id {
+                            Divider().background(Color.white.opacity(0.08))
+                                .padding(.horizontal, 16)
+                        }
+                    }
                 }
-            }
-
-            TextField("Add a comment…", text: $commentText)
-                .padding(10)
                 .background(cardBg)
-                .cornerRadius(20)
-                .foregroundStyle(.white)
-                .focused($commentFocused)
-                .submitLabel(.send)
-                .onSubmit { Task { await submitComment() } }
-
-            Button { Task { await submitComment() } } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 30))
-                    .foregroundStyle(commentText.isEmpty ? .white.opacity(0.25) : purpl)
             }
-            .disabled(commentText.isEmpty || isSubmitting || currentUserSettings == nil)
+
+            HStack(spacing: 10) {
+                // Own avatar
+                if let settings = currentUserSettings {
+                    if let data = settings.profileImageData, let uiImg = UIImage(data: data) {
+                        Image(uiImage: uiImg)
+                            .resizable().scaledToFill()
+                            .frame(width: 30, height: 30).clipShape(Circle())
+                    } else {
+                        initialCircle(size: 30, name: settings.name)
+                    }
+                }
+
+                TextField("Add a comment…", text: $commentText)
+                    .padding(10)
+                    .background(cardBg)
+                    .cornerRadius(20)
+                    .foregroundStyle(.white)
+                    .focused($commentFocused)
+                    .submitLabel(.send)
+                    .onSubmit { Task { await submitComment() } }
+                    .onChange(of: commentText) { _, newValue in
+                        mentionQuery = Self.activeMentionQuery(in: newValue)
+                    }
+
+                Button { Task { await submitComment() } } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 30))
+                        .foregroundStyle(commentText.isEmpty ? .white.opacity(0.25) : purpl)
+                }
+                .disabled(commentText.isEmpty || isSubmitting || currentUserSettings == nil)
+            }
+            .padding(.horizontal, 16).padding(.vertical, 10)
+            .background(.ultraThinMaterial.opacity(0.8))
+            .background(pageBg)
         }
-        .padding(.horizontal, 16).padding(.vertical, 10)
-        .background(.ultraThinMaterial.opacity(0.8))
-        .background(pageBg)
+    }
+
+    /// Replaces the partial @query with the full username and adds a trailing space.
+    private func insertMention(_ username: String) {
+        guard let atIdx = commentText.lastIndex(of: "@") else { return }
+        commentText = String(commentText[..<atIdx]) + "@\(username) "
+        mentionQuery = ""
     }
 
     // MARK: - Follow toggle
@@ -840,15 +926,86 @@ struct FeedPostDetailView: View {
             var data = try Firestore.Encoder().encode(comment)
             data["createdAt"] = FieldValue.serverTimestamp()
             _ = try await ref.addDocument(data: data)
+            if let postID = post.postID {
+                try? await PostService.shared.incrementCommentCount(postID: postID)
+            }
             guard !Task.isCancelled else { return }
             commentText    = ""
             commentFocused = false
+
+            // Send mention notifications for any @username in the comment
+            let mentionedUsernames = Self.parseMentions(from: text)
+            if !mentionedUsernames.isEmpty {
+                Task {
+                    for username in mentionedUsernames {
+                        guard let targetID = await UserProfileService.shared.fetchUserID(forUsername: username),
+                              targetID != settings.userID else { continue }
+                        await InAppNotificationService.shared.sendMention(
+                            to:               targetID,
+                            postID:           post.postID ?? "",
+                            postHeadline:     post.title,
+                            actorID:          settings.userID,
+                            actorUsername:    settings.username,
+                            actorDisplayName: settings.name,
+                            actorPhotoURL:    settings.profilePhotoURL
+                        )
+                    }
+                }
+            }
+
             await loadComments()
         } catch {
             guard !Task.isCancelled else { return }
             AppLogger.log("[FeedPostDetailView] Failed to submit comment: \(error)")
         }
         isSubmitting = false
+    }
+
+    /// Extracts unique @usernames from comment text. Handles handles with
+    /// letters, digits, underscores, and dots (common social-media chars).
+    private static func parseMentions(from text: String) -> [String] {
+        let pattern = #"@([A-Za-z0-9_.]+)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let range = NSRange(text.startIndex..., in: text)
+        let matches = regex.matches(in: text, range: range)
+        let usernames = matches.compactMap { match -> String? in
+            guard let r = Range(match.range(at: 1), in: text) else { return nil }
+            return String(text[r]).lowercased()
+        }
+        return Array(Set(usernames))
+    }
+
+    /// Renders comment text with @mentions highlighted in the accent color.
+    private func highlightedMentions(_ text: String) -> Text {
+        let pattern = #"@[A-Za-z0-9_.]+"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return Text(text).foregroundColor(.white.opacity(0.85))
+        }
+        let nsText = text as NSString
+        let fullRange = NSRange(location: 0, length: nsText.length)
+        let matches = regex.matches(in: text, range: fullRange)
+
+        var result = Text("")
+        var cursor = text.startIndex
+        for match in matches {
+            guard let range = Range(match.range, in: text) else { continue }
+            // Text before the mention
+            if cursor < range.lowerBound {
+                result = result + Text(text[cursor..<range.lowerBound])
+                    .foregroundColor(.white.opacity(0.85))
+            }
+            // The @mention itself
+            result = result + Text(text[range])
+                .foregroundColor(purpl)
+                .bold()
+            cursor = range.upperBound
+        }
+        // Remaining text after last mention
+        if cursor < text.endIndex {
+            result = result + Text(text[cursor...])
+                .foregroundColor(.white.opacity(0.85))
+        }
+        return result
     }
 
     // MARK: - Helpers

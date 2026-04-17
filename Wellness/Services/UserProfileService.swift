@@ -129,6 +129,18 @@ final class UserProfileService {
         }
     }
 
+    // MARK: - Lookup by username
+
+    /// Returns the userID for a given username, or nil if no user has that handle.
+    func fetchUserID(forUsername username: String) async -> String? {
+        guard !username.isEmpty else { return nil }
+        let snapshot = try? await db.collection(collectionName)
+            .whereField("username", isEqualTo: username)
+            .limit(to: 1)
+            .getDocuments()
+        return snapshot?.documents.first?.documentID
+    }
+
     // MARK: - Weekly Aura Board
 
     struct WeeklyAuraBoardEntry {

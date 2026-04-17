@@ -74,6 +74,7 @@ struct FriendTagPickerView: View {
                 }
             }
             .preferredColorScheme(.dark)
+            .keyboardDoneToolbar()
             .onAppear {
                 selection = Set(initialSelection.map { $0.userID })
                 Task { await loadFriends() }

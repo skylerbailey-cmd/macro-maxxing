@@ -190,11 +190,9 @@ struct ContentView: View {
                     userSettings.firestoreError = nil
                 }
             }
-            .onChange(of: userSettings.pendingStreakCongrats) { _, count in
-                if let count {
-                    streakCongratsCount = count
-                    userSettings.pendingStreakCongrats = nil
-                }
+            .onChange(of: userSettings.pendingStreakCongrats) { _, _ in
+                // Consume silently — streak popup disabled
+                userSettings.pendingStreakCongrats = nil
             }
             .onChange(of: userSettings.pendingStreakBreak) { _, count in
                 if let count {

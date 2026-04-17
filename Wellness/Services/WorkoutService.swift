@@ -200,6 +200,16 @@ final class WorkoutService {
         }
     }
 
+    func updateSavedWorkout(_ workout: SavedWorkout) {
+        var list = savedWorkouts
+        if let idx = list.firstIndex(where: { $0.id == workout.id }) {
+            list[idx] = workout
+        }
+        if let data = try? JSONEncoder().encode(list) {
+            UserDefaults.standard.set(data, forKey: savedWorkoutsKey)
+        }
+    }
+
     func deleteSavedWorkout(id: String) {
         let list = savedWorkouts.filter { $0.id != id }
         if let data = try? JSONEncoder().encode(list) {

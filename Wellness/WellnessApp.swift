@@ -196,7 +196,6 @@ struct WellnessApp: App {
                     // Show splash while app initializes AND while Firebase resolves auth.
                     // The splash animation plays, then holds at 100% until auth is ready.
                     SplashView(onComplete: { showSplash = false })
-                        .preferredColorScheme(.dark)
                         .task {
                             // If Firebase doesn't resolve within 5 seconds, time out
                             try? await Task.sleep(for: .seconds(5))
@@ -234,6 +233,8 @@ struct WellnessApp: App {
                     }
                 }
             }
+            .preferredColorScheme(.dark)
+            .background(Color(red: 0.03, green: 0.03, blue: 0.05).ignoresSafeArea())
             .task { await userSettings.loadCachedImage() }
             .task {
                 // AISubscriptionStore's init starts the Transaction.updates

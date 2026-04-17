@@ -172,6 +172,9 @@ import FirebaseFirestore
     }
     var macrosMetToday: Int { macroGoalsMet.filter { $0 }.count }
 
+    /// True when at least one workout has been logged for the selected date.
+    var hasLoggedWorkoutToday: Bool = false
+
     // MARK: - Brainstorm state
     enum BrainstormState: Equatable {
         case idle, loading, result(String), error(String)
@@ -320,13 +323,18 @@ import FirebaseFirestore
             return h + m / 60.0
         }
 
+        // Check if a workout was logged today
+        let todayWorkouts = (try? await WorkoutService.shared.fetch(
+            userID: userSettings.userID, date: selectedDate)) ?? []
+        hasLoggedWorkoutToday = !todayWorkouts.isEmpty
+
         // ── Streak calculation (today only) ───────────────────────────────────
         if isSelectedDateToday {
             let uid = userSettings.userID
             let todayKey = MacroHistoryService.dateString(for: Date())
             let yesterdayStr = MacroHistoryService.dateString(
                 for: Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date())
-            let todayAllMet = totalCalories > 0 && macroGoalsMet.allSatisfy { $0 }
+            let todayAllMet = totalCalories > 0 && macroGoalsMet.allSatisfy { $0 } && hasLoggedWorkoutToday
             let previousStreak = userSettings.macroStreak
 
             // 1. Check for streak break: if lastGoalsMetDate is NOT yesterday
@@ -398,7 +406,7 @@ import FirebaseFirestore
 
         // Schedule or cancel the 10 PM streak-warning notification based on today's progress
         if isSelectedDateToday {
-            let allMet = totalCalories > 0 && macroGoalsMet.allSatisfy { $0 }
+            let allMet = totalCalories > 0 && macroGoalsMet.allSatisfy { $0 } && hasLoggedWorkoutToday
             if allMet || macroStreak == 0 {
                 NotificationService.shared.cancelStreakWarningNotification()
             } else {

@@ -14,6 +14,12 @@ struct LogWorkoutSheet: View {
     let userSettings:        UserSettings
     let editingEntry:        WorkoutEntry?   // non-nil = edit mode
     let onSaved:             () -> Void
+    /// When true, the sheet saves a template only (no workout logged,
+    /// no macro adjustment, no post-workout prompt). Title and button
+    /// text change to reflect "Save Workout" instead of "Log Workout".
+    var saveTemplateMode:    Bool = false
+    /// Called with the new SavedWorkout when `saveTemplateMode` is true.
+    var onSavedTemplate:     ((SavedWorkout) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
 
@@ -22,6 +28,7 @@ struct LogWorkoutSheet: View {
     @State private var workoutType    = WorkoutType.strength
     @State private var durationText   = ""
     @State private var caloriesText   = ""
+    @State private var logDate:         Date
     @State private var logTime:        Date
     @State private var saveAsTemplate = false
     @State private var applyAdjustment: Bool
@@ -81,7 +88,9 @@ struct LogWorkoutSheet: View {
 
     init(userID: String, selectedDate: Date, bodyWeightLbs: Double, autoAdjustByDefault: Bool,
          userSettings: UserSettings, editingEntry: WorkoutEntry? = nil,
-         onSaved: @escaping () -> Void) {
+         onSaved: @escaping () -> Void,
+         saveTemplateMode: Bool = false,
+         onSavedTemplate: ((SavedWorkout) -> Void)? = nil) {
         self.userID              = userID
         self.selectedDate        = selectedDate
         self.bodyWeightLbs       = bodyWeightLbs
@@ -89,11 +98,14 @@ struct LogWorkoutSheet: View {
         self.userSettings        = userSettings
         self.editingEntry        = editingEntry
         self.onSaved             = onSaved
+        self.saveTemplateMode    = saveTemplateMode
+        self.onSavedTemplate     = onSavedTemplate
         if let e = editingEntry {
             _workoutName     = State(initialValue: e.name)
             _workoutType     = State(initialValue: e.workoutType)
             _durationText    = State(initialValue: "\(e.durationMinutes)")
             _caloriesText    = State(initialValue: "\(e.caloriesBurned)")
+            _logDate         = State(initialValue: Calendar.current.startOfDay(for: e.loggedAt))
             _logTime         = State(initialValue: e.loggedAt)
             _applyAdjustment = State(initialValue: e.adjustmentApplied)
             _exercises       = State(initialValue: e.exercises)
@@ -102,6 +114,7 @@ struct LogWorkoutSheet: View {
             _caloriesEdited  = State(initialValue: true)
         } else {
             let oneHourAgo = Date().addingTimeInterval(-60 * 60)
+            _logDate         = State(initialValue: selectedDate)
             _logTime         = State(initialValue: oneHourAgo)
             _applyAdjustment = State(initialValue: autoAdjustByDefault)
         }
@@ -154,7 +167,7 @@ struct LogWorkoutSheet: View {
                     .padding(.top, 8)
                 }
             }
-            .navigationTitle(editingEntry != nil ? "Edit Workout" : "Log a Workout")
+            .navigationTitle(saveTemplateMode ? "New Saved Workout" : editingEntry != nil ? "Edit Workout" : "Log a Workout")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -280,7 +293,18 @@ struct LogWorkoutSheet: View {
             friendsRow
             timePickerRow
         }
-        .onChange(of: workoutType)  { _, _ in autoFillCaloriesIfNeeded() }
+        .onChange(of: workoutType)  { _, newType in
+            autoFillCaloriesIfNeeded()
+            if newType == .restDay {
+                if workoutName.trimmingCharacters(in: .whitespaces).isEmpty {
+                    workoutName = "Rest Day"
+                }
+                durationText  = "0"
+                caloriesText  = "0"
+                caloriesEdited = true
+                exercises     = []
+            }
+        }
         .onChange(of: durationText) { _, _ in autoFillCaloriesIfNeeded() }
     }
 
@@ -430,16 +454,6 @@ struct LogWorkoutSheet: View {
     /// workout; "Generate with AI" parses it and fills in the manual form below.
     private var voiceAssistCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(accent)
-                Text("Describe Your Workout and have AI generate your routine")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.55))
-                Spacer()
-            }
-
             HStack(spacing: 12) {
                 Button {
                     if speechRecognizer.status == .recording { speechRecognizer.stop() }
@@ -492,7 +506,7 @@ struct LogWorkoutSheet: View {
 
     private var micHint: String {
         switch speechRecognizer.status {
-        case .idle:                 return "Tap the mic and describe your workout"
+        case .idle:                 return "Tap the mic and have AI create your entire workout"
         case .requestingPermission: return "Requesting permission…"
         case .recording:            return "Listening… tap to stop"
         case .done:                 return "Done recording"
@@ -533,17 +547,31 @@ struct LogWorkoutSheet: View {
     }
 
     private var timePickerRow: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Time Started")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.45))
-            DatePicker("", selection: $logTime, displayedComponents: .hourAndMinute)
-                .labelsHidden()
-                .colorScheme(.dark)
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.20), lineWidth: 1))
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Date")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.45))
+                DatePicker("", selection: $logDate, displayedComponents: .date)
+                    .labelsHidden()
+                    .colorScheme(.dark)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.20), lineWidth: 1))
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Time Started")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.45))
+                DatePicker("", selection: $logTime, displayedComponents: .hourAndMinute)
+                    .labelsHidden()
+                    .colorScheme(.dark)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.20), lineWidth: 1))
+            }
         }
     }
 
@@ -876,11 +904,11 @@ struct LogWorkoutSheet: View {
     }
 
     private var saveButton: some View {
-        Button { Task { await saveWorkout() } } label: {
+        Button { Task { saveTemplateMode ? saveTemplate() : await saveWorkout() } } label: {
             HStack(spacing: 8) {
                 if isSaving { ProgressView().tint(.black) }
                 else { Image(systemName: "checkmark") }
-                Text(isSaving ? "Saving…" : editingEntry != nil ? "Save Changes" : "Log Workout")
+                Text(isSaving ? "Saving…" : saveTemplateMode ? "Save Workout" : editingEntry != nil ? "Save Changes" : "Log Workout")
             }
             .font(.system(size: 16, weight: .bold))
             .foregroundStyle(.black)
@@ -1056,6 +1084,29 @@ struct LogWorkoutSheet: View {
         return cal.date(from: merged) ?? date
     }
 
+    /// Save-template-only mode: creates a SavedWorkout without logging anything.
+    private func saveTemplate() {
+        let name = workoutName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+
+        let cleanedExercises: [Exercise] = exercises.compactMap { ex in
+            let trimmed = ex.name.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty else { return nil }
+            let sets = ex.sets.isEmpty ? [ExerciseSet(reps: 1)] : ex.sets.map { ExerciseSet(id: $0.id, reps: max(1, $0.reps), weight: $0.weight) }
+            return Exercise(id: ex.id, name: trimmed, sets: sets)
+        }
+
+        let template = SavedWorkout(
+            name:            name,
+            workoutType:     workoutType,
+            durationMinutes: Int(durationText) ?? 0,
+            caloriesBurned:  Int(caloriesText) ?? 0,
+            exercises:       cleanedExercises
+        )
+        onSavedTemplate?(template)
+        dismiss()
+    }
+
     private func saveWorkout() async {
         let name     = workoutName.trimmingCharacters(in: .whitespaces)
         let duration = Int(durationText) ?? 0
@@ -1065,8 +1116,8 @@ struct LogWorkoutSheet: View {
         isSaving  = true
         saveError = nil
 
-        // Combine the selected calendar date with the user-chosen time
-        let loggedAt = combinedDate(date: selectedDate, time: logTime)
+        // Combine the user-chosen date with the user-chosen time
+        let loggedAt = combinedDate(date: logDate, time: logTime)
 
         // Drop half-filled exercise rows (blank name) and normalize empty set counts.
         let cleanedExercises: [Exercise] = exercises.compactMap { ex in
@@ -1105,7 +1156,7 @@ struct LogWorkoutSheet: View {
                 )
             }
 
-            if Calendar.current.isDateInToday(selectedDate) {
+            if Calendar.current.isDateInToday(logDate) {
                 if applyAdjustment {
                     // Re-applies for the (possibly changed) workout type — safe to call on new or edited entries
                     MacroAdjustmentEngine.apply(for: workoutType, bodyWeightLbs: bodyWeightLbs)

@@ -56,6 +56,7 @@ struct MealPlansView: View {
         }
         .navigationTitle("Meal Plans")
         .navigationBarTitleDisplayMode(.inline)
+        .keyboardDoneToolbar()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingNewPlan = true } label: {
@@ -340,7 +341,9 @@ struct MealPlanDetailView: View {
         .sheet(isPresented: $showingAddMeal) {
             AddMealToPlanSheet(
                 savedMeals: savedMeals,
-                existingIDs: Set(plan.allMealIDs),
+                existingIDs: [],
+                userID: userSettings.userID,
+                userSettings: userSettings,
                 onAdd: { selectedIDs in
                     if let idx = addingToDayIndex, idx < plan.days.count {
                         plan.days[idx].itemIDs.append(contentsOf: selectedIDs)
@@ -457,12 +460,17 @@ struct MealPlanDetailView: View {
 // MARK: - Add Meal to Plan Sheet
 
 private struct AddMealToPlanSheet: View {
-    let savedMeals:  [FoodEntry]
-    let existingIDs: Set<String>
-    let onAdd:       ([String]) -> Void
+    @State var savedMeals: [FoodEntry]
+    let existingIDs:  Set<String>
+    let userID:       String
+    let userSettings: UserSettings
+    let onAdd:        ([String]) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var selected: Set<String> = []
+    @State private var selected:       Set<String> = []
+    @State private var showingCreate   = false
+    @State private var editingMeal:    FoodEntry?  = nil
+    @State private var deleteConfirm:  FoodEntry?  = nil
 
     private var accent: Color { ThemeStore.shared.accent }
     private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
@@ -472,92 +480,113 @@ private struct AddMealToPlanSheet: View {
         NavigationStack {
             ZStack {
                 pageBg.ignoresSafeArea()
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        // Create new button
+                        Button { showingCreate = true } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundStyle(accent)
+                                Text("Create New Saved Meal")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                Spacer()
+                            }
+                            .padding(12)
+                            .background(accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(accent.opacity(0.25), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
 
-                if savedMeals.isEmpty {
-                    VStack(spacing: 10) {
-                        Image(systemName: "fork.knife")
-                            .font(.system(size: 32))
-                            .foregroundStyle(.white.opacity(0.25))
-                        Text("No saved meals")
-                            .font(.headline)
-                            .foregroundStyle(.white.opacity(0.50))
-                        Text("Log a meal and toggle \"Save as Saved Meal\"\nto create reusable meals.")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.35))
-                            .multilineTextAlignment(.center)
-                    }
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 8) {
-                            ForEach(savedMeals, id: \.firebaseEntryID) { meal in
-                                let alreadyAdded = existingIDs.contains(meal.firebaseEntryID)
-                                let isSelected   = selected.contains(meal.firebaseEntryID)
-                                Button {
-                                    if isSelected {
-                                        selected.remove(meal.firebaseEntryID)
-                                    } else {
-                                        selected.insert(meal.firebaseEntryID)
-                                    }
-                                } label: {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                            .font(.system(size: 20))
-                                            .foregroundStyle(isSelected ? accent : .white.opacity(0.25))
+                        if savedMeals.isEmpty {
+                            VStack(spacing: 10) {
+                                Image(systemName: "fork.knife")
+                                    .font(.system(size: 28))
+                                    .foregroundStyle(.white.opacity(0.20))
+                                Text("No saved meals yet")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.white.opacity(0.40))
+                            }
+                            .padding(.top, 40)
+                        }
 
-                                        if !meal.photoURL.isEmpty {
-                                            CachedAsyncImage(
-                                                url: URL(string: meal.photoURL),
-                                                content: { img in
-                                                    img.resizable().scaledToFill()
-                                                        .frame(width: 36, height: 36)
-                                                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                                                },
-                                                placeholder: {
-                                                    RoundedRectangle(cornerRadius: 6)
-                                                        .fill(Color.white.opacity(0.08))
-                                                        .frame(width: 36, height: 36)
-                                                }
-                                            )
-                                        }
+                        ForEach(savedMeals, id: \.firebaseEntryID) { meal in
+                            let alreadyAdded = existingIDs.contains(meal.firebaseEntryID)
+                            let isSelected   = selected.contains(meal.firebaseEntryID)
+                            Button {
+                                if isSelected { selected.remove(meal.firebaseEntryID) }
+                                else          { selected.insert(meal.firebaseEntryID) }
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                        .font(.system(size: 20))
+                                        .foregroundStyle(isSelected ? accent : .white.opacity(0.25))
 
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(meal.foodName)
-                                                .font(.system(size: 14, weight: .semibold))
-                                                .foregroundStyle(.white)
-                                                .lineLimit(1)
-                                            HStack(spacing: 6) {
-                                                Text("\(Int(meal.calories)) cal")
-                                                Text("\(Int(meal.protein))g P")
+                                    if !meal.photoURL.isEmpty {
+                                        CachedAsyncImage(
+                                            url: URL(string: meal.photoURL),
+                                            content: { img in
+                                                img.resizable().scaledToFill()
+                                                    .frame(width: 36, height: 36)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                            },
+                                            placeholder: {
+                                                RoundedRectangle(cornerRadius: 6)
+                                                    .fill(Color.white.opacity(0.08))
+                                                    .frame(width: 36, height: 36)
                                             }
-                                            .font(.system(size: 11))
-                                            .foregroundStyle(.white.opacity(0.40))
-                                        }
-                                        Spacer()
-                                        if alreadyAdded {
-                                            Text("Added")
-                                                .font(.system(size: 10, weight: .bold))
-                                                .foregroundStyle(.white.opacity(0.30))
-                                                .padding(.horizontal, 8)
-                                                .padding(.vertical, 3)
-                                                .background(Color.white.opacity(0.08), in: Capsule())
-                                        }
+                                        )
                                     }
-                                    .padding(12)
-                                    .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(meal.foodName)
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(.white)
+                                            .lineLimit(1)
+                                        HStack(spacing: 6) {
+                                            Text("\(Int(meal.calories)) cal")
+                                            Text("\(Int(meal.protein))g P")
+                                            Text("\(Int(meal.carbs))g C")
+                                            Text("\(Int(meal.fat))g F")
+                                        }
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.white.opacity(0.40))
+                                    }
+                                    Spacer()
+                                    if alreadyAdded {
+                                        Text("Added")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundStyle(.white.opacity(0.30))
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 3)
+                                            .background(Color.white.opacity(0.08), in: Capsule())
+                                    }
                                 }
-                                .buttonStyle(.plain)
-                                .disabled(alreadyAdded)
-                                .opacity(alreadyAdded ? 0.50 : 1)
+                                .padding(12)
+                                .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(alreadyAdded)
+                            .opacity(alreadyAdded ? 0.50 : 1)
+                            .contextMenu {
+                                Button { editingMeal = meal } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                Button(role: .destructive) { deleteConfirm = meal } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 12)
-                        .padding(.bottom, 40)
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 40)
                 }
             }
             .navigationTitle("Add Meals")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -572,6 +601,171 @@ private struct AddMealToPlanSheet: View {
                 }
             }
             .preferredColorScheme(.dark)
+            .sheet(isPresented: $showingCreate) {
+                SavedMealCreatorSheet(userID: userID, userSettings: userSettings) { newMeal in
+                    savedMeals.append(newMeal)
+                }
+            }
+            .sheet(item: $editingMeal) { meal in
+                EditSavedMealSheet(meal: meal, userID: userID) { updated in
+                    if let idx = savedMeals.firstIndex(where: { $0.firebaseEntryID == updated.firebaseEntryID }) {
+                        savedMeals[idx] = updated
+                    }
+                }
+            }
+            .alert("Delete this saved meal?", isPresented: Binding(
+                get: { deleteConfirm != nil },
+                set: { if !$0 { deleteConfirm = nil } }
+            )) {
+                Button("Delete", role: .destructive) {
+                    if let meal = deleteConfirm {
+                        Task {
+                            try? await FoodEntryService.shared.delete(entryID: meal.firebaseEntryID, userID: userID)
+                            savedMeals.removeAll { $0.firebaseEntryID == meal.firebaseEntryID }
+                            selected.remove(meal.firebaseEntryID)
+                        }
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This can't be undone.")
+            }
         }
+    }
+}
+
+// MARK: - Saved Meal Creator (wraps the full log-food AnalysisSheet)
+
+/// Presents the same UI as "Log Food" but in saved-meal-only mode:
+/// title = "New Saved Meal", button = "Save Meal", entry goes to
+/// saved meals only (not the food log).
+private struct SavedMealCreatorSheet: View {
+    let userID:       String
+    let userSettings: UserSettings
+    let onCreate:     (FoodEntry) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var viewModel: FoodLogViewModel
+
+    init(userID: String, userSettings: UserSettings, onCreate: @escaping (FoodEntry) -> Void) {
+        self.userID       = userID
+        self.userSettings = userSettings
+        self.onCreate     = onCreate
+        let vm = FoodLogViewModel(selectedDate: Date(), userID: userID)
+        vm.savedMealOnlyMode = true
+        vm.saveMeal          = true
+        _viewModel = State(initialValue: vm)
+    }
+
+    var body: some View {
+        AnalysisSheet(
+            viewModel: viewModel,
+            userSettings: userSettings,
+            onSaved: { dismiss() }
+        )
+        .onAppear {
+            viewModel.onSavedMealOnly = { entry in
+                onCreate(entry)
+                dismiss()
+            }
+        }
+    }
+}
+
+// MARK: - Edit Saved Meal Sheet
+
+private struct EditSavedMealSheet: View {
+    let meal:     FoodEntry
+    let userID:   String
+    let onUpdate: (FoodEntry) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name     = ""
+    @State private var calText  = ""
+    @State private var proText  = ""
+    @State private var carbText = ""
+    @State private var fatText  = ""
+    @State private var isSaving = false
+
+    private var accent: Color { ThemeStore.shared.accent }
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty
+        && Double(calText) != nil
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 14) {
+                    field("Food Name", text: $name, keyboard: .default)
+                    field("Calories",  text: $calText,  keyboard: .decimalPad)
+                    HStack(spacing: 12) {
+                        field("Protein (g)", text: $proText,  keyboard: .decimalPad)
+                        field("Carbs (g)",   text: $carbText, keyboard: .decimalPad)
+                        field("Fat (g)",     text: $fatText,  keyboard: .decimalPad)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+            }
+            .background(Color(red: 0.05, green: 0.05, blue: 0.07).ignoresSafeArea())
+            .navigationTitle("Edit Saved Meal")
+            .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { Task { await save() } }
+                        .fontWeight(.bold)
+                        .disabled(!canSave || isSaving)
+                }
+            }
+            .preferredColorScheme(.dark)
+            .onAppear {
+                name     = meal.foodName
+                calText  = "\(Int(meal.calories))"
+                proText  = "\(Int(meal.protein))"
+                carbText = "\(Int(meal.carbs))"
+                fatText  = "\(Int(meal.fat))"
+            }
+        }
+    }
+
+    private func field(_ label: String, text: Binding<String>, keyboard: UIKeyboardType) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.45))
+            TextField(label, text: text)
+                .keyboardType(keyboard)
+                .padding(10)
+                .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+                .foregroundStyle(.white)
+        }
+    }
+
+    private func save() async {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, let cal = Double(calText) else { return }
+        isSaving = true
+
+        let updated = FoodEntry(
+            id: meal.id, loggedAt: meal.loggedAt, userID: userID,
+            foodName: trimmed, calories: cal,
+            protein: Double(proText) ?? 0, carbs: Double(carbText) ?? 0,
+            fat: Double(fatText) ?? 0
+        )
+        updated.firebaseEntryID = meal.firebaseEntryID
+        updated.photoURL        = meal.photoURL
+        updated.isSavedMeal     = true
+
+        do {
+            try await FoodEntryService.shared.save(entry: updated, imageData: nil, existingPhotoURL: meal.photoURL)
+            onUpdate(updated)
+        } catch {
+            AppLogger.log("[EditSavedMealSheet] Save failed: \(error)")
+        }
+        isSaving = false
+        dismiss()
     }
 }

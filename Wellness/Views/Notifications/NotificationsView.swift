@@ -130,7 +130,7 @@ struct NotificationsView: View {
             Text("No notifications yet")
                 .font(.system(size: 17, weight: .bold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.55))
-            Text("You'll see follows, reps, comments,\nleaderboard placements, and new posts here.")
+            Text("You'll see follows, reps, comments, workout tags,\nleaderboard placements, and new posts here.")
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.white.opacity(0.28))
@@ -143,7 +143,7 @@ struct NotificationsView: View {
     @ViewBuilder
     private func notifRow(_ notif: AppNotification) -> some View {
         let isPostNotif = !notif.postID.isEmpty &&
-            (notif.type == .rep || notif.type == .comment || notif.type == .newPost)
+            (notif.type == .rep || notif.type == .comment || notif.type == .newPost || notif.type == .workoutTag)
         let canViewProfile = notif.type != .leaderboard && !notif.actorID.isEmpty
 
         HStack(alignment: .top, spacing: 14) {
@@ -304,8 +304,10 @@ struct NotificationsView: View {
         case .follow:      return "person.badge.plus"
         case .rep:         return "hand.raised.fill"
         case .comment:     return "bubble.left.fill"
+        case .mention:     return "at"
         case .leaderboard: return "crown.fill"
         case .newPost:     return "bell.fill"
+        case .workoutTag:  return "figure.strengthtraining.traditional"
         }
     }
 
@@ -314,8 +316,10 @@ struct NotificationsView: View {
         case .follow:      return Color(red: 0.35, green: 1.00, blue: 0.60)
         case .rep:         return ThemeStore.shared.accent
         case .comment:     return ThemeStore.shared.accent
+        case .mention:     return Color(red: 1.00, green: 0.80, blue: 0.20)
         case .leaderboard: return ThemeStore.shared.accent
         case .newPost:     return Color(red: 1.00, green: 0.60, blue: 0.20)
+        case .workoutTag:  return Color(red: 0.30, green: 0.90, blue: 0.55)
         }
     }
 

@@ -71,6 +71,7 @@ struct GymPickerView: View {
                 }
             }
             .preferredColorScheme(.dark)
+            .keyboardDoneToolbar()
             .onAppear {
                 locationManager.requestLocationIfNeeded()
                 completerDelegate.configure()

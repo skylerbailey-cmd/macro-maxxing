@@ -566,6 +566,8 @@ struct CelebrationPostEditorSheet: View {
                     goalProtein:          postData.goalProtein,
                     goalCarbs:            postData.goalCarbs,
                     goalFat:              postData.goalFat,
+                    currentWeight:        userSettings.showWeightOnPosts ? userSettings.currentWeight : 0,
+                    goalWeight:           userSettings.showWeightOnPosts ? userSettings.goalWeight    : 0,
                     postID:               fbPostID
                 )
             } catch {

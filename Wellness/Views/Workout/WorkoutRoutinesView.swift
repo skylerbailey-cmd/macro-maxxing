@@ -32,7 +32,7 @@ struct WorkoutRoutinesView: View {
                     LazyVStack(spacing: 12) {
                         ForEach(routines) { routine in
                             NavigationLink {
-                                RoutineDetailView(routine: routine, userID: userSettings.userID, onUpdate: { Task { await reload() } })
+                                RoutineDetailView(routine: routine, userID: userSettings.userID, userSettings: userSettings, onUpdate: { Task { await reload() } })
                             } label: {
                                 routineCard(routine)
                             }
@@ -47,6 +47,7 @@ struct WorkoutRoutinesView: View {
         }
         .navigationTitle("Workout Routines")
         .navigationBarTitleDisplayMode(.inline)
+        .keyboardDoneToolbar()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingNewRoutine = true } label: {
@@ -167,6 +168,7 @@ struct WorkoutRoutinesView: View {
 struct RoutineDetailView: View {
     @State var routine: WorkoutRoutine
     let userID: String
+    let userSettings: UserSettings
     var onUpdate: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -283,7 +285,8 @@ struct RoutineDetailView: View {
         }
         .sheet(isPresented: $showingAddWorkout) {
             AddWorkoutToRoutineSheet(
-                existingIDs: Set(routine.allWorkoutIDs),
+                existingIDs: [],
+                userSettings: userSettings,
                 onAdd: { selectedIDs in
                     if let idx = addingToDayIndex, idx < routine.days.count {
                         routine.days[idx].itemIDs.append(contentsOf: selectedIDs)
@@ -366,97 +369,141 @@ struct RoutineDetailView: View {
 // MARK: - Add Workout to Routine Sheet
 
 private struct AddWorkoutToRoutineSheet: View {
-    let existingIDs: Set<String>
+    let existingIDs:  Set<String>
+    let userSettings: UserSettings
     let onAdd: ([String]) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var selected: Set<String> = []
+    @State private var selected:       Set<String>    = []
+    @State private var workouts:       [SavedWorkout] = []
+    @State private var showingCreate   = false
+    @State private var editingWorkout: SavedWorkout?  = nil
+    @State private var deleteConfirm:  SavedWorkout?  = nil
 
-    private var savedWorkouts: [SavedWorkout] {
-        WorkoutService.shared.savedWorkouts
-    }
     private var accent: Color { ThemeStore.shared.accent }
     private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
     private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
 
     var body: some View {
+        mainContent
+            .sheet(isPresented: $showingCreate) { createSheet }
+            .sheet(item: $editingWorkout) { workout in editSheet(workout) }
+            .alert("Delete this saved workout?", isPresented: Binding(
+                get: { deleteConfirm != nil },
+                set: { if !$0 { deleteConfirm = nil } }
+            )) {
+                Button("Delete", role: .destructive) {
+                    if let w = deleteConfirm {
+                        WorkoutService.shared.deleteSavedWorkout(id: w.id)
+                        workouts = WorkoutService.shared.savedWorkouts
+                        selected.remove(w.id)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This can't be undone.")
+            }
+    }
+
+    private var mainContent: some View {
         NavigationStack {
             ZStack {
                 pageBg.ignoresSafeArea()
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        Button { showingCreate = true } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundStyle(accent)
+                                Text("Create New Saved Workout")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                Spacer()
+                            }
+                            .padding(12)
+                            .background(accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(accent.opacity(0.25), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
 
-                if savedWorkouts.isEmpty {
-                    VStack(spacing: 10) {
-                        Image(systemName: "dumbbell")
-                            .font(.system(size: 32))
-                            .foregroundStyle(.white.opacity(0.25))
-                        Text("No saved workouts")
-                            .font(.headline)
-                            .foregroundStyle(.white.opacity(0.50))
-                        Text("Log a workout and toggle \"Save as template\"\nto create reusable workouts.")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.35))
-                            .multilineTextAlignment(.center)
-                    }
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 8) {
-                            ForEach(savedWorkouts) { workout in
-                                let alreadyAdded = existingIDs.contains(workout.id)
-                                let isSelected   = selected.contains(workout.id)
-                                Button {
-                                    if isSelected {
-                                        selected.remove(workout.id)
-                                    } else {
-                                        selected.insert(workout.id)
-                                    }
-                                } label: {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                            .font(.system(size: 20))
-                                            .foregroundStyle(isSelected ? accent : .white.opacity(0.25))
+                        if workouts.isEmpty {
+                            VStack(spacing: 10) {
+                                Image(systemName: "dumbbell")
+                                    .font(.system(size: 28))
+                                    .foregroundStyle(.white.opacity(0.20))
+                                Text("No saved workouts yet")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.white.opacity(0.40))
+                            }
+                            .padding(.top, 40)
+                        }
 
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(workout.name)
-                                                .font(.system(size: 14, weight: .semibold))
-                                                .foregroundStyle(.white)
-                                            HStack(spacing: 4) {
-                                                Image(systemName: workout.workoutType.icon)
-                                                    .font(.system(size: 10))
-                                                Text(workout.workoutType.rawValue)
+                        ForEach(workouts) { workout in
+                            let alreadyAdded = existingIDs.contains(workout.id)
+                            let isSelected   = selected.contains(workout.id)
+                            Button {
+                                if isSelected { selected.remove(workout.id) }
+                                else          { selected.insert(workout.id) }
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                        .font(.system(size: 20))
+                                        .foregroundStyle(isSelected ? accent : .white.opacity(0.25))
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(workout.name)
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(.white)
+                                        HStack(spacing: 4) {
+                                            Image(systemName: workout.workoutType.icon)
+                                                .font(.system(size: 10))
+                                            Text(workout.workoutType.rawValue)
+                                                .font(.system(size: 11))
+                                            if workout.durationMinutes > 0 {
+                                                Text("· \(workout.durationMinutes)m")
                                                     .font(.system(size: 11))
-                                                if !workout.exercises.isEmpty {
-                                                    Text("- \(workout.exercises.count) exercises")
-                                                        .font(.system(size: 11))
-                                                }
                                             }
-                                            .foregroundStyle(.white.opacity(0.40))
+                                            if !workout.exercises.isEmpty {
+                                                Text("· \(workout.exercises.count) exercises")
+                                                    .font(.system(size: 11))
+                                            }
                                         }
-                                        Spacer()
-                                        if alreadyAdded {
-                                            Text("Added")
-                                                .font(.system(size: 10, weight: .bold))
-                                                .foregroundStyle(.white.opacity(0.30))
-                                                .padding(.horizontal, 8)
-                                                .padding(.vertical, 3)
-                                                .background(Color.white.opacity(0.08), in: Capsule())
-                                        }
+                                        .foregroundStyle(.white.opacity(0.40))
                                     }
-                                    .padding(12)
-                                    .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
+                                    Spacer()
+                                    if alreadyAdded {
+                                        Text("Added")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundStyle(.white.opacity(0.30))
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 3)
+                                            .background(Color.white.opacity(0.08), in: Capsule())
+                                    }
                                 }
-                                .buttonStyle(.plain)
-                                .disabled(alreadyAdded)
-                                .opacity(alreadyAdded ? 0.50 : 1)
+                                .padding(12)
+                                .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(alreadyAdded)
+                            .opacity(alreadyAdded ? 0.50 : 1)
+                            .contextMenu {
+                                Button { editingWorkout = workout } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                Button(role: .destructive) { deleteConfirm = workout } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 12)
-                        .padding(.bottom, 40)
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 40)
                 }
             }
             .navigationTitle("Add Workouts")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -471,6 +518,213 @@ private struct AddWorkoutToRoutineSheet: View {
                 }
             }
             .preferredColorScheme(.dark)
+            .onAppear { workouts = WorkoutService.shared.savedWorkouts }
+        }
+    }
+
+    private var createSheet: some View {
+        LogWorkoutSheet(
+            userID:              "",
+            selectedDate:        Date(),
+            bodyWeightLbs:       0,
+            autoAdjustByDefault: false,
+            userSettings:        userSettings,
+            onSaved:             {},
+            saveTemplateMode:    true,
+            onSavedTemplate:     { template in
+                WorkoutService.shared.addSavedWorkout(template)
+                workouts = WorkoutService.shared.savedWorkouts
+            }
+        )
+    }
+
+    private func editSheet(_ workout: SavedWorkout) -> some View {
+        LogWorkoutSheet(
+            userID:              "",
+            selectedDate:        Date(),
+            bodyWeightLbs:       0,
+            autoAdjustByDefault: false,
+            userSettings:        userSettings,
+            editingEntry:        WorkoutEntry(
+                workoutID:       workout.id,
+                name:            workout.name,
+                workoutType:     workout.workoutType,
+                durationMinutes: workout.durationMinutes,
+                caloriesBurned:  workout.caloriesBurned,
+                exercises:       workout.exercises
+            ),
+            onSaved:             {},
+            saveTemplateMode:    true,
+            onSavedTemplate:     { updated in
+                WorkoutService.shared.updateSavedWorkout(updated)
+                workouts = WorkoutService.shared.savedWorkouts
+            }
+        )
+    }
+}
+
+// MARK: - Create Saved Workout Sheet (legacy — replaced by LogWorkoutSheet saveTemplateMode)
+
+private struct CreateSavedWorkoutSheet: View {
+    let onCreate: (SavedWorkout) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name         = ""
+    @State private var workoutType  = WorkoutType.strength
+    @State private var durationText = ""
+    @State private var caloriesText = ""
+
+    private var accent: Color { ThemeStore.shared.accent }
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 14) {
+                    field("Workout Name", text: $name, keyboard: .default)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Type").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.45))
+                        Picker("Type", selection: $workoutType) {
+                            ForEach(WorkoutType.allCases.filter { $0 != .restDay }, id: \.self) { type in
+                                Label(type.rawValue, systemImage: type.icon).tag(type)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(accent)
+                    }
+
+                    HStack(spacing: 12) {
+                        field("Duration (min)", text: $durationText, keyboard: .numberPad)
+                        field("Calories",       text: $caloriesText, keyboard: .numberPad)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+            }
+            .background(Color(red: 0.05, green: 0.05, blue: 0.07).ignoresSafeArea())
+            .navigationTitle("New Saved Workout")
+            .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        let w = SavedWorkout(
+                            name: name.trimmingCharacters(in: .whitespaces),
+                            workoutType: workoutType,
+                            durationMinutes: Int(durationText) ?? 0,
+                            caloriesBurned: Int(caloriesText) ?? 0
+                        )
+                        onCreate(w)
+                        dismiss()
+                    }
+                    .fontWeight(.bold)
+                    .disabled(!canSave)
+                }
+            }
+            .preferredColorScheme(.dark)
+        }
+    }
+
+    private func field(_ label: String, text: Binding<String>, keyboard: UIKeyboardType) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.45))
+            TextField(label, text: text)
+                .keyboardType(keyboard)
+                .padding(10)
+                .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+                .foregroundStyle(.white)
+        }
+    }
+}
+
+// MARK: - Edit Saved Workout Sheet
+
+private struct EditSavedWorkoutSheet: View {
+    let workout:  SavedWorkout
+    let onUpdate: (SavedWorkout) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name         = ""
+    @State private var workoutType  = WorkoutType.strength
+    @State private var durationText = ""
+    @State private var caloriesText = ""
+
+    private var accent: Color { ThemeStore.shared.accent }
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 14) {
+                    field("Workout Name", text: $name, keyboard: .default)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Type").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.45))
+                        Picker("Type", selection: $workoutType) {
+                            ForEach(WorkoutType.allCases.filter { $0 != .restDay }, id: \.self) { type in
+                                Label(type.rawValue, systemImage: type.icon).tag(type)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(accent)
+                    }
+
+                    HStack(spacing: 12) {
+                        field("Duration (min)", text: $durationText, keyboard: .numberPad)
+                        field("Calories",       text: $caloriesText, keyboard: .numberPad)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+            }
+            .background(Color(red: 0.05, green: 0.05, blue: 0.07).ignoresSafeArea())
+            .navigationTitle("Edit Saved Workout")
+            .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        var updated = workout
+                        updated.name            = name.trimmingCharacters(in: .whitespaces)
+                        updated.workoutType     = workoutType
+                        updated.durationMinutes = Int(durationText) ?? 0
+                        updated.caloriesBurned  = Int(caloriesText) ?? 0
+                        onUpdate(updated)
+                        dismiss()
+                    }
+                    .fontWeight(.bold)
+                    .disabled(!canSave)
+                }
+            }
+            .preferredColorScheme(.dark)
+            .onAppear {
+                name         = workout.name
+                workoutType  = workout.workoutType
+                durationText = workout.durationMinutes > 0 ? "\(workout.durationMinutes)" : ""
+                caloriesText = workout.caloriesBurned > 0  ? "\(workout.caloriesBurned)"  : ""
+            }
+        }
+    }
+
+    private func field(_ label: String, text: Binding<String>, keyboard: UIKeyboardType) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.45))
+            TextField(label, text: text)
+                .keyboardType(keyboard)
+                .padding(10)
+                .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+                .foregroundStyle(.white)
         }
     }
 }
