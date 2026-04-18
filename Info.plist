@@ -227,6 +227,8 @@
 			<string>wg4vff78zm.skadnetwork</string>
 		</dict>
 	</array>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

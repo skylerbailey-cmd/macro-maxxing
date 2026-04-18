@@ -81,9 +81,11 @@ struct FeedView: View {
             NavigationStack {
                 switch presentation {
                 case .detail(let post):
-                    FeedPostDetailView(post: post, currentUserSettings: userSettings)
+                    FeedPostDetailView(post: post, currentUserSettings: userSettings,
+                                       onCommentCountChanged: { delta in viewModel.updateCommentCount(postID: post.id, delta: delta) })
                 case .comment(let post):
-                    FeedPostDetailView(post: post, currentUserSettings: userSettings, focusComment: true)
+                    FeedPostDetailView(post: post, currentUserSettings: userSettings, focusComment: true,
+                                       onCommentCountChanged: { delta in viewModel.updateCommentCount(postID: post.id, delta: delta) })
                 case .profile(let post):
                     ProfileView(
                         profileUserID:       post.userID,
@@ -117,6 +119,7 @@ struct FeedView: View {
             currentUserID:     userSettings.userID,
             onRep:             { Task { await viewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
             onCelebrate:       { Task { await viewModel.toggleCelebrate(postID: post.id, currentUserID: userSettings.userID) } },
+            onZap:             { Task { await viewModel.toggleZap(postID: post.id, currentUserID: userSettings.userID) } },
             onDelete:          deleteAction,
             onShare:           shareAction,
             onTap:             { activePresentation = .detail(post) },
@@ -330,6 +333,7 @@ struct FeedPostCard: View {
     let currentUserID: String
     let onRep:         () -> Void
     var onCelebrate:   (() -> Void)? = nil
+    var onZap:         (() -> Void)? = nil
     var onDelete:      (() -> Void)? = nil
     var onShare:       (() -> Void)? = nil
     var onTap:         (() -> Void)? = nil
@@ -348,6 +352,10 @@ struct FeedPostCard: View {
     @State private var showDeleteConfirm     = false
     @State private var repBurstTrigger       = 0
     @State private var celebrateBurst        = false
+    @State private var zapBurst              = false
+    @State private var expandedWorkoutID: String? = nil
+    @State private var showPhotoViewer       = false
+    @State private var photoViewerIndex      = 0
 
     private let cardBg   = Color(red: 0.11, green: 0.11, blue: 0.14)
     private var purpleHi: Color { post.themeColor }
@@ -372,12 +380,12 @@ struct FeedPostCard: View {
                     workoutTable
                 } else if !post.mogBoardSnapshot.isEmpty {
                     mogBoardSnapshotCard
-                } else if post.postLabel == "Goal", post.goalCalories > 0 {
+                } else if post.postLabel == "Goal" {
                     MacroDisciplineCard(
-                        totalCalories: Double(post.calories),  goalCalories: Double(post.goalCalories),
-                        totalProtein:  post.protein,           goalProtein:  post.goalProtein,
-                        totalCarbs:    post.carbs,             goalCarbs:    post.goalCarbs,
-                        totalFat:      post.fat,               goalFat:      post.goalFat
+                        totalCalories: Double(post.calories),  goalCalories: Double(post.goalCalories > 0 ? post.goalCalories : 2000),
+                        totalProtein:  post.protein,           goalProtein:  post.goalProtein > 0  ? post.goalProtein  : 150,
+                        totalCarbs:    post.carbs,             goalCarbs:    post.goalCarbs   > 0  ? post.goalCarbs    : 200,
+                        totalFat:      post.fat,               goalFat:      post.goalFat     > 0  ? post.goalFat      : 65
                     )
                 }
                 if post.currentWeight > 0, post.goalWeight > 0 {
@@ -518,16 +526,36 @@ struct FeedPostCard: View {
 
     @ViewBuilder
     private var foodPhoto: some View {
-        if !post.foodPhotoURL.isEmpty {
-            CachedAsyncImage(
-                url: URL(string: post.foodPhotoURL),
-                content: { image in
-                    image.resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity)
-                },
-                placeholder: { photoPlaceholder(loading: true) }
-            )
+        let urls = post.allPhotoURLs
+        if !urls.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 2) {
+                    ForEach(Array(urls.enumerated()), id: \.offset) { idx, urlString in
+                        CachedAsyncImage(
+                            url: URL(string: urlString),
+                            content: { image in
+                                image.resizable()
+                                    .scaledToFill()
+                                    .frame(
+                                        width:  urls.count == 1 ? UIScreen.main.bounds.width : 260,
+                                        height: urls.count == 1 ? nil : 260
+                                    )
+                                    .clipped()
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        photoViewerIndex = idx
+                                        showPhotoViewer = true
+                                    }
+                            },
+                            placeholder: { photoPlaceholder(loading: true) }
+                        )
+                    }
+                }
+            }
+            .scrollDisabled(urls.count == 1)
+            .fullScreenCover(isPresented: $showPhotoViewer) {
+                PhotoViewerSheet(urls: urls, initialIndex: photoViewerIndex)
+            }
         }
     }
 
@@ -687,6 +715,8 @@ struct FeedPostCard: View {
     private func workoutRow(item: FeedWorkoutItem, isLast: Bool) -> some View {
         let icon      = WorkoutType(rawValue: item.workoutType)?.icon ?? "figure.mixed.cardio"
         let typeLabel = WorkoutType(rawValue: item.workoutType)?.shortLabel ?? item.workoutType
+        let isExpanded = expandedWorkoutID == item.id
+        let hasExercises = !item.exercises.isEmpty
         return VStack(spacing: 0) {
             HStack(spacing: 10) {
                 RoundedRectangle(cornerRadius: 8)
@@ -727,15 +757,86 @@ struct FeedPostCard: View {
                     }
                 }
                 Spacer()
-                Text("\(item.caloriesBurned) cal")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(workoutGreen)
+                HStack(spacing: 6) {
+                    Text("\(item.caloriesBurned) cal")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(workoutGreen)
+                    if hasExercises {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(workoutGreen.opacity(0.70))
+                            .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                            .animation(.spring(duration: 0.3), value: isExpanded)
+                    }
+                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard hasExercises else { return }
+                withAnimation(.spring(duration: 0.35)) {
+                    expandedWorkoutID = isExpanded ? nil : item.id
+                }
+            }
+
+            if isExpanded && hasExercises {
+                workoutExerciseList(item.exercises)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
             if !isLast {
                 Rectangle().fill(Color.white.opacity(0.05)).frame(height: 1).padding(.horizontal, 10)
             }
+        }
+    }
+
+    private func workoutExerciseList(_ exercises: [Exercise]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Rectangle().fill(workoutGreen.opacity(0.12)).frame(height: 1)
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(exercises) { exercise in
+                    HStack(alignment: .top, spacing: 8) {
+                        Circle()
+                            .fill(workoutGreen.opacity(0.25))
+                            .frame(width: 6, height: 6)
+                            .padding(.top, 5)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(exercise.name)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.85))
+                            Text(exerciseSetsLabel(exercise))
+                                .font(.system(size: 11))
+                                .foregroundStyle(workoutGreen.opacity(0.70))
+                        }
+                        Spacer()
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+        }
+    }
+
+    private func exerciseSetsLabel(_ exercise: Exercise) -> String {
+        let setCount = exercise.sets.count
+        guard setCount > 0 else { return "" }
+        if exercise.hasUniformSets, let first = exercise.sets.first {
+            let weightStr = first.weight.map { w in
+                w.truncatingRemainder(dividingBy: 1) == 0
+                    ? "\(Int(w)) lb"
+                    : "\(w) lb"
+            } ?? "bodyweight"
+            return "\(setCount) × \(first.reps) reps · \(weightStr)"
+        } else {
+            return exercise.sets.enumerated().map { i, s in
+                let weightStr = s.weight.map { w in
+                    w.truncatingRemainder(dividingBy: 1) == 0
+                        ? "\(Int(w)) lb"
+                        : "\(w) lb"
+                } ?? "BW"
+                return "Set \(i + 1): \(s.reps) × \(weightStr)"
+            }.joined(separator: "  ·  ")
         }
     }
 
@@ -968,6 +1069,39 @@ struct FeedPostCard: View {
                         celebrateBurst = false
                     }
                     .allowsHitTesting(false)
+                }
+            }
+
+            // ⚡ Zap button
+            let isZapped = post.hasZapped(userID: currentUserID)
+            Button {
+                if !isZapped { zapBurst = true }
+                onZap?()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(
+                            isZapped
+                                ? Color(red: 1.0, green: 0.88, blue: 0.1)
+                                : .white.opacity(0.35)
+                        )
+                    Text("\(post.zaps)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(
+                            isZapped
+                                ? Color(red: 1.0, green: 0.88, blue: 0.1)
+                                : .white.opacity(0.35)
+                        )
+                }
+            }
+            .buttonStyle(.plain)
+            .scaleEffect(isZapped ? 1.05 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isZapped)
+            .overlay {
+                if zapBurst {
+                    LightningBurstView { zapBurst = false }
+                        .allowsHitTesting(false)
                 }
             }
 
@@ -1457,6 +1591,78 @@ private struct FlickerStreakBadge: View {
     }
 }
 
+// MARK: - Lightning Burst
+//
+// Electric spark explosion that fires from the ⚡ button when tapped.
+// A pulse ring expands outward while 10 spark capsules shoot in all
+// directions and fade — evoking an electric discharge.
+
+private struct LightningBurstView: View {
+    var onComplete: () -> Void
+
+    private struct Spark: Identifiable {
+        let id       = UUID()
+        let angle:    Double
+        let distance: CGFloat
+        let rotation: Double
+        let color:    Color
+        let length:   CGFloat
+    }
+
+    @State private var fired = false
+    @State private var sparks: [Spark] = []
+
+    private static let colors: [Color] = [
+        Color(red: 1.00, green: 0.95, blue: 0.20),  // electric yellow
+        Color(red: 0.40, green: 0.95, blue: 1.00),  // cyan
+        .white,
+        Color(red: 1.00, green: 0.80, blue: 0.10),  // deep yellow
+    ]
+
+    var body: some View {
+        ZStack {
+            // Expanding pulse ring
+            Circle()
+                .stroke(Color(red: 1.0, green: 0.92, blue: 0.2), lineWidth: fired ? 0.5 : 2.5)
+                .frame(width: fired ? 72 : 6, height: fired ? 72 : 6)
+                .opacity(fired ? 0 : 0.85)
+
+            // Spark particles
+            ForEach(sparks) { s in
+                Capsule()
+                    .fill(s.color)
+                    .frame(width: 2.5, height: s.length)
+                    .rotationEffect(.degrees(s.rotation))
+                    .offset(
+                        x: fired ? cos(s.angle) * s.distance : 0,
+                        y: fired ? sin(s.angle) * s.distance : 0
+                    )
+                    .opacity(fired ? 0 : 1)
+                    .scaleEffect(
+                        fired
+                            ? CGSize(width: 0.3, height: 0.05)
+                            : CGSize(width: 1,   height: 1)
+                    )
+            }
+        }
+        .onAppear {
+            sparks = (0..<10).map { i in
+                let base   = (Double(i) / 10.0) * .pi * 2
+                let jitter = Double.random(in: -0.25...0.25)
+                return Spark(
+                    angle:    base + jitter,
+                    distance: CGFloat.random(in: 32...60),
+                    rotation: Double.random(in: 0...360),
+                    color:    Self.colors.randomElement()!,
+                    length:   CGFloat.random(in: 7...15)
+                )
+            }
+            withAnimation(.easeOut(duration: 0.42)) { fired = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.48) { onComplete() }
+        }
+    }
+}
+
 // MARK: - Card Tilt-In Animation
 //
 // MARK: - Celebrate Burst
@@ -1516,6 +1722,102 @@ private struct CelebrateBurstView: View {
                 onComplete()
             }
         }
+    }
+}
+
+// MARK: - Photo Viewer (full-screen zoom)
+
+struct PhotoViewerSheet: View {
+    let urls:         [String]
+    let initialIndex: Int
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var currentIndex: Int
+    @State private var scale:        CGFloat = 1
+    @State private var offset:       CGSize  = .zero
+    @State private var lastOffset:   CGSize  = .zero
+    @GestureState private var pinchScale: CGFloat = 1
+
+    init(urls: [String], initialIndex: Int = 0) {
+        self.urls         = urls
+        self.initialIndex = initialIndex
+        _currentIndex     = State(initialValue: initialIndex)
+    }
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+
+            TabView(selection: $currentIndex) {
+                ForEach(Array(urls.enumerated()), id: \.offset) { idx, urlString in
+                    zoomableImage(urlString: urlString)
+                        .tag(idx)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: urls.count > 1 ? .always : .never))
+            .onChange(of: currentIndex) { _, _ in
+                // Reset zoom when swiping to another photo
+                scale      = 1
+                offset     = .zero
+                lastOffset = .zero
+            }
+
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 30))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 2)
+            }
+            .padding(.top, 56)
+            .padding(.trailing, 20)
+        }
+        .ignoresSafeArea()
+        .preferredColorScheme(.dark)
+    }
+
+    @ViewBuilder
+    private func zoomableImage(urlString: String) -> some View {
+        CachedAsyncImage(
+            url: URL(string: urlString),
+            content: { image in
+                image.resizable()
+                    .scaledToFit()
+                    .scaleEffect(max(1, scale * pinchScale))
+                    .offset(scale > 1 ? offset : .zero)
+                    .gesture(
+                        MagnificationGesture()
+                            .updating($pinchScale) { value, state, _ in state = value }
+                            .onEnded { value in
+                                let newScale = scale * value
+                                scale = max(1, min(newScale, 6))
+                                if scale == 1 { offset = .zero; lastOffset = .zero }
+                            }
+                    )
+                    .simultaneousGesture(
+                        scale > 1 ? DragGesture()
+                            .onChanged { value in
+                                offset = CGSize(
+                                    width:  lastOffset.width  + value.translation.width,
+                                    height: lastOffset.height + value.translation.height
+                                )
+                            }
+                            .onEnded { _ in lastOffset = offset }
+                        : nil
+                    )
+                    .onTapGesture(count: 2) {
+                        withAnimation(.spring(duration: 0.3)) {
+                            if scale > 1 { scale = 1; offset = .zero; lastOffset = .zero }
+                            else         { scale = 3 }
+                        }
+                    }
+            },
+            placeholder: {
+                ProgressView().tint(.white.opacity(0.5))
+            }
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

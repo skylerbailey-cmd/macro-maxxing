@@ -792,7 +792,7 @@ struct HomeView: View {
                 .foregroundStyle(.white.opacity(0.40))
             Spacer()
             Button {
-                withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+                withAnimation(.spring(response: 0.62, dampingFraction: 0.82)) {
                     macrosExpanded = false
                 }
             } label: {
@@ -852,7 +852,7 @@ struct HomeView: View {
     ///   row (used when the workouts card is expanded below it).
     private func macroSummaryCard(compact: Bool) -> some View {
         Button {
-            withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+            withAnimation(.spring(response: 0.62, dampingFraction: 0.82)) {
                 macrosExpanded = true
             }
         } label: {
@@ -1570,7 +1570,7 @@ struct HomeView: View {
                         Text(msg).font(.caption).foregroundStyle(.white.opacity(0.65))
                     }
                     Button {
-                        Task { await viewModel.brainstorm() }
+                        viewModel.brainstorm()
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "arrow.clockwise")
@@ -1638,7 +1638,7 @@ struct HomeView: View {
                         primaryButton: .default(Text("Let's Go")) {
                             let doBrainstorm = {
                                 if viewModel.userSettings.consumeBrainstormUse() {
-                                    Task { await viewModel.brainstorm() }
+                                    viewModel.brainstorm()
                                 }
                             }
                             if RemoteConfigService.shared.brainstormAdRequired {
@@ -2354,22 +2354,27 @@ private struct HubTargetZoneRow: View {
     let shown:  Bool
     var onTap:  (() -> Void)? = nil
 
-    private let minFrac:   Double = 0.85
-    private let maxFrac:   Double = 1.15
-    // The bar spans floorFrac → capFrac of goal. Compressing the low end
-    // gives the 85–115% target zone ~43% of the bar width instead of ~23%.
-    private let floorFrac: Double = 0.60
-    private let capFrac:   Double = 1.30
-    private var rangeFrac: Double { capFrac - floorFrac }
+    private let minFrac:       Double = 0.85
+    private let maxFrac:       Double = 1.15
+    private let capFrac:       Double = 1.30
+    // The bar uses a piecewise scale: 0 → minFrac is compressed into the
+    // left preRangeShare fraction of the bar; minFrac → capFrac gets the rest.
+    // This lets zero show on screen while still giving the target zone ample space.
+    private let preRangeShare: Double = 0.22
 
-    /// Maps a goal-fraction to a 0…1 bar position.
+    /// Maps a goal-fraction to a 0…1 bar position using the piecewise scale.
     private func barX(_ frac: Double) -> Double {
-        max(0, min(1, (frac - floorFrac) / rangeFrac))
+        let f = max(0, min(frac, capFrac))
+        if f <= minFrac {
+            return (f / minFrac) * preRangeShare
+        } else {
+            return preRangeShare + ((f - minFrac) / (capFrac - minFrac)) * (1.0 - preRangeShare)
+        }
     }
 
     private var intakeFrac: Double {
         guard goal > 0 else { return 0 }
-        return shown ? min(total / goal, capFrac) : floorFrac
+        return shown ? min(total / goal, capFrac) : 0
     }
 
     private var inZone: Bool {
@@ -2461,8 +2466,8 @@ private struct HubTargetZoneRow: View {
                             .fill(color)
                             .frame(width: 12, height: 10)
                             .shadow(color: inZone && shown ? color.opacity(0.60) : .clear, radius: 5)
-                            .offset(x: shown ? indicatorX - 6 : -6, y: 10)
-                            .animation(.spring(response: 0.65, dampingFraction: 0.72), value: intakeFrac)
+                            .offset(x: shown ? indicatorX - 6 : 0, y: 10)
+                            .animation(.spring(response: 0.90, dampingFraction: 0.72), value: intakeFrac)
                     }
                 }
                 .frame(height: 22)

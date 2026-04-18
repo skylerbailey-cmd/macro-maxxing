@@ -11,12 +11,15 @@
 //
 
 import SwiftUI
+import Combine
+import ActivityKit
 
 struct LiveWorkoutView: View {
 
     // MARK: - Inputs
 
     let initialWorkoutName: String
+    let initialWorkoutType: WorkoutType
     let initialExercises:   [Exercise]
     /// Returned on End Workout with: workout name, exercises, elapsed minutes,
     /// and the moment the session started. Parent decides how to merge.
@@ -39,6 +42,10 @@ struct LiveWorkoutView: View {
     @State private var now:       Date = Date()
     @State private var showingEndConfirm = false
 
+    /// Handle to the running Live Activity (nil if ActivityKit is unavailable
+    /// or the user has denied Live Activity permission).
+    @State private var liveActivity: Activity<WorkoutActivityAttributes>?
+
     /// Fires once per second to refresh the live elapsed-time label.
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -51,12 +58,14 @@ struct LiveWorkoutView: View {
     // MARK: - Init
 
     init(initialWorkoutName: String,
+         initialWorkoutType: WorkoutType = .strength,
          initialExercises:   [Exercise],
          onFinish: @escaping (_ workoutName: String,
                               _ exercises: [Exercise],
                               _ elapsedMinutes: Int,
                               _ startedAt: Date) -> Void) {
         self.initialWorkoutName = initialWorkoutName
+        self.initialWorkoutType = initialWorkoutType
         self.initialExercises   = initialExercises
         self.onFinish           = onFinish
         // Seed with the passed-in list, or a single empty exercise so the
@@ -92,20 +101,27 @@ struct LiveWorkoutView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundStyle(.white.opacity(0.65))
+                    Button("Cancel") {
+                        endLiveActivity()
+                        dismiss()
+                    }
+                    .foregroundStyle(.white.opacity(0.65))
                 }
             }
             .preferredColorScheme(.dark)
-            .onReceive(timer) { now = $0 }
+            .onAppear { startLiveActivity() }
+            .onReceive(timer) { tick in
+                now = tick
+                updateLiveActivity()
+            }
             .alert("End Workout?", isPresented: $showingEndConfirm) {
                 Button("Cancel", role: .cancel) { }
                 Button("End Workout") { finish() }
             } message: {
                 Text("This will return to the log screen with your exercises and duration filled in.")
             }
+            .keyboardDoneToolbar()
         }
-        .keyboardDoneToolbar()
     }
 
     // MARK: - Elapsed time
@@ -387,7 +403,62 @@ struct LiveWorkoutView: View {
     /// Hand the session data back to the parent and dismiss. Empty exercises
     /// (blank name) are dropped; empty set lists are normalized like the log
     /// sheet does on save.
+    // MARK: - Live Activity
+
+    private func liveActivityState() -> WorkoutActivityAttributes.ContentState {
+        let ex = exercises.indices.contains(currentIndex) ? exercises[currentIndex] : nil
+        let liveSets = (ex?.sets ?? []).map {
+            WorkoutActivityAttributes.LiveSet(reps: $0.reps, weight: $0.weight)
+        }
+        return WorkoutActivityAttributes.ContentState(
+            workoutName:     workoutName.trimmingCharacters(in: .whitespaces),
+            workoutTypeRaw:  initialWorkoutType.rawValue,
+            currentExercise: ex?.name.trimmingCharacters(in: .whitespaces) ?? "",
+            exerciseNumber:  currentIndex + 1,
+            totalExercises:  exercises.count,
+            sets:            liveSets,
+            startedAt:       startedAt
+        )
+    }
+
+    private func startLiveActivity() {
+        let authInfo = ActivityAuthorizationInfo()
+        guard authInfo.areActivitiesEnabled else {
+            print("[LiveActivity] areActivitiesEnabled = false — check Settings > Wellness > Live Activities")
+            return
+        }
+        let state = liveActivityState()
+        do {
+            liveActivity = try Activity<WorkoutActivityAttributes>.request(
+                attributes: WorkoutActivityAttributes(),
+                content: .init(state: state, staleDate: nil)
+            )
+            print("[LiveActivity] started: \(liveActivity?.id ?? "nil")")
+        } catch {
+            print("[LiveActivity] request failed: \(error)")
+        }
+    }
+
+    private func updateLiveActivity() {
+        guard let activity = liveActivity else { return }
+        let state = liveActivityState()
+        Task {
+            await activity.update(.init(state: state, staleDate: nil))
+        }
+    }
+
+    private func endLiveActivity() {
+        guard let activity = liveActivity else { return }
+        Task {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
+        liveActivity = nil
+    }
+
+    // MARK: - Finish
+
     private func finish() {
+        endLiveActivity()
         let cleaned: [Exercise] = exercises.compactMap { ex in
             let trimmed = ex.name.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty else { return nil }

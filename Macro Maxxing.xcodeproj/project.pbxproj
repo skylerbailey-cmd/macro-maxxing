@@ -16,18 +16,82 @@
 		8863D94E2F705AAF00047CD0 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 8863D94D2F705AAF00047CD0 /* GoogleMobileAds */; };
 		8863D9502F705AB000047CD0 /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = 8863D94F2F705AB000047CD0 /* FirebaseRemoteConfig */; };
 		88C8F1B32F89A9FA00CA7E64 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 88C8F1B22F89A9FA00CA7E64 /* FirebaseAppCheck */; };
+		88EF25292F93428100A7BAC0 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 88EF250C2F9340F400A7BAC0 /* WidgetKit.framework */; };
+		88EF252A2F93428100A7BAC0 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 88EF250E2F9340F400A7BAC0 /* SwiftUI.framework */; };
+		88EF25392F93428200A7BAC0 /* WellnessWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 88EF25282F93428000A7BAC0 /* WellnessWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		88EF25372F93428200A7BAC0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 881BD66B2F620203003E41BE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 88EF25272F93428000A7BAC0;
+			remoteInfo = WellnessWidgetsExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		88EF25232F9340F600A7BAC0 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				88EF25392F93428200A7BAC0 /* WellnessWidgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		881BD6732F620203003E41BE /* Macro Maxxing.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Macro Maxxing.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		8863DED62F70B20F00047CD0 /* Macro Maxxing.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Macro Maxxing.entitlements"; sourceTree = "<group>"; };
 		8863DED72F70B28F00047CD0 /* Macro MaxxingRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Macro MaxxingRelease.entitlements"; sourceTree = "<group>"; };
+		88EF250C2F9340F400A7BAC0 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		88EF250E2F9340F400A7BAC0 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		88EF25282F93428000A7BAC0 /* WellnessWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WellnessWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		88EF25422F9344F700A7BAC0 /* WellnessWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WellnessWidgets.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		88EF253A2F93428200A7BAC0 /* Exceptions for "WellnessWidgets" folder in "WellnessWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 88EF25272F93428000A7BAC0 /* WellnessWidgetsExtension */;
+		};
+		88EF25412F9342FA00A7BAC0 /* Exceptions for "Wellness" folder in "WellnessWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Services/WorkoutActivityAttributes.swift,
+			);
+			target = 88EF25272F93428000A7BAC0 /* WellnessWidgetsExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		881BD6752F620203003E41BE /* Wellness */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				88EF25412F9342FA00A7BAC0 /* Exceptions for "Wellness" folder in "WellnessWidgetsExtension" target */,
+			);
 			path = Wellness;
+			sourceTree = "<group>";
+		};
+		88EF25102F9340F400A7BAC0 /* Log Workout */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Log Workout";
+			sourceTree = "<group>";
+		};
+		88EF252B2F93428100A7BAC0 /* WellnessWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				88EF253A2F93428200A7BAC0 /* Exceptions for "WellnessWidgets" folder in "WellnessWidgetsExtension" target */,
+			);
+			path = WellnessWidgets;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -49,15 +113,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		88EF25252F93428000A7BAC0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				88EF252A2F93428100A7BAC0 /* SwiftUI.framework in Frameworks */,
+				88EF25292F93428100A7BAC0 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		881BD66A2F620203003E41BE = {
 			isa = PBXGroup;
 			children = (
+				88EF25422F9344F700A7BAC0 /* WellnessWidgets.entitlements */,
 				8863DED72F70B28F00047CD0 /* Macro MaxxingRelease.entitlements */,
 				8863DED62F70B20F00047CD0 /* Macro Maxxing.entitlements */,
 				881BD6752F620203003E41BE /* Wellness */,
+				88EF25102F9340F400A7BAC0 /* Log Workout */,
+				88EF252B2F93428100A7BAC0 /* WellnessWidgets */,
 				88C8F1B12F89A9FA00CA7E64 /* Frameworks */,
 				881BD6742F620203003E41BE /* Products */,
 			);
@@ -67,6 +143,7 @@
 			isa = PBXGroup;
 			children = (
 				881BD6732F620203003E41BE /* Macro Maxxing.app */,
+				88EF25282F93428000A7BAC0 /* WellnessWidgetsExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -74,6 +151,8 @@
 		88C8F1B12F89A9FA00CA7E64 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				88EF250C2F9340F400A7BAC0 /* WidgetKit.framework */,
+				88EF250E2F9340F400A7BAC0 /* SwiftUI.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -88,10 +167,12 @@
 				881BD66F2F620203003E41BE /* Sources */,
 				881BD6702F620203003E41BE /* Frameworks */,
 				881BD6712F620203003E41BE /* Resources */,
+				88EF25232F9340F600A7BAC0 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				88EF25382F93428200A7BAC0 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				881BD6752F620203003E41BE /* Wellness */,
@@ -112,6 +193,28 @@
 			productReference = 881BD6732F620203003E41BE /* Macro Maxxing.app */;
 			productType = "com.apple.product-type.application";
 		};
+		88EF25272F93428000A7BAC0 /* WellnessWidgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 88EF253B2F93428200A7BAC0 /* Build configuration list for PBXNativeTarget "WellnessWidgetsExtension" */;
+			buildPhases = (
+				88EF25242F93428000A7BAC0 /* Sources */,
+				88EF25252F93428000A7BAC0 /* Frameworks */,
+				88EF25262F93428000A7BAC0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				88EF252B2F93428100A7BAC0 /* WellnessWidgets */,
+			);
+			name = WellnessWidgetsExtension;
+			packageProductDependencies = (
+			);
+			productName = WellnessWidgetsExtension;
+			productReference = 88EF25282F93428000A7BAC0 /* WellnessWidgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -123,6 +226,9 @@
 				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					881BD6722F620203003E41BE = {
+						CreatedOnToolsVersion = 26.3;
+					};
+					88EF25272F93428000A7BAC0 = {
 						CreatedOnToolsVersion = 26.3;
 					};
 				};
@@ -147,12 +253,20 @@
 			projectRoot = "";
 			targets = (
 				881BD6722F620203003E41BE /* Macro Maxxing */,
+				88EF25272F93428000A7BAC0 /* WellnessWidgetsExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		881BD6712F620203003E41BE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		88EF25262F93428000A7BAC0 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -169,7 +283,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		88EF25242F93428000A7BAC0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		88EF25382F93428200A7BAC0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 88EF25272F93428000A7BAC0 /* WellnessWidgetsExtension */;
+			targetProxy = 88EF25372F93428200A7BAC0 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		881BD67C2F620205003E41BE /* Debug */ = {
@@ -303,12 +432,13 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Macromaxxing;
+				INFOPLIST_KEY_CFBundleDisplayName = Electric;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Macromaxxing uses your camera to photograph food for macro estimation.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Macromaxxing uses your location to show posts and leaderboards from people near you.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Macromaxxing uses your microphone so you can describe what you ate and have the AI estimate your macros from your voice and photo.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Macromaxxing accesses your photo library to select food photos for macro tracking.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Macromaxxing uses speech recognition to transcribe your food description so the AI can estimate your macros from both your voice and photo.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Macromaxxing uses this to show you relevant ads. You can change this anytime in Settings. We never sell your personal data.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -345,12 +475,13 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Macromaxxing;
+				INFOPLIST_KEY_CFBundleDisplayName = Electric;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Macromaxxing uses your camera to photograph food for macro estimation.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Macromaxxing uses your location to show posts and leaderboards from people near you.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Macromaxxing uses your microphone so you can describe what you ate and have the AI estimate your macros from your voice and photo.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Macromaxxing accesses your photo library to select food photos for macro tracking.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Macromaxxing uses speech recognition to transcribe your food description so the AI can estimate your macros from both your voice and photo.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Macromaxxing uses this to show you relevant ads. You can change this anytime in Settings. We never sell your personal data.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -375,6 +506,68 @@
 			};
 			name = Release;
 		};
+		88EF253C2F93428200A7BAC0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = G22DFJHK4M;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WellnessWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = WellnessWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = QM.Wellness.WellnessWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		88EF253D2F93428200A7BAC0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = G22DFJHK4M;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WellnessWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = WellnessWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = QM.Wellness.WellnessWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -392,6 +585,15 @@
 			buildConfigurations = (
 				881BD67F2F620205003E41BE /* Debug */,
 				881BD6802F620205003E41BE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		88EF253B2F93428200A7BAC0 /* Build configuration list for PBXNativeTarget "WellnessWidgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				88EF253C2F93428200A7BAC0 /* Debug */,
+				88EF253D2F93428200A7BAC0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

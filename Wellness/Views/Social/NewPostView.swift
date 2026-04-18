@@ -547,10 +547,24 @@ struct NewPostView: View {
 
     // MARK: - Goal totals helpers
 
-    private var goalTotalCalories: Double { todayFoodEntries.reduce(0) { $0 + $1.calories } }
-    private var goalTotalProtein:  Double { todayFoodEntries.reduce(0) { $0 + $1.protein  } }
-    private var goalTotalCarbs:    Double { todayFoodEntries.reduce(0) { $0 + $1.carbs    } }
-    private var goalTotalFat:      Double { todayFoodEntries.reduce(0) { $0 + $1.fat      } }
+    /// Today's macro totals for the Goal post.
+    /// Prefers the HomeViewModel cache written to UserDefaults (includes pending entries)
+    /// and falls back to the Firestore-fetched todayFoodEntries.
+    private var goalTotalCalories: Double { cachedOrFetchedTotal("cachedDailyCalories") { $0.calories } }
+    private var goalTotalProtein:  Double { cachedOrFetchedTotal("cachedDailyProtein")  { $0.protein  } }
+    private var goalTotalCarbs:    Double { cachedOrFetchedTotal("cachedDailyCarbs")    { $0.carbs    } }
+    private var goalTotalFat:      Double { cachedOrFetchedTotal("cachedDailyFat")      { $0.fat      } }
+
+    private func cachedOrFetchedTotal(_ key: String, extract: (FoodEntry) -> Double) -> Double {
+        let ud = UserDefaults.standard
+        let cachedDay = ud.double(forKey: "cachedDailyDate")
+        let today = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
+        // Use cached value if it's for today (within the same calendar day)
+        if cachedDay == today, ud.object(forKey: key) != nil {
+            return ud.double(forKey: key)
+        }
+        return todayFoodEntries.reduce(0) { $0 + extract($1) }
+    }
 
     private func ud(_ key: String, fallback: Double) -> Double {
         let ud = UserDefaults.standard
@@ -583,7 +597,7 @@ struct NewPostView: View {
 
             if !isLoadingFood {
                 if goalCal <= 0 {
-                    Text("No daily goals set. Set your goals in Profile → Settings to see progress here.")
+                    Text("No daily goals set. Set your goals in the Hub tab to see progress here.")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.40))
                         .padding(.top, 2)
@@ -594,6 +608,11 @@ struct NewPostView: View {
                         totalCarbs:    goalTotalCarbs,    goalCarbs:    goalCarb,
                         totalFat:      goalTotalFat,      goalFat:      goalFat
                     )
+                    if goalTotalCalories == 0 {
+                        Text("Log meals in the Fuel tab to see today's progress.")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.35))
+                    }
                 }
             }
         }

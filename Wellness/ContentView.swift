@@ -46,8 +46,9 @@ struct ContentView: View {
     @State private var fabExpanded           = false
     @State private var fabShowingNewPost     = false
     @State private var fabShowingSearch      = false
-    @State private var fabShowingLogWorkout  = false
+    @State private var fabShowingLogWorkout  = false   // kept for any remaining references
     @State private var fabOpenLogMeal        = false
+    @State private var fabOpenLogWorkout     = false
     // After posting, navigate to the Feed tab matching the post's scope
     @State private var pendingFeedScope:     String? = nil
 
@@ -94,8 +95,11 @@ struct ContentView: View {
 
                 NavigationStack {
                     FoodLogView(modelContext: modelContext, selectedDate: $selectedDate,
-                                userSettings: userSettings, openLogMealTrigger: $fabOpenLogMeal)
+                                userSettings: userSettings,
+                                openLogMealTrigger: $fabOpenLogMeal,
+                                openLogWorkoutTrigger: $fabOpenLogWorkout)
                 }
+                .environment(locationManager)
                 .tabItem { Label("Log", systemImage: "flame.fill") }
                 .tag(1)
 
@@ -295,7 +299,7 @@ struct ContentView: View {
                 onLogWorkout: {
                     fabExpanded = false
                     selectedTab = 1
-                    fabShowingLogWorkout = true
+                    fabOpenLogWorkout = true
                 },
                 onMakePost: {
                     fabExpanded = false
@@ -308,17 +312,6 @@ struct ContentView: View {
             )
             .padding(.trailing, 20)
             .padding(.bottom, 88)
-        }
-        .sheet(isPresented: $fabShowingLogWorkout) {
-            LogWorkoutSheet(
-                userID:              userSettings.userID,
-                selectedDate:        selectedDate,
-                bodyWeightLbs:       userSettings.currentWeight,
-                autoAdjustByDefault: userSettings.autoAdjustMacrosForWorkout,
-                userSettings:        userSettings,
-                onSaved:             {}
-            )
-            .environment(locationManager)
         }
         .sheet(isPresented: $fabShowingNewPost) {
             NewPostView(

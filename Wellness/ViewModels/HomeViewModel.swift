@@ -307,6 +307,18 @@ import FirebaseFirestore
         totalCarbs    = entries.reduce(0) { $0 + $1.carbs }
         totalFat      = entries.reduce(0) { $0 + $1.fat }
 
+        // Cache today's totals in UserDefaults so NewPostView (Goal label) can read
+        // them without an extra Firestore round-trip or missing pending entries.
+        if isSelectedDateToday {
+            let ud = UserDefaults.standard
+            ud.set(totalCalories, forKey: "cachedDailyCalories")
+            ud.set(totalProtein,  forKey: "cachedDailyProtein")
+            ud.set(totalCarbs,    forKey: "cachedDailyCarbs")
+            ud.set(totalFat,      forKey: "cachedDailyFat")
+            ud.set(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970,
+                   forKey: "cachedDailyDate")
+        }
+
         // Load the goals that were saved for this date so past-day views show
         // the exact targets (adjusted or base) that were in effect that day.
         if !isSelectedDateToday {
@@ -455,22 +467,20 @@ import FirebaseFirestore
 
     // MARK: - Brainstorm
 
-    func brainstorm() async {
+    func brainstorm() {
         brainstormState = .loading
-        let input = ClaudeAnalysisService.BrainstormInput(
+        let input = MacroRecommendationEngine.BrainstormInput(
             totalCalories: totalCalories, goalCalories: goalCalories,
             totalProtein:  totalProtein,  goalProtein:  goalProtein,
             totalCarbs:    totalCarbs,    goalCarbs:    goalCarbs,
-            totalFat:      totalFat,      goalFat:      goalFat
+            totalFat:      totalFat,      goalFat:      goalFat,
+            excludeDairy:  userSettings.excludeDairy,
+            excludeGluten: userSettings.excludeGluten
         )
-        do {
-            let result = try await ClaudeAnalysisService().brainstorm(input)
-            brainstormState = .result(result)
-            userSettings.lastBrainstormResult = result
-            userSettings.lastBrainstormDate   = Date()
-        } catch {
-            brainstormState = .error(error.localizedDescription)
-        }
+        let result = MacroRecommendationEngine().recommend(input)
+        brainstormState = .result(result)
+        userSettings.lastBrainstormResult = result
+        userSettings.lastBrainstormDate   = Date()
     }
 
     func resetBrainstorm() { brainstormState = .idle }

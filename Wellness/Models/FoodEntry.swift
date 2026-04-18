@@ -53,6 +53,7 @@ import SwiftData
 struct MealPlan: Codable, Identifiable {
     var id:        String     = UUID().uuidString
     var name:      String
+    var notes:     String     = ""
     var days:      [PlanDay]  = []
     var createdAt: Date       = Date()
 

@@ -219,6 +219,7 @@ struct MealPlanDetailView: View {
     @State private var renameText           = ""
     @State private var renamingDayIndex: Int? = nil
     @State private var dayRenameText         = ""
+    @State private var notesText             = ""
 
     private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
     private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
@@ -234,6 +235,34 @@ struct MealPlanDetailView: View {
 
     var body: some View {
         List {
+            // Notes
+            Section {
+                ZStack(alignment: .topLeading) {
+                    if notesText.isEmpty {
+                        Text("Add notes, goals, or instructions…")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white.opacity(0.25))
+                            .padding(.top, 8)
+                            .padding(.leading, 4)
+                            .allowsHitTesting(false)
+                    }
+                    TextEditor(text: $notesText)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white)
+                        .scrollContentBackground(.hidden)
+                        .frame(minHeight: 72)
+                        .onChange(of: notesText) { _, newVal in
+                            plan.notes = newVal
+                            save()
+                        }
+                }
+            } header: {
+                Text("NOTES")
+                    .font(.system(size: 11, weight: .black))
+                    .tracking(1.5)
+            }
+            .listRowBackground(cardBg)
+
             // Macro summary header
             if !allMeals.isEmpty {
                 Section {
@@ -403,6 +432,7 @@ struct MealPlanDetailView: View {
         } message: {
             Text("Rename this day — e.g. \"Monday\" or \"Breakfast\"")
         }
+        .onAppear { notesText = plan.notes }
     }
 
     // MARK: - Macro summary
@@ -505,6 +535,19 @@ struct MealPlanPublicView: View {
 
     var body: some View {
         List {
+            if !plan.notes.isEmpty {
+                Section {
+                    Text(plan.notes)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white.opacity(0.75))
+                } header: {
+                    Text("NOTES")
+                        .font(.system(size: 11, weight: .black))
+                        .tracking(1.5)
+                }
+                .listRowBackground(cardBg)
+            }
+
             if !allMeals.isEmpty {
                 Section {
                     macroSummaryBar
@@ -613,10 +656,12 @@ private struct AddMealToPlanSheet: View {
     let onAdd:        ([String]) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var selected:       Set<String> = []
-    @State private var showingCreate   = false
-    @State private var editingMeal:    FoodEntry?  = nil
-    @State private var deleteConfirm:  FoodEntry?  = nil
+    @State private var selected:         Set<String>  = []
+    @State private var showingCreate     = false
+    @State private var showingImportDay  = false
+    @State private var allPlans:         [MealPlan]   = []
+    @State private var editingMeal:      FoodEntry?   = nil
+    @State private var deleteConfirm:    FoodEntry?   = nil
 
     private var accent: Color { ThemeStore.shared.accent }
     private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
@@ -644,6 +689,25 @@ private struct AddMealToPlanSheet: View {
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(accent.opacity(0.25), lineWidth: 1))
                         }
                         .buttonStyle(.plain)
+
+                        // Import saved day button
+                        if !allPlans.isEmpty {
+                            Button { showingImportDay = true } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "square.and.arrow.down.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundStyle(Color(red: 0.40, green: 0.90, blue: 0.72))
+                                    Text("Import a Saved Day")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(.white)
+                                    Spacer()
+                                }
+                                .padding(12)
+                                .background(Color(red: 0.40, green: 0.90, blue: 0.72).opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(red: 0.40, green: 0.90, blue: 0.72).opacity(0.25), lineWidth: 1))
+                            }
+                            .buttonStyle(.plain)
+                        }
 
                         if savedMeals.isEmpty {
                             VStack(spacing: 10) {
@@ -747,6 +811,14 @@ private struct AddMealToPlanSheet: View {
                 }
             }
             .preferredColorScheme(.dark)
+            .task {
+                allPlans = await FoodEntryService.shared.fetchMealPlans(userID: userID)
+            }
+            .sheet(isPresented: $showingImportDay) {
+                ImportDaySheet(plans: allPlans, savedMeals: savedMeals) { importedIDs in
+                    for id in importedIDs { selected.insert(id) }
+                }
+            }
             .sheet(isPresented: $showingCreate) {
                 SavedMealCreatorSheet(userID: userID, userSettings: userSettings) { newMeal in
                     savedMeals.append(newMeal)
@@ -776,6 +848,134 @@ private struct AddMealToPlanSheet: View {
             } message: {
                 Text("This can't be undone.")
             }
+        }
+    }
+}
+
+// MARK: - Import Day Sheet
+
+/// Shows all meal plans and lets the user pick a day to import all its meals
+/// into the current plan day being built.
+private struct ImportDaySheet: View {
+    let plans:      [MealPlan]
+    let savedMeals: [FoodEntry]
+    let onImport:   ([String]) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var expanded: Set<String> = []
+
+    private var accent: Color { ThemeStore.shared.accent }
+    private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                pageBg.ignoresSafeArea()
+                if plans.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 36))
+                            .foregroundStyle(.white.opacity(0.20))
+                        Text("No saved days yet")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.50))
+                        Text("Use \"Save Day\" on the Log tab to save today's meals as a reusable day.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.white.opacity(0.35))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                    }
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 12) {
+                            ForEach(plans) { plan in
+                                VStack(alignment: .leading, spacing: 0) {
+                                    // Plan header — tap to expand/collapse
+                                    Button {
+                                        withAnimation(.spring(duration: 0.25)) {
+                                            if expanded.contains(plan.id) { expanded.remove(plan.id) }
+                                            else { expanded.insert(plan.id) }
+                                        }
+                                    } label: {
+                                        HStack {
+                                            Image(systemName: "fork.knife.circle")
+                                                .font(.system(size: 16))
+                                                .foregroundStyle(accent)
+                                            Text(plan.name)
+                                                .font(.system(size: 14, weight: .bold))
+                                                .foregroundStyle(.white)
+                                            Spacer()
+                                            Image(systemName: "chevron.right")
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .foregroundStyle(.white.opacity(0.35))
+                                                .rotationEffect(.degrees(expanded.contains(plan.id) ? 90 : 0))
+                                        }
+                                        .padding(14)
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    if expanded.contains(plan.id) {
+                                        Divider().background(Color.white.opacity(0.08))
+                                        ForEach(Array(plan.days.enumerated()), id: \.element.id) { idx, day in
+                                            let dayMeals = day.itemIDs.compactMap { id in savedMeals.first { $0.firebaseEntryID == id } }
+                                            let dayCal   = dayMeals.reduce(0.0) { $0 + $1.calories }
+                                            let dayPro   = dayMeals.reduce(0.0) { $0 + $1.protein  }
+                                            Button {
+                                                onImport(day.itemIDs)
+                                                dismiss()
+                                            } label: {
+                                                HStack(spacing: 12) {
+                                                    VStack(alignment: .leading, spacing: 3) {
+                                                        Text(day.label)
+                                                            .font(.system(size: 13, weight: .semibold))
+                                                            .foregroundStyle(.white)
+                                                        if dayMeals.isEmpty {
+                                                            Text("No meals")
+                                                                .font(.system(size: 11))
+                                                                .foregroundStyle(.white.opacity(0.30))
+                                                        } else {
+                                                            Text("\(dayMeals.count) meal\(dayMeals.count == 1 ? "" : "s") · \(Int(dayCal)) cal · \(Int(dayPro))g P")
+                                                                .font(.system(size: 11))
+                                                                .foregroundStyle(.white.opacity(0.40))
+                                                        }
+                                                    }
+                                                    Spacer()
+                                                    Image(systemName: "plus.circle.fill")
+                                                        .font(.system(size: 18))
+                                                        .foregroundStyle(accent)
+                                                }
+                                                .padding(.horizontal, 14)
+                                                .padding(.vertical, 10)
+                                                .background(accent.opacity(0.07))
+                                            }
+                                            .buttonStyle(.plain)
+                                            .disabled(day.itemIDs.isEmpty)
+                                            .opacity(day.itemIDs.isEmpty ? 0.45 : 1)
+                                            if idx < plan.days.count - 1 {
+                                                Divider().background(Color.white.opacity(0.06)).padding(.leading, 14)
+                                            }
+                                        }
+                                    }
+                                }
+                                .background(cardBg, in: RoundedRectangle(cornerRadius: 14))
+                                .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.12), lineWidth: 1))
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
+                        .padding(.bottom, 40)
+                    }
+                }
+            }
+            .navigationTitle("Import a Day")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+            .preferredColorScheme(.dark)
         }
     }
 }

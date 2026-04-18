@@ -179,6 +179,8 @@ struct RoutineDetailView: View {
     @State private var renameText             = ""
     @State private var renamingDayIndex: Int? = nil
     @State private var dayRenameText          = ""
+    @State private var editingWorkout: SavedWorkout? = nil
+    @State private var notesText: String = ""
 
     private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
     private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
@@ -188,6 +190,33 @@ struct RoutineDetailView: View {
 
     var body: some View {
         List {
+            Section {
+                ZStack(alignment: .topLeading) {
+                    if notesText.isEmpty {
+                        Text("Add notes, goals, or instructions…")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white.opacity(0.25))
+                            .padding(.top, 8)
+                            .padding(.leading, 4)
+                            .allowsHitTesting(false)
+                    }
+                    TextEditor(text: $notesText)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white)
+                        .scrollContentBackground(.hidden)
+                        .frame(minHeight: 72)
+                        .onChange(of: notesText) { _, newVal in
+                            routine.notes = newVal
+                            save()
+                        }
+                }
+            } header: {
+                Text("NOTES")
+                    .font(.system(size: 11, weight: .black))
+                    .tracking(1.5)
+            }
+            .listRowBackground(cardBg)
+
             ForEach(Array(routine.days.enumerated()), id: \.element.id) { dayIdx, day in
                 Section {
                     let resolved = day.itemIDs.compactMap { id in allSaved.first { $0.id == id } }
@@ -295,6 +324,29 @@ struct RoutineDetailView: View {
                 }
             )
         }
+        .sheet(item: $editingWorkout) { workout in
+            LogWorkoutSheet(
+                userID:              userID,
+                selectedDate:        Date(),
+                bodyWeightLbs:       0,
+                autoAdjustByDefault: false,
+                userSettings:        userSettings,
+                editingEntry:        WorkoutEntry(
+                    workoutID:       workout.id,
+                    name:            workout.name,
+                    workoutType:     workout.workoutType,
+                    durationMinutes: workout.durationMinutes,
+                    caloriesBurned:  workout.caloriesBurned,
+                    exercises:       workout.exercises
+                ),
+                onSaved:             {},
+                saveTemplateMode:    true,
+                onSavedTemplate:     { updated in
+                    WorkoutService.shared.updateSavedWorkout(updated)
+                },
+                savedWorkoutMode:    true
+            )
+        }
         .alert("Rename Routine", isPresented: $showingRenameAlert) {
             TextField("Name", text: $renameText)
             Button("Save") {
@@ -331,33 +383,41 @@ struct RoutineDetailView: View {
         } message: {
             Text("Rename this day — e.g. \"Monday\" or \"Push\"")
         }
+        .onAppear { notesText = routine.notes }
     }
 
     private func workoutRow(_ workout: SavedWorkout) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: workout.workoutType.icon)
-                .font(.system(size: 12))
-                .foregroundStyle(accent)
-                .frame(width: 24)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(workout.name)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
-                HStack(spacing: 6) {
-                    Text(workout.workoutType.rawValue)
-                        .font(.system(size: 11))
-                    if !workout.exercises.isEmpty {
-                        Text("\(workout.exercises.count) exercises")
+        Button { editingWorkout = workout } label: {
+            HStack(spacing: 10) {
+                Image(systemName: workout.workoutType.icon)
+                    .font(.system(size: 12))
+                    .foregroundStyle(accent)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(workout.name)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
+                    HStack(spacing: 6) {
+                        Text(workout.workoutType.rawValue)
                             .font(.system(size: 11))
+                        if !workout.exercises.isEmpty {
+                            Text("\(workout.exercises.count) exercises")
+                                .font(.system(size: 11))
+                        }
+                        if workout.durationMinutes > 0 {
+                            Text("\(workout.durationMinutes)m")
+                                .font(.system(size: 11))
+                        }
                     }
-                    if workout.durationMinutes > 0 {
-                        Text("\(workout.durationMinutes)m")
-                            .font(.system(size: 11))
-                    }
+                    .foregroundStyle(.white.opacity(0.40))
                 }
-                .foregroundStyle(.white.opacity(0.40))
+                Spacer()
+                Image(systemName: "pencil")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.25))
             }
         }
+        .buttonStyle(.plain)
     }
 
     private func save() {
@@ -373,6 +433,7 @@ struct RoutinePublicView: View {
     let savedWorkouts: [SavedWorkout]
 
     @Environment(\.dismiss) private var dismiss
+    @State private var expandedWorkoutID: String? = nil
 
     private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
     private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
@@ -380,6 +441,19 @@ struct RoutinePublicView: View {
 
     var body: some View {
         List {
+            if !routine.notes.isEmpty {
+                Section {
+                    Text(routine.notes)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white.opacity(0.75))
+                } header: {
+                    Text("NOTES")
+                        .font(.system(size: 11, weight: .black))
+                        .tracking(1.5)
+                }
+                .listRowBackground(cardBg)
+            }
+
             ForEach(routine.days) { day in
                 let resolved = day.itemIDs.compactMap { id in savedWorkouts.first { $0.id == id } }
                 if !resolved.isEmpty {
@@ -413,30 +487,94 @@ struct RoutinePublicView: View {
     }
 
     private func workoutRow(_ workout: SavedWorkout) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: workout.workoutType.icon)
-                .font(.system(size: 12))
-                .foregroundStyle(accent)
-                .frame(width: 24)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(workout.name)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
-                HStack(spacing: 6) {
-                    Text(workout.workoutType.rawValue)
-                        .font(.system(size: 11))
-                    if !workout.exercises.isEmpty {
-                        Text("\(workout.exercises.count) exercises")
-                            .font(.system(size: 11))
+        let isExpanded = expandedWorkoutID == workout.id
+        return VStack(alignment: .leading, spacing: 0) {
+            Button {
+                guard !workout.exercises.isEmpty else { return }
+                withAnimation(.spring(duration: 0.35)) {
+                    expandedWorkoutID = isExpanded ? nil : workout.id
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: workout.workoutType.icon)
+                        .font(.system(size: 12))
+                        .foregroundStyle(accent)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(workout.name)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                        HStack(spacing: 6) {
+                            Text(workout.workoutType.rawValue)
+                                .font(.system(size: 11))
+                            if !workout.exercises.isEmpty {
+                                Text("\(workout.exercises.count) exercises")
+                                    .font(.system(size: 11))
+                            }
+                            if workout.durationMinutes > 0 {
+                                Text("\(workout.durationMinutes)m")
+                                    .font(.system(size: 11))
+                            }
+                        }
+                        .foregroundStyle(.white.opacity(0.40))
                     }
-                    if workout.durationMinutes > 0 {
-                        Text("\(workout.durationMinutes)m")
-                            .font(.system(size: 11))
+                    Spacer()
+                    if !workout.exercises.isEmpty {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.30))
+                            .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                            .animation(.spring(duration: 0.35), value: isExpanded)
                     }
                 }
-                .foregroundStyle(.white.opacity(0.40))
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                exerciseList(workout.exercises)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+    }
+
+    private func exerciseList(_ exercises: [Exercise]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(exercises) { ex in
+                HStack(alignment: .top, spacing: 8) {
+                    Text("•")
+                        .font(.system(size: 12))
+                        .foregroundStyle(accent)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(ex.name)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white)
+                        let label = setsLabel(ex)
+                        if !label.isEmpty {
+                            Text(label)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.white.opacity(0.45))
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.top, 10)
+        .padding(.leading, 34)
+    }
+
+    private func setsLabel(_ exercise: Exercise) -> String {
+        guard !exercise.sets.isEmpty else { return "" }
+        if exercise.hasUniformSets {
+            let s = exercise.sets[0]
+            var parts: [String] = ["\(exercise.sets.count) × \(s.reps) reps"]
+            if let w = s.weight, w > 0 { parts.append("\(Int(w)) lb") }
+            return parts.joined(separator: " · ")
+        }
+        return exercise.sets.enumerated().map { i, s in
+            var p = "Set \(i+1): \(s.reps) reps"
+            if let w = s.weight, w > 0 { p += " · \(Int(w)) lb" }
+            return p
+        }.joined(separator: ", ")
     }
 }
 
@@ -632,7 +770,8 @@ private struct AddWorkoutToRoutineSheet: View {
             onSavedTemplate:     { updated in
                 WorkoutService.shared.updateSavedWorkout(updated)
                 workouts = WorkoutService.shared.savedWorkouts
-            }
+            },
+            savedWorkoutMode:    true
         )
     }
 }

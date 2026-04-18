@@ -85,6 +85,13 @@ import FirebaseFirestore
         isLoading = false
     }
 
+    // MARK: - Comment count (local update after add/delete)
+
+    func updateCommentCount(postID: String, delta: Int) {
+        guard let idx = posts.firstIndex(where: { $0.id == postID }) else { return }
+        posts[idx].commentsCount = max(0, posts[idx].commentsCount + delta)
+    }
+
     // MARK: - Toggle rep (optimistic)
 
     func toggleRep(postID: String, currentUserID: String) async {
@@ -129,6 +136,32 @@ import FirebaseFirestore
 
         do {
             try await PostService.shared.toggleCelebrate(postID: postID, currentUserID: currentUserID)
+        } catch {
+            if let revertIdx = posts.firstIndex(where: { $0.id == postID }) {
+                posts[revertIdx] = original
+            }
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Toggle zap (optimistic)
+
+    func toggleZap(postID: String, currentUserID: String) async {
+        guard let idx = posts.firstIndex(where: { $0.id == postID }) else { return }
+
+        let original = posts[idx]
+        var updated  = posts[idx]
+        if updated.hasZapped(userID: currentUserID) {
+            updated.zaps = max(0, updated.zaps - 1)
+            updated.zappedBy.removeAll { $0 == currentUserID }
+        } else {
+            updated.zaps += 1
+            updated.zappedBy.append(currentUserID)
+        }
+        posts[idx] = updated
+
+        do {
+            try await PostService.shared.toggleZap(postID: postID, currentUserID: currentUserID)
         } catch {
             if let revertIdx = posts.firstIndex(where: { $0.id == postID }) {
                 posts[revertIdx] = original

@@ -1253,47 +1253,51 @@ struct ProfileView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 30)
-                .alert("New Meal Plan", isPresented: $showCreateMealPlan) {
-                    TextField("Plan name", text: $newMealPlanName)
-                    Button("Create") {
-                        let name = newMealPlanName.trimmingCharacters(in: .whitespaces)
-                        guard !name.isEmpty else { return }
-                        let uid = ownUserSettings?.userID ?? ""
-                        FoodEntryService.shared.addMealPlan(
-                            MealPlan(name: name, days: [PlanDay(label: "Day 1")]),
-                            userID: uid
-                        )
-                        newMealPlanName = ""
-                        Task { profileMealPlans = await FoodEntryService.shared.fetchMealPlans(userID: uid) }
-                    }
-                    Button("Cancel", role: .cancel) { newMealPlanName = "" }
-                } message: {
-                    Text("Give your plan a name")
-                }
             } else {
                 ForEach(profileMealPlans) { plan in
-                    Button { planForAction = plan } label: {
-                        mealPlanRow(plan)
+                    mealPlanRow(plan,
+                        onEdit: {
+                            mealPlanToEdit = plan
+                            showMealPlanEdit = true
+                        },
+                        onView: { mealPlanToView = plan }
+                    )
+                }
+                if ownUserSettings != nil {
+                    Button { showCreateMealPlan = true } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 14))
+                            Text("New Meal Plan")
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundStyle(purpl)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(purpl.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(purpl.opacity(0.25), lineWidth: 1))
                     }
                     .buttonStyle(.plain)
+                    .padding(.horizontal, 16)
                 }
             }
         }
-        .confirmationDialog(
-            planForAction?.name ?? "",
-            isPresented: Binding(get: { planForAction != nil }, set: { if !$0 { planForAction = nil } }),
-            titleVisibility: .visible
-        ) {
-            Button("Edit") {
-                mealPlanToEdit = planForAction
-                showMealPlanEdit = true
-                planForAction = nil
+        .alert("New Meal Plan", isPresented: $showCreateMealPlan) {
+            TextField("Plan name", text: $newMealPlanName)
+            Button("Create") {
+                let name = newMealPlanName.trimmingCharacters(in: .whitespaces)
+                guard !name.isEmpty else { return }
+                let uid = ownUserSettings?.userID ?? ""
+                FoodEntryService.shared.addMealPlan(
+                    MealPlan(name: name, days: [PlanDay(label: "Day 1")]),
+                    userID: uid
+                )
+                newMealPlanName = ""
+                Task { profileMealPlans = await FoodEntryService.shared.fetchMealPlans(userID: uid) }
             }
-            Button("View as Visitor") {
-                mealPlanToView = planForAction
-                planForAction = nil
-            }
-            Button("Cancel", role: .cancel) { planForAction = nil }
+            Button("Cancel", role: .cancel) { newMealPlanName = "" }
+        } message: {
+            Text("Give your plan a name")
         }
         .task {
             guard !mealPlansLoaded else { return }
@@ -1305,7 +1309,7 @@ struct ProfileView: View {
         }
     }
 
-    private func mealPlanRow(_ plan: MealPlan) -> some View {
+    private func mealPlanRow(_ plan: MealPlan, onEdit: @escaping () -> Void, onView: @escaping () -> Void) -> some View {
         let meals = plan.allMealIDs.compactMap { id in profileSavedMeals.first { $0.firebaseEntryID == id } }
         let totalCal = meals.reduce(0.0) { $0 + $1.calories }
         let totalPro = meals.reduce(0.0) { $0 + $1.protein }
@@ -1328,9 +1332,26 @@ struct ProfileView: View {
                     .foregroundStyle(.white.opacity(0.40))
             }
             Spacer()
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(.white.opacity(0.25))
+            HStack(spacing: 8) {
+                Button(action: onEdit) {
+                    Text("Edit")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(purpl)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(purpl.opacity(0.15), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                Button(action: onView) {
+                    Text("View")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.65))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.white.opacity(0.08), in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(12)
         .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
@@ -1399,47 +1420,51 @@ struct ProfileView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 30)
-                .alert("New Routine", isPresented: $showCreateRoutine) {
-                    TextField("Routine name", text: $newRoutineName)
-                    Button("Create") {
-                        let name = newRoutineName.trimmingCharacters(in: .whitespaces)
-                        guard !name.isEmpty else { return }
-                        let uid = ownUserSettings?.userID ?? ""
-                        WorkoutService.shared.addRoutine(
-                            WorkoutRoutine(name: name, days: [PlanDay(label: "Day 1")]),
-                            userID: uid
-                        )
-                        newRoutineName = ""
-                        Task { profileRoutines = await WorkoutService.shared.fetchRoutines(userID: uid) }
-                    }
-                    Button("Cancel", role: .cancel) { newRoutineName = "" }
-                } message: {
-                    Text("Give your routine a name")
-                }
             } else {
                 ForEach(profileRoutines) { routine in
-                    Button { routineForAction = routine } label: {
-                        routineRow(routine)
+                    routineRow(routine,
+                        onEdit: {
+                            routineToEdit = routine
+                            showRoutineEdit = true
+                        },
+                        onView: { routineToView = routine }
+                    )
+                }
+                if ownUserSettings != nil {
+                    Button { showCreateRoutine = true } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 14))
+                            Text("New Routine")
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundStyle(purpl)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(purpl.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(purpl.opacity(0.25), lineWidth: 1))
                     }
                     .buttonStyle(.plain)
+                    .padding(.horizontal, 16)
                 }
             }
         }
-        .confirmationDialog(
-            routineForAction?.name ?? "",
-            isPresented: Binding(get: { routineForAction != nil }, set: { if !$0 { routineForAction = nil } }),
-            titleVisibility: .visible
-        ) {
-            Button("Edit") {
-                routineToEdit = routineForAction
-                showRoutineEdit = true
-                routineForAction = nil
+        .alert("New Routine", isPresented: $showCreateRoutine) {
+            TextField("Routine name", text: $newRoutineName)
+            Button("Create") {
+                let name = newRoutineName.trimmingCharacters(in: .whitespaces)
+                guard !name.isEmpty else { return }
+                let uid = ownUserSettings?.userID ?? ""
+                WorkoutService.shared.addRoutine(
+                    WorkoutRoutine(name: name, days: [PlanDay(label: "Day 1")]),
+                    userID: uid
+                )
+                newRoutineName = ""
+                Task { profileRoutines = await WorkoutService.shared.fetchRoutines(userID: uid) }
             }
-            Button("View as Visitor") {
-                routineToView = routineForAction
-                routineForAction = nil
-            }
-            Button("Cancel", role: .cancel) { routineForAction = nil }
+            Button("Cancel", role: .cancel) { newRoutineName = "" }
+        } message: {
+            Text("Give your routine a name")
         }
         .task {
             guard !routinesLoaded else { return }
@@ -1449,7 +1474,7 @@ struct ProfileView: View {
         }
     }
 
-    private func routineRow(_ routine: WorkoutRoutine) -> some View {
+    private func routineRow(_ routine: WorkoutRoutine, onEdit: @escaping () -> Void, onView: @escaping () -> Void) -> some View {
         let workouts = routine.allWorkoutIDs.compactMap { id in profileSavedWorkouts.first { $0.id == id } }
 
         return HStack(spacing: 12) {
@@ -1470,9 +1495,26 @@ struct ProfileView: View {
                     .foregroundStyle(.white.opacity(0.40))
             }
             Spacer()
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(.white.opacity(0.25))
+            HStack(spacing: 8) {
+                Button(action: onEdit) {
+                    Text("Edit")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(purpl)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(purpl.opacity(0.15), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                Button(action: onView) {
+                    Text("View")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.65))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.white.opacity(0.08), in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(12)
         .background(cardBg, in: RoundedRectangle(cornerRadius: 12))

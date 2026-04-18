@@ -32,6 +32,7 @@ struct FeedPostDetailView: View {
     let post:                FeedPost
     let currentUserSettings: UserSettings?
     var focusComment:        Bool = false
+    var onCommentCountChanged: ((Int) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
 
@@ -45,6 +46,7 @@ struct FeedPostDetailView: View {
     @State private var showReportUserConfirm = false
     @State private var showReportPostConfirm = false
     @State private var followErrorMessage:  String? = nil
+    @State private var expandedWorkoutID:   String? = nil
     @State private var showingShareSheet          = false
     @State private var commentPendingDelete:      FeedComment? = nil
     @State private var commentPendingBlock:       FeedComment? = nil
@@ -499,21 +501,46 @@ struct FeedPostDetailView: View {
         let totalMin = sorted.reduce(0) { $0 + $1.durationMinutes }
         let totalTime = totalMin >= 60 ? "\(totalMin / 60)h \(totalMin % 60)m" : "\(totalMin)m"
 
-        VStack(alignment: .leading, spacing: 0) {
+        return VStack(alignment: .leading, spacing: 0) {
             ForEach(sorted) { item in
-                HStack(spacing: 10) {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(workoutGreen.opacity(0.12))
-                        .frame(width: 40, height: 40)
-                        .overlay { Image(systemName: WorkoutType(rawValue: item.workoutType)?.icon ?? "figure.mixed.cardio").font(.system(size: 16)).foregroundStyle(workoutGreen) }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(item.workoutName).font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.90))
-                        Text("\(item.formattedDuration)").font(.caption).foregroundStyle(.white.opacity(0.40))
+                let isExpanded   = expandedWorkoutID == item.id
+                let hasExercises = !item.exercises.isEmpty
+                VStack(spacing: 0) {
+                    HStack(spacing: 10) {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(workoutGreen.opacity(0.12))
+                            .frame(width: 40, height: 40)
+                            .overlay { Image(systemName: WorkoutType(rawValue: item.workoutType)?.icon ?? "figure.mixed.cardio").font(.system(size: 16)).foregroundStyle(workoutGreen) }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.workoutName).font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.90))
+                            Text("\(item.formattedDuration)").font(.caption).foregroundStyle(.white.opacity(0.40))
+                        }
+                        Spacer()
+                        HStack(spacing: 6) {
+                            Text("\(item.caloriesBurned) cal").font(.system(size: 12, weight: .bold, design: .rounded)).foregroundStyle(workoutGreen)
+                            if hasExercises {
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(workoutGreen.opacity(0.70))
+                                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                                    .animation(.spring(duration: 0.3), value: isExpanded)
+                            }
+                        }
                     }
-                    Spacer()
-                    Text("\(item.caloriesBurned) cal").font(.system(size: 12, weight: .bold, design: .rounded)).foregroundStyle(workoutGreen)
+                    .padding(.vertical, 8)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        guard hasExercises else { return }
+                        withAnimation(.spring(duration: 0.35)) {
+                            expandedWorkoutID = isExpanded ? nil : item.id
+                        }
+                    }
+
+                    if isExpanded && hasExercises {
+                        detailExerciseList(item.exercises)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                 }
-                .padding(.vertical, 8)
                 if item.id != sorted.last?.id {
                     Divider().background(Color.white.opacity(0.05))
                 }
@@ -532,6 +559,50 @@ struct FeedPostDetailView: View {
         .background(Color.cardBg)
         .cornerRadius(10)
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(workoutGreen.opacity(0.20), lineWidth: 1))
+    }
+
+    private func detailExerciseList(_ exercises: [Exercise]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Divider().background(workoutGreen.opacity(0.15))
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(exercises) { exercise in
+                    HStack(alignment: .top, spacing: 8) {
+                        Circle()
+                            .fill(workoutGreen.opacity(0.25))
+                            .frame(width: 6, height: 6)
+                            .padding(.top, 5)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(exercise.name)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.85))
+                            Text(detailSetsLabel(exercise))
+                                .font(.system(size: 11))
+                                .foregroundStyle(workoutGreen.opacity(0.70))
+                        }
+                        Spacer()
+                    }
+                }
+            }
+            .padding(.vertical, 10)
+        }
+    }
+
+    private func detailSetsLabel(_ exercise: Exercise) -> String {
+        let setCount = exercise.sets.count
+        guard setCount > 0 else { return "" }
+        if exercise.hasUniformSets, let first = exercise.sets.first {
+            let weightStr = first.weight.map { w in
+                w.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(w)) lb" : "\(w) lb"
+            } ?? "bodyweight"
+            return "\(setCount) × \(first.reps) reps · \(weightStr)"
+        } else {
+            return exercise.sets.enumerated().map { i, s in
+                let w = s.weight.map { w in
+                    w.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(w)) lb" : "\(w) lb"
+                } ?? "BW"
+                return "Set \(i + 1): \(s.reps) × \(w)"
+            }.joined(separator: "  ·  ")
+        }
     }
 
     // MARK: - Macro row
@@ -905,6 +976,7 @@ struct FeedPostDetailView: View {
             if let postID = post.postID {
                 try? await PostService.shared.decrementCommentCount(postID: postID)
             }
+            onCommentCountChanged?(-1)
         } catch {
             AppLogger.log("[FeedPostDetailView] Failed to delete comment: \(error)")
             comments = previous
@@ -930,6 +1002,7 @@ struct FeedPostDetailView: View {
                 try? await PostService.shared.incrementCommentCount(postID: postID)
             }
             guard !Task.isCancelled else { return }
+            onCommentCountChanged?(1)
             commentText    = ""
             commentFocused = false
 

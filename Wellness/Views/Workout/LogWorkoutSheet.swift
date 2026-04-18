@@ -3,6 +3,7 @@
 //  Wellness
 //
 
+import ActivityKit
 import SwiftUI
 
 struct LogWorkoutSheet: View {
@@ -20,6 +21,13 @@ struct LogWorkoutSheet: View {
     var saveTemplateMode:    Bool = false
     /// Called with the new SavedWorkout when `saveTemplateMode` is true.
     var onSavedTemplate:     ((SavedWorkout) -> Void)? = nil
+    /// When true renders without a NavigationStack for embedding in FoodLogView.
+    var isEmbedded:          Bool = false
+    /// Called instead of dismiss() in embedded mode.
+    var onClose:             (() -> Void)? = nil
+    /// When true hides date/time, gym, friends, save toggle, and apply-adjustment
+    /// toggle — intended for the "Edit Saved Workout" flow from routines.
+    var savedWorkoutMode:    Bool = false
 
     @Environment(\.dismiss) private var dismiss
 
@@ -60,8 +68,9 @@ struct LogWorkoutSheet: View {
     @State private var savedWorkouts: [SavedWorkout] = []
     @State private var workoutToDelete: SavedWorkout? = nil
 
-    // Live workout session
-    @State private var showingLiveWorkout = false
+    // Live workout timer / Live Activity
+    @State private var workoutStartTime: Date? = nil
+    @State private var liveActivity: Activity<WorkoutActivityAttributes>? = nil
 
     // Feedback
     @State private var isSaving   = false
@@ -75,6 +84,7 @@ struct LogWorkoutSheet: View {
     @State private var savedCalories        = 0
     @State private var savedGym:             WorkoutLocation? = nil
     @State private var savedTaggedFriends:   [TaggedFriend]   = []
+    @State private var savedExercises:       [Exercise]       = []
 
     // MARK: - Sub-types
 
@@ -93,7 +103,10 @@ struct LogWorkoutSheet: View {
          userSettings: UserSettings, editingEntry: WorkoutEntry? = nil,
          onSaved: @escaping () -> Void,
          saveTemplateMode: Bool = false,
-         onSavedTemplate: ((SavedWorkout) -> Void)? = nil) {
+         onSavedTemplate: ((SavedWorkout) -> Void)? = nil,
+         isEmbedded: Bool = false,
+         onClose: (() -> Void)? = nil,
+         savedWorkoutMode: Bool = false) {
         self.userID              = userID
         self.selectedDate        = selectedDate
         self.bodyWeightLbs       = bodyWeightLbs
@@ -103,6 +116,9 @@ struct LogWorkoutSheet: View {
         self.onSaved             = onSaved
         self.saveTemplateMode    = saveTemplateMode
         self.onSavedTemplate     = onSavedTemplate
+        self.isEmbedded          = isEmbedded
+        self.onClose             = onClose
+        self.savedWorkoutMode    = savedWorkoutMode
         if let e = editingEntry {
             _workoutName     = State(initialValue: e.name)
             _workoutType     = State(initialValue: e.workoutType)
@@ -126,136 +142,116 @@ struct LogWorkoutSheet: View {
     // MARK: - Body
 
     var body: some View {
+        if isEmbedded {
+            embeddedBody
+        } else {
+            sheetBody
+        }
+    }
+
+    // MARK: - Embedded body (no NavigationStack — hosted inside FoodLogView)
+
+    private var embeddedBody: some View {
+        ZStack {
+            pageBg.ignoresSafeArea()
+            formContent
+        }
+        .onAppear { loadOnAppear() }
+        .commonSheetModifiers(
+            showingAIPaywall: $showingAIPaywall,
+            workoutToDelete: $workoutToDelete,
+            savedWorkouts: $savedWorkouts,
+            showingPostPrompt: $showingPostPrompt,
+            analyzeTranscript: { Task { await analyzeTranscript() } },
+            onPostDismiss: { onSaved(); close() },
+            postWorkoutView: postPromptSheet
+        )
+    }
+
+    // MARK: - Sheet body (original NavigationStack presentation)
+
+    private var sheetBody: some View {
         NavigationStack {
             ZStack {
                 pageBg.ignoresSafeArea()
-
-                ScrollView {
-                    VStack(spacing: 20) {
-
-                        // Saved workouts quick-select
-                        if !savedWorkouts.isEmpty {
-                            savedWorkoutsSection
-                        }
-
-                        // Live in-session tracker (new workouts only)
-                        if editingEntry == nil && !saveTemplateMode {
-                            startWorkoutButton
-                        }
-
-                        // Optional voice / AI assist — fills in the manual form below
-                        voiceAssistCard
-
-                        // Manual entry form (always visible)
-                        manualForm
-
-                        // Macro adjustment preview
-                        macroAdjustmentCard
-
-                        // Toggles
-                        if editingEntry == nil { saveToggle }
-                        adjustToggle
-
-                        // Save button
-                        saveButton
-
-                        // Rest day button (new workouts only)
-                        if editingEntry == nil { restDayButton }
-
-                        if let err = saveError {
-                            Text(err)
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                                .multilineTextAlignment(.center)
-                        }
-
-                        Spacer(minLength: 40)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                }
+                formContent
             }
-            .navigationTitle(saveTemplateMode ? "New Saved Workout" : editingEntry != nil ? "Edit Workout" : "Log a Workout")
+            .navigationTitle(titleText)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") { close() }
                         .foregroundStyle(.white.opacity(0.65))
                 }
             }
             .preferredColorScheme(.dark)
-            .onAppear {
-                savedWorkouts = WorkoutService.shared.savedWorkouts
-                Task {
-                    await aiSubscription.loadProduct()
-                    await aiSubscription.refreshEntitlement()
-                }
-            }
-            .sheet(isPresented: $showingAIPaywall) {
-                AISubscriptionPaywallView(
-                    onSubscribed: {
-                        showingAIPaywall = false
-                        Task { await analyzeTranscript() }
-                    },
-                    onDismiss: { showingAIPaywall = false }
-                )
-            }
-            .alert("Delete Saved Workout?", isPresented: Binding(
-                get: { workoutToDelete != nil },
-                set: { if !$0 { workoutToDelete = nil } }
-            )) {
-                Button("Cancel", role: .cancel) { workoutToDelete = nil }
-                Button("Delete", role: .destructive) {
-                    if let workout = workoutToDelete {
-                        WorkoutService.shared.deleteSavedWorkout(id: workout.id)
-                        savedWorkouts = WorkoutService.shared.savedWorkouts
-                        workoutToDelete = nil
-                    }
-                }
-            } message: {
-                if let workout = workoutToDelete {
-                    Text("Are you sure you want to delete \"\(workout.name)\"? This cannot be undone.")
-                }
-            }
-            .fullScreenCover(isPresented: $showingLiveWorkout) {
-                LiveWorkoutView(
-                    initialWorkoutName: workoutName,
-                    initialExercises:   exercises
-                ) { name, sessionExercises, elapsedMinutes, startedAt in
-                    // Populate the Log a Workout form with everything captured
-                    // during the live session so the user can review, tweak,
-                    // and hit "Log Workout" to save.
-                    if !name.isEmpty { workoutName = name }
-                    if !sessionExercises.isEmpty { exercises = sessionExercises }
-                    if elapsedMinutes > 0 {
-                        durationText = "\(elapsedMinutes)"
-                        // Duration changed — let the calories estimator rerun
-                        // unless the user already overrode it.
-                        autoFillCaloriesIfNeeded()
-                    }
-                    // Align the logged time with when the user actually started.
-                    logTime = startedAt
-                    logDate = Calendar.current.startOfDay(for: startedAt)
-                }
-            }
-            .sheet(isPresented: $showingPostPrompt, onDismiss: {
-                // When the user finishes (or skips) the post composer, close
-                // this sheet too and let the parent refresh.
-                onSaved()
-                dismiss()
-            }) {
-                PostWorkoutSheet(
-                    userSettings:    userSettings,
-                    workoutName:     savedWorkoutName,
-                    workoutType:     savedWorkoutType,
-                    durationMinutes: savedDuration,
-                    caloriesBurned:  savedCalories,
-                    gym:             savedGym,
-                    taggedFriends:   savedTaggedFriends
-                )
-            }
+            .onAppear { loadOnAppear() }
+            .commonSheetModifiers(
+                showingAIPaywall: $showingAIPaywall,
+                workoutToDelete: $workoutToDelete,
+                savedWorkouts: $savedWorkouts,
+                showingPostPrompt: $showingPostPrompt,
+                analyzeTranscript: { Task { await analyzeTranscript() } },
+                onPostDismiss: { onSaved(); close() },
+                postWorkoutView: postPromptSheet
+            )
             .keyboardDoneToolbar()
         }
+    }
+
+    // MARK: - Shared helpers
+
+    private var titleText: String {
+        if savedWorkoutMode { return editingEntry != nil ? "Edit Saved Workout" : "New Saved Workout" }
+        return saveTemplateMode ? "New Saved Workout" : editingEntry != nil ? "Edit Workout" : "Log a Workout"
+    }
+
+    private func close() {
+        endLiveActivity()
+        if let c = onClose { c() } else { dismiss() }
+    }
+
+    private func loadOnAppear() {
+        savedWorkouts = WorkoutService.shared.savedWorkouts
+        Task {
+            await aiSubscription.loadProduct()
+            await aiSubscription.refreshEntitlement()
+        }
+    }
+
+    private var formContent: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                if !savedWorkouts.isEmpty { savedWorkoutsSection }
+                if editingEntry == nil && !saveTemplateMode && !savedWorkoutMode { startWorkoutButton }
+                voiceAssistCard
+                manualForm
+                macroAdjustmentCard
+                if editingEntry == nil && !savedWorkoutMode { saveToggle }
+                if !savedWorkoutMode { adjustToggle }
+                saveButton
+                if editingEntry == nil && !savedWorkoutMode { restDayButton }
+                if let err = saveError {
+                    Text(err).font(.caption).foregroundStyle(.red).multilineTextAlignment(.center)
+                }
+                Spacer(minLength: 40)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+        }
+    }
+
+    private var postPromptSheet: some View {
+        PostWorkoutSheet(
+            userSettings:    userSettings,
+            workoutName:     savedWorkoutName,
+            workoutType:     savedWorkoutType,
+            durationMinutes: savedDuration,
+            caloriesBurned:  savedCalories,
+            gym:             savedGym,
+            taggedFriends:   savedTaggedFriends,
+            exercises:       savedExercises
+        )
     }
 
     // MARK: - Saved Workouts
@@ -318,9 +314,9 @@ struct LogWorkoutSheet: View {
                 field(label: "Calories Burned", placeholder: "\(estimatedCaloriesPlaceholder)", text: caloriesFieldBinding, keyboardType: .numberPad)
             }
             exercisesSection
-            gymRow
-            friendsRow
-            timePickerRow
+            if !savedWorkoutMode { gymRow }
+            if !savedWorkoutMode { friendsRow }
+            if !savedWorkoutMode { timePickerRow }
         }
         .onChange(of: workoutType)  { _, newType in
             autoFillCaloriesIfNeeded()
@@ -484,17 +480,13 @@ struct LogWorkoutSheet: View {
     private var voiceAssistCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                Button {
-                    if speechRecognizer.status == .recording { speechRecognizer.stop() }
-                    else { speechRecognizer.start() }
-                } label: {
-                    PulsingMicButton(
-                        isRecording: speechRecognizer.status == .recording,
-                        accent: .premiumGold,
-                        background: pageBg
-                    )
-                }
-                .buttonStyle(.plain)
+                WorkoutMicButton(
+                    isRecording: speechRecognizer.status == .recording,
+                    onTap: {
+                        if speechRecognizer.status == .recording { speechRecognizer.stop() }
+                        else { speechRecognizer.start() }
+                    }
+                )
 
                 Text(micHint)
                     .font(.system(size: 13))
@@ -535,7 +527,7 @@ struct LogWorkoutSheet: View {
 
     private var micHint: String {
         switch speechRecognizer.status {
-        case .idle:                 return "Tap the mic and have AI create your entire workout"
+        case .idle:                 return "Tap the mic and have AI log your entire workout"
         case .requestingPermission: return "Requesting permission…"
         case .recording:            return "Listening… tap to stop"
         case .done:                 return "Done recording"
@@ -576,12 +568,12 @@ struct LogWorkoutSheet: View {
     }
 
     private var timePickerRow: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Date")
+                Text("Time Started")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.45))
-                DatePicker("", selection: $logDate, displayedComponents: .date)
+                DatePicker("", selection: $logTime, displayedComponents: .hourAndMinute)
                     .labelsHidden()
                     .colorScheme(.dark)
                     .padding(10)
@@ -590,10 +582,10 @@ struct LogWorkoutSheet: View {
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.20), lineWidth: 1))
             }
             VStack(alignment: .leading, spacing: 6) {
-                Text("Time Started")
+                Text("Date")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.45))
-                DatePicker("", selection: $logTime, displayedComponents: .hourAndMinute)
+                DatePicker("", selection: $logDate, displayedComponents: .date)
                     .labelsHidden()
                     .colorScheme(.dark)
                     .padding(10)
@@ -924,33 +916,99 @@ struct LogWorkoutSheet: View {
     // MARK: - Start Workout Button
 
     /// Opens the live in-session tracker. The tracker lets the user step
-    /// through exercises one at a time — entering name, reps, and weight per
-    /// set — and ticks a live timer. On End Workout it hands everything back
-    /// and this sheet's fields get pre-populated so the user can review and
-    /// tap "Log Workout" to save.
     private var startWorkoutButton: some View {
-        Button { showingLiveWorkout = true } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "play.fill")
-                    .font(.system(size: 15, weight: .bold))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Start Workout")
-                        .font(.system(size: 15, weight: .bold))
-                    Text("Track exercises live, then log it all at once")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.black.opacity(0.65))
+        Group {
+            if let startTime = workoutStartTime {
+                // Active workout banner with live elapsed timer
+                HStack(spacing: 12) {
+                    Image(systemName: "timer")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.green)
+                        .frame(width: 36, height: 36)
+                        .background(Color.green.opacity(0.15), in: Circle())
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Workout Active")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.green)
+                        TimelineView(.periodic(from: startTime, by: 1)) { ctx in
+                            Text(elapsed(from: startTime, to: ctx.date))
+                                .font(.system(size: 22, weight: .black, design: .rounded))
+                                .foregroundStyle(.white)
+                                .monospacedDigit()
+                        }
+                    }
+                    Spacer()
+                    Text("LIVE")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.green, in: Capsule())
                 }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(.black.opacity(0.55))
+                .padding(14)
+                .background(Color.green.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.green.opacity(0.30), lineWidth: 1))
+            } else {
+                Button {
+                    let t = Date()
+                    workoutStartTime = t
+                    logTime = t
+                    logDate = Calendar.current.startOfDay(for: t)
+                    startLiveActivity(at: t)
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 15, weight: .bold))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Start Workout")
+                                .font(.system(size: 15, weight: .bold))
+                            Text("Start a live timer and Live Activity")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.black.opacity(0.65))
+                        }
+                        Spacer()
+                    }
+                    .foregroundStyle(.black)
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(accent, in: RoundedRectangle(cornerRadius: 14))
+                }
+                .buttonStyle(.plain)
             }
-            .foregroundStyle(.black)
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(accent, in: RoundedRectangle(cornerRadius: 14))
         }
-        .buttonStyle(.plain)
+    }
+
+    private func elapsed(from start: Date, to now: Date) -> String {
+        let secs = max(0, Int(now.timeIntervalSince(start)))
+        return String(format: "%d:%02d", secs / 60, secs % 60)
+    }
+
+    private func startLiveActivity(at start: Date) {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        let state = WorkoutActivityAttributes.ContentState(
+            workoutName:     workoutName.isEmpty ? "Workout" : workoutName,
+            workoutTypeRaw:  workoutType.rawValue,
+            currentExercise: "",
+            exerciseNumber:  0,
+            totalExercises:  0,
+            sets:            [],
+            startedAt:       start
+        )
+        do {
+            liveActivity = try Activity.request(
+                attributes: WorkoutActivityAttributes(),
+                content:    .init(state: state, staleDate: nil)
+            )
+            print("[LiveActivity] started: \(liveActivity?.id ?? "?")")
+        } catch {
+            print("[LiveActivity] request failed: \(error)")
+        }
+    }
+
+    private func endLiveActivity() {
+        guard let activity = liveActivity else { return }
+        Task { await activity.end(nil, dismissalPolicy: .immediate) }
+        liveActivity = nil
     }
 
     // MARK: - Save Button
@@ -1179,7 +1237,7 @@ struct LogWorkoutSheet: View {
             exercises:       cleanedExercises
         )
         onSavedTemplate?(template)
-        dismiss()
+        close()
     }
 
     private func saveWorkout() async {
@@ -1241,17 +1299,19 @@ struct LogWorkoutSheet: View {
                 }
             }
 
+            endLiveActivity()
             savedWorkoutName  = name
             savedWorkoutType  = workoutType
             savedDuration     = duration
             savedCalories     = calories
             savedGym           = selectedGym
             savedTaggedFriends = taggedFriends
+            savedExercises     = cleanedExercises
             isSaving           = false
             // Skip the post prompt when editing an existing workout
             if editingEntry != nil {
                 onSaved()
-                dismiss()
+                close()
             } else {
                 showingPostPrompt = true
             }
@@ -1263,47 +1323,107 @@ struct LogWorkoutSheet: View {
 
 }
 
+// MARK: - Shared sheet modifiers
+
+private struct CommonSheetModifiers<PostView: View>: ViewModifier {
+    @Binding var showingAIPaywall:  Bool
+    @Binding var workoutToDelete:   SavedWorkout?
+    @Binding var savedWorkouts:     [SavedWorkout]
+    @Binding var showingPostPrompt: Bool
+    let analyzeTranscript: () -> Void
+    let onPostDismiss:     () -> Void
+    let postWorkoutView:   PostView
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: $showingAIPaywall) {
+                AISubscriptionPaywallView(
+                    onSubscribed: { showingAIPaywall = false; analyzeTranscript() },
+                    onDismiss:    { showingAIPaywall = false }
+                )
+            }
+            .alert("Delete Saved Workout?", isPresented: Binding(
+                get: { workoutToDelete != nil },
+                set: { if !$0 { workoutToDelete = nil } }
+            )) {
+                Button("Cancel", role: .cancel) { workoutToDelete = nil }
+                Button("Delete", role: .destructive) {
+                    if let w = workoutToDelete {
+                        WorkoutService.shared.deleteSavedWorkout(id: w.id)
+                        savedWorkouts = WorkoutService.shared.savedWorkouts
+                        workoutToDelete = nil
+                    }
+                }
+            } message: {
+                if let w = workoutToDelete { Text("Delete \"\(w.name)\"? This cannot be undone.") }
+            }
+            .sheet(isPresented: $showingPostPrompt, onDismiss: onPostDismiss) {
+                postWorkoutView
+            }
+    }
+}
+
+extension View {
+    fileprivate func commonSheetModifiers<PostView: View>(
+        showingAIPaywall:  Binding<Bool>,
+        workoutToDelete:   Binding<SavedWorkout?>,
+        savedWorkouts:     Binding<[SavedWorkout]>,
+        showingPostPrompt: Binding<Bool>,
+        analyzeTranscript: @escaping () -> Void,
+        onPostDismiss:     @escaping () -> Void,
+        postWorkoutView:   PostView
+    ) -> some View {
+        self.modifier(CommonSheetModifiers(
+            showingAIPaywall:  showingAIPaywall,
+            workoutToDelete:   workoutToDelete,
+            savedWorkouts:     savedWorkouts,
+            showingPostPrompt: showingPostPrompt,
+            analyzeTranscript: analyzeTranscript,
+            onPostDismiss:     onPostDismiss,
+            postWorkoutView:   postWorkoutView
+        ))
+    }
+}
+
 // MARK: - Pulsing Mic Button
 
-/// Mic button that pulses (ring + subtle scale) while idle to invite taps,
-/// and shows a steady "stop" state while recording.
-private struct PulsingMicButton: View {
+private struct WorkoutMicButton: View {
     let isRecording: Bool
-    let accent: Color
-    let background: Color
+    let onTap: () -> Void
 
-    @State private var pulse: Bool = false
+    @State private var pulse = false
+
+    private let gold = Color(red: 1.0, green: 0.84, blue: 0.30)   // #FFD64D
 
     var body: some View {
-        ZStack {
-            // Outer pulsing ring (only while idle)
-            if !isRecording {
+        Button(action: onTap) {
+            ZStack {
+                // Outer pulse ring — always in hierarchy so layout never shifts
                 Circle()
-                    .stroke(accent.opacity(pulse ? 0.0 : 0.55), lineWidth: 2)
-                    .frame(width: 48, height: 48)
-                    .scaleEffect(pulse ? 1.35 : 1.0)
-                    .animation(
-                        .easeOut(duration: 1.3).repeatForever(autoreverses: false),
-                        value: pulse
-                    )
+                    .stroke(gold.opacity(pulse ? 0.10 : 0.55), lineWidth: 1.5)
+                    .frame(width: 56, height: 56)
+
+                // Gold circle border
+                Circle()
+                    .stroke(gold, lineWidth: 1.8)
+                    .frame(width: 44, height: 44)
+
+                // Filled tint when recording
+                Circle()
+                    .fill(gold.opacity(isRecording ? 0.20 : 0.0))
+                    .frame(width: 44, height: 44)
+
+                Image(systemName: isRecording ? "stop.fill" : "mic.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(gold)
             }
-
-            Circle()
-                .fill(isRecording ? accent.opacity(0.20) : background)
-                .frame(width: 48, height: 48)
-                .overlay(
-                    Circle().stroke(accent.opacity(isRecording ? 1.0 : 0.55), lineWidth: 1.5)
-                )
-                .scaleEffect(isRecording ? 1.0 : (pulse ? 1.04 : 1.0))
-                .animation(
-                    .easeInOut(duration: 1.3).repeatForever(autoreverses: true),
-                    value: pulse
-                )
-
-            Image(systemName: isRecording ? "stop.fill" : "mic.fill")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(accent)
+            .frame(width: 58, height: 58)
         }
-        .onAppear { pulse = true }
+        .buttonStyle(.plain)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+                pulse = true
+            }
+        }
     }
 }

@@ -63,12 +63,22 @@ struct FoodLogView: View {
         return d > 0 ? d : 16
     }()
     @State private var showingWindowPicker = false
+    /// 0 = Meals, 1 = Workout
+    @State private var logTab: Int = 0
+    @Binding var openLogWorkoutTrigger: Bool
+
+    // Save today's meals as a meal plan day
+    @State private var showSaveToPlanAlert = false
+    @State private var savePlanName        = ""
+    @State private var isSavingToPlan      = false
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(LocationManager.self) private var locationManager
 
     init(modelContext: ModelContext, selectedDate: Binding<Date>, userSettings: UserSettings,
          externalImage: Binding<UIImage?> = .constant(nil),
-         openLogMealTrigger: Binding<Bool> = .constant(false)) {
+         openLogMealTrigger: Binding<Bool> = .constant(false),
+         openLogWorkoutTrigger: Binding<Bool> = .constant(false)) {
         _viewModel  = State(wrappedValue: FoodLogViewModel(
             selectedDate: selectedDate.wrappedValue,
             userID: userSettings.userID
@@ -77,13 +87,20 @@ struct FoodLogView: View {
             userID:       userSettings.userID,
             selectedDate: selectedDate.wrappedValue
         ))
-        _selectedDate  = selectedDate
-        _externalImage = externalImage
-        _openLogMealTrigger = openLogMealTrigger
-        self.userSettings = userSettings
+        _selectedDate           = selectedDate
+        _externalImage          = externalImage
+        _openLogMealTrigger     = openLogMealTrigger
+        _openLogWorkoutTrigger  = openLogWorkoutTrigger
+        self.userSettings       = userSettings
     }
 
     private var isToday: Bool { Calendar.current.isDateInToday(selectedDate) }
+    /// True for today and the past two days — Save Day button is shown.
+    private var isRecentDay: Bool {
+        let cal = Calendar.current
+        let twoDaysAgo = cal.date(byAdding: .day, value: -2, to: cal.startOfDay(for: Date()))!
+        return selectedDate >= twoDaysAgo
+    }
     /// Editing allowed for today and yesterday — anything older is view-only.
     private var isEditableDate: Bool {
         let cal = Calendar.current
@@ -115,6 +132,17 @@ struct FoodLogView: View {
                 Button("OK", role: .cancel) { viewModel.syncFailureAlert = nil }
             } message: { message in
                 Text(message)
+            }
+            .alert("Save Day as Meal Plan", isPresented: $showSaveToPlanAlert) {
+                TextField("Plan name (e.g. High Protein Day)", text: $savePlanName)
+                Button("Save") {
+                    let name = savePlanName.trimmingCharacters(in: .whitespaces)
+                    guard !name.isEmpty else { return }
+                    Task { await saveTodayAsMealPlan(name: name) }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("\(viewModel.todayEntries.count) meal\(viewModel.todayEntries.count == 1 ? "" : "s") from this day will be saved as a reusable day you can import into any meal plan.")
             }
             .onAppear(perform: handleOnAppear)
             .onReceive(NotificationCenter.default.publisher(for: .init("FoodEntryAdded"))) { _ in
@@ -150,6 +178,12 @@ struct FoodLogView: View {
                 if trigger {
                     activeMealSheet = .analysis
                     openLogMealTrigger = false
+                }
+            }
+            .onChange(of: openLogWorkoutTrigger, initial: true) { _, trigger in
+                if trigger {
+                    logTab = 1
+                    openLogWorkoutTrigger = false
                 }
             }
             .onChange(of: viewModel.showingCamera) { _, show in
@@ -221,13 +255,58 @@ struct FoodLogView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
 
-                ConditionalBannerAd(isEnabled: RemoteConfigService.shared.logTabBannerEnabled)
+                // Meals | Workout segment picker
+                logTabPicker
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
 
-                dayViewContent
+                if logTab == 0 {
+                    ConditionalBannerAd(isEnabled: RemoteConfigService.shared.logTabBannerEnabled)
+                    dayViewContent
+                } else {
+                    embeddedWorkoutTab
+                }
             }
 
-            tutorialOverlay
+            if logTab == 0 { tutorialOverlay }
         }
+    }
+
+    private var logTabPicker: some View {
+        HStack(spacing: 0) {
+            ForEach([("Meals", 0), ("Workout", 1)], id: \.1) { label, idx in
+                Button {
+                    withAnimation(.spring(duration: 0.2)) { logTab = idx }
+                } label: {
+                    Text(label)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(logTab == idx ? .black : .white.opacity(0.55))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule().fill(logTab == idx ? ThemeStore.shared.accent : Color.clear)
+                        )
+                }
+                .buttonStyle(.plain)
+                .animation(.spring(duration: 0.2), value: logTab)
+            }
+        }
+        .padding(4)
+        .background(Capsule().fill(Color.cardBg))
+    }
+
+    private var embeddedWorkoutTab: some View {
+        LogWorkoutSheet(
+            userID:              userSettings.userID,
+            selectedDate:        selectedDate,
+            bodyWeightLbs:       userSettings.currentWeight,
+            autoAdjustByDefault: userSettings.autoAdjustMacrosForWorkout,
+            userSettings:        userSettings,
+            onSaved:             { Task { await loadWorkouts() } },
+            isEmbedded:          true,
+            onClose:             { withAnimation { logTab = 0 } }
+        )
+        .environment(locationManager)
     }
     
     // MARK: - Header
@@ -443,11 +522,37 @@ struct FoodLogView: View {
     private var timelineCountLabel: some View {
         let meals    = viewModel.todayEntries.count
         let workouts = workoutEntries.count
-        return Text("\(meals) meal\(meals == 1 ? "" : "s") · \(workouts) workout\(workouts == 1 ? "" : "s")")
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(.white.opacity(0.30))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 2)
+        let accent   = ThemeStore.shared.accent
+        return HStack(alignment: .center, spacing: 0) {
+            Text("\(meals) meal\(meals == 1 ? "" : "s") · \(workouts) workout\(workouts == 1 ? "" : "s")")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.30))
+            Spacer()
+            if isRecentDay && !viewModel.todayEntries.isEmpty {
+                Button {
+                    savePlanName = ""
+                    showSaveToPlanAlert = true
+                } label: {
+                    HStack(spacing: 4) {
+                        if isSavingToPlan {
+                            ProgressView().scaleEffect(0.65).tint(accent)
+                        } else {
+                            Image(systemName: "square.and.arrow.down")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text("Save Day")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                    }
+                    .foregroundStyle(accent)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(accent.opacity(0.12), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(isSavingToPlan)
+            }
+        }
+        .padding(.top, 2)
     }
 
     private var timelineEmptyState: some View {
@@ -617,6 +722,40 @@ struct FoodLogView: View {
         externalImage = nil
         // The onChange(of: viewModel.selectedImage) handler checks consent
         // and opens either the consent sheet or the analysis sheet.
+    }
+
+    // MARK: - Save Day as Meal Plan
+
+    @MainActor
+    private func saveTodayAsMealPlan(name: String) async {
+        guard !viewModel.todayEntries.isEmpty else { return }
+        isSavingToPlan = true
+        defer { isSavingToPlan = false }
+
+        var savedMealIDs: [String] = []
+        for entry in viewModel.todayEntries {
+            // Create a saved-meal copy of each entry and persist to Firestore.
+            let copy = FoodEntry(
+                loggedAt: Date(),
+                userID:   userSettings.userID,
+                foodName: entry.foodName,
+                calories: entry.calories,
+                protein:  entry.protein,
+                carbs:    entry.carbs,
+                fat:      entry.fat
+            )
+            copy.isSavedMeal = true
+            if let result = try? await FoodEntryService.shared.save(
+                entry: copy, imageData: nil, existingPhotoURL: entry.photoURL
+            ) {
+                savedMealIDs.append(result.docID)
+            }
+        }
+
+        guard !savedMealIDs.isEmpty else { return }
+        let day  = PlanDay(label: "Day 1", itemIDs: savedMealIDs)
+        let plan = MealPlan(name: name, days: [day])
+        FoodEntryService.shared.addMealPlan(plan, userID: userSettings.userID)
     }
 
     // MARK: - FAB with label
@@ -2092,6 +2231,7 @@ private struct EditEntrySheet: View {
                     }
                 }
             }
+            .keyboardDoneToolbar()
         }
     }
 

@@ -69,6 +69,12 @@ struct FeedPost: Codable, Identifiable, Hashable {
     /// UserIDs of everyone who celebrated this post.
     var celebratedBy: [String] = []
 
+    /// Zap count (⚡ reactions).
+    var zaps: Int = 0
+
+    /// UserIDs of everyone who zapped this post.
+    var zappedBy: [String] = []
+
     /// Number of times this post has been reported.
     var reportCount: Int = 0
 
@@ -158,6 +164,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
     /// Whether the given user has repped (liked) this post.
     func hasRepped(userID: String) -> Bool { reppedBy.contains(userID) }
     func hasCelebrated(userID: String) -> Bool { celebratedBy.contains(userID) }
+    func hasZapped(userID: String) -> Bool { zappedBy.contains(userID) }
 
     /// Calorie completion percentage clamped to 0–1.
     var calorieProgress: Double {
@@ -281,6 +288,9 @@ struct FeedWorkoutItem: Codable, Identifiable {
     // Defaults to [] so older Firestore docs decode cleanly.
     var taggedFriends: [TaggedFriend] = []
 
+    // Per-exercise detail. Empty on posts created before this field was added.
+    var exercises: [Exercise] = []
+
     var formattedDuration: String {
         durationMinutes >= 60
             ? "\(durationMinutes / 60)h \(durationMinutes % 60)m"
@@ -345,6 +355,8 @@ extension FeedPost {
         if data["celebrates"]          == nil { data["celebrates"]          = 0 }
         if data["celebratedBy"]        == nil { data["celebratedBy"]        = [String]() }
         if data["reppedBy"]            == nil { data["reppedBy"]            = [String]() }
+        if data["zaps"]                == nil { data["zaps"]                = 0 }
+        if data["zappedBy"]            == nil { data["zappedBy"]            = [String]() }
         if data["reportCount"]         == nil { data["reportCount"]         = 0 }
         if data["reportedBy"]          == nil { data["reportedBy"]          = [String]() }
         if data["additionalPhotoURLs"] == nil { data["additionalPhotoURLs"] = [String]() }
@@ -369,7 +381,8 @@ extension FeedPost {
                 "gymAddress":      "",
                 "gymLatitude":     0.0,
                 "gymLongitude":    0.0,
-                "taggedFriends":   [[String: Any]]()
+                "taggedFriends":   [[String: Any]](),
+                "exercises":       [[String: Any]]()
             ]
             for idx in items.indices {
                 for (key, value) in workoutItemDefaults where items[idx][key] == nil {
