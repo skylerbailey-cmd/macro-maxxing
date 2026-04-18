@@ -189,7 +189,7 @@ struct SettingsView: View {
         .sheet(isPresented: $showCitySearch) {
             CitySearchSheet(location: $userSettings.location)
         }
-        .sheet(item: $activePicker) { picker in
+        .sheet(item: $activePicker, onDismiss: { Task { await saveProfile() } }) { picker in
             NumberPickerSheet(picker: picker,
                               currentWeight: $currentWeightVal,
                               goalWeight:    $goalWeightVal,
@@ -295,16 +295,17 @@ struct SettingsView: View {
     /// a "View My Profile" button on the right side of the card header.
     @State private var showingOwnProfile = false
 
-    // DIAGNOSTIC: placeholder to isolate crash. If Settings opens without
-    // crashing, the bug is inside youCard's real content. If it still
-    // crashes, the bug is in another card or the parent.
     private var youCard: some View {
-        Text("You card placeholder")
-            .font(.headline)
-            .foregroundStyle(.white.opacity(0.50))
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.cardBg, in: RoundedRectangle(cornerRadius: 16))
+        settingCard(title: "Identity", icon: "person.fill", iconColor: theme.accent) {
+            VStack(spacing: 0) {
+                usernameRow
+                divider
+                tapRow(title: "Location",
+                       icon: "mappin.and.ellipse",
+                       detail: userSettings.location.isEmpty ? "Not set" : userSettings.location,
+                       chevron: true) { showCitySearch = true }
+            }
+        }
     }
 
     private var usernameRow: some View {
@@ -924,9 +925,14 @@ struct SettingsView: View {
         let trimmedName = nameText.trimmingCharacters(in: .whitespaces)
 
         let dobString = Self.dobFormatter.string(from: dobDate)
-        userSettings.dateOfBirth = dobString
+        userSettings.dateOfBirth  = dobString
 
-        userSettings.heightInches = heightInchesVal
+        // Commit local state → userSettings immediately so UserDefaults cache
+        // stays consistent and onAppear re-reads don't clobber pending changes.
+        userSettings.currentWeight = currentWeightVal
+        userSettings.goalWeight    = goalWeightVal
+        userSettings.heightInches  = heightInchesVal
+        userSettings.proteinPerLb  = proteinPerLbVal
 
         let fields: [String: Any] = [
             "username": trimmedUsername, "name": trimmedName,
@@ -1146,19 +1152,15 @@ private struct SettingsHeroCard: View {
                 Text(subscriptionChipLabel)
                     .font(.system(size: 11, weight: .black, design: .rounded))
             }
-            .foregroundStyle(aiSubscription.isSubscribed ? Color(red: 0.30, green: 0.90, blue: 0.55) : theme.accent)
+            .foregroundStyle(aiSubscription.isSubscribed ? Color.premiumGold : theme.accent)
             .padding(.horizontal, 9)
             .padding(.vertical, 4)
             .background(
-                (aiSubscription.isSubscribed
-                    ? Color(red: 0.30, green: 0.90, blue: 0.55)
-                    : theme.accent).opacity(0.14),
+                (aiSubscription.isSubscribed ? Color.premiumGold : theme.accent).opacity(0.14),
                 in: Capsule()
             )
             .overlay(Capsule().stroke(
-                (aiSubscription.isSubscribed
-                    ? Color(red: 0.30, green: 0.90, blue: 0.55)
-                    : theme.accent).opacity(0.35),
+                (aiSubscription.isSubscribed ? Color.premiumGold : theme.accent).opacity(0.35),
                 lineWidth: 0.75
             ))
         }
@@ -1182,9 +1184,7 @@ private struct SettingsSubscriptionCard: View {
 
     var body: some View {
         let isPro = aiSubscription.isSubscribed
-        let brand = isPro
-            ? Color(red: 0.30, green: 0.90, blue: 0.55)
-            : theme.accent
+        let brand = isPro ? Color.premiumGold : theme.accent
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {

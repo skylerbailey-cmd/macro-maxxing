@@ -366,6 +366,80 @@ struct RoutineDetailView: View {
     }
 }
 
+// MARK: - Routine Public View (read-only, as visitors see it)
+
+struct RoutinePublicView: View {
+    let routine: WorkoutRoutine
+    let savedWorkouts: [SavedWorkout]
+
+    @Environment(\.dismiss) private var dismiss
+
+    private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var accent: Color { ThemeStore.shared.accent }
+
+    var body: some View {
+        List {
+            ForEach(routine.days) { day in
+                let resolved = day.itemIDs.compactMap { id in savedWorkouts.first { $0.id == id } }
+                if !resolved.isEmpty {
+                    Section(header: Text(day.label.uppercased())
+                        .font(.system(size: 11, weight: .black))
+                        .tracking(1.5)
+                        .foregroundStyle(.white.opacity(0.45))
+                    ) {
+                        ForEach(resolved) { workout in
+                            workoutRow(workout)
+                        }
+                    }
+                    .listRowBackground(cardBg)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(pageBg.ignoresSafeArea())
+        .navigationTitle(routine.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.white.opacity(0.40))
+                }
+            }
+        }
+    }
+
+    private func workoutRow(_ workout: SavedWorkout) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: workout.workoutType.icon)
+                .font(.system(size: 12))
+                .foregroundStyle(accent)
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(workout.name)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+                HStack(spacing: 6) {
+                    Text(workout.workoutType.rawValue)
+                        .font(.system(size: 11))
+                    if !workout.exercises.isEmpty {
+                        Text("\(workout.exercises.count) exercises")
+                            .font(.system(size: 11))
+                    }
+                    if workout.durationMinutes > 0 {
+                        Text("\(workout.durationMinutes)m")
+                            .font(.system(size: 11))
+                    }
+                }
+                .foregroundStyle(.white.opacity(0.40))
+            }
+        }
+    }
+}
+
 // MARK: - Add Workout to Routine Sheet
 
 private struct AddWorkoutToRoutineSheet: View {

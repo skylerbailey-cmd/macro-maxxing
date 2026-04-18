@@ -606,24 +606,24 @@ struct AuraGain: Identifiable, Equatable {
 
     // MARK: - Aura Level Curve
     //
-    // Quadratic: cumulativePoints(level) = a·n + b·n²
-    // Constraints: threshold(1) = 300, threshold(100) = 100,000
-    // → b = 700/99 ≈ 7.07,  a = 300 − b ≈ 292.93
-    // Incremental cost grows from 300 pts (Lv 1) to 1,700 pts (Lv 100).
+    // Quadratic: perLevel(n) = a + (n-1)*d, cumulative threshold is the sum.
+    // Anchors: threshold(2) = 75, threshold(100) = 100,000.
+    // Incremental cost grows from 75 XP (Lv 1→2) to ~1,932 XP (Lv 99→100).
 
     /// Cumulative aura points required to *reach* `level` (0–100).
     ///
-    /// Per-level cost starts at 150 XP (level 1→2) and increases by ~17.55 XP
+    /// Per-level cost starts at 75 XP (level 1→2) and increases by ~19.08 XP
     /// each level, so every level always costs more than the one before it.
-    /// Anchors: threshold(1) = 0, threshold(2) = 150, threshold(100) = 100,000.
+    /// Anchors: threshold(1) = 0, threshold(2) = 75, threshold(100) = 100,000.
+    /// Early levels are intentionally cheap; the curve steepens significantly at higher levels.
     static func auraThreshold(_ level: Int) -> Int {
         guard level > 1   else { return 0 }
         guard level < 100 else { return 100_000 }
         let n = Double(level)
         // perLevel(n) = a + (n-1)*d  →  threshold(n) = (n-1)*a + d*(n-1)*(n-2)/2
-        // Anchors: threshold(2)=300 → a=300; threshold(100)=100,000 → d=70,300/4,851
-        let a = 150.0
-        let d = 85_150.0 / 4_851.0
+        // Anchors: threshold(2)=75 → a=75; threshold(100)=100,000 → d=92,575/4,851
+        let a = 75.0
+        let d = 92_575.0 / 4_851.0
         return Int(((n - 1) * a + d * (n - 1) * (n - 2) / 2).rounded())
     }
 

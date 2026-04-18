@@ -244,9 +244,14 @@ struct MealPlanDetailView: View {
             }
 
             ForEach(Array(plan.days.enumerated()), id: \.element.id) { dayIdx, day in
+                let dayMeals = day.itemIDs.compactMap { id in savedMeals.first { $0.firebaseEntryID == id } }
+                let dayCal  = dayMeals.reduce(0.0) { $0 + $1.calories }
+                let dayPro  = dayMeals.reduce(0.0) { $0 + $1.protein  }
+                let dayCarb = dayMeals.reduce(0.0) { $0 + $1.carbs    }
+                let dayFat  = dayMeals.reduce(0.0) { $0 + $1.fat      }
+
                 Section {
-                    let resolved = day.itemIDs.compactMap { id in savedMeals.first { $0.firebaseEntryID == id } }
-                    ForEach(resolved, id: \.firebaseEntryID) { meal in
+                    ForEach(dayMeals, id: \.firebaseEntryID) { meal in
                         mealRow(meal)
                     }
                     .onMove { from, to in
@@ -267,31 +272,41 @@ struct MealPlanDetailView: View {
                             .foregroundStyle(accent)
                     }
                 } header: {
-                    HStack {
-                        Button {
-                            renamingDayIndex = dayIdx
-                            dayRenameText = day.label
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(day.label.uppercased())
-                                    .font(.system(size: 11, weight: .black))
-                                    .tracking(1.5)
-                                Image(systemName: "pencil")
-                                    .font(.system(size: 9, weight: .semibold))
-                                    .foregroundStyle(.white.opacity(0.30))
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Button {
+                                renamingDayIndex = dayIdx
+                                dayRenameText = day.label
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(day.label.uppercased())
+                                        .font(.system(size: 11, weight: .black))
+                                        .tracking(1.5)
+                                    Image(systemName: "pencil")
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .foregroundStyle(.white.opacity(0.30))
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            Spacer()
+                            Button(role: .destructive) {
+                                plan.days.remove(at: dayIdx)
+                                save()
+                            } label: {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.red.opacity(0.60))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        if !dayMeals.isEmpty {
+                            HStack(spacing: 10) {
+                                dayMacroChip("\(Int(dayCal))", label: "cal", color: Color(red: 1.00, green: 0.55, blue: 0.15))
+                                dayMacroChip("\(Int(dayPro))g", label: "P", color: Color(red: 0.35, green: 0.75, blue: 1.00))
+                                dayMacroChip("\(Int(dayCarb))g", label: "C", color: Color(red: 0.40, green: 0.90, blue: 0.72))
+                                dayMacroChip("\(Int(dayFat))g", label: "F", color: Color(red: 1.00, green: 0.50, blue: 0.72))
                             }
                         }
-                        .buttonStyle(.plain)
-                        Spacer()
-                        Button(role: .destructive) {
-                            plan.days.remove(at: dayIdx)
-                            save()
-                        } label: {
-                            Image(systemName: "trash")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.red.opacity(0.60))
-                        }
-                        .buttonStyle(.plain)
                     }
                 }
                 .listRowBackground(cardBg)
@@ -451,9 +466,140 @@ struct MealPlanDetailView: View {
         }
     }
 
+    private func dayMacroChip(_ value: String, label: String, color: Color) -> some View {
+        HStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+            Text(label)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(color.opacity(0.65))
+        }
+    }
+
     private func save() {
         FoodEntryService.shared.updateMealPlan(plan, userID: userSettings.userID)
         Task { await onUpdate() }
+    }
+}
+
+// MARK: - Meal Plan Public View (read-only, as visitors see it)
+
+struct MealPlanPublicView: View {
+    let plan: MealPlan
+    let savedMeals: [FoodEntry]
+
+    @Environment(\.dismiss) private var dismiss
+
+    private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private var accent: Color { ThemeStore.shared.accent }
+
+    private var allMeals: [FoodEntry] {
+        plan.allMealIDs.compactMap { id in savedMeals.first { $0.firebaseEntryID == id } }
+    }
+    private var totalCalories: Double { allMeals.reduce(0) { $0 + $1.calories } }
+    private var totalProtein:  Double { allMeals.reduce(0) { $0 + $1.protein  } }
+    private var totalCarbs:    Double { allMeals.reduce(0) { $0 + $1.carbs    } }
+    private var totalFat:      Double { allMeals.reduce(0) { $0 + $1.fat      } }
+
+    var body: some View {
+        List {
+            if !allMeals.isEmpty {
+                Section {
+                    macroSummaryBar
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+            }
+
+            ForEach(plan.days) { day in
+                let resolved = day.itemIDs.compactMap { id in savedMeals.first { $0.firebaseEntryID == id } }
+                if !resolved.isEmpty {
+                    Section(header: Text(day.label.uppercased())
+                        .font(.system(size: 11, weight: .black))
+                        .tracking(1.5)
+                        .foregroundStyle(.white.opacity(0.45))
+                    ) {
+                        ForEach(resolved, id: \.firebaseEntryID) { meal in
+                            mealRow(meal)
+                        }
+                    }
+                    .listRowBackground(cardBg)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(pageBg.ignoresSafeArea())
+        .navigationTitle(plan.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.white.opacity(0.40))
+                }
+            }
+        }
+    }
+
+    private var macroSummaryBar: some View {
+        HStack(spacing: 12) {
+            macroPill(label: "Cal",     value: "\(Int(totalCalories))", color: Color(red: 1.00, green: 0.55, blue: 0.15))
+            macroPill(label: "Protein", value: "\(Int(totalProtein))g", color: Color(red: 0.35, green: 0.75, blue: 1.00))
+            macroPill(label: "Carbs",   value: "\(Int(totalCarbs))g",  color: Color(red: 0.40, green: 0.90, blue: 0.72))
+            macroPill(label: "Fat",     value: "\(Int(totalFat))g",    color: Color(red: 1.00, green: 0.50, blue: 0.72))
+        }
+        .padding(.horizontal, 16)
+    }
+
+    private func macroPill(label: String, value: String, color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+            Text(label)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.40))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func mealRow(_ meal: FoodEntry) -> some View {
+        HStack(spacing: 10) {
+            if !meal.photoURL.isEmpty {
+                CachedAsyncImage(
+                    url: URL(string: meal.photoURL),
+                    content: { img in
+                        img.resizable().scaledToFill()
+                            .frame(width: 36, height: 36)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    },
+                    placeholder: {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.white.opacity(0.08))
+                            .frame(width: 36, height: 36)
+                    }
+                )
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(meal.foodName)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text("\(Int(meal.calories)) cal")
+                        .foregroundStyle(Color(red: 1.00, green: 0.55, blue: 0.15))
+                    Text("\(Int(meal.protein))g P")
+                        .foregroundStyle(Color(red: 0.35, green: 0.75, blue: 1.00))
+                }
+                .font(.system(size: 11, weight: .semibold))
+            }
+        }
     }
 }
 

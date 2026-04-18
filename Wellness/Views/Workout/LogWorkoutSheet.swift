@@ -225,8 +225,8 @@ struct LogWorkoutSheet: View {
                     taggedFriends:   savedTaggedFriends
                 )
             }
+            .keyboardDoneToolbar()
         }
-        .keyboardDoneToolbar()
     }
 
     // MARK: - Saved Workouts
@@ -1046,22 +1046,36 @@ struct LogWorkoutSheet: View {
 
     private func analyzeTranscript() async {
         guard !editableTranscript.isEmpty else { return }
+        let isFirstGeneration = exercises.isEmpty
         aiState = .analyzing
         do {
             let result = try await ClaudeAnalysisService().parseWorkout(transcript: editableTranscript)
-            workoutName    = result.name
-            workoutType    = result.workoutType
-            durationText   = "\(result.durationMinutes)"
-            caloriesText   = "\(result.caloriesBurned)"
-            caloriesEdited = true
-            if !result.exercises.isEmpty {
-                exercises = result.exercises
-            }
-            // Default start time to (now − duration) so the picker reflects when
-            // the workout actually began. Only for new entries; don't overwrite
-            // a user-edited start time on an existing workout.
-            if editingEntry == nil, result.durationMinutes > 0 {
-                logTime = Date().addingTimeInterval(-Double(result.durationMinutes) * 60)
+            if isFirstGeneration {
+                // First generation: populate all fields from scratch
+                workoutName    = result.name
+                workoutType    = result.workoutType
+                durationText   = "\(result.durationMinutes)"
+                caloriesText   = "\(result.caloriesBurned)"
+                caloriesEdited = true
+                if !result.exercises.isEmpty {
+                    exercises = result.exercises
+                }
+                // Default start time to (now − duration) so the picker reflects when
+                // the workout actually began. Only for new entries; don't overwrite
+                // a user-edited start time on an existing workout.
+                if editingEntry == nil, result.durationMinutes > 0 {
+                    logTime = Date().addingTimeInterval(-Double(result.durationMinutes) * 60)
+                }
+            } else {
+                // Subsequent generation: append exercises, accumulate duration & calories
+                if !result.exercises.isEmpty {
+                    exercises.append(contentsOf: result.exercises)
+                }
+                let existingDuration = Int(durationText) ?? 0
+                let existingCalories = Int(caloriesText) ?? 0
+                durationText   = "\(existingDuration + result.durationMinutes)"
+                caloriesText   = "\(existingCalories + result.caloriesBurned)"
+                caloriesEdited = true
             }
             aiState = .idle
         } catch {

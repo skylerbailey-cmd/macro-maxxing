@@ -310,18 +310,49 @@ struct ProfileView: View {
         } message: { msg in
             Text(msg)
         }
+        .navigationDestination(isPresented: $showMealPlanEdit) {
+            if let plan = mealPlanToEdit {
+                MealPlanDetailView(
+                    plan: plan,
+                    userSettings: ownUserSettings ?? UserSettings(),
+                    savedMeals: profileSavedMeals,
+                    onUpdate: { Task { profileMealPlans = await FoodEntryService.shared.fetchMealPlans(userID: ownUserSettings?.userID ?? "") } }
+                )
+            }
+        }
+        .navigationDestination(isPresented: $showRoutineEdit) {
+            if let routine = routineToEdit {
+                RoutineDetailView(
+                    routine: routine,
+                    userID: ownUserSettings?.userID ?? "",
+                    userSettings: ownUserSettings ?? UserSettings(),
+                    onUpdate: { Task { profileRoutines = await WorkoutService.shared.fetchRoutines(userID: ownUserSettings?.userID ?? "") } }
+                )
+            }
+        }
+        .sheet(item: $mealPlanToView) { plan in
+            NavigationStack {
+                MealPlanPublicView(plan: plan, savedMeals: profileSavedMeals)
+            }
+        }
+        .sheet(item: $routineToView) { routine in
+            NavigationStack {
+                RoutinePublicView(routine: routine, savedWorkouts: profileSavedWorkouts)
+            }
+        }
     }
 
     // MARK: - Header Banner
 
-    /// Country abbreviation from the profile location string.
-    /// Tries the last comma-separated component (e.g. "Denver, CO" → "CO",
-    /// "Austin, TX, US" → "US"). Falls back to full location if no comma.
+    /// "City, State" from the profile location string.
+    /// Takes the first two comma-separated components (e.g. "Denver, CO, United States" → "Denver, CO",
+    /// "Austin, TX" → "Austin, TX"). Falls back to full location if no comma.
     private var locationAbbrev: String {
         let loc = profileLocation
         guard !loc.isEmpty else { return "" }
         let parts = loc.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-        return parts.last ?? loc
+        guard parts.count >= 2 else { return loc }
+        return parts.prefix(2).joined(separator: ", ")
     }
 
     private var headerBanner: some View {
@@ -1167,6 +1198,10 @@ struct ProfileView: View {
     @State private var mealPlansLoaded = false
     @State private var showCreateMealPlan = false
     @State private var newMealPlanName = ""
+    @State private var planForAction: MealPlan? = nil
+    @State private var mealPlanToEdit: MealPlan? = nil
+    @State private var showMealPlanEdit = false
+    @State private var mealPlanToView: MealPlan? = nil
 
     private var mealPlansSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -1237,19 +1272,28 @@ struct ProfileView: View {
                 }
             } else {
                 ForEach(profileMealPlans) { plan in
-                    NavigationLink {
-                        MealPlanDetailView(
-                            plan: plan,
-                            userSettings: ownUserSettings ?? UserSettings(),
-                            savedMeals: profileSavedMeals,
-                            onUpdate: { Task { profileMealPlans = await FoodEntryService.shared.fetchMealPlans(userID: ownUserSettings?.userID ?? "") } }
-                        )
-                    } label: {
+                    Button { planForAction = plan } label: {
                         mealPlanRow(plan)
                     }
                     .buttonStyle(.plain)
                 }
             }
+        }
+        .confirmationDialog(
+            planForAction?.name ?? "",
+            isPresented: Binding(get: { planForAction != nil }, set: { if !$0 { planForAction = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Edit") {
+                mealPlanToEdit = planForAction
+                showMealPlanEdit = true
+                planForAction = nil
+            }
+            Button("View as Visitor") {
+                mealPlanToView = planForAction
+                planForAction = nil
+            }
+            Button("Cancel", role: .cancel) { planForAction = nil }
         }
         .task {
             guard !mealPlansLoaded else { return }
@@ -1300,6 +1344,10 @@ struct ProfileView: View {
     @State private var routinesLoaded = false
     @State private var showCreateRoutine = false
     @State private var newRoutineName = ""
+    @State private var routineForAction: WorkoutRoutine? = nil
+    @State private var routineToEdit: WorkoutRoutine? = nil
+    @State private var showRoutineEdit = false
+    @State private var routineToView: WorkoutRoutine? = nil
 
     private var routinesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -1370,19 +1418,28 @@ struct ProfileView: View {
                 }
             } else {
                 ForEach(profileRoutines) { routine in
-                    NavigationLink {
-                        RoutineDetailView(
-                            routine: routine,
-                            userID: ownUserSettings?.userID ?? "",
-                            userSettings: ownUserSettings ?? UserSettings(),
-                            onUpdate: { Task { profileRoutines = await WorkoutService.shared.fetchRoutines(userID: ownUserSettings?.userID ?? "") } }
-                        )
-                    } label: {
+                    Button { routineForAction = routine } label: {
                         routineRow(routine)
                     }
                     .buttonStyle(.plain)
                 }
             }
+        }
+        .confirmationDialog(
+            routineForAction?.name ?? "",
+            isPresented: Binding(get: { routineForAction != nil }, set: { if !$0 { routineForAction = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Edit") {
+                routineToEdit = routineForAction
+                showRoutineEdit = true
+                routineForAction = nil
+            }
+            Button("View as Visitor") {
+                routineToView = routineForAction
+                routineForAction = nil
+            }
+            Button("Cancel", role: .cancel) { routineForAction = nil }
         }
         .task {
             guard !routinesLoaded else { return }
