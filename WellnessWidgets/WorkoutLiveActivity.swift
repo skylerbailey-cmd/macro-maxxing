@@ -26,8 +26,6 @@ struct WorkoutLiveActivityWidget: Widget {
 
         } dynamicIsland: { context in
             let state = context.state
-            let current = WorkoutActivityAttributes.currentExercise(in: state)
-            let lastSetIndex = max(0, (current?.sets.count ?? 1) - 1)
 
             return DynamicIsland {
                 // ── Expanded (long press) ──────────────────────────────────
@@ -36,7 +34,7 @@ struct WorkoutLiveActivityWidget: Widget {
                         Text(state.workoutName.isEmpty ? "Workout" : state.workoutName)
                             .font(.system(size: 13, weight: .bold))
                             .lineLimit(1)
-                        Text("Exercise \(state.currentIndex + 1) of \(max(state.exercises.count, 1))")
+                        Text(positionLabel(for: state))
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                     }
@@ -49,8 +47,8 @@ struct WorkoutLiveActivityWidget: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.center) {
-                    if let ex = current, !ex.name.isEmpty {
-                        Text(ex.name)
+                    if let name = currentItemName(for: state), !name.isEmpty {
+                        Text(name)
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(.white)
                             .lineLimit(1)
@@ -58,25 +56,9 @@ struct WorkoutLiveActivityWidget: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
-                    VStack(spacing: 6) {
-                        // Actions at the top so they stay reachable
-                        // regardless of how many sets are stacked below.
-                        actionRow(isPaused: state.isPaused, compact: true)
-
-                        // Editable current set directly under the actions.
-                        if let sets = current?.sets, sets.indices.contains(lastSetIndex) {
-                            currentSetRow(setIndex: lastSetIndex,
-                                          set:      sets[lastSetIndex],
-                                          compact:  true)
-                        }
-
-                        // Past sets go underneath in natural order.
-                        pastSetsList(sets:    current?.sets ?? [],
-                                     current: lastSetIndex,
-                                     compact: true)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 4)
+                    perTypeBody(state: state, compact: true)
+                        .padding(.horizontal, 8)
+                        .padding(.bottom, 4)
                 }
 
             } compactLeading: {
@@ -101,6 +83,396 @@ struct WorkoutLiveActivityWidget: Widget {
             .keylineTint(state.isPaused ? .yellow : .green)
         }
     }
+}
+
+// MARK: - Per-type dispatch
+//
+// The popup UI is shaped around the workout's type. Each type gets its own
+// action row + body; only the header (name + timer) is shared. The switch
+// reads `state.workoutTypeRaw` (WorkoutType.rawValue) so the widget
+// extension doesn't need to import MacroAdjustmentEngine.
+
+private enum LiveWorkoutFlavor {
+    case strength, cardio, hiit, yoga, other
+
+    init(rawValue: String) {
+        switch rawValue {
+        case "Strength":            self = .strength
+        case "Cardio":              self = .cardio
+        case "HIIT":                self = .hiit
+        case "Flexibility / Yoga":  self = .yoga
+        default:                    self = .other
+        }
+    }
+}
+
+@ViewBuilder
+private func perTypeBody(state: WorkoutActivityAttributes.ContentState,
+                         compact: Bool) -> some View {
+    switch LiveWorkoutFlavor(rawValue: state.workoutTypeRaw) {
+    case .cardio:   cardioBody(state: state, compact: compact)
+    case .hiit:     hiitBody(state: state, compact: compact)
+    case .yoga:     yogaBody(state: state, compact: compact)
+    case .strength, .other:
+        strengthBody(state: state, compact: compact)
+    }
+}
+
+/// Subtitle under the workout name — tells the user where they are in the
+/// session in language that matches the active workout type.
+private func positionLabel(for state: WorkoutActivityAttributes.ContentState) -> String {
+    switch LiveWorkoutFlavor(rawValue: state.workoutTypeRaw) {
+    case .cardio:
+        return "Segment \(state.currentIndex + 1) of \(max(state.segments.count, 1))"
+    case .hiit:
+        if state.rounds.indices.contains(state.currentIndex) {
+            let block = state.rounds[state.currentIndex]
+            return "Block \(state.currentIndex + 1)/\(state.rounds.count) · Round \(block.currentRound)/\(block.rounds)"
+        }
+        return "Block \(state.currentIndex + 1) of \(max(state.rounds.count, 1))"
+    case .yoga:
+        return "Pose \(state.currentIndex + 1) of \(max(state.poses.count, 1))"
+    case .strength, .other:
+        return "Exercise \(state.currentIndex + 1) of \(max(state.exercises.count, 1))"
+    }
+}
+
+/// Current item's label — rendered in the DI center region.
+private func currentItemName(for state: WorkoutActivityAttributes.ContentState) -> String? {
+    switch LiveWorkoutFlavor(rawValue: state.workoutTypeRaw) {
+    case .cardio:
+        return state.segments.indices.contains(state.currentIndex)
+            ? state.segments[state.currentIndex].label
+            : nil
+    case .hiit:
+        return state.rounds.indices.contains(state.currentIndex)
+            ? state.rounds[state.currentIndex].name
+            : nil
+    case .yoga:
+        return state.poses.indices.contains(state.currentIndex)
+            ? state.poses[state.currentIndex].name
+            : nil
+    case .strength, .other:
+        return WorkoutActivityAttributes.currentExercise(in: state)?.name
+    }
+}
+
+// MARK: - Strength body
+
+@ViewBuilder
+private func strengthBody(state: WorkoutActivityAttributes.ContentState,
+                          compact: Bool) -> some View {
+    let current = WorkoutActivityAttributes.currentExercise(in: state)
+    let lastSetIndex = max(0, (current?.sets.count ?? 1) - 1)
+    VStack(spacing: compact ? 6 : 10) {
+        actionRow(isPaused: state.isPaused, compact: compact)
+        if let sets = current?.sets, sets.indices.contains(lastSetIndex) {
+            currentSetRow(setIndex: lastSetIndex,
+                          set:      sets[lastSetIndex],
+                          compact:  compact)
+        }
+        pastSetsList(sets:    current?.sets ?? [],
+                     current: lastSetIndex,
+                     compact: compact)
+    }
+}
+
+// MARK: - Cardio body
+
+@ViewBuilder
+private func cardioBody(state: WorkoutActivityAttributes.ContentState,
+                        compact: Bool) -> some View {
+    let current = state.segments.indices.contains(state.currentIndex)
+        ? state.segments[state.currentIndex]
+        : nil
+    VStack(spacing: compact ? 6 : 10) {
+        cardioActionRow(isPaused: state.isPaused, compact: compact)
+        cardioStatsRow(segment: current, state: state, compact: compact)
+        cardioSegmentList(state: state, compact: compact)
+    }
+}
+
+@ViewBuilder
+private func cardioActionRow(isPaused: Bool, compact: Bool) -> some View {
+    HStack(spacing: compact ? 6 : 8) {
+        pausePill(isPaused: isPaused, compact: compact)
+        pillButton(title: "Lap",
+                   systemImage: "flag.fill",
+                   intent: WorkoutCardioLapIntent(),
+                   tint: .white, compact: compact)
+        pillButton(title: "Next",
+                   systemImage: "arrow.right",
+                   intent: WorkoutCardioNextSegmentIntent(),
+                   tint: .green, compact: compact)
+        pillButton(title: "End",
+                   systemImage: "stop.fill",
+                   intent: WorkoutEndIntent(),
+                   tint: .red, compact: compact)
+    }
+}
+
+@ViewBuilder
+private func cardioStatsRow(segment: WorkoutActivityAttributes.LiveCardioSegment?,
+                            state: WorkoutActivityAttributes.ContentState,
+                            compact: Bool) -> some View {
+    let totalDistance = state.segments.compactMap(\.distanceMiles).reduce(0, +)
+    HStack(spacing: compact ? 8 : 14) {
+        statTile(label: "Elapsed",
+                 value: formatted(seconds: state.elapsedSeconds()),
+                 tint:  .green, compact: compact)
+        if totalDistance > 0 {
+            statTile(label: "Distance",
+                     value: distanceString(totalDistance),
+                     tint:  .cyan, compact: compact)
+        }
+        if let seg = segment {
+            statTile(label: "This Lap",
+                     value: formatted(seconds: seg.durationSeconds),
+                     tint:  .orange, compact: compact)
+        }
+    }
+}
+
+@ViewBuilder
+private func cardioSegmentList(state: WorkoutActivityAttributes.ContentState,
+                               compact: Bool) -> some View {
+    if state.segments.count > 1 {
+        VStack(spacing: compact ? 3 : 5) {
+            ForEach(Array(state.segments.enumerated()), id: \.element.id) { idx, seg in
+                HStack(spacing: 6) {
+                    Text(seg.label.isEmpty ? "Segment \(idx + 1)" : seg.label)
+                        .font(.system(size: compact ? 10 : 12,
+                                      weight: idx == state.currentIndex ? .bold : .medium))
+                        .foregroundStyle(idx == state.currentIndex ? .green : .white.opacity(0.70))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(formatted(seconds: seg.durationSeconds))
+                        .font(.system(size: compact ? 10 : 12, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.white.opacity(0.70))
+                    if let d = seg.distanceMiles, d > 0 {
+                        Text(distanceString(d))
+                            .font(.system(size: compact ? 10 : 12, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
+                }
+                .padding(.vertical, compact ? 2 : 4)
+                .padding(.horizontal, compact ? 6 : 10)
+                .background(idx == state.currentIndex
+                            ? Color.green.opacity(0.15)
+                            : Color.white.opacity(0.05),
+                            in: RoundedRectangle(cornerRadius: 8))
+            }
+        }
+    }
+}
+
+// MARK: - HIIT body
+
+@ViewBuilder
+private func hiitBody(state: WorkoutActivityAttributes.ContentState,
+                      compact: Bool) -> some View {
+    let current = state.rounds.indices.contains(state.currentIndex)
+        ? state.rounds[state.currentIndex]
+        : nil
+    VStack(spacing: compact ? 6 : 10) {
+        hiitActionRow(isPaused: state.isPaused, compact: compact)
+        if let block = current {
+            hiitPhaseCard(block: block, compact: compact)
+        }
+    }
+}
+
+@ViewBuilder
+private func hiitActionRow(isPaused: Bool, compact: Bool) -> some View {
+    HStack(spacing: compact ? 6 : 8) {
+        pausePill(isPaused: isPaused, compact: compact)
+        pillButton(title: "Flip",
+                   systemImage: "arrow.triangle.2.circlepath",
+                   intent: WorkoutHIITTogglePhaseIntent(),
+                   tint: .white, compact: compact)
+        pillButton(title: "Skip",
+                   systemImage: "forward.fill",
+                   intent: WorkoutHIITNextRoundIntent(),
+                   tint: .orange, compact: compact)
+        pillButton(title: "End",
+                   systemImage: "stop.fill",
+                   intent: WorkoutEndIntent(),
+                   tint: .red, compact: compact)
+    }
+}
+
+@ViewBuilder
+private func hiitPhaseCard(block: WorkoutActivityAttributes.LiveHIITRound,
+                           compact: Bool) -> some View {
+    let phaseLabel = block.inRest ? "REST" : "WORK"
+    let phaseTint: Color = block.inRest ? .cyan : .orange
+    let phaseSeconds = block.inRest ? block.restSeconds : block.workSeconds
+    HStack(spacing: compact ? 10 : 14) {
+        Text(phaseLabel)
+            .font(.system(size: compact ? 11 : 13, weight: .black))
+            .foregroundStyle(.black)
+            .padding(.horizontal, compact ? 10 : 12)
+            .padding(.vertical, compact ? 6 : 8)
+            .background(phaseTint, in: Capsule())
+
+        VStack(alignment: .leading, spacing: 1) {
+            Text("Round \(block.currentRound) / \(block.rounds)")
+                .font(.system(size: compact ? 11 : 13, weight: .bold))
+                .foregroundStyle(.white)
+            Text("\(phaseSeconds) sec")
+                .font(.system(size: compact ? 18 : 24, weight: .black, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(phaseTint)
+        }
+        Spacer()
+    }
+    .padding(compact ? 8 : 12)
+    .background(phaseTint.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+    .overlay(RoundedRectangle(cornerRadius: 10).stroke(phaseTint.opacity(0.35), lineWidth: 1))
+}
+
+// MARK: - Yoga body
+
+@ViewBuilder
+private func yogaBody(state: WorkoutActivityAttributes.ContentState,
+                      compact: Bool) -> some View {
+    let current = state.poses.indices.contains(state.currentIndex)
+        ? state.poses[state.currentIndex]
+        : nil
+    VStack(spacing: compact ? 6 : 10) {
+        yogaActionRow(isPaused: state.isPaused, compact: compact)
+        if let pose = current {
+            yogaPoseCard(pose: pose, compact: compact)
+        }
+    }
+}
+
+@ViewBuilder
+private func yogaActionRow(isPaused: Bool, compact: Bool) -> some View {
+    HStack(spacing: compact ? 6 : 8) {
+        pausePill(isPaused: isPaused, compact: compact)
+        pillButton(title: "Next Pose",
+                   systemImage: "arrow.right",
+                   intent: WorkoutYogaNextPoseIntent(),
+                   tint: .mint, compact: compact)
+        pillButton(title: "End",
+                   systemImage: "stop.fill",
+                   intent: WorkoutEndIntent(),
+                   tint: .red, compact: compact)
+    }
+}
+
+@ViewBuilder
+private func yogaPoseCard(pose: WorkoutActivityAttributes.LivePose,
+                          compact: Bool) -> some View {
+    HStack(spacing: compact ? 10 : 14) {
+        Image(systemName: "figure.flexibility")
+            .font(.system(size: compact ? 18 : 24, weight: .bold))
+            .foregroundStyle(.mint)
+        VStack(alignment: .leading, spacing: 1) {
+            Text(pose.name.isEmpty ? "Current Pose" : pose.name)
+                .font(.system(size: compact ? 13 : 15, weight: .bold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+            if pose.holdSeconds > 0 {
+                Text("Hold \(pose.holdSeconds) sec")
+                    .font(.system(size: compact ? 11 : 13, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(.white.opacity(0.65))
+            } else {
+                Text("Flow")
+                    .font(.system(size: compact ? 11 : 13, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.55))
+            }
+        }
+        Spacer()
+    }
+    .padding(compact ? 8 : 12)
+    .background(Color.mint.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.mint.opacity(0.35), lineWidth: 1))
+}
+
+// MARK: - Shared chrome
+
+@ViewBuilder
+private func pausePill(isPaused: Bool, compact: Bool) -> some View {
+    Button(intent: WorkoutTogglePauseIntent()) {
+        HStack(spacing: 4) {
+            Image(systemName: isPaused ? "play.fill" : "pause.fill")
+                .font(.system(size: compact ? 10 : 11, weight: .bold))
+            if !compact {
+                Text(isPaused ? "Resume" : "Pause")
+                    .font(.system(size: 12, weight: .semibold))
+            }
+        }
+        .foregroundStyle(isPaused ? .black : .white)
+        .padding(.vertical, compact ? 6 : 9)
+        .padding(.horizontal, compact ? 10 : 0)
+        .frame(maxWidth: .infinity)
+        .background(isPaused ? Color.yellow : Color.white.opacity(0.14),
+                    in: RoundedRectangle(cornerRadius: compact ? 14 : 10))
+    }
+    .buttonStyle(.plain)
+}
+
+@ViewBuilder
+private func pillButton<I: AppIntent>(title: String,
+                                      systemImage: String,
+                                      intent: I,
+                                      tint: Color,
+                                      compact: Bool) -> some View {
+    let bg: Color = {
+        switch tint {
+        case .red:    return Color.red.opacity(0.85)
+        case .green:  return Color.green
+        case .orange: return Color.orange.opacity(0.90)
+        case .mint:   return Color.mint.opacity(0.90)
+        default:      return Color.white.opacity(0.14)
+        }
+    }()
+    let fg: Color = (tint == .red || tint == .green || tint == .orange || tint == .mint) ? .black : .white
+    Button(intent: intent) {
+        HStack(spacing: 4) {
+            Image(systemName: systemImage)
+                .font(.system(size: compact ? 10 : 11, weight: .bold))
+            if !compact {
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+            }
+        }
+        .foregroundStyle(fg)
+        .padding(.vertical, compact ? 6 : 9)
+        .padding(.horizontal, compact ? 10 : 0)
+        .frame(maxWidth: .infinity)
+        .background(bg, in: RoundedRectangle(cornerRadius: compact ? 14 : 10))
+    }
+    .buttonStyle(.plain)
+}
+
+@ViewBuilder
+private func statTile(label: String, value: String, tint: Color, compact: Bool) -> some View {
+    VStack(spacing: 1) {
+        Text(value)
+            .font(.system(size: compact ? 14 : 20, weight: .black, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(tint)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+        Text(label.uppercased())
+            .font(.system(size: 8, weight: .bold))
+            .foregroundStyle(.white.opacity(0.45))
+    }
+    .frame(maxWidth: .infinity)
+    .padding(.vertical, compact ? 6 : 10)
+    .padding(.horizontal, compact ? 6 : 10)
+    .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+}
+
+private func distanceString(_ miles: Double) -> String {
+    miles.truncatingRemainder(dividingBy: 1) == 0
+        ? "\(Int(miles)) mi"
+        : String(format: "%.2f mi", miles)
 }
 
 // MARK: - Timer label
@@ -382,14 +754,6 @@ private func workoutIcon(for rawValue: String) -> String {
 private struct LockScreenView: View {
     let state: WorkoutActivityAttributes.ContentState
 
-    private var current: WorkoutActivityAttributes.LiveExercise? {
-        WorkoutActivityAttributes.currentExercise(in: state)
-    }
-
-    private var lastSetIndex: Int {
-        max(0, (current?.sets.count ?? 1) - 1)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             // Top row: icon + name + timer
@@ -404,7 +768,7 @@ private struct LockScreenView: View {
                     Text(state.workoutName.isEmpty ? "Live Workout" : state.workoutName)
                         .font(.system(size: 14, weight: .bold))
                         .lineLimit(1)
-                    Text("Exercise \(state.currentIndex + 1) of \(max(state.exercises.count, 1))")
+                    Text(positionLabel(for: state))
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.60))
                 }
@@ -419,27 +783,23 @@ private struct LockScreenView: View {
                 }
             }
 
-            // Current exercise name (read-only — iOS doesn't allow text fields here)
-            Text(current?.name.isEmpty == false ? current!.name : "Tap to edit in the app")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(current?.name.isEmpty == false ? .white : .white.opacity(0.50))
-                .lineLimit(1)
-
-            // Action buttons sit above everything so they stay tappable even
-            // when many past sets are stacked underneath.
-            actionRow(isPaused: state.isPaused, compact: false)
-
-            // Editable current set.
-            if let sets = current?.sets, sets.indices.contains(lastSetIndex) {
-                currentSetRow(setIndex: lastSetIndex,
-                              set:      sets[lastSetIndex],
-                              compact:  false)
+            // Current item label (exercise / segment / round / pose) —
+            // read-only; iOS doesn't allow text fields in Live Activities.
+            if let label = currentItemName(for: state), !label.isEmpty {
+                Text(label)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+            } else {
+                Text("Tap to edit in the app")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.50))
+                    .lineLimit(1)
             }
 
-            // Past sets underneath in natural order.
-            pastSetsList(sets:    current?.sets ?? [],
-                         current: lastSetIndex,
-                         compact: false)
+            // Per-type body (actions on top, history below) handles the
+            // rest of the layout.
+            perTypeBody(state: state, compact: false)
         }
         .padding(12)
         .background(.black)

@@ -41,8 +41,17 @@ struct LogWorkoutSheet: View {
     @State private var saveAsTemplate = false
     @State private var applyAdjustment: Bool
 
-    // Optional per-exercise detail (name / sets / reps / weight)
+    // Optional per-exercise detail (name / sets / reps / weight). Used for
+    // Strength, and still the legacy storage for everything else — see
+    // `synthesizedExercises` below.
     @State private var exercises: [Exercise] = []
+
+    // Per-type payloads. Only the array matching the selected workoutType is
+    // rendered and edited; on save we also project these into `exercises`
+    // so the existing Firestore / Feed / Routines code keeps working.
+    @State private var cardioSegments: [CardioSegment] = []
+    @State private var hiitRounds:     [HIITRound]     = []
+    @State private var yogaPoses:      [YogaPose]      = []
 
     // Optional tagged gym/place. nil means untagged.
     @State private var selectedGym: WorkoutLocation? = nil
@@ -267,9 +276,12 @@ struct LogWorkoutSheet: View {
             .padding(.horizontal, 20)
             .padding(.top, 8)
         }
-        .onChange(of: exercises)   { _, _ in pushFormToLiveActivity() }
-        .onChange(of: workoutName) { _, _ in pushFormToLiveActivity() }
-        .onChange(of: workoutType) { _, _ in pushFormToLiveActivity() }
+        .onChange(of: exercises)      { _, _ in pushFormToLiveActivity() }
+        .onChange(of: cardioSegments) { _, _ in pushFormToLiveActivity() }
+        .onChange(of: hiitRounds)     { _, _ in pushFormToLiveActivity() }
+        .onChange(of: yogaPoses)      { _, _ in pushFormToLiveActivity() }
+        .onChange(of: workoutName)    { _, _ in pushFormToLiveActivity() }
+        .onChange(of: workoutType)    { _, _ in pushFormToLiveActivity() }
     }
 
     private var postPromptSheet: some View {
@@ -344,7 +356,7 @@ struct LogWorkoutSheet: View {
                 field(label: "Duration (min)",  placeholder: "45",  text: $durationText, keyboardType: .numberPad)
                 field(label: "Calories Burned", placeholder: "\(estimatedCaloriesPlaceholder)", text: caloriesFieldBinding, keyboardType: .numberPad)
             }
-            exercisesSection
+            workoutItemsSection
             if !savedWorkoutMode { gymRow }
             if !savedWorkoutMode { friendsRow }
             if !savedWorkoutMode { timePickerRow }
@@ -355,10 +367,13 @@ struct LogWorkoutSheet: View {
                 if workoutName.trimmingCharacters(in: .whitespaces).isEmpty {
                     workoutName = "Rest Day"
                 }
-                durationText  = "0"
-                caloriesText  = "0"
+                durationText   = "0"
+                caloriesText   = "0"
                 caloriesEdited = true
-                exercises     = []
+                exercises      = []
+                cardioSegments = []
+                hiitRounds     = []
+                yogaPoses      = []
             }
         }
         .onChange(of: durationText) { _, _ in autoFillCaloriesIfNeeded() }
@@ -625,6 +640,261 @@ struct LogWorkoutSheet: View {
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.20), lineWidth: 1))
             }
         }
+    }
+
+    // MARK: - Type-aware workout items
+
+    /// Dispatches to the editor that matches the currently selected
+    /// `workoutType` — Strength sees the classic exercise / sets / reps /
+    /// weight editor, while Cardio / HIIT / Yoga get shapes that match how
+    /// those sessions are actually tracked. Rest Day hides the section.
+    @ViewBuilder
+    private var workoutItemsSection: some View {
+        switch workoutType {
+        case .strength:    exercisesSection
+        case .cardio:      cardioSegmentsSection
+        case .hiit:        hiitRoundsSection
+        case .flexibility: yogaPosesSection
+        case .restDay:     EmptyView()
+        case .other:       exercisesSection
+        }
+    }
+
+    // MARK: - Cardio segments
+
+    private var cardioSegmentsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader(title: "Segments")
+
+            if !cardioSegments.isEmpty {
+                VStack(spacing: 8) {
+                    ForEach(Array(cardioSegments.enumerated()), id: \.element.id) { idx, _ in
+                        cardioSegmentRow(index: idx)
+                    }
+                }
+            }
+
+            addItemButton(title: "Add Segment") {
+                cardioSegments.append(
+                    CardioSegment(label: "Segment \(cardioSegments.count + 1)",
+                                  durationSeconds: 0,
+                                  distanceMiles: nil)
+                )
+            }
+        }
+    }
+
+    private func cardioSegmentRow(index: Int) -> some View {
+        let minutesBinding = Binding<String>(
+            get: { cardioSegments[index].durationSeconds > 0
+                ? String(cardioSegments[index].durationSeconds / 60) : "" },
+            set: { v in
+                if let m = Int(v.filter(\.isNumber)) {
+                    cardioSegments[index].durationSeconds = max(0, m) * 60
+                } else if v.isEmpty {
+                    cardioSegments[index].durationSeconds = 0
+                }
+            }
+        )
+        let distanceBinding = Binding<String>(
+            get: {
+                if let d = cardioSegments[index].distanceMiles {
+                    return d.truncatingRemainder(dividingBy: 1) == 0
+                        ? String(Int(d)) : String(d)
+                }
+                return ""
+            },
+            set: { v in
+                let t = v.trimmingCharacters(in: .whitespaces)
+                cardioSegments[index].distanceMiles = t.isEmpty ? nil : Double(t)
+            }
+        )
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                TextField("Segment label (Warmup, Tempo…)",
+                          text: $cardioSegments[index].label)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(10)
+                    .background(pageBg, in: RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.08), lineWidth: 1))
+                deleteButton { cardioSegments.remove(at: index) }
+            }
+            HStack(spacing: 8) {
+                numberField(text: minutesBinding, placeholder: "0", suffix: "min", width: 60)
+                numberField(text: distanceBinding, placeholder: "—", suffix: "mi", width: 60, decimal: true)
+                Spacer()
+            }
+        }
+        .padding(10)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.15), lineWidth: 1))
+    }
+
+    // MARK: - HIIT rounds
+
+    private var hiitRoundsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader(title: "Rounds")
+
+            if !hiitRounds.isEmpty {
+                VStack(spacing: 8) {
+                    ForEach(Array(hiitRounds.enumerated()), id: \.element.id) { idx, _ in
+                        hiitRoundRow(index: idx)
+                    }
+                }
+            }
+
+            addItemButton(title: "Add Round") {
+                hiitRounds.append(
+                    HIITRound(name: "Round \(hiitRounds.count + 1)",
+                              workSeconds: 40,
+                              restSeconds: 20,
+                              rounds: 4)
+                )
+            }
+        }
+    }
+
+    private func hiitRoundRow(index: Int) -> some View {
+        let workBinding = intBinding($hiitRounds[index].workSeconds,  min: 0)
+        let restBinding = intBinding($hiitRounds[index].restSeconds,  min: 0)
+        let countBinding = intBinding($hiitRounds[index].rounds,      min: 1)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                TextField("Round name (Burpees, Sprint…)",
+                          text: $hiitRounds[index].name)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(10)
+                    .background(pageBg, in: RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.08), lineWidth: 1))
+                deleteButton { hiitRounds.remove(at: index) }
+            }
+            HStack(spacing: 8) {
+                numberField(text: workBinding,  placeholder: "40", suffix: "s work", width: 64)
+                numberField(text: restBinding,  placeholder: "20", suffix: "s rest", width: 64)
+                numberField(text: countBinding, placeholder: "4",  suffix: "rds",    width: 52)
+                Spacer()
+            }
+        }
+        .padding(10)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.15), lineWidth: 1))
+    }
+
+    // MARK: - Yoga poses
+
+    private var yogaPosesSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader(title: "Poses / Flows")
+
+            if !yogaPoses.isEmpty {
+                VStack(spacing: 8) {
+                    ForEach(Array(yogaPoses.enumerated()), id: \.element.id) { idx, _ in
+                        yogaPoseRow(index: idx)
+                    }
+                }
+            }
+
+            addItemButton(title: "Add Pose") {
+                yogaPoses.append(YogaPose(name: "", holdSeconds: 0))
+            }
+        }
+    }
+
+    private func yogaPoseRow(index: Int) -> some View {
+        let holdBinding = intBinding($yogaPoses[index].holdSeconds, min: 0)
+        return HStack(spacing: 8) {
+            TextField("Pose name (Warrior II, Down Dog…)",
+                      text: $yogaPoses[index].name)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(10)
+                .background(pageBg, in: RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.08), lineWidth: 1))
+            numberField(text: holdBinding, placeholder: "hold", suffix: "s", width: 64)
+            deleteButton { yogaPoses.remove(at: index) }
+        }
+        .padding(10)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.15), lineWidth: 1))
+    }
+
+    // MARK: - Shared chrome for workoutItemsSection
+
+    private func sectionHeader(title: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.45))
+            Text("optional")
+                .font(.system(size: 11))
+                .foregroundStyle(.white.opacity(0.30))
+            Spacer()
+        }
+    }
+
+    private func addItemButton(title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .foregroundStyle(accent)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(cardBg, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10)
+                .stroke(accent.opacity(0.25), style: StrokeStyle(lineWidth: 1, dash: [4])))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func deleteButton(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: "trash")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.45))
+                .padding(10)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func numberField(text: Binding<String>,
+                             placeholder: String,
+                             suffix: String,
+                             width: CGFloat,
+                             decimal: Bool = false) -> some View {
+        HStack(spacing: 4) {
+            TextField(placeholder, text: text)
+                .keyboardType(decimal ? .decimalPad : .numberPad)
+                .multilineTextAlignment(.center)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: width)
+                .padding(.vertical, 8)
+                .background(pageBg, in: RoundedRectangle(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(.white.opacity(0.08), lineWidth: 1))
+            Text(suffix)
+                .font(.system(size: 11))
+                .foregroundStyle(.white.opacity(0.40))
+        }
+    }
+
+    private func intBinding(_ source: Binding<Int>, min lower: Int = 0) -> Binding<String> {
+        Binding<String>(
+            get: { source.wrappedValue == 0 && lower == 0 ? "" : String(source.wrappedValue) },
+            set: { v in
+                if let n = Int(v.filter(\.isNumber)) {
+                    source.wrappedValue = Swift.max(lower, n)
+                } else if v.isEmpty {
+                    source.wrappedValue = lower
+                }
+            }
+        )
     }
 
     // MARK: - Exercises (optional)
@@ -1035,10 +1305,32 @@ struct LogWorkoutSheet: View {
     private func startLiveActivity(at start: Date) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
-        // Seed at least one empty exercise so the Live Activity controls
-        // (reps +/-, Add Set, Next) have something to operate on.
-        if exercises.isEmpty {
-            exercises = [Exercise(name: "", sets: [ExerciseSet(reps: 10)])]
+        // Seed at least one starter item for whichever track the user chose
+        // so the Live Activity controls have something to operate on.
+        switch workoutType {
+        case .strength, .other:
+            if exercises.isEmpty {
+                exercises = [Exercise(name: "", sets: [ExerciseSet(reps: 10)])]
+            }
+        case .cardio:
+            if cardioSegments.isEmpty {
+                cardioSegments = [CardioSegment(label: "Segment 1",
+                                                durationSeconds: 0,
+                                                distanceMiles: nil)]
+            }
+        case .hiit:
+            if hiitRounds.isEmpty {
+                hiitRounds = [HIITRound(name: "Round 1",
+                                        workSeconds: 40,
+                                        restSeconds: 20,
+                                        rounds: 4)]
+            }
+        case .flexibility:
+            if yogaPoses.isEmpty {
+                yogaPoses = [YogaPose(name: "", holdSeconds: 0)]
+            }
+        case .restDay:
+            break
         }
 
         let state = currentLiveActivityState(startedAt: start, isFinished: false)
@@ -1115,7 +1407,9 @@ struct LogWorkoutSheet: View {
             : String(format: "%02d:%02d", m, s)
     }
 
-    /// Build a ContentState from the current form fields.
+    /// Build a ContentState from the current form fields. Fills only the
+    /// per-type array that matches the selected `workoutType`; the others
+    /// are left empty so the Live Activity renders the right surface.
     private func currentLiveActivityState(startedAt: Date,
                                           isFinished: Bool) -> WorkoutActivityAttributes.ContentState {
         let liveExercises = exercises.map { ex in
@@ -1127,12 +1421,39 @@ struct LogWorkoutSheet: View {
                 }
             )
         }
+        let liveSegments = cardioSegments.map {
+            WorkoutActivityAttributes.LiveCardioSegment(
+                id:              $0.id,
+                label:           $0.label.trimmingCharacters(in: .whitespaces),
+                durationSeconds: $0.durationSeconds,
+                distanceMiles:   $0.distanceMiles
+            )
+        }
+        let liveRounds = hiitRounds.map {
+            WorkoutActivityAttributes.LiveHIITRound(
+                id:          $0.id,
+                name:        $0.name.trimmingCharacters(in: .whitespaces),
+                workSeconds: $0.workSeconds,
+                restSeconds: $0.restSeconds,
+                rounds:      max(1, $0.rounds)
+            )
+        }
+        let livePoses = yogaPoses.map {
+            WorkoutActivityAttributes.LivePose(
+                id:          $0.id,
+                name:        $0.name.trimmingCharacters(in: .whitespaces),
+                holdSeconds: $0.holdSeconds
+            )
+        }
         return WorkoutActivityAttributes.ContentState(
             workoutName:    workoutName.trimmingCharacters(in: .whitespaces),
             workoutTypeRaw: workoutType.rawValue,
             startedAt:      startedAt,
             currentIndex:   0,
-            exercises:      liveExercises,
+            exercises:      workoutType == .strength || workoutType == .other ? liveExercises : [],
+            segments:       workoutType == .cardio      ? liveSegments : [],
+            rounds:         workoutType == .hiit        ? liveRounds   : [],
+            poses:          workoutType == .flexibility ? livePoses    : [],
             isFinished:     isFinished
         )
     }
@@ -1156,19 +1477,44 @@ struct LogWorkoutSheet: View {
         }
     }
 
-    /// Copy non-terminal ContentState updates into the form's exercises
-    /// list and workout name — so reps / added sets / next-exercise taps
-    /// done from the lock screen or Dynamic Island appear here in real time.
+    /// Copy non-terminal ContentState updates into the form's per-type
+    /// arrays — so edits made from the lock screen or Dynamic Island (reps,
+    /// added sets, next exercise, next segment / round / pose) appear here
+    /// in real time.
     private func mergeLiveActivityState(_ state: WorkoutActivityAttributes.ContentState) {
         liveSnapshot = state
         if !state.workoutName.isEmpty { workoutName = state.workoutName }
-        exercises = state.exercises.map { liveEx in
+
+        let newExercises = state.exercises.map { liveEx in
             Exercise(
                 id:   liveEx.id,
                 name: liveEx.name,
                 sets: liveEx.sets.map { ExerciseSet(id: $0.id, reps: $0.reps, weight: $0.weight) }
             )
         }
+        if exercises != newExercises { exercises = newExercises }
+
+        let newSegments = state.segments.map {
+            CardioSegment(id: $0.id,
+                          label: $0.label,
+                          durationSeconds: $0.durationSeconds,
+                          distanceMiles: $0.distanceMiles)
+        }
+        if cardioSegments != newSegments { cardioSegments = newSegments }
+
+        let newRounds = state.rounds.map {
+            HIITRound(id: $0.id,
+                      name: $0.name,
+                      workSeconds: $0.workSeconds,
+                      restSeconds: $0.restSeconds,
+                      rounds: $0.rounds)
+        }
+        if hiitRounds != newRounds { hiitRounds = newRounds }
+
+        let newPoses = state.poses.map {
+            YogaPose(id: $0.id, name: $0.name, holdSeconds: $0.holdSeconds)
+        }
+        if yogaPoses != newPoses { yogaPoses = newPoses }
     }
 
     /// Called once, when the Live Activity reports `isFinished = true`. Drops
@@ -1424,17 +1770,61 @@ struct LogWorkoutSheet: View {
         let loggedAt = combinedDate(date: logDate, time: logTime)
 
         // Drop half-filled exercise rows (blank name) and normalize empty set counts.
-        let cleanedExercises: [Exercise] = exercises.compactMap { ex in
-            let trimmedName = ex.name.trimmingCharacters(in: .whitespaces)
-            guard !trimmedName.isEmpty else { return nil }
-            let normalizedSets: [ExerciseSet] = {
-                let src = ex.sets.isEmpty ? [ExerciseSet(reps: 1)] : ex.sets
-                return src.map { s in
-                    ExerciseSet(id: s.id, reps: max(1, s.reps), weight: s.weight)
+        // For Cardio / HIIT / Yoga we synthesize a flat `[Exercise]` mirror of
+        // the per-type arrays so Firestore, Feed, Routines, WorkoutDuel — all
+        // still built against `[Exercise]` — keep rendering the session.
+        let cleanedExercises: [Exercise] = {
+            switch workoutType {
+            case .strength, .other:
+                return exercises.compactMap { ex in
+                    let trimmedName = ex.name.trimmingCharacters(in: .whitespaces)
+                    guard !trimmedName.isEmpty else { return nil }
+                    let normalizedSets: [ExerciseSet] = {
+                        let src = ex.sets.isEmpty ? [ExerciseSet(reps: 1)] : ex.sets
+                        return src.map { s in
+                            ExerciseSet(id: s.id, reps: max(1, s.reps), weight: s.weight)
+                        }
+                    }()
+                    return Exercise(id: ex.id, name: trimmedName, sets: normalizedSets)
                 }
-            }()
-            return Exercise(id: ex.id, name: trimmedName, sets: normalizedSets)
-        }
+            case .cardio:
+                return cardioSegments.compactMap { seg in
+                    let label = seg.label.trimmingCharacters(in: .whitespaces)
+                    guard !label.isEmpty else { return nil }
+                    let mins = max(0, seg.durationSeconds / 60)
+                    let pretty: String = {
+                        var parts: [String] = [label]
+                        if mins > 0 { parts.append("\(mins) min") }
+                        if let d = seg.distanceMiles, d > 0 {
+                            parts.append(d.truncatingRemainder(dividingBy: 1) == 0
+                                         ? "\(Int(d)) mi" : "\(d) mi")
+                        }
+                        return parts.joined(separator: " · ")
+                    }()
+                    return Exercise(id: seg.id, name: pretty,
+                                    sets: [ExerciseSet(reps: max(1, mins))])
+                }
+            case .hiit:
+                return hiitRounds.compactMap { r in
+                    let name = r.name.trimmingCharacters(in: .whitespaces)
+                    guard !name.isEmpty else { return nil }
+                    let pretty = "\(name) · \(r.workSeconds)s on / \(r.restSeconds)s off × \(max(1, r.rounds))"
+                    return Exercise(id: r.id, name: pretty,
+                                    sets: Array(repeating: ExerciseSet(reps: max(1, r.workSeconds)),
+                                                count: max(1, r.rounds)))
+                }
+            case .flexibility:
+                return yogaPoses.compactMap { p in
+                    let name = p.name.trimmingCharacters(in: .whitespaces)
+                    guard !name.isEmpty else { return nil }
+                    let pretty = p.holdSeconds > 0 ? "\(name) · \(p.holdSeconds)s hold" : name
+                    return Exercise(id: p.id, name: pretty,
+                                    sets: [ExerciseSet(reps: max(1, p.holdSeconds))])
+                }
+            case .restDay:
+                return []
+            }
+        }()
 
         // Preserve the original workoutID when editing so Firestore overwrites the same document
         let entry = WorkoutEntry(

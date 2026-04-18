@@ -298,3 +298,115 @@ struct WorkoutEndIntent: LiveActivityIntent {
         return .result()
     }
 }
+
+// MARK: - Cardio: lap / next segment
+
+@available(iOS 17.0, *)
+struct WorkoutCardioLapIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Lap"
+    static var description = IntentDescription("Snap a lap and add a fresh segment to the cardio workout.")
+
+    init() {}
+
+    func perform() async throws -> some IntentResult {
+        await WorkoutLiveActivitySupport.mutate { state in
+            let template = state.segments.last
+            state.segments.append(
+                WorkoutActivityAttributes.LiveCardioSegment(
+                    label:           "Segment \(state.segments.count + 1)",
+                    durationSeconds: 0,
+                    distanceMiles:   template?.distanceMiles == nil ? nil : 0
+                )
+            )
+            state.currentIndex = state.segments.count - 1
+        }
+        return .result()
+    }
+}
+
+@available(iOS 17.0, *)
+struct WorkoutCardioNextSegmentIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Next Segment"
+    static var description = IntentDescription("Advance to the next cardio segment.")
+
+    init() {}
+
+    func perform() async throws -> some IntentResult {
+        await WorkoutLiveActivitySupport.mutate { state in
+            if state.currentIndex >= state.segments.count - 1 {
+                state.segments.append(
+                    WorkoutActivityAttributes.LiveCardioSegment(
+                        label:           "Segment \(state.segments.count + 1)",
+                        durationSeconds: 0
+                    )
+                )
+            }
+            state.currentIndex = min(state.currentIndex + 1, state.segments.count - 1)
+        }
+        return .result()
+    }
+}
+
+// MARK: - HIIT: advance round, toggle work/rest
+
+@available(iOS 17.0, *)
+struct WorkoutHIITNextRoundIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Next Round"
+    static var description = IntentDescription("Advance to the next round of the current HIIT block.")
+
+    init() {}
+
+    func perform() async throws -> some IntentResult {
+        await WorkoutLiveActivitySupport.mutate { state in
+            guard state.rounds.indices.contains(state.currentIndex) else { return }
+            var block = state.rounds[state.currentIndex]
+            if block.currentRound >= block.rounds {
+                // Last round of this block — advance to next block if any.
+                state.currentIndex = min(state.currentIndex + 1, state.rounds.count - 1)
+            } else {
+                block.currentRound += 1
+                block.inRest        = false
+                state.rounds[state.currentIndex] = block
+            }
+        }
+        return .result()
+    }
+}
+
+@available(iOS 17.0, *)
+struct WorkoutHIITTogglePhaseIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Toggle Work / Rest"
+    static var description = IntentDescription("Flip between the work and rest phase of the current HIIT round.")
+
+    init() {}
+
+    func perform() async throws -> some IntentResult {
+        await WorkoutLiveActivitySupport.mutate { state in
+            guard state.rounds.indices.contains(state.currentIndex) else { return }
+            state.rounds[state.currentIndex].inRest.toggle()
+        }
+        return .result()
+    }
+}
+
+// MARK: - Yoga: next pose
+
+@available(iOS 17.0, *)
+struct WorkoutYogaNextPoseIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Next Pose"
+    static var description = IntentDescription("Advance to the next yoga pose.")
+
+    init() {}
+
+    func perform() async throws -> some IntentResult {
+        await WorkoutLiveActivitySupport.mutate { state in
+            if state.currentIndex >= state.poses.count - 1 {
+                state.poses.append(
+                    WorkoutActivityAttributes.LivePose(name: "", holdSeconds: 0)
+                )
+            }
+            state.currentIndex = min(state.currentIndex + 1, state.poses.count - 1)
+        }
+        return .result()
+    }
+}
