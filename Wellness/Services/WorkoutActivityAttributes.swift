@@ -45,15 +45,89 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         }
     }
 
+    // MARK: - Cardio / HIIT / Yoga payloads
+    //
+    // Mirrors of the app-side structs in Models/WorkoutItem.swift. Kept
+    // independent (and shared via project.pbxproj membershipExceptions)
+    // so the widget extension doesn't have to import Wellness types.
+
+    struct LiveCardioSegment: Codable, Hashable, Identifiable {
+        var id:              String
+        var label:           String
+        var durationSeconds: Int
+        var distanceMiles:   Double?
+
+        init(id:              String = UUID().uuidString,
+             label:           String,
+             durationSeconds: Int,
+             distanceMiles:   Double? = nil) {
+            self.id              = id
+            self.label           = label
+            self.durationSeconds = durationSeconds
+            self.distanceMiles   = distanceMiles
+        }
+    }
+
+    struct LiveHIITRound: Codable, Hashable, Identifiable {
+        var id:           String
+        var name:         String
+        var workSeconds:  Int
+        var restSeconds:  Int
+        var rounds:       Int
+        /// Which round (1-based) the user is currently on — bumped by
+        /// WorkoutHIITNextRoundIntent.
+        var currentRound: Int
+        /// True when resting, false when in the work phase. Toggled by
+        /// WorkoutHIITTogglePhaseIntent.
+        var inRest:       Bool
+
+        init(id:           String = UUID().uuidString,
+             name:         String,
+             workSeconds:  Int,
+             restSeconds:  Int,
+             rounds:       Int,
+             currentRound: Int  = 1,
+             inRest:       Bool = false) {
+            self.id           = id
+            self.name         = name
+            self.workSeconds  = workSeconds
+            self.restSeconds  = restSeconds
+            self.rounds       = rounds
+            self.currentRound = currentRound
+            self.inRest       = inRest
+        }
+    }
+
+    struct LivePose: Codable, Hashable, Identifiable {
+        var id:          String
+        var name:        String
+        var holdSeconds: Int
+
+        init(id:          String = UUID().uuidString,
+             name:        String,
+             holdSeconds: Int = 0) {
+            self.id          = id
+            self.name        = name
+            self.holdSeconds = holdSeconds
+        }
+    }
+
     /// Dynamic state — updated while the session is running.
     struct ContentState: Codable, Hashable {
         var workoutName:     String
         var workoutTypeRaw:  String                // WorkoutType.rawValue
         var startedAt:       Date
-        /// Index into `exercises` of the exercise the user is currently working.
+        /// Index into the active payload (`exercises` / `segments` /
+        /// `rounds` / `poses`) of the thing the user is currently working.
         var currentIndex:    Int
-        /// Full list of exercises in the active workout.
+        /// Strength-track payload.
         var exercises:       [LiveExercise]
+        /// Cardio-track payload.
+        var segments:        [LiveCardioSegment]
+        /// HIIT-track payload.
+        var rounds:          [LiveHIITRound]
+        /// Yoga / flexibility payload.
+        var poses:           [LivePose]
         /// Flipped to true when the user taps "End Workout" from the Live
         /// Activity. The app picks this up on foreground, drains state into
         /// the Log a Workout sheet, then ends the activity.
@@ -69,25 +143,33 @@ struct WorkoutActivityAttributes: ActivityAttributes {
              workoutTypeRaw: String,
              startedAt:      Date,
              currentIndex:   Int = 0,
-             exercises:      [LiveExercise] = [],
-             isFinished:     Bool = false,
-             pausedAt:       Date? = nil,
-             accumulatedPaused: TimeInterval = 0) {
+             exercises:      [LiveExercise]      = [],
+             segments:       [LiveCardioSegment] = [],
+             rounds:         [LiveHIITRound]     = [],
+             poses:          [LivePose]          = [],
+             isFinished:     Bool                = false,
+             pausedAt:       Date?               = nil,
+             accumulatedPaused: TimeInterval     = 0) {
             self.workoutName       = workoutName
             self.workoutTypeRaw    = workoutTypeRaw
             self.startedAt         = startedAt
             self.currentIndex      = currentIndex
             self.exercises         = exercises
+            self.segments          = segments
+            self.rounds            = rounds
+            self.poses             = poses
             self.isFinished        = isFinished
             self.pausedAt          = pausedAt
             self.accumulatedPaused = accumulatedPaused
         }
 
         // Tolerate older Live Activity payloads that used a flatter shape
-        // (currentExercise / sets / exerciseNumber / totalExercises).
+        // (currentExercise / sets / exerciseNumber / totalExercises) and
+        // payloads from before the per-type arrays were added.
         private enum CodingKeys: String, CodingKey {
-            case workoutName, workoutTypeRaw, startedAt, currentIndex, exercises, isFinished
-            case pausedAt, accumulatedPaused
+            case workoutName, workoutTypeRaw, startedAt, currentIndex
+            case exercises, segments, rounds, poses
+            case isFinished, pausedAt, accumulatedPaused
             // Legacy fields:
             case currentExercise, sets, exerciseNumber, totalExercises
         }
@@ -110,6 +192,9 @@ struct WorkoutActivityAttributes: ActivityAttributes {
             self.isFinished        = (try? c.decode(Bool.self,   forKey: .isFinished)) ?? false
             self.pausedAt          = try? c.decode(Date.self,    forKey: .pausedAt)
             self.accumulatedPaused = (try? c.decode(TimeInterval.self, forKey: .accumulatedPaused)) ?? 0
+            self.segments          = (try? c.decode([LiveCardioSegment].self, forKey: .segments)) ?? []
+            self.rounds            = (try? c.decode([LiveHIITRound].self,     forKey: .rounds))   ?? []
+            self.poses             = (try? c.decode([LivePose].self,          forKey: .poses))    ?? []
 
             if let list = try? c.decode([LiveExercise].self, forKey: .exercises) {
                 self.exercises    = list
