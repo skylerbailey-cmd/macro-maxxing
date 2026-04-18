@@ -1085,6 +1085,8 @@ struct FeedPostCard: View {
                     Text("\(post.zaps)")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(isZapped ? zapYellow : .white.opacity(0.45))
+                        .contentTransition(.numericText(increasesOver: true))
+                        .animation(.spring(duration: 0.25), value: post.zaps)
                 }
             }
             .buttonStyle(.plain)

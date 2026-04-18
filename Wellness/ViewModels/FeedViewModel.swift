@@ -150,10 +150,12 @@ import FirebaseFirestore
         guard let idx = posts.firstIndex(where: { $0.id == postID }) else { return }
 
         let original = posts[idx]
-        posts[idx].zaps += 1
-        if !posts[idx].zappedBy.contains(currentUserID) {
-            posts[idx].zappedBy.append(currentUserID)
+        var updated  = posts[idx]
+        updated.zaps += 1
+        if !updated.zappedBy.contains(currentUserID) {
+            updated.zappedBy.append(currentUserID)
         }
+        posts[idx] = updated
 
         do {
             try await PostService.shared.addZap(postID: postID, currentUserID: currentUserID)
