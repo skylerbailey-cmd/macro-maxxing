@@ -141,7 +141,7 @@ private func formatted(seconds: Int) -> String {
 private func pastSetsList(sets:    [WorkoutActivityAttributes.LiveSet],
                           current: Int,
                           compact: Bool) -> some View {
-    let past = Array(sets.enumerated()).filter { $0.offset != current }
+    let past = Array(sets.enumerated()).filter { $0.offset != current }.reversed()
     if !past.isEmpty {
         VStack(spacing: compact ? 3 : 5) {
             ForEach(past, id: \.element.id) { idx, set in
@@ -197,6 +197,8 @@ private func currentSetRow(setIndex: Int,
                     .font(.system(size: compact ? 14 : 18, weight: .black, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(.white)
+                    .contentTransition(.numericText())
+                    .transaction { $0.animation = .spring(duration: 0.12) }
                 Text("reps")
                     .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.40))
@@ -223,6 +225,8 @@ private func currentSetRow(setIndex: Int,
                     .foregroundStyle(.white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
+                    .contentTransition(.numericText())
+                    .transaction { $0.animation = .spring(duration: 0.12) }
                 Text("weight")
                     .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.40))

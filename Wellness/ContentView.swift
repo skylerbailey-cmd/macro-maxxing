@@ -293,7 +293,6 @@ struct ContentView: View {
                 expanded: $fabExpanded,
                 onLogMeal: {
                     fabExpanded = false
-                    selectedTab = 1
                     fabOpenLogMeal = true
                 },
                 onLogWorkout: {
