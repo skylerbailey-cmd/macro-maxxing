@@ -156,6 +156,97 @@ struct WorkoutPreviousExerciseIntent: LiveActivityIntent {
     }
 }
 
+// MARK: - Increment weight (by 5 lb)
+
+@available(iOS 17.0, *)
+struct WorkoutIncrementWeightIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Add Weight"
+    static var description = IntentDescription("Add 5 lb to the current set.")
+
+    @Parameter(title: "Set Index") var setIndex: Int
+
+    init() { self.setIndex = -1 }
+    init(setIndex: Int) { self.setIndex = setIndex }
+
+    func perform() async throws -> some IntentResult {
+        await WorkoutLiveActivitySupport.mutate { state in
+            guard state.exercises.indices.contains(state.currentIndex) else { return }
+            var ex = state.exercises[state.currentIndex]
+            let idx = setIndex >= 0 ? setIndex : ex.sets.count - 1
+            guard ex.sets.indices.contains(idx) else { return }
+            let current = ex.sets[idx].weight ?? 0
+            ex.sets[idx].weight = min(9999, current + 5)
+            state.exercises[state.currentIndex] = ex
+        }
+        return .result()
+    }
+}
+
+// MARK: - Decrement weight (by 5 lb)
+
+@available(iOS 17.0, *)
+struct WorkoutDecrementWeightIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Remove Weight"
+    static var description = IntentDescription("Subtract 5 lb from the current set. Drops to bodyweight at 0.")
+
+    @Parameter(title: "Set Index") var setIndex: Int
+
+    init() { self.setIndex = -1 }
+    init(setIndex: Int) { self.setIndex = setIndex }
+
+    func perform() async throws -> some IntentResult {
+        await WorkoutLiveActivitySupport.mutate { state in
+            guard state.exercises.indices.contains(state.currentIndex) else { return }
+            var ex = state.exercises[state.currentIndex]
+            let idx = setIndex >= 0 ? setIndex : ex.sets.count - 1
+            guard ex.sets.indices.contains(idx) else { return }
+            let current = ex.sets[idx].weight ?? 0
+            let next = current - 5
+            // 0 drops to nil (= bodyweight); negative is clamped to nil.
+            ex.sets[idx].weight = next <= 0 ? nil : next
+            state.exercises[state.currentIndex] = ex
+        }
+        return .result()
+    }
+}
+
+// MARK: - Pause
+
+@available(iOS 17.0, *)
+struct WorkoutPauseIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Pause Workout"
+    static var description = IntentDescription("Pause the workout timer.")
+
+    init() {}
+
+    func perform() async throws -> some IntentResult {
+        await WorkoutLiveActivitySupport.mutate { state in
+            guard state.pausedAt == nil else { return }
+            state.pausedAt = Date()
+        }
+        return .result()
+    }
+}
+
+// MARK: - Resume
+
+@available(iOS 17.0, *)
+struct WorkoutResumeIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Resume Workout"
+    static var description = IntentDescription("Resume the paused workout timer.")
+
+    init() {}
+
+    func perform() async throws -> some IntentResult {
+        await WorkoutLiveActivitySupport.mutate { state in
+            guard let paused = state.pausedAt else { return }
+            state.accumulatedPaused += Date().timeIntervalSince(paused)
+            state.pausedAt = nil
+        }
+        return .result()
+    }
+}
+
 // MARK: - End workout
 
 @available(iOS 17.0, *)
@@ -171,6 +262,12 @@ struct WorkoutEndIntent: LiveActivityIntent {
 
     func perform() async throws -> some IntentResult {
         await WorkoutLiveActivitySupport.mutate { state in
+            // If we're ending from a paused state, bake the current pause
+            // into accumulatedPaused so elapsed calculations are final.
+            if let paused = state.pausedAt {
+                state.accumulatedPaused += Date().timeIntervalSince(paused)
+                state.pausedAt = nil
+            }
             state.isFinished = true
         }
         return .result()

@@ -74,6 +74,10 @@ struct LogWorkoutSheet: View {
     /// Set to true once we've drained an "End Workout" payload into the form
     /// so we don't loop when the content-updates stream redelivers.
     @State private var didConsumeLiveFinish = false
+    /// Snapshot of the running activity's ContentState, kept in sync with
+    /// `activity.contentUpdates` so SwiftUI re-renders the Workout Active
+    /// banner when pause/resume fire from the Dynamic Island.
+    @State private var liveSnapshot: WorkoutActivityAttributes.ContentState? = nil
 
     // Feedback
     @State private var isSaving   = false
@@ -943,35 +947,53 @@ struct LogWorkoutSheet: View {
     private var startWorkoutButton: some View {
         Group {
             if let startTime = workoutStartTime {
-                // Active workout banner with live elapsed timer
+                let isPaused = liveSnapshot?.isPaused ?? false
+                let accent: Color = isPaused ? .yellow : .green
                 HStack(spacing: 12) {
-                    Image(systemName: "timer")
+                    Image(systemName: isPaused ? "pause.fill" : "timer")
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(accent)
                         .frame(width: 36, height: 36)
-                        .background(Color.green.opacity(0.15), in: Circle())
+                        .background(accent.opacity(0.15), in: Circle())
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Workout Active")
+                        Text(isPaused ? "Paused" : "Workout Active")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.green)
-                        TimelineView(.periodic(from: startTime, by: 1)) { ctx in
-                            Text(elapsed(from: startTime, to: ctx.date))
+                            .foregroundStyle(accent)
+                        if isPaused, let state = liveSnapshot {
+                            Text(elapsedString(seconds: state.elapsedSeconds()))
                                 .font(.system(size: 22, weight: .black, design: .rounded))
                                 .foregroundStyle(.white)
                                 .monospacedDigit()
+                        } else {
+                            let pausedFor = liveSnapshot?.accumulatedPaused ?? 0
+                            let effectiveStart = startTime.addingTimeInterval(pausedFor)
+                            TimelineView(.periodic(from: effectiveStart, by: 1)) { ctx in
+                                Text(elapsed(from: effectiveStart, to: ctx.date))
+                                    .font(.system(size: 22, weight: .black, design: .rounded))
+                                    .foregroundStyle(.white)
+                                    .monospacedDigit()
+                            }
                         }
                     }
                     Spacer()
-                    Text("LIVE")
+                    Button { toggleLivePause() } label: {
+                        Image(systemName: isPaused ? "play.fill" : "pause.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.black)
+                            .frame(width: 36, height: 36)
+                            .background(accent, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    Text(isPaused ? "PAUSE" : "LIVE")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(.black)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.green, in: Capsule())
+                        .background(accent, in: Capsule())
                 }
                 .padding(14)
-                .background(Color.green.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.green.opacity(0.30), lineWidth: 1))
+                .background(accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.30), lineWidth: 1))
             } else {
                 Button {
                     let t = Date()
@@ -1022,6 +1044,7 @@ struct LogWorkoutSheet: View {
                 attributes: WorkoutActivityAttributes(),
                 content:    .init(state: state, staleDate: nil)
             )
+            liveSnapshot         = state
             didConsumeLiveFinish = false
             observeLiveActivity()
             print("[LiveActivity] started: \(liveActivity?.id ?? "?")")
@@ -1034,6 +1057,32 @@ struct LogWorkoutSheet: View {
         guard let activity = liveActivity else { return }
         Task { await activity.end(nil, dismissalPolicy: .immediate) }
         liveActivity = nil
+    }
+
+    /// Flip pause on the running activity. Mirrors WorkoutPauseIntent /
+    /// WorkoutResumeIntent so the in-app button and the Live Activity
+    /// button drive the same state.
+    private func toggleLivePause() {
+        guard let activity = liveActivity else { return }
+        var state = activity.content.state
+        if let paused = state.pausedAt {
+            state.accumulatedPaused += Date().timeIntervalSince(paused)
+            state.pausedAt = nil
+        } else {
+            state.pausedAt = Date()
+        }
+        let snapshot = state
+        Task { await activity.update(ActivityContent(state: snapshot, staleDate: nil)) }
+    }
+
+    /// "MM:SS" / "H:MM:SS" formatter used by the paused banner.
+    private func elapsedString(seconds: Int) -> String {
+        let h = seconds / 3600
+        let m = (seconds % 3600) / 60
+        let s = seconds % 60
+        return h > 0
+            ? String(format: "%d:%02d:%02d", h, m, s)
+            : String(format: "%02d:%02d", m, s)
     }
 
     /// Build a ContentState from the current form fields.
@@ -1081,6 +1130,7 @@ struct LogWorkoutSheet: View {
     /// list and workout name — so reps / added sets / next-exercise taps
     /// done from the lock screen or Dynamic Island appear here in real time.
     private func mergeLiveActivityState(_ state: WorkoutActivityAttributes.ContentState) {
+        liveSnapshot = state
         if !state.workoutName.isEmpty { workoutName = state.workoutName }
         exercises = state.exercises.map { liveEx in
             Exercise(
