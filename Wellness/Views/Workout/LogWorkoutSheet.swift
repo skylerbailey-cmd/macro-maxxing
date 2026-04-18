@@ -267,6 +267,9 @@ struct LogWorkoutSheet: View {
             .padding(.horizontal, 20)
             .padding(.top, 8)
         }
+        .onChange(of: exercises)   { _, _ in pushFormToLiveActivity() }
+        .onChange(of: workoutName) { _, _ in pushFormToLiveActivity() }
+        .onChange(of: workoutType) { _, _ in pushFormToLiveActivity() }
     }
 
     private var postPromptSheet: some View {
@@ -1059,18 +1062,45 @@ struct LogWorkoutSheet: View {
         liveActivity = nil
     }
 
-    /// Flip pause on the running activity. Mirrors WorkoutPauseIntent /
-    /// WorkoutResumeIntent so the in-app button and the Live Activity
-    /// button drive the same state.
+    /// Send current form state to the running activity so edits made in the
+    /// app (exercise name, reps, weight, sets, workout name, workout type)
+    /// appear on the lock screen and Dynamic Island immediately. Preserves
+    /// the activity's own non-form fields — `currentIndex`, pause state —
+    /// so they aren't clobbered when the form doesn't know about them.
+    private func pushFormToLiveActivity() {
+        guard let activity = liveActivity,
+              let snap = liveSnapshot,
+              !snap.isFinished
+        else { return }
+        var state = currentLiveActivityState(startedAt: snap.startedAt,
+                                             isFinished: false)
+        state.currentIndex      = min(max(0, snap.currentIndex),
+                                      max(0, state.exercises.count - 1))
+        state.pausedAt          = snap.pausedAt
+        state.accumulatedPaused = snap.accumulatedPaused
+        // Skip when nothing changed — breaks the echo loop between an
+        // intent-driven update → mergeLiveActivityState → onChange → here.
+        if state == snap { return }
+        liveSnapshot = state
+        let snapshot = state
+        Task { await activity.update(ActivityContent(state: snapshot, staleDate: nil)) }
+    }
+
+    /// Flip pause on the running activity. Mirrors WorkoutTogglePauseIntent
+    /// so the in-app button and the Live Activity button drive the same
+    /// state. Updates `liveSnapshot` synchronously so the banner changes
+    /// the instant the user taps — before the activity's own update round-
+    /// trip completes.
     private func toggleLivePause() {
         guard let activity = liveActivity else { return }
-        var state = activity.content.state
+        var state = liveSnapshot ?? activity.content.state
         if let paused = state.pausedAt {
             state.accumulatedPaused += Date().timeIntervalSince(paused)
             state.pausedAt = nil
         } else {
             state.pausedAt = Date()
         }
+        liveSnapshot = state
         let snapshot = state
         Task { await activity.update(ActivityContent(state: snapshot, staleDate: nil)) }
     }
