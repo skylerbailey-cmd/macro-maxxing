@@ -228,6 +228,31 @@ struct WorkoutPauseIntent: LiveActivityIntent {
     }
 }
 
+// MARK: - Toggle pause / resume
+
+/// Unified pause/resume toggle. Using a single intent on the pause button
+/// avoids re-swapping the `Button(intent:)` instance every time the state
+/// flips, which was leaving taps unhandled on some devices.
+@available(iOS 17.0, *)
+struct WorkoutTogglePauseIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Pause or Resume Workout"
+    static var description = IntentDescription("Toggle the workout timer between paused and running.")
+
+    init() {}
+
+    func perform() async throws -> some IntentResult {
+        await WorkoutLiveActivitySupport.mutate { state in
+            if let paused = state.pausedAt {
+                state.accumulatedPaused += Date().timeIntervalSince(paused)
+                state.pausedAt = nil
+            } else {
+                state.pausedAt = Date()
+            }
+        }
+        return .result()
+    }
+}
+
 // MARK: - Resume
 
 @available(iOS 17.0, *)

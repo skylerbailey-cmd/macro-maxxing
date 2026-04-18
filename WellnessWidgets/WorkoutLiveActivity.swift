@@ -44,11 +44,8 @@ struct WorkoutLiveActivityWidget: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
-                    HStack(spacing: 6) {
-                        pauseButton(isPaused: state.isPaused, compact: true)
-                        timerLabel(state: state, compact: true)
-                    }
-                    .padding(.trailing, 4)
+                    timerLabel(state: state, compact: true)
+                        .padding(.trailing, 4)
                 }
 
                 DynamicIslandExpandedRegion(.center) {
@@ -62,21 +59,21 @@ struct WorkoutLiveActivityWidget: Widget {
 
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(spacing: 6) {
-                        stackedSetList(sets:    current?.sets ?? [],
-                                       current: lastSetIndex,
-                                       compact: true)
-                        HStack(spacing: 6) {
-                            compactActionButton(title: "Add Set",
-                                                systemImage: "plus",
-                                                intent: WorkoutAddSetIntent())
-                            compactActionButton(title: "Next",
-                                                systemImage: "arrow.right",
-                                                intent: WorkoutNextExerciseIntent())
-                            compactActionButton(title: "End",
-                                                systemImage: "stop.fill",
-                                                intent: WorkoutEndIntent(),
-                                                tint: .red)
+                        // Actions at the top so they stay reachable
+                        // regardless of how many sets are stacked below.
+                        actionRow(isPaused: state.isPaused, compact: true)
+
+                        // Editable current set directly under the actions.
+                        if let sets = current?.sets, sets.indices.contains(lastSetIndex) {
+                            currentSetRow(setIndex: lastSetIndex,
+                                          set:      sets[lastSetIndex],
+                                          compact:  true)
                         }
+
+                        // Past sets go underneath in natural order.
+                        pastSetsList(sets:    current?.sets ?? [],
+                                     current: lastSetIndex,
+                                     compact: true)
                     }
                     .padding(.horizontal, 8)
                     .padding(.bottom, 4)
@@ -135,46 +132,19 @@ private func formatted(seconds: Int) -> String {
         : String(format: "%02d:%02d", m, s)
 }
 
-// MARK: - Pause / resume button
+// MARK: - Past sets list
 
+/// Read-only list of every set EXCEPT the current one, rendered below the
+/// action row / editable current set. Preserves natural order (Set 1, 2…)
+/// but skips whichever index is flagged as current.
 @ViewBuilder
-private func pauseButton(isPaused: Bool, compact: Bool) -> some View {
-    let size: CGFloat = compact ? 28 : 36
-    if isPaused {
-        Button(intent: WorkoutResumeIntent()) {
-            Image(systemName: "play.fill")
-                .font(.system(size: compact ? 11 : 14, weight: .bold))
-                .foregroundStyle(.black)
-                .frame(width: size, height: size)
-                .background(.yellow, in: Circle())
-        }
-        .buttonStyle(.plain)
-    } else {
-        Button(intent: WorkoutPauseIntent()) {
-            Image(systemName: "pause.fill")
-                .font(.system(size: compact ? 11 : 14, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: size, height: size)
-                .background(.white.opacity(0.14), in: Circle())
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Stacked set list
-
-/// Renders every set of the current exercise as a row. Earlier sets are
-/// shown read-only; the latest ("current") set has `−`/`+` controls for
-/// reps and weight.
-@ViewBuilder
-private func stackedSetList(sets:    [WorkoutActivityAttributes.LiveSet],
-                            current: Int,
-                            compact: Bool) -> some View {
-    VStack(spacing: compact ? 3 : 5) {
-        ForEach(Array(sets.enumerated()), id: \.element.id) { idx, set in
-            if idx == current {
-                currentSetRow(setIndex: idx, set: set, compact: compact)
-            } else {
+private func pastSetsList(sets:    [WorkoutActivityAttributes.LiveSet],
+                          current: Int,
+                          compact: Bool) -> some View {
+    let past = Array(sets.enumerated()).filter { $0.offset != current }
+    if !past.isEmpty {
+        VStack(spacing: compact ? 3 : 5) {
+            ForEach(past, id: \.element.id) { idx, set in
                 historicalSetRow(setIndex: idx, set: set, compact: compact)
             }
         }
@@ -310,6 +280,89 @@ private func compactActionButton<I: AppIntent>(title: String,
     .buttonStyle(.plain)
 }
 
+// MARK: - Action row (pause + add set + next + end)
+
+/// Top-of-popup row containing every control that should stay reachable
+/// regardless of how many past sets are listed below. Uses the unified
+/// pause/resume toggle intent so a single tap flips pause state.
+@ViewBuilder
+private func actionRow(isPaused: Bool, compact: Bool) -> some View {
+    HStack(spacing: compact ? 6 : 8) {
+        Button(intent: WorkoutTogglePauseIntent()) {
+            HStack(spacing: 4) {
+                Image(systemName: isPaused ? "play.fill" : "pause.fill")
+                    .font(.system(size: compact ? 10 : 11, weight: .bold))
+                if !compact {
+                    Text(isPaused ? "Resume" : "Pause")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+            }
+            .foregroundStyle(isPaused ? .black : .white)
+            .padding(.vertical, compact ? 6 : 9)
+            .padding(.horizontal, compact ? 10 : 0)
+            .frame(maxWidth: .infinity)
+            .background(isPaused ? Color.yellow : Color.white.opacity(0.14),
+                        in: RoundedRectangle(cornerRadius: compact ? 14 : 10))
+        }
+        .buttonStyle(.plain)
+
+        if compact {
+            compactActionButton(title: "Add Set",
+                                systemImage: "plus",
+                                intent: WorkoutAddSetIntent())
+            compactActionButton(title: "Next",
+                                systemImage: "arrow.right",
+                                intent: WorkoutNextExerciseIntent())
+            compactActionButton(title: "End",
+                                systemImage: "stop.fill",
+                                intent: WorkoutEndIntent(),
+                                tint: .red)
+        } else {
+            Button(intent: WorkoutAddSetIntent()) {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("Add Set")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 9)
+                .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.plain)
+
+            Button(intent: WorkoutNextExerciseIntent()) {
+                HStack(spacing: 6) {
+                    Text("Next")
+                        .font(.system(size: 12, weight: .semibold))
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 11, weight: .bold))
+                }
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 9)
+                .background(.green, in: RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.plain)
+
+            Button(intent: WorkoutEndIntent()) {
+                HStack(spacing: 6) {
+                    Image(systemName: "stop.fill")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("End")
+                        .font(.system(size: 12, weight: .bold))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 9)
+                .background(Color.red.opacity(0.85), in: RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
 // MARK: - Helpers
 
 /// Maps a WorkoutType raw value to its SF Symbol without importing MacroAdjustmentEngine.
@@ -339,7 +392,7 @@ private struct LockScreenView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Top row: icon + name + pause + timer
+            // Top row: icon + name + timer
             HStack(spacing: 10) {
                 Image(systemName: workoutIcon(for: state.workoutTypeRaw))
                     .font(.system(size: 18, weight: .bold))
@@ -358,7 +411,6 @@ private struct LockScreenView: View {
 
                 Spacer()
 
-                pauseButton(isPaused: state.isPaused, compact: false)
                 VStack(alignment: .trailing, spacing: 1) {
                     timerLabel(state: state, compact: false)
                     Text(state.isPaused ? "paused" : "elapsed")
@@ -373,55 +425,21 @@ private struct LockScreenView: View {
                 .foregroundStyle(current?.name.isEmpty == false ? .white : .white.opacity(0.50))
                 .lineLimit(1)
 
-            // Stacked set list
-            stackedSetList(sets:    current?.sets ?? [],
-                           current: lastSetIndex,
-                           compact: false)
+            // Action buttons sit above everything so they stay tappable even
+            // when many past sets are stacked underneath.
+            actionRow(isPaused: state.isPaused, compact: false)
 
-            // Action buttons
-            HStack(spacing: 8) {
-                Button(intent: WorkoutAddSetIntent()) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 11, weight: .bold))
-                        Text("Add Set")
-                            .font(.system(size: 12, weight: .semibold))
-                    }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 9)
-                    .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
-                }
-                .buttonStyle(.plain)
-
-                Button(intent: WorkoutNextExerciseIntent()) {
-                    HStack(spacing: 6) {
-                        Text("Next")
-                            .font(.system(size: 12, weight: .semibold))
-                        Image(systemName: "arrow.right")
-                            .font(.system(size: 11, weight: .bold))
-                    }
-                    .foregroundStyle(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 9)
-                    .background(.green, in: RoundedRectangle(cornerRadius: 10))
-                }
-                .buttonStyle(.plain)
-
-                Button(intent: WorkoutEndIntent()) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "stop.fill")
-                            .font(.system(size: 11, weight: .bold))
-                        Text("End")
-                            .font(.system(size: 12, weight: .bold))
-                    }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 9)
-                    .background(Color.red.opacity(0.85), in: RoundedRectangle(cornerRadius: 10))
-                }
-                .buttonStyle(.plain)
+            // Editable current set.
+            if let sets = current?.sets, sets.indices.contains(lastSetIndex) {
+                currentSetRow(setIndex: lastSetIndex,
+                              set:      sets[lastSetIndex],
+                              compact:  false)
             }
+
+            // Past sets underneath in natural order.
+            pastSetsList(sets:    current?.sets ?? [],
+                         current: lastSetIndex,
+                         compact: false)
         }
         .padding(12)
         .background(.black)

@@ -1086,18 +1086,21 @@ struct LogWorkoutSheet: View {
         Task { await activity.update(ActivityContent(state: snapshot, staleDate: nil)) }
     }
 
-    /// Flip pause on the running activity. Mirrors WorkoutPauseIntent /
-    /// WorkoutResumeIntent so the in-app button and the Live Activity
-    /// button drive the same state.
+    /// Flip pause on the running activity. Mirrors WorkoutTogglePauseIntent
+    /// so the in-app button and the Live Activity button drive the same
+    /// state. Updates `liveSnapshot` synchronously so the banner changes
+    /// the instant the user taps — before the activity's own update round-
+    /// trip completes.
     private func toggleLivePause() {
         guard let activity = liveActivity else { return }
-        var state = activity.content.state
+        var state = liveSnapshot ?? activity.content.state
         if let paused = state.pausedAt {
             state.accumulatedPaused += Date().timeIntervalSince(paused)
             state.pausedAt = nil
         } else {
             state.pausedAt = Date()
         }
+        liveSnapshot = state
         let snapshot = state
         Task { await activity.update(ActivityContent(state: snapshot, staleDate: nil)) }
     }
