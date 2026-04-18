@@ -60,6 +60,9 @@ struct LogWorkoutSheet: View {
     @State private var savedWorkouts: [SavedWorkout] = []
     @State private var workoutToDelete: SavedWorkout? = nil
 
+    // Live workout session
+    @State private var showingLiveWorkout = false
+
     // Feedback
     @State private var isSaving   = false
     @State private var saveError: String? = nil
@@ -135,6 +138,11 @@ struct LogWorkoutSheet: View {
                             savedWorkoutsSection
                         }
 
+                        // Live in-session tracker (new workouts only)
+                        if editingEntry == nil && !saveTemplateMode {
+                            startWorkoutButton
+                        }
+
                         // Optional voice / AI assist — fills in the manual form below
                         voiceAssistCard
 
@@ -207,6 +215,27 @@ struct LogWorkoutSheet: View {
             } message: {
                 if let workout = workoutToDelete {
                     Text("Are you sure you want to delete \"\(workout.name)\"? This cannot be undone.")
+                }
+            }
+            .fullScreenCover(isPresented: $showingLiveWorkout) {
+                LiveWorkoutView(
+                    initialWorkoutName: workoutName,
+                    initialExercises:   exercises
+                ) { name, sessionExercises, elapsedMinutes, startedAt in
+                    // Populate the Log a Workout form with everything captured
+                    // during the live session so the user can review, tweak,
+                    // and hit "Log Workout" to save.
+                    if !name.isEmpty { workoutName = name }
+                    if !sessionExercises.isEmpty { exercises = sessionExercises }
+                    if elapsedMinutes > 0 {
+                        durationText = "\(elapsedMinutes)"
+                        // Duration changed — let the calories estimator rerun
+                        // unless the user already overrode it.
+                        autoFillCaloriesIfNeeded()
+                    }
+                    // Align the logged time with when the user actually started.
+                    logTime = startedAt
+                    logDate = Calendar.current.startOfDay(for: startedAt)
                 }
             }
             .sheet(isPresented: $showingPostPrompt, onDismiss: {
@@ -890,6 +919,38 @@ struct LogWorkoutSheet: View {
         .tint(gold)
         .padding(14)
         .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Start Workout Button
+
+    /// Opens the live in-session tracker. The tracker lets the user step
+    /// through exercises one at a time — entering name, reps, and weight per
+    /// set — and ticks a live timer. On End Workout it hands everything back
+    /// and this sheet's fields get pre-populated so the user can review and
+    /// tap "Log Workout" to save.
+    private var startWorkoutButton: some View {
+        Button { showingLiveWorkout = true } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 15, weight: .bold))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Start Workout")
+                        .font(.system(size: 15, weight: .bold))
+                    Text("Track exercises live, then log it all at once")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.black.opacity(0.65))
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.black.opacity(0.55))
+            }
+            .foregroundStyle(.black)
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(accent, in: RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Save Button
