@@ -67,6 +67,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Services/WorkoutActivityAttributes.swift,
+				Services/WorkoutLiveActivityIntents.swift,
 			);
 			target = 88EF25272F93428000A7BAC0 /* WellnessWidgetsExtension */;
 		};

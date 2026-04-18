@@ -71,6 +71,9 @@ struct LogWorkoutSheet: View {
     // Live workout timer / Live Activity
     @State private var workoutStartTime: Date? = nil
     @State private var liveActivity: Activity<WorkoutActivityAttributes>? = nil
+    /// Set to true once we've drained an "End Workout" payload into the form
+    /// so we don't loop when the content-updates stream redelivers.
+    @State private var didConsumeLiveFinish = false
 
     // Feedback
     @State private var isSaving   = false
@@ -216,6 +219,27 @@ struct LogWorkoutSheet: View {
         Task {
             await aiSubscription.loadProduct()
             await aiSubscription.refreshEntitlement()
+        }
+        reattachRunningLiveActivity()
+    }
+
+    /// If a Live Activity is already running (e.g. the user tapped End from
+    /// the lock screen and iOS re-opened the app, or they just foregrounded
+    /// without ending), adopt it so its contentUpdates land in this sheet.
+    private func reattachRunningLiveActivity() {
+        guard liveActivity == nil,
+              let running = Activity<WorkoutActivityAttributes>.activities.first
+        else { return }
+        liveActivity         = running
+        workoutStartTime     = running.content.state.startedAt
+        didConsumeLiveFinish = false
+        mergeLiveActivityState(running.content.state)
+        if running.content.state.isFinished {
+            didConsumeLiveFinish = true
+            consumeLiveActivityFinish(state: running.content.state)
+            endLiveActivity()
+        } else {
+            observeLiveActivity()
         }
     }
 
@@ -985,20 +1009,21 @@ struct LogWorkoutSheet: View {
 
     private func startLiveActivity(at start: Date) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-        let state = WorkoutActivityAttributes.ContentState(
-            workoutName:     workoutName.isEmpty ? "Workout" : workoutName,
-            workoutTypeRaw:  workoutType.rawValue,
-            currentExercise: "",
-            exerciseNumber:  0,
-            totalExercises:  0,
-            sets:            [],
-            startedAt:       start
-        )
+
+        // Seed at least one empty exercise so the Live Activity controls
+        // (reps +/-, Add Set, Next) have something to operate on.
+        if exercises.isEmpty {
+            exercises = [Exercise(name: "", sets: [ExerciseSet(reps: 10)])]
+        }
+
+        let state = currentLiveActivityState(startedAt: start, isFinished: false)
         do {
             liveActivity = try Activity.request(
                 attributes: WorkoutActivityAttributes(),
                 content:    .init(state: state, staleDate: nil)
             )
+            didConsumeLiveFinish = false
+            observeLiveActivity()
             print("[LiveActivity] started: \(liveActivity?.id ?? "?")")
         } catch {
             print("[LiveActivity] request failed: \(error)")
@@ -1009,6 +1034,72 @@ struct LogWorkoutSheet: View {
         guard let activity = liveActivity else { return }
         Task { await activity.end(nil, dismissalPolicy: .immediate) }
         liveActivity = nil
+    }
+
+    /// Build a ContentState from the current form fields.
+    private func currentLiveActivityState(startedAt: Date,
+                                          isFinished: Bool) -> WorkoutActivityAttributes.ContentState {
+        let liveExercises = exercises.map { ex in
+            WorkoutActivityAttributes.LiveExercise(
+                id:   ex.id,
+                name: ex.name.trimmingCharacters(in: .whitespaces),
+                sets: ex.sets.map {
+                    WorkoutActivityAttributes.LiveSet(id: $0.id, reps: $0.reps, weight: $0.weight)
+                }
+            )
+        }
+        return WorkoutActivityAttributes.ContentState(
+            workoutName:    workoutName.trimmingCharacters(in: .whitespaces),
+            workoutTypeRaw: workoutType.rawValue,
+            startedAt:      startedAt,
+            currentIndex:   0,
+            exercises:      liveExercises,
+            isFinished:     isFinished
+        )
+    }
+
+    /// Subscribe to content updates from the running activity so changes
+    /// made via Live Activity intents (reps +/-, Add Set, Next Exercise,
+    /// End Workout) flow back into the form.
+    private func observeLiveActivity() {
+        guard let activity = liveActivity else { return }
+        let updates = activity.contentUpdates
+        Task { @MainActor in
+            for await content in updates {
+                mergeLiveActivityState(content.state)
+                if content.state.isFinished && !didConsumeLiveFinish {
+                    didConsumeLiveFinish = true
+                    consumeLiveActivityFinish(state: content.state)
+                    endLiveActivity()
+                    break
+                }
+            }
+        }
+    }
+
+    /// Copy non-terminal ContentState updates into the form's exercises
+    /// list and workout name — so reps / added sets / next-exercise taps
+    /// done from the lock screen or Dynamic Island appear here in real time.
+    private func mergeLiveActivityState(_ state: WorkoutActivityAttributes.ContentState) {
+        if !state.workoutName.isEmpty { workoutName = state.workoutName }
+        exercises = state.exercises.map { liveEx in
+            Exercise(
+                id:   liveEx.id,
+                name: liveEx.name,
+                sets: liveEx.sets.map { ExerciseSet(id: $0.id, reps: $0.reps, weight: $0.weight) }
+            )
+        }
+    }
+
+    /// Called once, when the Live Activity reports `isFinished = true`. Drops
+    /// the "Workout Active" banner, writes the final elapsed duration into
+    /// the form, and re-fills the calorie estimate.
+    private func consumeLiveActivityFinish(state: WorkoutActivityAttributes.ContentState) {
+        let minutes = max(1, Int((Date().timeIntervalSince(state.startedAt) / 60.0).rounded()))
+        durationText    = "\(minutes)"
+        caloriesEdited  = false
+        autoFillCaloriesIfNeeded()
+        workoutStartTime = nil
     }
 
     // MARK: - Save Button
