@@ -146,22 +146,17 @@ import FirebaseFirestore
 
     // MARK: - Toggle zap (optimistic)
 
-    func toggleZap(postID: String, currentUserID: String) async {
+    func addZap(postID: String, currentUserID: String) async {
         guard let idx = posts.firstIndex(where: { $0.id == postID }) else { return }
 
         let original = posts[idx]
-        var updated  = posts[idx]
-        if updated.hasZapped(userID: currentUserID) {
-            updated.zaps = max(0, updated.zaps - 1)
-            updated.zappedBy.removeAll { $0 == currentUserID }
-        } else {
-            updated.zaps += 1
-            updated.zappedBy.append(currentUserID)
+        posts[idx].zaps += 1
+        if !posts[idx].zappedBy.contains(currentUserID) {
+            posts[idx].zappedBy.append(currentUserID)
         }
-        posts[idx] = updated
 
         do {
-            try await PostService.shared.toggleZap(postID: postID, currentUserID: currentUserID)
+            try await PostService.shared.addZap(postID: postID, currentUserID: currentUserID)
         } catch {
             if let revertIdx = posts.firstIndex(where: { $0.id == postID }) {
                 posts[revertIdx] = original

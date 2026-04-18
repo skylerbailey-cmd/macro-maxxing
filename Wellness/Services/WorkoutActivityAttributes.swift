@@ -92,6 +92,16 @@ struct WorkoutActivityAttributes: ActivityAttributes {
             case currentExercise, sets, exerciseNumber, totalExercises
         }
 
+        func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(workoutName,    forKey: .workoutName)
+            try c.encode(workoutTypeRaw, forKey: .workoutTypeRaw)
+            try c.encode(startedAt,      forKey: .startedAt)
+            try c.encode(currentIndex,   forKey: .currentIndex)
+            try c.encode(exercises,      forKey: .exercises)
+            try c.encode(isFinished,     forKey: .isFinished)
+        }
+
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             self.workoutName       = (try? c.decode(String.self, forKey: .workoutName)) ?? ""

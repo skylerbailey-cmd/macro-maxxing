@@ -119,7 +119,7 @@ struct FeedView: View {
             currentUserID:     userSettings.userID,
             onRep:             { Task { await viewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
             onCelebrate:       { Task { await viewModel.toggleCelebrate(postID: post.id, currentUserID: userSettings.userID) } },
-            onZap:             { Task { await viewModel.toggleZap(postID: post.id, currentUserID: userSettings.userID) } },
+            onZap:             { Task { await viewModel.addZap(postID: post.id, currentUserID: userSettings.userID) } },
             onDelete:          deleteAction,
             onShare:           shareAction,
             onTap:             { activePresentation = .detail(post) },
@@ -1074,34 +1074,25 @@ struct FeedPostCard: View {
 
             // ⚡ Zap button
             let isZapped = post.hasZapped(userID: currentUserID)
+            let zapYellow = Color(red: 1.0, green: 0.85, blue: 0.05)
             Button {
-                if !isZapped { zapBurst = true }
+                zapBurst = true
                 onZap?()
             } label: {
                 HStack(spacing: 4) {
-                    Image(systemName: "bolt.fill")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(
-                            isZapped
-                                ? Color(red: 1.0, green: 0.88, blue: 0.1)
-                                : .white.opacity(0.35)
-                        )
+                    Text("⚡")
+                        .font(.system(size: 13))
                     Text("\(post.zaps)")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(
-                            isZapped
-                                ? Color(red: 1.0, green: 0.88, blue: 0.1)
-                                : .white.opacity(0.35)
-                        )
+                        .foregroundStyle(isZapped ? zapYellow : .white.opacity(0.45))
                 }
             }
             .buttonStyle(.plain)
-            .scaleEffect(isZapped ? 1.05 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isZapped)
-            .overlay {
+            .overlay(alignment: .top) {
                 if zapBurst {
-                    LightningBurstView { zapBurst = false }
+                    LightningUpView { zapBurst = false }
                         .allowsHitTesting(false)
+                        .offset(y: -110) // shift up so canvas bottom sits at button top
                 }
             }
 
@@ -1591,74 +1582,65 @@ private struct FlickerStreakBadge: View {
     }
 }
 
-// MARK: - Lightning Burst
+// MARK: - Lightning Up View
 //
-// Electric spark explosion that fires from the ⚡ button when tapped.
-// A pulse ring expands outward while 10 spark capsules shoot in all
-// directions and fade — evoking an electric discharge.
+// Real jagged lightning bolts drawn with Canvas path strokes shoot upward
+// from the ⚡ button on tap. Two layers — a wide blurred glow and a sharp
+// white core — create an electric discharge effect. A small fork branches
+// off the main bolt for realism.
 
-private struct LightningBurstView: View {
+private struct LightningUpView: View {
     var onComplete: () -> Void
 
-    private struct Spark: Identifiable {
-        let id       = UUID()
-        let angle:    Double
-        let distance: CGFloat
-        let rotation: Double
-        let color:    Color
-        let length:   CGFloat
-    }
+    @State private var opacity: Double = 1.0
 
-    @State private var fired = false
-    @State private var sparks: [Spark] = []
-
-    private static let colors: [Color] = [
-        Color(red: 1.00, green: 0.95, blue: 0.20),  // electric yellow
-        Color(red: 0.40, green: 0.95, blue: 1.00),  // cyan
-        .white,
-        Color(red: 1.00, green: 0.80, blue: 0.10),  // deep yellow
+    // All bolt segments. Origin (0,0) = bottom-center of the 90×110 canvas.
+    // Negative y = upward. Coordinates are relative offsets from bottom-center.
+    private let segments: [[(CGFloat, CGFloat)]] = [
+        // Main center bolt — tall, strong zigzag
+        [(0,0), (-14,-22), (10,-44), (-9,-66), (12,-90)],
+        // Left branch — fans upper-left
+        [(0,0), (-20,-22), (-34,-44), (-26,-66)],
+        // Right branch — fans upper-right
+        [(0,0), (18,-24), (32,-46), (24,-68)],
+        // Small fork off main bolt at the (-9,-66) junction
+        [(-9,-66), (-22,-80), (-16,-96)],
     ]
 
     var body: some View {
         ZStack {
-            // Expanding pulse ring
-            Circle()
-                .stroke(Color(red: 1.0, green: 0.92, blue: 0.2), lineWidth: fired ? 0.5 : 2.5)
-                .frame(width: fired ? 72 : 6, height: fired ? 72 : 6)
-                .opacity(fired ? 0 : 0.85)
-
-            // Spark particles
-            ForEach(sparks) { s in
-                Capsule()
-                    .fill(s.color)
-                    .frame(width: 2.5, height: s.length)
-                    .rotationEffect(.degrees(s.rotation))
-                    .offset(
-                        x: fired ? cos(s.angle) * s.distance : 0,
-                        y: fired ? sin(s.angle) * s.distance : 0
-                    )
-                    .opacity(fired ? 0 : 1)
-                    .scaleEffect(
-                        fired
-                            ? CGSize(width: 0.3, height: 0.05)
-                            : CGSize(width: 1,   height: 1)
-                    )
-            }
+            // Glow layer — wide blurred yellow strokes
+            lightningCanvas(lineWidth: 7, color: Color(red: 1.0, green: 0.92, blue: 0.15), alpha: 0.75)
+                .blur(radius: 6)
+            // Core layer — thin white-yellow strokes on top
+            lightningCanvas(lineWidth: 2, color: Color(red: 1.0, green: 0.97, blue: 0.70), alpha: 1.0)
         }
+        .frame(width: 90, height: 110)
+        .opacity(opacity)
         .onAppear {
-            sparks = (0..<10).map { i in
-                let base   = (Double(i) / 10.0) * .pi * 2
-                let jitter = Double.random(in: -0.25...0.25)
-                return Spark(
-                    angle:    base + jitter,
-                    distance: CGFloat.random(in: 32...60),
-                    rotation: Double.random(in: 0...360),
-                    color:    Self.colors.randomElement()!,
-                    length:   CGFloat.random(in: 7...15)
+            withAnimation(.easeOut(duration: 0.55).delay(0.04)) { opacity = 0 }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) { onComplete() }
+        }
+    }
+
+    private func lightningCanvas(lineWidth: CGFloat, color: Color, alpha: Double) -> some View {
+        Canvas { ctx, size in
+            let ox = size.width / 2   // origin x = horizontal center
+            let oy = size.height      // origin y = bottom of canvas
+
+            for seg in segments {
+                guard seg.count >= 2 else { continue }
+                var path = Path()
+                path.move(to: CGPoint(x: ox + seg[0].0, y: oy + seg[0].1))
+                for pt in seg.dropFirst() {
+                    path.addLine(to: CGPoint(x: ox + pt.0, y: oy + pt.1))
+                }
+                ctx.stroke(
+                    path,
+                    with: .color(color.opacity(alpha)),
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
                 )
             }
-            withAnimation(.easeOut(duration: 0.42)) { fired = true }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.48) { onComplete() }
         }
     }
 }

@@ -389,7 +389,7 @@ final class PostService {
         }
     }
 
-    func toggleZap(postID: String, currentUserID: String) async throws {
+    func addZap(postID: String, currentUserID: String) async throws {
         let docRef = db.collection(collectionName).document(postID)
 
         _ = try await db.runTransaction { transaction, errorPointer in
@@ -409,21 +409,11 @@ final class PostService {
                 return nil
             }
 
-            let current  = data["zaps"]     as? Int      ?? 0
-            let zappedBy = data["zappedBy"] as? [String] ?? []
-            let already  = zappedBy.contains(currentUserID)
-
-            if already {
-                transaction.updateData([
-                    "zaps":     max(0, current - 1),
-                    "zappedBy": FieldValue.arrayRemove([currentUserID])
-                ], forDocument: docRef)
-            } else {
-                transaction.updateData([
-                    "zaps":     current + 1,
-                    "zappedBy": FieldValue.arrayUnion([currentUserID])
-                ], forDocument: docRef)
-            }
+            let current = data["zaps"] as? Int ?? 0
+            transaction.updateData([
+                "zaps":     current + 1,
+                "zappedBy": FieldValue.arrayUnion([currentUserID])
+            ], forDocument: docRef)
             return nil
         }
     }
