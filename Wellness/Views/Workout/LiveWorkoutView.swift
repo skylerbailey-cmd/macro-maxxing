@@ -406,18 +406,22 @@ struct LiveWorkoutView: View {
     // MARK: - Live Activity
 
     private func liveActivityState() -> WorkoutActivityAttributes.ContentState {
-        let ex = exercises.indices.contains(currentIndex) ? exercises[currentIndex] : nil
-        let liveSets = (ex?.sets ?? []).map {
-            WorkoutActivityAttributes.LiveSet(reps: $0.reps, weight: $0.weight)
+        let liveExercises = exercises.map { ex in
+            WorkoutActivityAttributes.LiveExercise(
+                id:   ex.id,
+                name: ex.name.trimmingCharacters(in: .whitespaces),
+                sets: ex.sets.map {
+                    WorkoutActivityAttributes.LiveSet(id: $0.id, reps: $0.reps, weight: $0.weight)
+                }
+            )
         }
         return WorkoutActivityAttributes.ContentState(
-            workoutName:     workoutName.trimmingCharacters(in: .whitespaces),
-            workoutTypeRaw:  initialWorkoutType.rawValue,
-            currentExercise: ex?.name.trimmingCharacters(in: .whitespaces) ?? "",
-            exerciseNumber:  currentIndex + 1,
-            totalExercises:  exercises.count,
-            sets:            liveSets,
-            startedAt:       startedAt
+            workoutName:    workoutName.trimmingCharacters(in: .whitespaces),
+            workoutTypeRaw: initialWorkoutType.rawValue,
+            startedAt:      startedAt,
+            currentIndex:   max(0, min(currentIndex, max(0, exercises.count - 1))),
+            exercises:      liveExercises,
+            isFinished:     false
         )
     }
 
