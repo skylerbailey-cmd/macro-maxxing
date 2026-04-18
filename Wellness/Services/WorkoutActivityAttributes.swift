@@ -58,35 +58,48 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         /// Activity. The app picks this up on foreground, drains state into
         /// the Log a Workout sheet, then ends the activity.
         var isFinished:      Bool
+        /// When non-nil, the workout is paused; the displayed timer should
+        /// freeze at `pausedAt − startedAt − accumulatedPaused`.
+        var pausedAt:        Date?
+        /// Total seconds the workout has been paused so far. When the user
+        /// resumes, we bump this by `now − pausedAt` and clear `pausedAt`.
+        var accumulatedPaused: TimeInterval
 
         init(workoutName:    String,
              workoutTypeRaw: String,
              startedAt:      Date,
              currentIndex:   Int = 0,
              exercises:      [LiveExercise] = [],
-             isFinished:     Bool = false) {
-            self.workoutName    = workoutName
-            self.workoutTypeRaw = workoutTypeRaw
-            self.startedAt      = startedAt
-            self.currentIndex   = currentIndex
-            self.exercises      = exercises
-            self.isFinished     = isFinished
+             isFinished:     Bool = false,
+             pausedAt:       Date? = nil,
+             accumulatedPaused: TimeInterval = 0) {
+            self.workoutName       = workoutName
+            self.workoutTypeRaw    = workoutTypeRaw
+            self.startedAt         = startedAt
+            self.currentIndex      = currentIndex
+            self.exercises         = exercises
+            self.isFinished        = isFinished
+            self.pausedAt          = pausedAt
+            self.accumulatedPaused = accumulatedPaused
         }
 
         // Tolerate older Live Activity payloads that used a flatter shape
         // (currentExercise / sets / exerciseNumber / totalExercises).
         private enum CodingKeys: String, CodingKey {
             case workoutName, workoutTypeRaw, startedAt, currentIndex, exercises, isFinished
+            case pausedAt, accumulatedPaused
             // Legacy fields:
             case currentExercise, sets, exerciseNumber, totalExercises
         }
 
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
-            self.workoutName    = (try? c.decode(String.self, forKey: .workoutName)) ?? ""
-            self.workoutTypeRaw = (try? c.decode(String.self, forKey: .workoutTypeRaw)) ?? ""
-            self.startedAt      = (try? c.decode(Date.self,   forKey: .startedAt)) ?? Date()
-            self.isFinished     = (try? c.decode(Bool.self,   forKey: .isFinished)) ?? false
+            self.workoutName       = (try? c.decode(String.self, forKey: .workoutName)) ?? ""
+            self.workoutTypeRaw    = (try? c.decode(String.self, forKey: .workoutTypeRaw)) ?? ""
+            self.startedAt         = (try? c.decode(Date.self,   forKey: .startedAt)) ?? Date()
+            self.isFinished        = (try? c.decode(Bool.self,   forKey: .isFinished)) ?? false
+            self.pausedAt          = try? c.decode(Date.self,    forKey: .pausedAt)
+            self.accumulatedPaused = (try? c.decode(TimeInterval.self, forKey: .accumulatedPaused)) ?? 0
 
             if let list = try? c.decode([LiveExercise].self, forKey: .exercises) {
                 self.exercises    = list
@@ -104,6 +117,23 @@ struct WorkoutActivityAttributes: ActivityAttributes {
                 self.currentIndex = idx
             }
         }
+
+        /// Effective start used to drive `Text(timerInterval:)` so the
+        /// auto-counting timer reads correctly once paused time is excluded.
+        /// We shift the perceived start forward by the total paused seconds.
+        var effectiveStart: Date {
+            startedAt.addingTimeInterval(accumulatedPaused)
+        }
+
+        /// Seconds elapsed, ignoring pause time. Used to show a static
+        /// elapsed label while the workout is paused.
+        func elapsedSeconds(now: Date = Date()) -> Int {
+            let end = pausedAt ?? now
+            let raw = end.timeIntervalSince(startedAt) - accumulatedPaused
+            return max(0, Int(raw))
+        }
+
+        var isPaused: Bool { pausedAt != nil }
     }
 
     /// The current exercise, or nil if `currentIndex` is out of bounds.
