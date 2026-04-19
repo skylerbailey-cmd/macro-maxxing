@@ -445,7 +445,12 @@ struct LiveWorkoutView: View {
 
     private func updateLiveActivity() {
         guard let activity = liveActivity else { return }
-        let state = liveActivityState()
+        var state = liveActivityState()
+        // Preserve pause state set by Dynamic Island intents so that a
+        // per-second update doesn't clobber an in-flight pause/resume.
+        let existing = activity.content.state
+        state.pausedAt          = existing.pausedAt
+        state.accumulatedPaused = existing.accumulatedPaused
         Task {
             await activity.update(.init(state: state, staleDate: nil))
         }

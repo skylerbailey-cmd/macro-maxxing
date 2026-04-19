@@ -37,6 +37,12 @@ struct PostShareCardView: View {
     private let carbClr = Color(red: 0.40, green: 0.90, blue: 0.72)
     private let fatClr  = Color(red: 1.00, green: 0.50, blue: 0.72)
 
+    /// Whether the post has label-specific detail (fuel log / workout / goal)
+    /// that should be shown alongside or instead of the photo.
+    private var hasLabelDetail: Bool {
+        !post.fuelLogItems.isEmpty || !post.workoutItems.isEmpty || post.goalCalories > 0
+    }
+
     var body: some View {
         ZStack {
             background
@@ -48,24 +54,55 @@ struct PostShareCardView: View {
                     Spacer()
                     authorHeader
                 }
-                .padding(.top, 32)
+                .padding(.top, 28)
                 .padding(.horizontal, 22)
 
-                Spacer(minLength: 14)
+                Spacer(minLength: 10)
 
-                // Centerpiece: label-driven visual or food photo
-                centerContent
-                    .padding(.horizontal, 22)
-
-                Spacer(minLength: 14)
-
+                // Title + caption
                 contentBlock
                     .padding(.horizontal, 22)
 
-                Spacer(minLength: 14)
+                Spacer(minLength: 10)
+
+                // Photo (shown smaller when detail table follows)
+                if let img = foodImage {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: hasLabelDetail ? 160 : 260)
+                        .frame(maxWidth: .infinity)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                        .padding(.horizontal, 22)
+                }
+
+                Spacer(minLength: 8)
+
+                // Label-specific detail: fuel log / workout / goal
+                if !post.fuelLogItems.isEmpty {
+                    fuelLogVisual
+                        .padding(.horizontal, 22)
+                } else if !post.workoutItems.isEmpty {
+                    workoutVisual
+                        .padding(.horizontal, 22)
+                } else if post.goalCalories > 0 {
+                    goalVisual
+                        .padding(.horizontal, 22)
+                } else if foodImage == nil {
+                    // Text-only fallback when there's no photo and no detail
+                    titleVisual
+                        .padding(.horizontal, 22)
+                }
+
+                Spacer(minLength: 10)
 
                 footer
-                    .padding(.bottom, 28)
+                    .padding(.bottom, 24)
             }
         }
         .frame(width: 360, height: 640)
@@ -148,69 +185,89 @@ struct PostShareCardView: View {
         }
     }
 
-    // MARK: Center content (label-driven)
-
-    @ViewBuilder
-    private var centerContent: some View {
-        if let img = foodImage {
-            // Food photo always wins when present
-            Image(uiImage: img)
-                .resizable()
-                .scaledToFill()
-                .frame(height: 260)
-                .frame(maxWidth: .infinity)
-                .clipped()
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
-        } else if !post.workoutItems.isEmpty {
-            workoutVisual
-        } else if !post.fuelLogItems.isEmpty {
-            fuelLogVisual
-        } else if post.goalCalories > 0 {
-            goalVisual
-        } else {
-            // Text-only fallback — no giant icon
-            titleVisual
-        }
-    }
+    // (Center content is now rendered inline in body to combine photo + detail)
 
     // MARK: Workout visual
 
     private var workoutVisual: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(post.workoutItems.prefix(6).enumerated()), id: \.offset) { _, item in
-                HStack(spacing: 8) {
-                    Image(systemName: WorkoutType(rawValue: item.workoutType)?.icon ?? "figure.run")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(accent)
-                        .frame(width: 20)
-                    Text(item.workoutName)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                    Spacer()
-                    if item.durationMinutes > 0 {
-                        Text("\(item.durationMinutes)m")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.45))
+        let sorted = post.workoutItems.sorted { $0.sortOrder < $1.sortOrder }
+        let totalMin = sorted.reduce(0) { $0 + $1.durationMinutes }
+        let totalCal = sorted.reduce(0) { $0 + $1.caloriesBurned }
+        let timeLabel = totalMin >= 60 ? "\(totalMin / 60)h \(totalMin % 60)m" : "\(totalMin)m"
+
+        return VStack(alignment: .leading, spacing: 6) {
+            ForEach(Array(sorted.prefix(4).enumerated()), id: \.offset) { _, item in
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Image(systemName: WorkoutType(rawValue: item.workoutType)?.icon ?? "figure.run")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(accent)
+                            .frame(width: 16)
+                        Text(item.workoutName)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        Spacer()
+                        if item.durationMinutes > 0 {
+                            Text(item.formattedDuration)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.40))
+                        }
+                        if item.caloriesBurned > 0 {
+                            Text("\(item.caloriesBurned) cal")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(calClr)
+                        }
                     }
-                    if item.caloriesBurned > 0 {
-                        Text("\(item.caloriesBurned) cal")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(calClr)
+                    // Exercise detail rows
+                    if !item.exercises.isEmpty {
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(Array(item.exercises.prefix(4).enumerated()), id: \.offset) { _, ex in
+                                HStack(spacing: 4) {
+                                    Text("·")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundStyle(.white.opacity(0.25))
+                                    Text(ex.name)
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundStyle(.white.opacity(0.55))
+                                        .lineLimit(1)
+                                    Spacer()
+                                    Text("\(ex.sets.count) sets")
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .foregroundStyle(.white.opacity(0.30))
+                                }
+                            }
+                            if item.exercises.count > 4 {
+                                Text("+ \(item.exercises.count - 4) more exercises")
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.25))
+                            }
+                        }
+                        .padding(.leading, 22)
                     }
                 }
             }
-            if post.workoutItems.count > 6 {
-                Text("+ \(post.workoutItems.count - 6) more")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.35))
+            if sorted.count > 4 {
+                Text("+ \(sorted.count - 4) more workouts")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.30))
+            }
+
+            // Total summary
+            Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
+            HStack(spacing: 10) {
+                Spacer()
+                HStack(spacing: 4) {
+                    Image(systemName: "clock.fill").font(.system(size: 9, weight: .bold))
+                    Text(timeLabel)
+                }.font(.system(size: 10, weight: .bold)).foregroundStyle(accent)
+                HStack(spacing: 4) {
+                    Image(systemName: "flame.fill").font(.system(size: 9, weight: .bold))
+                    Text("\(totalCal) cal")
+                }.font(.system(size: 10, weight: .bold)).foregroundStyle(calClr)
             }
         }
-        .padding(16)
+        .padding(14)
         .background(card, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(accent.opacity(0.20), lineWidth: 1))
     }
@@ -218,29 +275,57 @@ struct PostShareCardView: View {
     // MARK: Fuel log visual
 
     private var fuelLogVisual: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ForEach(Array(post.fuelLogItems.prefix(5).enumerated()), id: \.offset) { _, item in
-                HStack(spacing: 8) {
+        let sorted = post.fuelLogItems.sorted { $0.sortOrder < $1.sortOrder }
+        let totalCal = sorted.reduce(0.0) { $0 + $1.calories }
+        let totalPro = sorted.reduce(0.0) { $0 + $1.protein }
+        let totalCarb = sorted.reduce(0.0) { $0 + $1.carbs }
+        let totalFat = sorted.reduce(0.0) { $0 + $1.fat }
+
+        return VStack(alignment: .leading, spacing: 5) {
+            // Header
+            HStack {
+                Text("Meal").font(.system(size: 9, weight: .semibold)).foregroundStyle(.white.opacity(0.35))
+                Spacer()
+                Text("Cal").font(.system(size: 9, weight: .semibold)).foregroundStyle(calClr.opacity(0.55)).frame(width: 38, alignment: .trailing)
+                Text("P").font(.system(size: 9, weight: .semibold)).foregroundStyle(proClr.opacity(0.55)).frame(width: 28, alignment: .trailing)
+                Text("C").font(.system(size: 9, weight: .semibold)).foregroundStyle(carbClr.opacity(0.55)).frame(width: 28, alignment: .trailing)
+                Text("F").font(.system(size: 9, weight: .semibold)).foregroundStyle(fatClr.opacity(0.55)).frame(width: 28, alignment: .trailing)
+            }
+            Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
+
+            ForEach(Array(sorted.prefix(6).enumerated()), id: \.offset) { _, item in
+                HStack {
                     Text(item.foodName)
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.white)
                         .lineLimit(1)
                     Spacer()
-                    Text("\(Int(item.calories)) cal")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(calClr)
-                    Text("\(Int(item.protein))g P")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(proClr)
+                    Text("\(Int(item.calories))").font(.system(size: 10, weight: .bold, design: .rounded)).foregroundStyle(calClr).frame(width: 38, alignment: .trailing)
+                    Text("\(Int(item.protein))g").font(.system(size: 10, weight: .medium, design: .rounded)).foregroundStyle(proClr).frame(width: 28, alignment: .trailing)
+                    Text("\(Int(item.carbs))g").font(.system(size: 10, weight: .medium, design: .rounded)).foregroundStyle(carbClr).frame(width: 28, alignment: .trailing)
+                    Text("\(Int(item.fat))g").font(.system(size: 10, weight: .medium, design: .rounded)).foregroundStyle(fatClr).frame(width: 28, alignment: .trailing)
                 }
             }
-            if post.fuelLogItems.count > 5 {
-                Text("+ \(post.fuelLogItems.count - 5) more")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.35))
+            if sorted.count > 6 {
+                Text("+ \(sorted.count - 6) more meals")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.30))
+            }
+
+            // Totals
+            Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
+            HStack {
+                Text("Total")
+                    .font(.system(size: 11, weight: .black))
+                    .foregroundStyle(.white.opacity(0.55))
+                Spacer()
+                Text("\(Int(totalCal))").font(.system(size: 10, weight: .black, design: .rounded)).foregroundStyle(calClr).frame(width: 38, alignment: .trailing)
+                Text("\(Int(totalPro))g").font(.system(size: 10, weight: .bold, design: .rounded)).foregroundStyle(proClr).frame(width: 28, alignment: .trailing)
+                Text("\(Int(totalCarb))g").font(.system(size: 10, weight: .bold, design: .rounded)).foregroundStyle(carbClr).frame(width: 28, alignment: .trailing)
+                Text("\(Int(totalFat))g").font(.system(size: 10, weight: .bold, design: .rounded)).foregroundStyle(fatClr).frame(width: 28, alignment: .trailing)
             }
         }
-        .padding(16)
+        .padding(14)
         .background(card, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(accent.opacity(0.20), lineWidth: 1))
     }

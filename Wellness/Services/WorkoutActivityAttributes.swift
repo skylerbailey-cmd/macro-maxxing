@@ -176,12 +176,17 @@ struct WorkoutActivityAttributes: ActivityAttributes {
 
         func encode(to encoder: Encoder) throws {
             var c = encoder.container(keyedBy: CodingKeys.self)
-            try c.encode(workoutName,    forKey: .workoutName)
-            try c.encode(workoutTypeRaw, forKey: .workoutTypeRaw)
-            try c.encode(startedAt,      forKey: .startedAt)
-            try c.encode(currentIndex,   forKey: .currentIndex)
-            try c.encode(exercises,      forKey: .exercises)
-            try c.encode(isFinished,     forKey: .isFinished)
+            try c.encode(workoutName,       forKey: .workoutName)
+            try c.encode(workoutTypeRaw,    forKey: .workoutTypeRaw)
+            try c.encode(startedAt,         forKey: .startedAt)
+            try c.encode(currentIndex,      forKey: .currentIndex)
+            try c.encode(exercises,         forKey: .exercises)
+            try c.encode(segments,          forKey: .segments)
+            try c.encode(rounds,            forKey: .rounds)
+            try c.encode(poses,             forKey: .poses)
+            try c.encode(isFinished,        forKey: .isFinished)
+            try c.encodeIfPresent(pausedAt, forKey: .pausedAt)
+            try c.encode(accumulatedPaused, forKey: .accumulatedPaused)
         }
 
         init(from decoder: Decoder) throws {

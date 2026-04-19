@@ -15,14 +15,31 @@ import BackgroundTasks
 import UserNotifications
 import GoogleSignIn
 
-class AppDelegate: NSObject, UIApplicationDelegate {
+extension Notification.Name {
+    /// Posted when the user taps a weigh-in reminder notification.
+    static let weighInNotificationTapped = Notification.Name("weighInNotificationTapped")
+}
+
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
     static let feedRefreshTaskID  = "com.sbailey.Wellness.feedRefresh"
     static let streakResetTaskID  = "com.sbailey.Wellness.streakReset"
 
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Set notification delegate so we can handle taps
+        UNUserNotificationCenter.current().delegate = self
+
         NotificationService.shared.requestAuthorization()
+
+        // Listen for fire animation trigger (double-tap title, streak hit)
+        NotificationCenter.default.addObserver(
+            forName: .triggerFireAnimation,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in FireWindowController.shared.show() }
+        }
 
         // 50 MB memory + 500 MB disk cache so food and post photos survive
         // across sessions. The feed re-serves the same ~20-60 thumbnails
@@ -112,6 +129,29 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // but no streak logic runs here.
         Self.scheduleStreakReset()
         task.setTaskCompleted(success: true)
+    }
+
+    // MARK: - UNUserNotificationCenterDelegate
+
+    // MARK: - UNUserNotificationCenterDelegate
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound]
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        let category = response.notification.request.content.categoryIdentifier
+        if category == NotificationService.weighReminderCategory {
+            await MainActor.run {
+                NotificationCenter.default.post(name: .weighInNotificationTapped, object: nil)
+            }
+        }
     }
 }
 

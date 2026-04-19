@@ -77,12 +77,185 @@ struct MacroRecommendationEngine {
                 remaining: remaining, excludeDairy: excludeDairy, excludeGluten: excludeGluten)
         }
 
-        let picked = suggestions.isEmpty
+        var picked = suggestions.isEmpty
             ? ["Balanced meal — keep working on those macros!"]
             : suggestions
 
+        // Ensure at least 2 options
+        if picked.count < 2 {
+            let existingNames = Set(picked.compactMap { firstWord($0) })
+            // Try balanced meals first, then snack pools as fallback
+            let pools: [[LocalMeal]] = [
+                LocalMealDatabase.balanced,
+                LocalMealDatabase.highProteinSnacks,
+                LocalMealDatabase.highCarbSnacks,
+                LocalMealDatabase.highFatSnacks
+            ]
+            for pool in pools {
+                let filtered = filterMeals(pool, dairy: excludeDairy, gluten: excludeGluten)
+                    .filter { !existingNames.contains($0.name) }
+                if let extra = pickOne(from: filtered) {
+                    picked.append(formatMeal(extra))
+                    break
+                }
+            }
+        }
+
         markAsRecent(picked.compactMap { firstWord($0) })
         return formatOutput(remaining: remaining, over: over, suggestions: picked)
+    }
+
+    // MARK: - Structured result (card-based UI)
+
+    func recommendStructured(_ input: BrainstormInput) -> BrainstormResult {
+        let remaining = Remaining(
+            calories: max(0, input.goalCalories - input.totalCalories),
+            protein:  max(0, input.goalProtein  - input.totalProtein),
+            carbs:    max(0, input.goalCarbs    - input.totalCarbs),
+            fat:      max(0, input.goalFat      - input.totalFat)
+        )
+        let over = Over(
+            protein: input.totalProtein > input.goalProtein * Self.overLimitFactor,
+            carbs:   input.totalCarbs   > input.goalCarbs   * Self.overLimitFactor,
+            fat:     input.totalFat     > input.goalFat      * Self.overLimitFactor
+        )
+
+        let excludeDairy  = input.excludeDairy
+        let excludeGluten = input.excludeGluten
+
+        let proteinNeeded = !over.protein && remaining.protein > Self.significantGap
+        let carbsNeeded   = !over.carbs   && remaining.carbs   > Self.significantGap
+        let fatNeeded     = !over.fat     && remaining.fat     > Self.significantGap
+        let neededCount   = [proteinNeeded, carbsNeeded, fatNeeded].filter { $0 }.count
+
+        // Build gap summary
+        var gaps: [String] = []
+        if proteinNeeded { gaps.append("\(Int(remaining.protein))g protein") }
+        if carbsNeeded   { gaps.append("\(Int(remaining.carbs))g carbs") }
+        if fatNeeded     { gaps.append("\(Int(remaining.fat))g fat") }
+
+        let gapSummary: String
+        if neededCount == 0 && !(over.protein && over.carbs && over.fat) {
+            gapSummary = "You're almost there — just a light snack away from hitting all your goals."
+        } else if over.protein && over.carbs && over.fat {
+            gapSummary = "All macros met or exceeded — great work today!"
+        } else {
+            gapSummary = "You still need \(gaps.joined(separator: ", ")) to hit your goals."
+        }
+
+        // Completion message for edge cases
+        if neededCount == 0 {
+            return BrainstormResult(
+                remainingCalories: Int(remaining.calories),
+                remainingProtein: Int(remaining.protein),
+                remainingCarbs: Int(remaining.carbs),
+                remainingFat: Int(remaining.fat),
+                overProtein: over.protein, overCarbs: over.carbs, overFat: over.fat,
+                gapSummary: gapSummary, suggestions: [],
+                completionMessage: buildAlmostDoneMessage(remaining: remaining))
+        }
+        if over.protein && over.carbs && over.fat {
+            return BrainstormResult(
+                remainingCalories: Int(remaining.calories),
+                remainingProtein: Int(remaining.protein),
+                remainingCarbs: Int(remaining.carbs),
+                remainingFat: Int(remaining.fat),
+                overProtein: over.protein, overCarbs: over.carbs, overFat: over.fat,
+                gapSummary: gapSummary, suggestions: [],
+                completionMessage: "You've hit or exceeded all your macro goals today — great work! Focus on hydration and rest.")
+        }
+
+        // Build the reason string based on macro needs
+        let needsList = gaps.joined(separator: " and ")
+
+        // Pick 2 meals + 1 snack
+        var pickedMeals: [LocalMeal] = []
+        var usedNames = Set<String>()
+
+        // Meal 1: best match for current gaps
+        let mealPool1 = bestPool(proteinNeeded: proteinNeeded, carbsNeeded: carbsNeeded,
+                                  fatNeeded: fatNeeded, excludeDairy: excludeDairy, excludeGluten: excludeGluten)
+        if let m1 = pickOne(from: filterMeals(mealPool1, dairy: excludeDairy, gluten: excludeGluten)
+                                    .filter { !usedNames.contains($0.name) }) {
+            pickedMeals.append(m1)
+            usedNames.insert(m1.name)
+        }
+
+        // Meal 2: from a different pool for variety
+        let mealPool2 = secondaryPool(proteinNeeded: proteinNeeded, carbsNeeded: carbsNeeded,
+                                       fatNeeded: fatNeeded, excludeDairy: excludeDairy, excludeGluten: excludeGluten)
+        if let m2 = pickOne(from: filterMeals(mealPool2, dairy: excludeDairy, gluten: excludeGluten)
+                                    .filter { !usedNames.contains($0.name) }) {
+            pickedMeals.append(m2)
+            usedNames.insert(m2.name)
+        }
+
+        // Snack: lighter option
+        let snackPools: [[LocalMeal]] = [
+            LocalMealDatabase.highProteinSnacks,
+            LocalMealDatabase.highCarbSnacks,
+            LocalMealDatabase.highFatSnacks
+        ].map { filterMeals($0, dairy: excludeDairy, gluten: excludeGluten)
+                    .filter { !usedNames.contains($0.name) } }
+        var snack: LocalMeal?
+        // Prefer snack pool that targets the biggest gap
+        if proteinNeeded, let s = pickOne(from: snackPools[0]) { snack = s }
+        else if carbsNeeded, let s = pickOne(from: snackPools[1]) { snack = s }
+        else if fatNeeded, let s = pickOne(from: snackPools[2]) { snack = s }
+        else { snack = snackPools.flatMap({ $0 }).randomElement() }
+
+        // Build suggestion cards
+        var suggestions: [MealSuggestion] = []
+        for (idx, meal) in pickedMeals.enumerated() {
+            let reason = idx == 0
+                ? "Targets your \(needsList) gap with a balanced macro profile."
+                : "A different option to keep your meals varied while still closing macro gaps."
+            suggestions.append(MealSuggestion(
+                name: meal.name, portion: meal.portion,
+                calories: meal.calories, protein: meal.protein,
+                carbs: meal.carbs, fat: meal.fat,
+                reason: reason, category: "Meal \(idx + 1)"))
+        }
+        if let s = snack {
+            suggestions.append(MealSuggestion(
+                name: s.name, portion: s.portion,
+                calories: s.calories, protein: s.protein,
+                carbs: s.carbs, fat: s.fat,
+                reason: "A quick grab to close remaining gaps without a full meal.",
+                category: "Snack"))
+        }
+
+        markAsRecent(suggestions.map(\.name))
+
+        return BrainstormResult(
+            remainingCalories: Int(remaining.calories),
+            remainingProtein: Int(remaining.protein),
+            remainingCarbs: Int(remaining.carbs),
+            remainingFat: Int(remaining.fat),
+            overProtein: over.protein, overCarbs: over.carbs, overFat: over.fat,
+            gapSummary: gapSummary, suggestions: suggestions,
+            completionMessage: nil)
+    }
+
+    /// Primary pool based on which macros are needed.
+    private func bestPool(proteinNeeded: Bool, carbsNeeded: Bool, fatNeeded: Bool,
+                          excludeDairy: Bool, excludeGluten: Bool) -> [LocalMeal] {
+        if proteinNeeded && carbsNeeded && fatNeeded { return LocalMealDatabase.balanced }
+        if proteinNeeded && carbsNeeded { return LocalMealDatabase.highProteinCarb }
+        if proteinNeeded && fatNeeded   { return LocalMealDatabase.highProteinFat }
+        if carbsNeeded && fatNeeded     { return LocalMealDatabase.highCarbFat }
+        if proteinNeeded { return LocalMealDatabase.highProteinMeals }
+        if carbsNeeded   { return LocalMealDatabase.highCarbMeals }
+        if fatNeeded     { return LocalMealDatabase.highFatMeals }
+        return LocalMealDatabase.balanced
+    }
+
+    /// Secondary pool for variety — picks a different category.
+    private func secondaryPool(proteinNeeded: Bool, carbsNeeded: Bool, fatNeeded: Bool,
+                                excludeDairy: Bool, excludeGluten: Bool) -> [LocalMeal] {
+        // Use balanced as a universal second option for variety
+        if proteinNeeded && carbsNeeded && fatNeeded { return LocalMealDatabase.highProteinCarb }
+        return LocalMealDatabase.balanced
     }
 
     // MARK: - Input / helpers

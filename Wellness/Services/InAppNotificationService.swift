@@ -86,6 +86,44 @@ final class InAppNotificationService {
         await save(n, to: targetID)
     }
 
+    func sendCelebrate(to targetID: String, postID: String, postHeadline: String,
+                 actorID: String, actorUsername: String, actorDisplayName: String,
+                 actorPhotoURL: String = "") async {
+        guard !targetID.isEmpty, targetID != actorID else { return }
+        let display  = actorDisplayName.isEmpty ? actorUsername : actorDisplayName
+        let headline = postHeadline.isEmpty ? "your post" : "\"\(postHeadline)\""
+        let n = AppNotification(
+            type:                 .celebrate,
+            actorID:              actorID,
+            actorUsername:        actorUsername,
+            actorDisplayName:     display,
+            actorProfilePhotoURL: actorPhotoURL,
+            message:              "\(display) (@\(actorUsername)) celebrated \(headline). 🎉",
+            postID:               postID,
+            postHeadline:         postHeadline
+        )
+        await save(n, to: targetID)
+    }
+
+    func sendZap(to targetID: String, postID: String, postHeadline: String,
+                 actorID: String, actorUsername: String, actorDisplayName: String,
+                 actorPhotoURL: String = "") async {
+        guard !targetID.isEmpty, targetID != actorID else { return }
+        let display  = actorDisplayName.isEmpty ? actorUsername : actorDisplayName
+        let headline = postHeadline.isEmpty ? "your post" : "\"\(postHeadline)\""
+        let n = AppNotification(
+            type:                 .zap,
+            actorID:              actorID,
+            actorUsername:        actorUsername,
+            actorDisplayName:     display,
+            actorProfilePhotoURL: actorPhotoURL,
+            message:              "\(display) (@\(actorUsername)) zapped \(headline). ⚡",
+            postID:               postID,
+            postHeadline:         postHeadline
+        )
+        await save(n, to: targetID)
+    }
+
     func sendComment(to targetID: String, postID: String, postHeadline: String,
                      actorID: String, actorUsername: String, actorDisplayName: String,
                      actorPhotoURL: String = "") async {

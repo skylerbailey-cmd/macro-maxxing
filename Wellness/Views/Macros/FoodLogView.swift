@@ -24,6 +24,13 @@ struct FoodLogView: View {
     @State private var showingSettings       = false
     @State private var showingNotifications  = false
 
+    // Meal Inspo post flow — captured from food confirmation
+    @State private var showingMealInspoPost   = false
+    @State private var createMealInspoPost    = false
+    @State private var mealInspoImage:       UIImage? = nil
+    @State private var mealInspoResult:      FoodRecognitionResult? = nil
+    @State private var mealInspoScore:       Int = 0
+
     // Single active-sheet enum for the meal-logging flow
     @State private var activeMealSheet: MealSheet? = nil
     @State private var showingAIConsent = false
@@ -210,6 +217,21 @@ struct FoodLogView: View {
             .sheet(isPresented: $showingFuelLogPost) {
                 fuelLogPostSheet
             }
+            .sheet(isPresented: $showingMealInspoPost) {
+                if let result = mealInspoResult {
+                    NewPostView(
+                        userSettings:          userSettings,
+                        preSelectedLabel:      .mealInspo,
+                        prePopulatedPhoto:     mealInspoImage,
+                        prePopulatedCalories:  result.calories,
+                        prePopulatedProtein:   result.protein,
+                        prePopulatedCarbs:     result.carbs,
+                        prePopulatedFat:       result.fat,
+                        prePopulatedMealScore: mealInspoScore,
+                        prePopulatedFoodName:  result.foodName
+                    )
+                }
+            }
             .sheet(isPresented: $showingWindowPicker) {
                 windowPickerSheet
             }
@@ -360,9 +382,6 @@ struct FoodLogView: View {
                     pastDateNotice
                 }
 
-                analyzeSection
-                    .padding(.top, 8)
-                    .tutorialAnchor("log.nutritionCoach")
             }
             .padding(.horizontal, 16)
             .padding(.top, 4)
@@ -539,7 +558,7 @@ struct FoodLogView: View {
                         } else {
                             Image(systemName: "square.and.arrow.down")
                                 .font(.system(size: 10, weight: .semibold))
-                            Text("Save Day")
+                            Text("Save Meal Plan")
                                 .font(.system(size: 11, weight: .semibold))
                         }
                     }
@@ -621,6 +640,15 @@ struct FoodLogView: View {
     private var analysisSheet: some View {
         AnalysisSheet(viewModel: viewModel, userSettings: userSettings, onSaved: {
             activeMealSheet = nil
+        }, onMealInspoPost: { image, result, score in
+            mealInspoImage  = image
+            mealInspoResult = result
+            mealInspoScore  = score
+            activeMealSheet = nil
+            Task {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                showingMealInspoPost = true
+            }
         })
         .presentationDetents([.large])
     }
@@ -640,12 +668,35 @@ struct FoodLogView: View {
                     set: { viewModel.recognitionResult = $0 }
                 ),
                 saveMeal: $viewModel.saveMeal,
+                createMealInspoPost: $createMealInspoPost,
                 onConfirm: { result in
+                    // Capture data for meal inspo post before clearing
+                    let wantsPost = createMealInspoPost
+                    if wantsPost {
+                        mealInspoImage  = image
+                        mealInspoResult = result
+                        mealInspoScore  = Self.computeMealScore(
+                            calories: result.calories,
+                            protein:  result.protein,
+                            carbs:    result.carbs,
+                            fat:      result.fat
+                        )
+                    }
+
                     viewModel.confirmResult(result)
                     viewModel.saveEntry()
                     activeMealSheet = nil
                     // Merge-safe reload — pending local entries won't disappear
                     Task { await viewModel.loadTodayEntries() }
+
+                    // Open NewPostView after the confirmation sheet dismisses
+                    if wantsPost {
+                        createMealInspoPost = false
+                        Task {
+                            try? await Task.sleep(nanoseconds: 500_000_000)
+                            showingMealInspoPost = true
+                        }
+                    }
                 },
                 onEscalate: {
                     Task { await viewModel.escalateAnalysis() }
@@ -722,6 +773,29 @@ struct FoodLogView: View {
         externalImage = nil
         // The onChange(of: viewModel.selectedImage) handler checks consent
         // and opens either the consent sheet or the analysis sheet.
+    }
+
+    // MARK: - Meal Score Helper
+
+    /// Computes the 0–100 meal score from raw macros using the user's goal ratios.
+    static func computeMealScore(calories: Int, protein: Double, carbs: Double, fat: Double) -> Int {
+        guard calories >= 300 else { return 0 }
+        let ud = UserDefaults.standard
+        func g(_ key: String, fallback: Double) -> Double {
+            ud.object(forKey: key) != nil ? ud.double(forKey: key) : fallback
+        }
+        let pCal  = g("goalProtein", fallback: 150) * 4
+        let cCal  = g("goalCarbs",   fallback: 200) * 4
+        let fCal  = g("goalFat",     fallback:  65) * 9
+        let total = pCal + cCal + fCal
+        guard total > 0 else { return 50 }
+        let goalP = pCal / total, goalC = cCal / total, goalF = fCal / total
+        let cal = Double(calories)
+        let actualP = (protein * 4) / cal
+        let actualC = (carbs   * 4) / cal
+        let actualF = (fat     * 9) / cal
+        let dev = abs(actualP - goalP) + abs(actualC - goalC) + abs(actualF - goalF)
+        return max(0, min(100, Int(((1.0 - dev / 2.0) * 100).rounded())))
     }
 
     // MARK: - Save Day as Meal Plan
@@ -1046,12 +1120,14 @@ struct AnalysisSheet: View {
     @Bindable var viewModel: FoodLogViewModel
     let userSettings: UserSettings
     let onSaved: () -> Void
+    var onMealInspoPost: ((UIImage?, FoodRecognitionResult, Int) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
 
     @State private var mode: EntryMode    = .photo
     @State private var speechRecognizer  = SpeechRecognizer()
     @State private var skeletonPulse     = false
     @State private var showSaveError     = false
+    @State private var createMealInspoPost = false
 
     // In-sheet image picker source (for the two-square selector)
     @State private var pickerSource: ImageSourceKind? = nil
@@ -1077,7 +1153,7 @@ struct AnalysisSheet: View {
     private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
     private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
     private var accent: Color { ThemeStore.shared.accent }
-    private var gold: Color { ThemeStore.shared.accent }
+    private var gold: Color { Color.premiumGold }
 
     private var hasPhoto: Bool { viewModel.selectedImage != nil }
     private var showFields: Bool {
@@ -1172,6 +1248,7 @@ struct AnalysisSheet: View {
 
                             entryFields
                             saveToggle
+                            mealInspoToggle
                             saveButton
                         }
 
@@ -1259,6 +1336,7 @@ struct AnalysisSheet: View {
                     }
                 }
             }
+            .keyboardDoneToolbar()
         }
     }
 
@@ -1653,6 +1731,24 @@ struct AnalysisSheet: View {
         }
     }
 
+    // MARK: - Meal Inspo Toggle
+
+    private var mealInspoToggle: some View {
+        Toggle(isOn: $createMealInspoPost) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Create Meal Inspo Post")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text("After logging, a post will open so you can share this meal on your feed")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.40))
+            }
+        }
+        .tint(PostLabel.mealInspo.color)
+        .padding(14)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
+    }
+
     // MARK: - Save Button
 
     private var canSave: Bool {
@@ -1664,7 +1760,27 @@ struct AnalysisSheet: View {
         Button {
             if canSave {
                 showSaveError = false
-                if viewModel.saveEntry() { onSaved() }
+                if viewModel.saveEntry() {
+                    if createMealInspoPost {
+                        let result = FoodRecognitionResult(
+                            foodName: viewModel.foodName,
+                            calories: Int(viewModel.caloriesText) ?? 0,
+                            protein: Double(viewModel.proteinText) ?? 0,
+                            carbs: Double(viewModel.carbsText) ?? 0,
+                            fat: Double(viewModel.fatText) ?? 0,
+                            portionGrams: 0, tier: 0, source: "manual", confidence: 1.0,
+                            needsUserConfirmation: false
+                        )
+                        let score = FoodLogView.computeMealScore(
+                            calories: result.calories,
+                            protein:  result.protein,
+                            carbs:    result.carbs,
+                            fat:      result.fat
+                        )
+                        onMealInspoPost?(viewModel.selectedImage, result, score)
+                    }
+                    onSaved()
+                }
             } else {
                 showSaveError = true
             }
@@ -2116,20 +2232,23 @@ private struct EditEntrySheet: View {
     @State private var showEditError    = false
     @State private var showDeleteConfirm = false
     @State private var isReanalyzing    = false
+    @State private var targetCalories: Double = 0
 
     private enum Field: Hashable { case name, calories, protein, carbs, fat }
+    private enum MacroKind { case protein, carbs, fat }
 
     init(entry: FoodEntry, onSave: @escaping (String, Double, Double, Double, Double, Date) -> Void, onDelete: (() -> Void)? = nil, onDuplicate: (() -> Void)? = nil) {
         self.entry       = entry
         self.onSave      = onSave
         self.onDelete    = onDelete
         self.onDuplicate = onDuplicate
-        _foodName     = State(initialValue: entry.foodName)
-        _caloriesText = State(initialValue: String(format: "%.0f", entry.calories))
-        _proteinText  = State(initialValue: String(format: "%.1f", entry.protein))
-        _carbsText    = State(initialValue: String(format: "%.1f", entry.carbs))
-        _fatText      = State(initialValue: String(format: "%.1f", entry.fat))
-        _loggedAt     = State(initialValue: entry.loggedAt)
+        _foodName        = State(initialValue: entry.foodName)
+        _caloriesText    = State(initialValue: String(format: "%.0f", entry.calories))
+        _proteinText     = State(initialValue: String(format: "%.1f", entry.protein))
+        _carbsText       = State(initialValue: String(format: "%.1f", entry.carbs))
+        _fatText         = State(initialValue: String(format: "%.1f", entry.fat))
+        _loggedAt        = State(initialValue: entry.loggedAt)
+        _targetCalories  = State(initialValue: entry.calories)
     }
 
     var body: some View {
@@ -2163,9 +2282,9 @@ private struct EditEntrySheet: View {
                 }
                 Section("Macros") {
                     macroRow("Calories", unit: "kcal", text: $caloriesText, field: .calories, next: .protein)
-                    macroRow("Protein",  unit: "g",    text: $proteinText,  field: .protein,  next: .carbs)
-                    macroRow("Carbs",    unit: "g",    text: $carbsText,    field: .carbs,    next: .fat)
-                    macroRow("Fat",      unit: "g",    text: $fatText,      field: .fat,      next: nil)
+                    macroSliderRow("Protein", unit: "g", text: $proteinText, kind: .protein, field: .protein, next: .carbs)
+                    macroSliderRow("Carbs",   unit: "g", text: $carbsText,   kind: .carbs,   field: .carbs,   next: .fat)
+                    macroSliderRow("Fat",     unit: "g", text: $fatText,     kind: .fat,     field: .fat,     next: nil)
                 }
                 Section("Time Logged") {
                     DatePicker("Time", selection: $loggedAt, displayedComponents: .hourAndMinute)
@@ -2282,8 +2401,107 @@ private struct EditEntrySheet: View {
                 .focused($focus, equals: field)
                 .submitLabel(next == nil ? .done : .next)
                 .onSubmit { focus = next }
+                .onChange(of: text.wrappedValue) { _, _ in
+                    if let cal = Double(caloriesText), cal > 0 {
+                        targetCalories = cal
+                    }
+                }
             Text(unit).foregroundStyle(.secondary)
         }
+    }
+
+    @ViewBuilder
+    private func macroSliderRow(_ label: String, unit: String,
+                                 text: Binding<String>, kind: MacroKind,
+                                 field: Field, next: Field?) -> some View {
+        let tint: Color = {
+            switch kind {
+            case .protein: return .blue
+            case .carbs:   return .green
+            case .fat:     return .orange
+            }
+        }()
+        let current = Double(text.wrappedValue) ?? 0
+        let maxVal: Double = {
+            let target = targetCalories > 0 ? targetCalories : (Double(caloriesText) ?? 0)
+            guard target > 0 else { return 100 }
+            switch kind {
+            case .protein, .carbs: return target / 4
+            case .fat:             return target / 9
+            }
+        }()
+        let upper = max(maxVal, 0.1)
+
+        VStack(spacing: 4) {
+            HStack {
+                Text(label)
+                Spacer()
+                TextField("0", text: text)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 80)
+                    .focused($focus, equals: field)
+                    .submitLabel(next == nil ? .done : .next)
+                    .onSubmit { focus = next }
+                Text(unit).foregroundStyle(.secondary)
+            }
+            Slider(
+                value: Binding(
+                    get: { min(max(0, current), upper) },
+                    set: { adjustMacro(kind: kind, newValue: $0) }
+                ),
+                in: 0...upper
+            )
+            .tint(tint)
+        }
+    }
+
+    private func adjustMacro(kind: MacroKind, newValue: Double) {
+        let target = targetCalories > 0 ? targetCalories : (Double(caloriesText) ?? 0)
+        guard target > 0 else { return }
+
+        let p = Double(proteinText) ?? 0
+        let c = Double(carbsText)   ?? 0
+        let f = Double(fatText)     ?? 0
+
+        var newP = p, newC = c, newF = f
+
+        switch kind {
+        case .protein:
+            newP = newValue
+            let remaining = max(0, target - 4 * newP)
+            let other = 4 * c + 9 * f
+            if other > 0.01 {
+                let scale = remaining / other
+                newC = c * scale; newF = f * scale
+            } else {
+                newC = (remaining / 2) / 4; newF = (remaining / 2) / 9
+            }
+        case .carbs:
+            newC = newValue
+            let remaining = max(0, target - 4 * newC)
+            let other = 4 * p + 9 * f
+            if other > 0.01 {
+                let scale = remaining / other
+                newP = p * scale; newF = f * scale
+            } else {
+                newP = (remaining / 2) / 4; newF = (remaining / 2) / 9
+            }
+        case .fat:
+            newF = newValue
+            let remaining = max(0, target - 9 * newF)
+            let other = 4 * p + 4 * c
+            if other > 0.01 {
+                let scale = remaining / other
+                newP = p * scale; newC = c * scale
+            } else {
+                newP = (remaining / 2) / 4; newC = (remaining / 2) / 4
+            }
+        }
+
+        proteinText = String(format: "%.1f", newP)
+        carbsText   = String(format: "%.1f", newC)
+        fatText     = String(format: "%.1f", newF)
     }
 }
 
@@ -2610,7 +2828,7 @@ private struct FuelLogPostSheet: View {
 
 /// MARK: - Coach skeleton
 
-private struct CoachSkeletonView: View {
+struct CoachSkeletonView: View {
     @State private var pulse = false
 
     var body: some View {

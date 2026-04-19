@@ -148,9 +148,8 @@ struct LogWorkoutSheet: View {
             _taggedFriends   = State(initialValue: e.taggedFriends)
             _caloriesEdited  = State(initialValue: true)
         } else {
-            let oneHourAgo = Date().addingTimeInterval(-60 * 60)
             _logDate         = State(initialValue: selectedDate)
-            _logTime         = State(initialValue: oneHourAgo)
+            _logTime         = State(initialValue: Date())
             _applyAdjustment = State(initialValue: autoAdjustByDefault)
         }
     }
@@ -591,7 +590,7 @@ struct LogWorkoutSheet: View {
         } label: {
             HStack(spacing: 8) {
                 if aiState == .analyzing {
-                    ProgressView().tint(accent)
+                    ProgressView().tint(Color.premiumGold)
                 } else {
                     Image(systemName: "sparkles")
                 }
@@ -607,7 +606,7 @@ struct LogWorkoutSheet: View {
             .foregroundStyle(aiState == .analyzing ? .white.opacity(0.45) : .black)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(aiState == .analyzing ? cardBg : accent, in: RoundedRectangle(cornerRadius: 12))
+            .background(aiState == .analyzing ? cardBg : Color.premiumGold, in: RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
         .disabled(aiState == .analyzing)

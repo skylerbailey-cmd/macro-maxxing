@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 // MARK: - PostPhoto
 
@@ -22,7 +23,7 @@ struct MultiPhotoSection: View {
 
     @State private var newImage:      UIImage?   = nil
     @State private var showCamera     = false
-    @State private var showLibrary    = false
+    @State private var selectedItems: [PhotosPickerItem] = []
     @State private var croppingPhoto: PostPhoto? = nil
 
     private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
@@ -56,9 +57,11 @@ struct MultiPhotoSection: View {
                     }
                     .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
 
-                    Button {
-                        showLibrary = true
-                    } label: {
+                    PhotosPicker(
+                        selection: $selectedItems,
+                        maxSelectionCount: max(1, 4 - photos.count),
+                        matching: .images
+                    ) {
                         HStack(spacing: 6) {
                             Image(systemName: "photo.on.rectangle")
                                 .font(.system(size: 14, weight: .semibold))
@@ -88,8 +91,19 @@ struct MultiPhotoSection: View {
         .sheet(isPresented: $showCamera) {
             ImagePickerView(sourceType: .camera, selectedImage: $newImage)
         }
-        .sheet(isPresented: $showLibrary) {
-            ImagePickerView(sourceType: .photoLibrary, selectedImage: $newImage)
+        .onChange(of: selectedItems) { _, items in
+            guard !items.isEmpty else { return }
+            Task {
+                for item in items {
+                    if let data = try? await item.loadTransferable(type: Data.self),
+                       let img = UIImage(data: data) {
+                        if photos.count < 4 {
+                            photos.append(PostPhoto(image: img))
+                        }
+                    }
+                }
+                selectedItems = []
+            }
         }
         .fullScreenCover(item: $croppingPhoto) { photo in
             CropImageView(

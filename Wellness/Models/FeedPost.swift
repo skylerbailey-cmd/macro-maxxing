@@ -13,6 +13,13 @@ struct FeedPost: Codable, Identifiable, Hashable {
 
     static func == (lhs: FeedPost, rhs: FeedPost) -> Bool {
         lhs.id == rhs.id
+        && lhs.reps == rhs.reps
+        && lhs.reppedBy == rhs.reppedBy
+        && lhs.celebrates == rhs.celebrates
+        && lhs.celebratedBy == rhs.celebratedBy
+        && lhs.zaps == rhs.zaps
+        && lhs.zappedBy == rhs.zappedBy
+        && lhs.commentsCount == rhs.commentsCount
     }
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
@@ -51,6 +58,10 @@ struct FeedPost: Codable, Identifiable, Hashable {
     var goalProtein:  Double
     var goalCarbs:    Double
     var goalFat:      Double
+
+    /// 0–100 meal score: how closely the meal's macro distribution matches the
+    /// author's goal ratios at posting time. Only set on Meal Inspo posts.
+    var mealScore: Int = 0
 
     // MARK: - Engagement
 
@@ -111,6 +122,10 @@ struct FeedPost: Codable, Identifiable, Hashable {
     var mogBoardScope:    String = ""
     var mogBoardType:     String = ""
     var mogBoardSnapshot: String = ""
+
+    /// Photo layout for multi-photo posts: "carousel" (default, swipeable) or
+    /// "grid" (side-by-side thumbnails).
+    var photoLayout: String = "carousel"
 
     // MARK: - Location
 
@@ -212,7 +227,8 @@ struct FeedPost: Codable, Identifiable, Hashable {
         mogBoardType:        String = "",
         mogBoardSnapshot:    String = "",
         fuelLogItems:        [FeedFuelLogItem] = [],
-        workoutItems:        [FeedWorkoutItem] = []
+        workoutItems:        [FeedWorkoutItem] = [],
+        mealScore:           Int    = 0
     ) {
         self.userID              = userID
         self.username            = username
@@ -252,6 +268,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
         self.mogBoardSnapshot     = mogBoardSnapshot
         self.fuelLogItems         = fuelLogItems
         self.workoutItems         = workoutItems
+        self.mealScore            = mealScore
     }
 }
 
@@ -331,6 +348,7 @@ extension FeedPost {
             "mogBoardType":        "",
             "mogBoardSnapshot":    "",
             "postScope":           "arena",
+            "photoLayout":         "carousel",
         ]
         for (key, value) in stringDefaults where data[key] == nil {
             data[key] = value
@@ -339,6 +357,7 @@ extension FeedPost {
             "calories": 0, "goalCalories": 0,
             "reps": 0, "commentsCount": 0,
             "auraLevel": 0, "auraPoints": 0, "streak": 0,
+            "mealScore": 0,
         ]
         for (key, value) in intDefaults where data[key] == nil {
             data[key] = value

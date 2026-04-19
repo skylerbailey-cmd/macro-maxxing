@@ -389,7 +389,7 @@ final class PostService {
         }
     }
 
-    func addZap(postID: String, currentUserID: String) async throws {
+    func toggleZap(postID: String, currentUserID: String) async throws {
         let docRef = db.collection(collectionName).document(postID)
 
         _ = try await db.runTransaction { transaction, errorPointer in
@@ -409,11 +409,21 @@ final class PostService {
                 return nil
             }
 
-            let current = data["zaps"] as? Int ?? 0
-            transaction.updateData([
-                "zaps":     current + 1,
-                "zappedBy": FieldValue.arrayUnion([currentUserID])
-            ], forDocument: docRef)
+            let current    = data["zaps"] as? Int ?? 0
+            let zappedBy   = data["zappedBy"] as? [String] ?? []
+            let alreadyZapped = zappedBy.contains(currentUserID)
+
+            if alreadyZapped {
+                transaction.updateData([
+                    "zaps":     max(0, current - 1),
+                    "zappedBy": FieldValue.arrayRemove([currentUserID])
+                ], forDocument: docRef)
+            } else {
+                transaction.updateData([
+                    "zaps":     current + 1,
+                    "zappedBy": FieldValue.arrayUnion([currentUserID])
+                ], forDocument: docRef)
+            }
             return nil
         }
     }
@@ -449,6 +459,8 @@ final class PostService {
         goalWeight:           Double = 0,
         fuelLogItems:         [FeedFuelLogItem] = [],
         workoutItems:         [FeedWorkoutItem] = [],
+        mealScore:            Int    = 0,
+        photoLayout:          String = "carousel",
         postScope:            String = "arena",
         postID:               String = UUID().uuidString
     ) async throws -> String {
@@ -516,9 +528,11 @@ final class PostService {
             mogBoardType:         mogBoardType,
             mogBoardSnapshot:     mogBoardSnapshot,
             fuelLogItems:         fuelLogItems,
-            workoutItems:         workoutItems
+            workoutItems:         workoutItems,
+            mealScore:            mealScore
         )
-        post.postScope = postScope
+        post.postScope   = postScope
+        post.photoLayout = photoLayout
 
         let data = try post.firestoreData()
         try await docRef.setData(data)

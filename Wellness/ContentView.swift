@@ -12,6 +12,8 @@ extension Notification.Name {
     /// Fired when the user taps the Hub tab while already on it.
     /// HomeView listens for this to collapse expanded tiles.
     static let hubTabReTapped = Notification.Name("hubTabReTapped")
+    /// Fired when the fire animation should play (double-tap title, streak hit).
+    static let triggerFireAnimation = Notification.Name("triggerFireAnimation")
 }
 
 struct ContentView: View {
@@ -41,6 +43,9 @@ struct ContentView: View {
     @State private var streakCongratsCount: Int? = nil
     // Streak shield sheet
     @State private var streakBreakCount: Int? = nil
+
+    // Weigh-in popup (triggered by notification tap)
+    @State private var showingWeighIn = false
 
     // FAB state
     @State private var fabExpanded           = false
@@ -215,6 +220,13 @@ struct ContentView: View {
                     }
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .weighInNotificationTapped)) { _ in
+                // Small delay so the app finishes launching / foregrounding first
+                Task {
+                    try? await Task.sleep(nanoseconds: 300_000_000)
+                    showingWeighIn = true
+                }
+            }
             .alert("Firestore Write Error", isPresented: Binding(
                 get: { firestoreErrorMessage != nil },
                 set: { if !$0 { firestoreErrorMessage = nil } }
@@ -251,18 +263,24 @@ struct ContentView: View {
                 .zIndex(20)
             }
 
-            // Aura popup — shown on top of all tabs
+            // Aura XP toast — subtle bottom-left animation
             if let gain = pendingAuraGain {
-                AuraPopupView(
-                    gain:         gain,
-                    userSettings: userSettings,
-                    onDismiss: {
-                        pendingAuraGain = nil
-                        userSettings.pendingAuraGain = nil
+                AuraXPToast(points: gain.pointsEarned)
+                    .onAppear {
+                        Task {
+                            try? await Task.sleep(for: .seconds(1.8))
+                            withAnimation(.easeOut(duration: 0.3)) {
+                                pendingAuraGain = nil
+                                userSettings.pendingAuraGain = nil
+                            }
+                        }
                     }
-                )
-                .transition(.opacity)
-                .zIndex(20)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .padding(.leading, 16)
+                    .padding(.bottom, 100)
+                    .allowsHitTesting(false)
+                    .zIndex(20)
             }
 
             // Full app tour — shown once after first login
@@ -311,6 +329,14 @@ struct ContentView: View {
             )
             .padding(.trailing, 20)
             .padding(.bottom, 88)
+        }
+        .sheet(isPresented: $showingWeighIn) {
+            WeighInView(
+                userSettings: userSettings,
+                onDismiss: { showingWeighIn = false }
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $fabShowingNewPost) {
             NewPostView(
@@ -448,6 +474,7 @@ private struct QuickActionFAB: View {
             )
         )
     }
+
 }
 
 #Preview {

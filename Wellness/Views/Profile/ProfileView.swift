@@ -57,6 +57,7 @@ struct ProfileView: View {
     @State private var firestorePosts: [FeedPost] = []
     @State private var postsLoading   = false
     @State private var selectedPostLabel: PostLabel? = nil
+    @State private var postToShare: FeedPost? = nil
 
     private enum ProfileSection: String, CaseIterable {
         case posts      = "Posts"
@@ -247,6 +248,9 @@ struct ProfileView: View {
                 try? await Task.sleep(for: .seconds(1.0))
                 showingTutorial = true
             }
+        }
+        .sheet(item: $postToShare) { post in
+            PostShareView(post: post)
         }
         .sheet(isPresented: $showingBalanceInfo) { balanceInfoSheet }
         .sheet(isPresented: $showingConnections) {
@@ -1585,6 +1589,9 @@ struct ProfileView: View {
                             onDelete:          post.userID == currentUserID
                                 ? { Task { await deletePost(post) } }
                                 : nil,
+                            onShare:           post.userID == currentUserID
+                                ? { postToShare = post }
+                                : nil,
                             showStreak:        false,
                             isFollowingAuthor: !isOwnProfile && isFollowing,
                             onFollowToggle:    { Task { await toggleFollowFromPostMenu() } },
@@ -2026,9 +2033,9 @@ struct ProfileView: View {
                 if subscribeLoading {
                     ProgressView().scaleEffect(0.8)
                 } else {
-                    Image(systemName: isSubscribed ? "bell.fill" : "bell")
+                    Image(systemName: isSubscribed ? "bell.slash" : "bell")
                         .font(.system(size: 14, weight: .bold))
-                    Text(isSubscribed ? "Subscribed" : "Get Notified")
+                    Text(isSubscribed ? "Unsubscribe" : "Get Notified")
                         .font(.system(size: 15, weight: .black))
                 }
             }

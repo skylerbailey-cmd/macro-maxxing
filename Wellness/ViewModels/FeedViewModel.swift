@@ -89,7 +89,9 @@ import FirebaseFirestore
 
     func updateCommentCount(postID: String, delta: Int) {
         guard let idx = posts.firstIndex(where: { $0.id == postID }) else { return }
-        posts[idx].commentsCount = max(0, posts[idx].commentsCount + delta)
+        var updated = posts[idx]
+        updated.commentsCount = max(0, updated.commentsCount + delta)
+        posts[idx] = updated
     }
 
     // MARK: - Toggle rep (optimistic)
@@ -146,19 +148,22 @@ import FirebaseFirestore
 
     // MARK: - Toggle zap (optimistic)
 
-    func addZap(postID: String, currentUserID: String) async {
+    func toggleZap(postID: String, currentUserID: String) async {
         guard let idx = posts.firstIndex(where: { $0.id == postID }) else { return }
 
         let original = posts[idx]
         var updated  = posts[idx]
-        updated.zaps += 1
-        if !updated.zappedBy.contains(currentUserID) {
+        if updated.hasZapped(userID: currentUserID) {
+            updated.zaps = max(0, updated.zaps - 1)
+            updated.zappedBy.removeAll { $0 == currentUserID }
+        } else {
+            updated.zaps += 1
             updated.zappedBy.append(currentUserID)
         }
         posts[idx] = updated
 
         do {
-            try await PostService.shared.addZap(postID: postID, currentUserID: currentUserID)
+            try await PostService.shared.toggleZap(postID: postID, currentUserID: currentUserID)
         } catch {
             if let revertIdx = posts.firstIndex(where: { $0.id == postID }) {
                 posts[revertIdx] = original

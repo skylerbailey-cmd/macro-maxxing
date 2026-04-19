@@ -94,12 +94,13 @@ struct LeaderboardView: View {
         ZStack {
             pageBg.ignoresSafeArea()
             VStack(spacing: 0) {
-                // Custom header (nav bar is hidden)
-                HStack {
-                    Text("Mog Board")
-                        .font(.system(size: 22, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
+                // Combined header: scope tabs (left) + icons (right)
+                HStack(spacing: 10) {
+                    scopePicker
+                        .tutorialAnchor("board.scopePicker")
+
                     Spacer()
+
                     HStack(spacing: 14) {
                         Button { showingTutorial = true } label: {
                             Image(systemName: "questionmark.circle")
@@ -119,11 +120,8 @@ struct LeaderboardView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 4)
-
-                scopePicker
-                    .tutorialAnchor("board.scopePicker")
+                .padding(.top, 4)
+                .padding(.bottom, 2)
                 ScrollView {
                     VStack(spacing: 24) {
                         if RemoteConfigService.shared.mogBoardAdRequired && !boardUnlocked {
@@ -681,10 +679,10 @@ struct LeaderboardView: View {
             ForEach(Scope.allCases, id: \.self) { scope in
                 Button { selectedScope = scope } label: {
                     Text(scope.rawValue)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(selectedScope == scope ? .black : .white.opacity(0.55))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
                         .background(
                             Capsule().fill(selectedScope == scope ? gold : Color.clear)
                         )
@@ -693,10 +691,8 @@ struct LeaderboardView: View {
                 .animation(.spring(duration: 0.2), value: selectedScope)
             }
         }
-        .padding(4)
+        .padding(3)
         .background(Capsule().fill(cardBg))
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
     }
 
     // MARK: - Private account banner

@@ -21,6 +21,27 @@ struct AppNotification: Identifiable, Codable {
     var createdAt:            Date   = Date()
 
     enum NotifType: String, Codable {
-        case follow, rep, comment, mention, leaderboard, newPost, workoutTag
+        case follow, rep, celebrate, zap, comment, mention, leaderboard, newPost, workoutTag
+    }
+
+    /// Which filter tab this notification belongs to.
+    var filterCategory: NotifFilter {
+        switch type {
+        case .rep, .celebrate, .zap: return .reactions
+        case .follow, .comment, .mention, .newPost: return .social
+        case .leaderboard, .workoutTag: return .activity
+        }
+    }
+
+    /// Whether this type can be collapsed with other reactions on the same post.
+    var isReaction: Bool {
+        type == .rep || type == .celebrate || type == .zap
+    }
+
+    enum NotifFilter: String, CaseIterable {
+        case all       = "All"
+        case reactions = "Reactions"
+        case social    = "Social"
+        case activity  = "Activity"
     }
 }

@@ -31,6 +31,10 @@ struct AuraGain: Identifiable, Equatable {
     /// has been restored. Guards against streak milestones re-firing before data is ready.
     var profileLoaded: Bool = false
 
+    /// Timestamp of the last local settings save. Used to prevent populate(from:)
+    /// from overwriting freshly-edited fields with stale Firestore data.
+    var lastLocalSettingsSave: Date = .distantPast
+
     /// True once the user has consented to sending food photos to Anthropic's Claude AI.
     /// No AI features are available until this is true. Persisted to UserDefaults.
     var aiConsentGiven: Bool = false {
@@ -210,6 +214,57 @@ struct AuraGain: Identifiable, Equatable {
             if mealReminderEnabled {
                 NotificationService.shared.scheduleMealReminder(
                     hour: mealReminderHour, minute: mealReminderMinute)
+            }
+        }
+    }
+
+    // MARK: - Weigh-In Reminder
+
+    var weighReminderEnabled: Bool = false {
+        didSet {
+            UserDefaults.standard.set(weighReminderEnabled, forKey: "weighReminderEnabled")
+            if weighReminderEnabled {
+                NotificationService.shared.scheduleWeighInReminder(
+                    hour: weighReminderHour, minute: weighReminderMinute,
+                    weekdays: weighReminderWeekdays)
+            } else {
+                NotificationService.shared.cancelWeighInReminder()
+            }
+        }
+    }
+
+    var weighReminderHour: Int = 7 {
+        didSet {
+            UserDefaults.standard.set(weighReminderHour, forKey: "weighReminderHour")
+            if weighReminderEnabled {
+                NotificationService.shared.scheduleWeighInReminder(
+                    hour: weighReminderHour, minute: weighReminderMinute,
+                    weekdays: weighReminderWeekdays)
+            }
+        }
+    }
+
+    var weighReminderMinute: Int = 0 {
+        didSet {
+            UserDefaults.standard.set(weighReminderMinute, forKey: "weighReminderMinute")
+            if weighReminderEnabled {
+                NotificationService.shared.scheduleWeighInReminder(
+                    hour: weighReminderHour, minute: weighReminderMinute,
+                    weekdays: weighReminderWeekdays)
+            }
+        }
+    }
+
+    /// Selected weekdays for weigh-in reminders (1 = Sun, 2 = Mon, … 7 = Sat).
+    /// Stored as comma-separated ints in UserDefaults.
+    var weighReminderWeekdays: Set<Int> = [2] {  // Default: Monday
+        didSet {
+            let raw = weighReminderWeekdays.sorted().map(String.init).joined(separator: ",")
+            UserDefaults.standard.set(raw, forKey: "weighReminderWeekdays")
+            if weighReminderEnabled {
+                NotificationService.shared.scheduleWeighInReminder(
+                    hour: weighReminderHour, minute: weighReminderMinute,
+                    weekdays: weighReminderWeekdays)
             }
         }
     }
@@ -670,9 +725,7 @@ struct AuraGain: Identifiable, Equatable {
         checkWeeklyReset()
         auraPoints += points
         weeklyAuraPoints += points
-        if auraPopupsEnabled && !silent {
-            pendingAuraGain = AuraGain(pointsEarned: points, reason: reason)
-        }
+        pendingAuraGain = AuraGain(pointsEarned: points, reason: reason)
         let id     = userID
         let pts    = auraPoints
         let wkPts  = weeklyAuraPoints
@@ -814,11 +867,17 @@ struct AuraGain: Identifiable, Equatable {
         tiktokHandle      = profile.tiktokHandle
         isPrivateAccount  = profile.isPrivateAccount
         dateOfBirth       = profile.dateOfBirth
-        currentWeight     = profile.currentWeight
-        goalWeight        = profile.goalWeight
-        heightInches      = profile.heightInches
-        proteinPerLb      = profile.proteinPerLb
-        gender            = profile.gender
+        // Skip overwriting body/nutrition fields if the user just saved
+        // settings locally — the Firestore document may still have stale
+        // data from before the write landed.
+        let recentlySaved = Date().timeIntervalSince(lastLocalSettingsSave) < 10
+        if !recentlySaved {
+            currentWeight     = profile.currentWeight
+            goalWeight        = profile.goalWeight
+            heightInches      = profile.heightInches
+            proteinPerLb      = profile.proteinPerLb
+            gender            = profile.gender
+        }
         fastingEnabled    = profile.fastingEnabled
         // Write window settings to UserDefaults so HomeViewModel and FoodLogView
         // (which read from UserDefaults) pick up the synced values on next appear.
@@ -1054,6 +1113,14 @@ struct AuraGain: Identifiable, Equatable {
         self.mealReminderHour = storedReminderHour != nil
             ? UserDefaults.standard.integer(forKey: "mealReminderHour") : 12
         self.mealReminderMinute = UserDefaults.standard.integer(forKey: "mealReminderMinute")
+        self.weighReminderEnabled = UserDefaults.standard.bool(forKey: "weighReminderEnabled")
+        let storedWeighHour = UserDefaults.standard.object(forKey: "weighReminderHour")
+        self.weighReminderHour = storedWeighHour != nil
+            ? UserDefaults.standard.integer(forKey: "weighReminderHour") : 7
+        self.weighReminderMinute = UserDefaults.standard.integer(forKey: "weighReminderMinute")
+        if let rawDays = UserDefaults.standard.string(forKey: "weighReminderWeekdays"), !rawDays.isEmpty {
+            self.weighReminderWeekdays = Set(rawDays.split(separator: ",").compactMap { Int($0) })
+        }
         self.excludeDairy  = UserDefaults.standard.bool(forKey: "excludeDairy")
         self.excludeGluten = UserDefaults.standard.bool(forKey: "excludeGluten")
         self.autoAdjustMacrosForWorkout = UserDefaults.standard.bool(forKey: "autoAdjustMacrosForWorkout")

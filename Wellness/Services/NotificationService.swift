@@ -10,6 +10,10 @@ final class NotificationService {
     static let shared = NotificationService()
     private init() {}
 
+    /// Category identifier for weigh-in reminders. Used by the notification
+    /// delegate to detect taps and open the weigh-in popup.
+    static let weighReminderCategory = "WEIGH_IN_REMINDER"
+
     private let fastingWindowNotificationID = "com.sbailey.Wellness.fastingWindowEnd"
 
     // MARK: - Authorization
@@ -138,6 +142,44 @@ final class NotificationService {
         UNUserNotificationCenter.current().removePendingNotificationRequests(
             withIdentifiers: [mealReminderNotificationID]
         )
+    }
+
+    // MARK: - Weigh-In Reminder
+
+    private let weighReminderIDPrefix = "com.sbailey.Wellness.weighReminder"
+
+    /// Schedules a recurring weigh-in reminder on the specified weekdays at the
+    /// given hour/minute. Each day gets its own notification request so the user
+    /// can pick any combination of days (e.g. Mon + Thu).
+    func scheduleWeighInReminder(hour: Int, minute: Int, weekdays: Set<Int>) {
+        cancelWeighInReminder()
+
+        let content = UNMutableNotificationContent()
+        content.title = "Ready to weigh in?"
+        content.body  = "Step on the scale and log your weight to track your progress."
+        content.sound = .default
+        content.categoryIdentifier = Self.weighReminderCategory
+
+        let center = UNUserNotificationCenter.current()
+        for weekday in weekdays {
+            var components    = DateComponents()
+            components.hour   = hour
+            components.minute = minute
+            components.weekday = weekday   // 1 = Sunday, 2 = Monday, … 7 = Saturday
+
+            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+            let request = UNNotificationRequest(
+                identifier: "\(weighReminderIDPrefix).\(weekday)",
+                content: content,
+                trigger: trigger
+            )
+            center.add(request)
+        }
+    }
+
+    func cancelWeighInReminder() {
+        let ids = (1...7).map { "\(weighReminderIDPrefix).\($0)" }
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
     }
 
     // MARK: - Streak Extension Expiry Notification

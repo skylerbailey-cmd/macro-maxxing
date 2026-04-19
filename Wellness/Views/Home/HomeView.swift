@@ -23,11 +23,14 @@ struct HomeView: View {
     @State private var showingGoalPost    = false
     @State private var showingAIConsent   = false
     @State private var goalPostMeme       = GymMeme.random()
-    @State private var brainstormAlert: BrainstormAlert? = nil
     @State private var showingNotifications = false
     @State private var showingCheatDay       = false
+    @State private var showingLevelInfo      = false
     @State private var showingStreakExtension = false
     @State private var showingAIPaywall       = false
+    @State private var showingRestaurantMode   = false
+    @State private var showingMealPlanner      = false
+    @State private var showingNutritionCoach   = false
     @State private var aiSubscription = AISubscriptionStore.shared
     /// Whether the macros section is showing the full 2×2 grid. When false,
     /// a single summary card stands in with four mini gauges. Tapping the
@@ -55,14 +58,8 @@ struct HomeView: View {
     /// rest of the list. Cleared when the user navigates to a different week.
     @State private var selectedWorkoutDay: Date? = nil
 
-    /// True while confetti is falling after the user hits all 4 macro goals.
-    /// Auto-clears after a few seconds so the confetti doesn't stay forever.
-    @State private var showConfetti = false
+    // Fire animation is rendered in ContentView; HomeView posts a notification to trigger it.
 
-    private enum BrainstormAlert: Identifiable {
-        case confirm, limitReached
-        var id: Self { self }
-    }
 
     init(modelContext: ModelContext, selectedDate: Binding<Date>, userSettings: UserSettings) {
         _viewModel    = State(wrappedValue: HomeViewModel(
@@ -175,7 +172,8 @@ struct HomeView: View {
         let contentWithOverlays = contentWithGoalChanges
             .onChange(of: viewModel.macrosMetToday) { oldVal, newVal in handleMacrosMetChange(oldVal, newVal) }
 
-        return contentWithOverlays
+        return ZStack {
+            contentWithOverlays
             .sheet(item: $selectedMacro) { macro in macroHistorySheet(macro: macro) }
             .sheet(isPresented: $showingGoalPost) { goalPostSheet() }
             .sheet(isPresented: $showingAIConsent) {
@@ -210,22 +208,49 @@ struct HomeView: View {
                     }
                 )
             }
+            .navigationDestination(isPresented: $showingNutritionCoach) {
+                NutritionCoachView(
+                    userID: viewModel.userSettings.userID,
+                    selectedDate: viewModel.selectedDate
+                )
+            }
+            .navigationDestination(isPresented: $showingMealPlanner) {
+                MealPlannerView(
+                    totalCalories: viewModel.totalCalories,
+                    totalProtein:  viewModel.totalProtein,
+                    totalCarbs:    viewModel.totalCarbs,
+                    totalFat:      viewModel.totalFat,
+                    goalCalories:  viewModel.displayGoalCalories,
+                    goalProtein:   viewModel.displayGoalProtein,
+                    goalCarbs:     viewModel.displayGoalCarbs,
+                    goalFat:       viewModel.displayGoalFat,
+                    excludeDairy:  viewModel.userSettings.excludeDairy,
+                    excludeGluten: viewModel.userSettings.excludeGluten
+                )
+            }
+            .navigationDestination(isPresented: $showingRestaurantMode) {
+                RestaurantModeView(
+                    remainingCalories: max(0, Int(viewModel.displayGoalCalories - viewModel.totalCalories)),
+                    remainingProtein:  max(0, Int(viewModel.displayGoalProtein  - viewModel.totalProtein)),
+                    remainingCarbs:    max(0, Int(viewModel.displayGoalCarbs    - viewModel.totalCarbs)),
+                    remainingFat:      max(0, Int(viewModel.displayGoalFat      - viewModel.totalFat)),
+                    goalCalories:      Int(viewModel.displayGoalCalories),
+                    goalProtein:       Int(viewModel.displayGoalProtein),
+                    goalCarbs:         Int(viewModel.displayGoalCarbs),
+                    goalFat:           Int(viewModel.displayGoalFat)
+                )
+            }
             .sheet(isPresented: $showingAIPaywall) {
                 AISubscriptionPaywallView(
-                    onSubscribed: {
-                        // Re-enter the brainstorm flow now that access is unlocked.
-                        showingAIPaywall = false
-                        if !viewModel.userSettings.aiConsentGiven {
-                            showingAIConsent = true
-                        } else if viewModel.userSettings.brainstormLimitReached {
-                            brainstormAlert = .limitReached
-                        } else {
-                            brainstormAlert = .confirm
-                        }
-                    },
+                    onSubscribed: { showingAIPaywall = false },
                     onDismiss: { showingAIPaywall = false }
                 )
             }
+            .sheet(isPresented: $showingLevelInfo) {
+                AuraLevelInfoSheet(userSettings: viewModel.userSettings)
+            }
+
+        }
     }
     
     // MARK: - Body Helpers
@@ -233,17 +258,6 @@ struct HomeView: View {
     private var mainContent: some View {
         ZStack {
             Color.pageBg.ignoresSafeArea()
-
-            // Confetti overlay — falls in front of the scroll content when
-            // the user hits all 4 macro goals. Ignores hit testing so it
-            // doesn't block interaction with the Hub underneath.
-            if showConfetti {
-                ConfettiView()
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-                    .transition(.opacity)
-                    .zIndex(50)
-            }
 
             ScrollView {
                 VStack(spacing: 20) {
@@ -253,11 +267,14 @@ struct HomeView: View {
                     macrosSection
                     brainstormSection
                         .tutorialAnchor("hub.mealPlanner")
+                    nutritionCoachSection
+                    restaurantModeSection
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 28)
             }
+
             if showingTutorial {
                 TutorialOverlayView(
                     steps: TutorialSteps.hub,
@@ -268,6 +285,7 @@ struct HomeView: View {
                 .transition(.opacity.animation(.easeInOut(duration: 0.25)))
                 .zIndex(100)
             }
+
         }
         .onPreferenceChange(TutorialAnchorKey.self) { tutorialAnchors = $0 }
     }
@@ -296,6 +314,9 @@ struct HomeView: View {
                         Text(greetingText)
                             .font(.system(size: 26, weight: .black, design: .rounded))
                             .foregroundStyle(.white)
+                            .onTapGesture(count: 2) {
+                                NotificationCenter.default.post(name: .triggerFireAnimation, object: nil)
+                            }
                         HStack(spacing: 4) {
                             ForEach(0..<3, id: \.self) { i in
                                 RoundedRectangle(cornerRadius: 2)
@@ -329,25 +350,29 @@ struct HomeView: View {
                 // Level + title line
                 let _level = UserSettings.auraLevel(for: viewModel.userSettings.auraPoints)
                 let _title = viewModel.userSettings.auraTitle
-                HStack(spacing: 6) {
-                    Text("Lv \(_level)")
-                        .font(.system(size: 12, weight: .black, design: .rounded))
-                        .foregroundStyle(Color.purpleHi)
-                    Text("·")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.30))
-                    Text(_title.uppercased())
-                        .font(.system(size: 11, weight: .black))
-                        .tracking(1.5)
-                        .foregroundStyle(ThemeStore.shared.accent)
-                    Spacer()
-                    Text("🔥 \(viewModel.macroStreak) day streak")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.85))
-                }
+                VStack(spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text("Lv \(_level)")
+                            .font(.system(size: 12, weight: .black, design: .rounded))
+                            .foregroundStyle(Color.purpleHi)
+                        Text("·")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.30))
+                        Text(_title.uppercased())
+                            .font(.system(size: 11, weight: .black))
+                            .tracking(1.5)
+                            .foregroundStyle(ThemeStore.shared.accent)
+                        Spacer()
+                        Text("🔥 \(viewModel.macroStreak) day streak")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.85))
+                    }
 
-                auraXPBar
-                    .tutorialAnchor("hub.stats")
+                    auraXPBar
+                        .tutorialAnchor("hub.stats")
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { showingLevelInfo = true }
 
                 // Cheat Day button — only show if streak > 0, today isn't already a cheat day,
                 // and today's macros haven't already been met.
@@ -632,29 +657,9 @@ struct HomeView: View {
     
     private func handleMacrosMetChange(_ oldVal: Int, _ newVal: Int) {
         guard newVal == 4 && oldVal < 4 && Calendar.current.isDateInToday(viewModel.selectedDate) else { return }
-        let stored = UserDefaults.standard.double(forKey: "lastCelebrationDate")
-        let lastShown = stored > 0 ? Date(timeIntervalSince1970: stored) : Date.distantPast
-        guard !Calendar.current.isDateInToday(lastShown) else { return }
-        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastCelebrationDate")
-        viewModel.userSettings.pendingCelebration = CelebrationPostData(
-            totalCalories: viewModel.totalCalories, goalCalories: viewModel.displayGoalCalories,
-            totalProtein:  viewModel.totalProtein,  goalProtein:  viewModel.displayGoalProtein,
-            totalCarbs:    viewModel.totalCarbs,    goalCarbs:    viewModel.displayGoalCarbs,
-            totalFat:      viewModel.totalFat,      goalFat:      viewModel.displayGoalFat,
-            date:          viewModel.selectedDate,
-            fastingWindowDisplay: viewModel.userSettings.fastingEnabled
-                ? "\(timeString(hour: viewModel.windowStartHour, minute: viewModel.windowStartMinute)) – \(timeString(hour: viewModel.windowEndHour, minute: viewModel.windowEndMinute)) · \(viewModel.windowDurationHours)h window"
-                : ""
-        )
 
-        // Drop confetti on the Hub immediately — it also shows inside the
-        // CelebrationView modal, but having it behind the tab gives the user
-        // a hit of dopamine even before the sheet appears.
-        withAnimation { showConfetti = true }
-        Task {
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            withAnimation { showConfetti = false }
-        }
+        // Fire rises from the bottom of the screen for five seconds.
+        NotificationCenter.default.post(name: .triggerFireAnimation, object: nil)
     }
 
     private var goalsTitle: String {
@@ -976,10 +981,12 @@ struct HomeView: View {
         let entries = recentWorkouts.filter {
             $0.loggedAt >= weekStart && $0.loggedAt < weekEnd
         }
+        // Exclude rest days from the count — they're not active workouts
+        let active = entries.filter { $0.workoutType != .restDay }
         return (
-            entries.count,
-            entries.reduce(0) { $0 + $1.durationMinutes },
-            entries.reduce(0) { $0 + $1.caloriesBurned }
+            active.count,
+            active.reduce(0) { $0 + $1.durationMinutes },
+            active.reduce(0) { $0 + $1.caloriesBurned }
         )
     }
 
@@ -1013,8 +1020,8 @@ struct HomeView: View {
     }
 
     /// Consecutive number of days ending today that have at least one logged
-    /// workout. Stops at the first gap day; rest days don't count toward the
-    /// streak but also don't break it (matches typical fitness-app behavior).
+    /// workout (including rest days). Rest days count toward the streak —
+    /// logging a rest day shows commitment to the routine.
     private var workoutStreakDays: Int {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
@@ -1529,211 +1536,178 @@ struct HomeView: View {
         "\(Int(goal * 0.85)) – \(Int(goal * 1.15))"
     }
 
-    // MARK: - Brainstorm section
+    // MARK: - Restaurant Mode section
 
-    private var brainstormSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
+    private var restaurantModeSection: some View {
+        Button {
+            if !aiSubscription.isSubscribed {
+                showingAIPaywall = true
+            } else if !viewModel.userSettings.aiConsentGiven {
+                showingAIConsent = true
+            } else {
+                showingRestaurantMode = true
+            }
+        } label: {
+            HStack(spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 9)
-                        .fill(ThemeStore.shared.accent.opacity(0.16))
-                        .frame(width: 30, height: 30)
-                    Image(systemName: "lightbulb.fill")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(ThemeStore.shared.accent)
+                        .fill(Color.premiumGold.opacity(0.16))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "menucard.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.premiumGold)
                 }
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("AI Meal Planner")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white)
-                    Text("Personalized to your macro gaps")
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("AI Restaurant Mode")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                        if !aiSubscription.isSubscribed {
+                            Text("PRO")
+                                .font(.system(size: 9, weight: .black))
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(Color.premiumGold, in: Capsule())
+                        }
+                    }
+                    Text("Snap a menu, get macro-matched picks")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.35))
                 }
-            }
 
-            switch viewModel.brainstormState {
-            case .idle:
-                Text("See what to eat to hit your remaining macro goals for the rest of the day — specific meals and snacks suggested holistically.")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.50))
-                    .lineSpacing(2)
-            case .loading:
-                BrainstormSkeletonView()
-            case .result(let text):
-                macroGapSummary
-                brainstormResult(text)
-            case .error(let msg):
-                VStack(spacing: 10) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                        Text(msg).font(.caption).foregroundStyle(.white.opacity(0.65))
-                    }
-                    Button {
-                        viewModel.brainstorm()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "arrow.clockwise")
-                            Text("Try Again")
-                        }
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(ThemeStore.shared.accent.opacity(0.5))
-                        .cornerRadius(10)
-                    }
-                }
-            }
+                Spacer()
 
-            Button {
-                if !aiSubscription.isSubscribed {
-                    showingAIPaywall = true
-                } else if !viewModel.userSettings.aiConsentGiven {
-                    showingAIConsent = true
-                } else if viewModel.userSettings.brainstormLimitReached {
-                    brainstormAlert = .limitReached
-                } else {
-                    brainstormAlert = .confirm
-                }
-            } label: {
-                // Inner label — styled as a gold pill with the shimmer
-                // overlay placed DIRECTLY on the background. Using a plain
-                // button (rather than .borderedProminent) means the system
-                // doesn't re-wrap the view and swallow the shimmer.
-                let limitReached = aiSubscription.isSubscribed
-                    && viewModel.userSettings.brainstormLimitReached
-                let background: Color = limitReached ? .gray : .premiumGold
-                HStack(spacing: 6) {
-                    if !aiSubscription.isSubscribed {
-                        Image(systemName: "sparkles")
-                        Text(aiSubscription.isEligibleForIntroOffer
-                             ? "Try AI Free for 3 Days"
-                             : "Unlock AI Meal Planner")
-                    } else if viewModel.userSettings.brainstormLimitReached {
-                        Image(systemName: "xmark.circle.fill")
-                        Text("Daily limit reached (2/2)")
-                    } else {
-                        Image(systemName: "lightbulb.fill")
-                        Text(viewModel.brainstormState == .idle ? "Brainstorm next meal" : "Re-Brainstorm")
-                        Text("(\(viewModel.userSettings.brainstormUsesRemaining) left today)")
-                            .opacity(0.65)
-                    }
-                }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.black)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 11)
-                .background(background, in: RoundedRectangle(cornerRadius: 10))
-                .shimmering(cornerRadius: 10)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.25))
             }
-            .buttonStyle(.plain)
-            .disabled(viewModel.brainstormState == .loading)
-            .alert(item: $brainstormAlert) { alert in
-                switch alert {
-                case .confirm:
-                    Alert(
-                        title: Text("Brainstorm Next Meal"),
-                        message: Text("AI will suggest a specific meal based on your current macro balance. You have \(viewModel.userSettings.brainstormUsesRemaining) use\(viewModel.userSettings.brainstormUsesRemaining == 1 ? "" : "s") left today."),
-                        primaryButton: .default(Text("Let's Go")) {
-                            let doBrainstorm = {
-                                if viewModel.userSettings.consumeBrainstormUse() {
-                                    viewModel.brainstorm()
-                                }
-                            }
-                            if RemoteConfigService.shared.brainstormAdRequired {
-                                AdManager.shared.showRewarded(onReward: doBrainstorm)
-                            } else {
-                                doBrainstorm()
-                            }
-                        },
-                        secondaryButton: .cancel()
-                    )
-                case .limitReached:
-                    Alert(
-                        title: Text("Daily Limit Reached"),
-                        message: Text("You've used both brainstorm suggestions for today. Come back tomorrow for 2 more."),
-                        dismissButton: .default(Text("Got it"))
-                    )
-                }
-            }
-        }
-        .padding(16)
-        .background(Color.cardBg)
-        .cornerRadius(18)
-        .overlay(
-            ShootingStarBorder(
-                cornerRadius: 18,
-                color: ThemeStore.shared.accent,
-                lineWidth: 1.5,
-                duration: 2.8,
-                reversed: true
+            .padding(16)
+            .background(Color.cardBg)
+            .cornerRadius(18)
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Color.white.opacity(0.07), lineWidth: 1)
             )
-        )
+        }
+        .buttonStyle(.plain)
     }
 
-    @ViewBuilder
-    private var macroGapSummary: some View {
-        let goalCal  = viewModel.displayGoalCalories
-        let goalPro  = viewModel.displayGoalProtein
-        let goalCarb = viewModel.displayGoalCarbs
-        let goalFat  = viewModel.displayGoalFat
+    // MARK: - Nutrition Coach section
 
-        // Room to the upper limit (goal + 15%) — this is the real budget.
-        let roomCal = max(0, goalCal * 1.15 - viewModel.totalCalories)
-        let overGoalCal = viewModel.totalCalories > goalCal
-
-        // Determine which macros still need significant intake (>15% of goal remaining)
-        let remainPro  = max(0, goalPro  - viewModel.totalProtein)
-        let remainCarb = max(0, goalCarb - viewModel.totalCarbs)
-        let remainFat  = max(0, goalFat  - viewModel.totalFat)
-        var needs: [String] = []
-        if remainPro  > goalPro  * 0.15 { needs.append("protein") }
-        if remainCarb > goalCarb * 0.15 { needs.append("carbs") }
-        if remainFat  > goalFat  * 0.15 { needs.append("fat") }
-
-        let summary: String
-        if roomCal <= 0 {
-            summary = "You've hit your calorie limit. Check tomorrow's plan below."
-        } else if needs.isEmpty {
-            summary = "You're close to hitting all your macros — just \(Int(roomCal)) cal of room left. Here's a light option to finish the day."
-        } else {
-            let joined = needs.count == 1 ? needs[0]
-                : needs.dropLast().joined(separator: ", ") + " and " + needs.last!
-            if overGoalCal {
-                summary = "You're over your calorie goal but have \(Int(roomCal)) cal of room left. You just need more \(joined) — grab a quick lean snack."
+    private var nutritionCoachSection: some View {
+        Button {
+            if !aiSubscription.isSubscribed {
+                showingAIPaywall = true
+            } else if !viewModel.userSettings.aiConsentGiven {
+                showingAIConsent = true
             } else {
-                summary = "You have \(Int(roomCal)) cal of room and need more \(joined). Here's what to eat next."
+                showingNutritionCoach = true
             }
-        }
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(Color.premiumGold.opacity(0.16))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "wand.and.stars")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.premiumGold)
+                }
 
-        return Text(summary)
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(ThemeStore.shared.accent.opacity(0.85))
-            .lineSpacing(2)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.bottom, 4)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("AI Nutrition Coach")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                        if !aiSubscription.isSubscribed {
+                            Text("PRO")
+                                .font(.system(size: 9, weight: .black))
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(Color.premiumGold, in: Capsule())
+                        }
+                    }
+                    Text("Daily debrief on meals, macros & workouts")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.35))
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.25))
+            }
+            .padding(16)
+            .background(Color.cardBg)
+            .cornerRadius(18)
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Color.white.opacity(0.07), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
-    private func brainstormResult(_ text: String) -> some View {
-        if let attr = try? AttributedString(
-            markdown: text,
-            options: AttributedString.MarkdownParsingOptions(
-                interpretedSyntax: .inlineOnlyPreservingWhitespace
+    // MARK: - Brainstorm section
+
+    private var brainstormSection: some View {
+        Button {
+            if !aiSubscription.isSubscribed {
+                showingAIPaywall = true
+            } else if !viewModel.userSettings.aiConsentGiven {
+                showingAIConsent = true
+            } else {
+                showingMealPlanner = true
+            }
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(Color.premiumGold.opacity(0.16))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "lightbulb.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.premiumGold)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("AI Meal Planner")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                        if !aiSubscription.isSubscribed {
+                            Text("PRO")
+                                .font(.system(size: 9, weight: .black))
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(Color.premiumGold, in: Capsule())
+                        }
+                    }
+                    Text("Personalized meals based on your macro gaps")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.35))
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.25))
+            }
+            .padding(16)
+            .background(Color.cardBg)
+            .cornerRadius(18)
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Color.white.opacity(0.07), lineWidth: 1)
             )
-        ) {
-            Text(attr)
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.85))
-                .lineSpacing(3)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        } else {
-            Text(text)
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.85))
-                .lineSpacing(3)
-                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .buttonStyle(.plain)
     }
 
     private func goalForMacro(_ macro: MacroType) -> Double {
@@ -2494,7 +2468,7 @@ private struct HubTargetZoneRow: View {
     }
 }
 
-private struct BrainstormSkeletonView: View {
+struct BrainstormSkeletonView: View {
     @State private var pulse = false
 
     private var purpl: Color { ThemeStore.shared.accent }
@@ -2504,7 +2478,7 @@ private struct BrainstormSkeletonView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 ProgressView().scaleEffect(0.7).tint(purpl)
-                Text("AI is thinking…")
+                Text("AI is planning your next meal…")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.40))
             }

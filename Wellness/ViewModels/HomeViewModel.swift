@@ -177,7 +177,7 @@ import FirebaseFirestore
 
     // MARK: - Brainstorm state
     enum BrainstormState: Equatable {
-        case idle, loading, result(String), error(String)
+        case idle, loading, result(String), cards(BrainstormResult), error(String)
     }
     var brainstormState: BrainstormState = .idle
 
@@ -469,6 +469,7 @@ import FirebaseFirestore
 
     func brainstorm() {
         brainstormState = .loading
+        let engine = MacroRecommendationEngine()
         let input = MacroRecommendationEngine.BrainstormInput(
             totalCalories: totalCalories, goalCalories: goalCalories,
             totalProtein:  totalProtein,  goalProtein:  goalProtein,
@@ -477,10 +478,17 @@ import FirebaseFirestore
             excludeDairy:  userSettings.excludeDairy,
             excludeGluten: userSettings.excludeGluten
         )
-        let result = MacroRecommendationEngine().recommend(input)
-        brainstormState = .result(result)
-        userSettings.lastBrainstormResult = result
-        userSettings.lastBrainstormDate   = Date()
+        let structured = engine.recommendStructured(input)
+        let legacy     = engine.recommend(input)
+        // Show the loading skeleton for at least 2 seconds so the user
+        // sees the "AI is planning" state before results appear.
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            brainstormState = .cards(structured)
+            userSettings.lastBrainstormResult = legacy
+            userSettings.lastBrainstormDate   = Date()
+        }
     }
 
     func resetBrainstorm() { brainstormState = .idle }

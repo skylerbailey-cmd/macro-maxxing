@@ -23,6 +23,8 @@ struct SocialView: View {
     @State private var friendIDs:      Set<String> = []
     /// UserIDs the current user has blocked — hidden from all feeds and search.
     @State private var blockedUserIDs: Set<String> = []
+    /// UserIDs the current user is subscribed to (post notifications).
+    @State private var subscribedUserIDs: Set<String> = []
 
     @State private var showingTutorial   = false
     @State private var tutorialAnchors:  [String: Anchor<CGRect>] = [:]
@@ -136,12 +138,32 @@ struct SocialView: View {
             Color.pageBg.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Custom header (nav bar is hidden)
-                HStack {
-                    Text("Aura Stream")
-                        .font(.system(size: 22, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
+                // Combined header: feed tabs (left) + icons (right)
+                HStack(spacing: 10) {
+                    HStack(spacing: 0) {
+                        ForEach(Feed.allCases, id: \.self) { feed in
+                            Button { selectedFeed = feed } label: {
+                                Text(feed.rawValue)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(selectedFeed == feed ? .black : .white.opacity(0.55))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 7)
+                                    .background(
+                                        Capsule().fill(selectedFeed == feed
+                                            ? ThemeStore.shared.accent
+                                            : Color.clear)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .animation(.spring(duration: 0.2), value: selectedFeed)
+                        }
+                    }
+                    .padding(3)
+                    .background(Capsule().fill(Color.cardBg))
+                    .tutorialAnchor("feed.scopePicker")
+
                     Spacer()
+
                     HStack(spacing: 14) {
                         Button { showingTutorial = true } label: {
                             Image(systemName: "questionmark.circle")
@@ -159,35 +181,11 @@ struct SocialView: View {
                         .accessibilityLabel("Settings")
                         .accessibilityHint("Opens settings")
                     }
+                    .tutorialAnchor("feed.header")
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 4)
-                .tutorialAnchor("feed.header")
-
-                HStack(spacing: 0) {
-                    ForEach(Feed.allCases, id: \.self) { feed in
-                        Button { selectedFeed = feed } label: {
-                            Text(feed.rawValue)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(selectedFeed == feed ? .black : .white.opacity(0.55))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
-                                .background(
-                                    Capsule().fill(selectedFeed == feed
-                                        ? ThemeStore.shared.accent
-                                        : Color.clear)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .animation(.spring(duration: 0.2), value: selectedFeed)
-                    }
-                }
-                .padding(4)
-                .background(Capsule().fill(Color.cardBg))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .tutorialAnchor("feed.scopePicker")
+                .padding(.top, 4)
+                .padding(.bottom, 2)
                 .onAppear {
                     if selectedFeed == .local { locationManager.requestLocationIfNeeded() }
                 }
@@ -514,8 +512,10 @@ struct SocialView: View {
             onTap:             { activeFeedPresentation = .detail(post) },
             onAvatarTap:       { activeFeedPresentation = .profile(post) },
             onCommentTap:      { activeFeedPresentation = .comment(post) },
-            isFollowingAuthor: followingIDs.contains(post.userID),
+            isFollowingAuthor:    followingIDs.contains(post.userID),
+            isSubscribedToAuthor: subscribedUserIDs.contains(post.userID),
             onFollowToggle:    { Task { await toggleFollowFromPost(post: post) } },
+            onSubscribeToggle: { Task { await toggleSubscribeFromPost(post: post) } },
             onBlockUser:       { Task { await blockUserFromPost(post: post) } },
             onReportUser:      { Task { await reportUserFromPost(post: post) } },
             onReportPost:      { Task { await reportPostFromPost(post: post) } }
@@ -557,6 +557,21 @@ struct SocialView: View {
                 targetDisplayName:      post.whoName,
                 targetProfilePhotoURL:  post.userProfilePhotoURL)
             followingIDs.insert(post.userID)
+        }
+    }
+
+    private func toggleSubscribeFromPost(post: FeedPost) async {
+        if subscribedUserIDs.contains(post.userID) {
+            try? await SubscriptionService.shared.unsubscribe(
+                subscriberID: userSettings.userID, targetUserID: post.userID)
+            subscribedUserIDs.remove(post.userID)
+        } else {
+            try? await SubscriptionService.shared.subscribe(
+                subscriberID:          userSettings.userID,
+                subscriberUsername:    userSettings.username,
+                subscriberDisplayName: userSettings.name,
+                targetUserID:          post.userID)
+            subscribedUserIDs.insert(post.userID)
         }
     }
 
@@ -650,6 +665,16 @@ struct SocialView: View {
         followingIDs = Set(following.map { $0.userID })
         let followerIDs = Set(followers.map { $0.userID })
         friendIDs = followingIDs.intersection(followerIDs)
+
+        // Load subscription state for followed users
+        var subs = Set<String>()
+        for uid in followingIDs {
+            if let sub = try? await SubscriptionService.shared.isSubscribed(
+                subscriberID: userSettings.userID, targetUserID: uid), sub {
+                subs.insert(uid)
+            }
+        }
+        subscribedUserIDs = subs
     }
 
     private func loadBlockedUserIDs() async {

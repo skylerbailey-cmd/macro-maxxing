@@ -41,7 +41,7 @@ struct AnalyzeView: View {
                     case .analyzing:
                         VStack(spacing: 12) {
                             ProgressView()
-                                .tint(Color.purpleHi)
+                                .tint(Color.premiumGold)
                                 .scaleEffect(1.3)
                             Text("Analyzing your nutrition…")
                                 .font(.subheadline)
@@ -98,7 +98,7 @@ struct AnalyzeView: View {
         VStack(spacing: 14) {
             Image(systemName: "wand.and.stars")
                 .font(.system(size: 36, weight: .semibold))
-                .foregroundStyle(Color.purpleHi)
+                .foregroundStyle(Color.premiumGold)
 
             VStack(spacing: 6) {
                 Text("AI Nutrition Coach")
@@ -143,7 +143,7 @@ struct AnalyzeView: View {
             .padding(.vertical, 4)
         }
         .buttonStyle(.borderedProminent)
-        .tint(Color.purpleHi)
+        .tint(Color.premiumGold)
         .disabled(viewModel.state == .analyzing)
     }
 
@@ -153,7 +153,7 @@ struct AnalyzeView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.purpleHi)
+                    .foregroundStyle(Color.premiumGold)
                 Text("Analysis")
                     .font(.headline)
                     .foregroundStyle(.white)

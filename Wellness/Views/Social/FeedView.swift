@@ -31,6 +31,8 @@ struct FeedView: View {
         }
     }
     @State private var activePresentation: PostPresentation? = nil
+    @State private var commentCountDeltas: [String: Int] = [:]
+    @State private var subscribedUserIDs: Set<String> = []
 
     /// Tracked separately from `activePresentation` because share uses a
     /// standard .sheet (detents + easy dismiss) while detail/comment/profile
@@ -62,8 +64,7 @@ struct FeedView: View {
                 }
             }
         }
-        .navigationTitle("Aura Feed")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarHidden(true)
         .task {
             if viewModel.posts.isEmpty { await viewModel.loadInitialFeed() }
             if let ids = try? await BlockService.shared.fetchBlockedUserIDs(userID: userSettings.userID) {
@@ -71,6 +72,13 @@ struct FeedView: View {
             }
             if let entries = try? await FollowService.shared.fetchFollowing(userID: userSettings.userID) {
                 followingIDs = Set(entries.map { $0.userID })
+                // Check subscriptions for followed users
+                for uid in followingIDs {
+                    if let sub = try? await SubscriptionService.shared.isSubscribed(
+                        subscriberID: userSettings.userID, targetUserID: uid), sub {
+                        subscribedUserIDs.insert(uid)
+                    }
+                }
             }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.errorMessage)
@@ -82,10 +90,16 @@ struct FeedView: View {
                 switch presentation {
                 case .detail(let post):
                     FeedPostDetailView(post: post, currentUserSettings: userSettings,
-                                       onCommentCountChanged: { delta in viewModel.updateCommentCount(postID: post.id, delta: delta) })
+                                       onCommentCountChanged: { delta in
+                        viewModel.updateCommentCount(postID: post.id, delta: delta)
+                        commentCountDeltas[post.id, default: 0] += delta
+                    })
                 case .comment(let post):
                     FeedPostDetailView(post: post, currentUserSettings: userSettings, focusComment: true,
-                                       onCommentCountChanged: { delta in viewModel.updateCommentCount(postID: post.id, delta: delta) })
+                                       onCommentCountChanged: { delta in
+                        viewModel.updateCommentCount(postID: post.id, delta: delta)
+                        commentCountDeltas[post.id, default: 0] += delta
+                    })
                 case .profile(let post):
                     ProfileView(
                         profileUserID:       post.userID,
@@ -117,16 +131,55 @@ struct FeedView: View {
         return FeedPostCard(
             post:              post,
             currentUserID:     userSettings.userID,
-            onRep:             { Task { await viewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
-            onCelebrate:       { Task { await viewModel.toggleCelebrate(postID: post.id, currentUserID: userSettings.userID) } },
-            onZap:             { Task { await viewModel.addZap(postID: post.id, currentUserID: userSettings.userID) } },
+            onRep: {
+                let isNew = !post.hasRepped(userID: userSettings.userID)
+                if isNew { userSettings.awardAura(points: 1, silent: true) }
+                Task {
+                    await viewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID)
+                    if isNew, post.userID != userSettings.userID {
+                        await InAppNotificationService.shared.sendRep(
+                            to: post.userID, postID: post.id, postHeadline: post.title,
+                            actorID: userSettings.userID, actorUsername: userSettings.username,
+                            actorDisplayName: userSettings.name, actorPhotoURL: userSettings.profilePhotoURL)
+                    }
+                }
+            },
+            onCelebrate: {
+                let isNew = !post.hasCelebrated(userID: userSettings.userID)
+                if isNew { userSettings.awardAura(points: 1, silent: true) }
+                Task {
+                    await viewModel.toggleCelebrate(postID: post.id, currentUserID: userSettings.userID)
+                    if isNew, post.userID != userSettings.userID {
+                        await InAppNotificationService.shared.sendCelebrate(
+                            to: post.userID, postID: post.id, postHeadline: post.title,
+                            actorID: userSettings.userID, actorUsername: userSettings.username,
+                            actorDisplayName: userSettings.name, actorPhotoURL: userSettings.profilePhotoURL)
+                    }
+                }
+            },
+            onZap: {
+                let isNew = !post.hasZapped(userID: userSettings.userID)
+                if isNew { userSettings.awardAura(points: 1, silent: true) }
+                Task {
+                    await viewModel.toggleZap(postID: post.id, currentUserID: userSettings.userID)
+                    if isNew, post.userID != userSettings.userID {
+                        await InAppNotificationService.shared.sendZap(
+                            to: post.userID, postID: post.id, postHeadline: post.title,
+                            actorID: userSettings.userID, actorUsername: userSettings.username,
+                            actorDisplayName: userSettings.name, actorPhotoURL: userSettings.profilePhotoURL)
+                    }
+                }
+            },
             onDelete:          deleteAction,
             onShare:           shareAction,
             onTap:             { activePresentation = .detail(post) },
             onAvatarTap:       { activePresentation = .profile(post) },
             onCommentTap:      { activePresentation = .comment(post) },
-            isFollowingAuthor: followingIDs.contains(post.userID),
+            commentCountDelta: commentCountDeltas[post.id, default: 0],
+            isFollowingAuthor:    followingIDs.contains(post.userID),
+            isSubscribedToAuthor: subscribedUserIDs.contains(post.userID),
             onFollowToggle:    { Task { await toggleFollowFromPost(post: post) } },
+            onSubscribeToggle: { Task { await toggleSubscribeFromPost(post: post) } },
             onBlockUser:       { Task { await blockUserFromPost(post: post) } },
             onReportUser:      { Task { await reportUserFromPost(post: post) } },
             onReportPost:      { Task { await reportPostFromPost(post: post) } }
@@ -231,6 +284,21 @@ struct FeedView: View {
                 targetDisplayName:      post.whoName,
                 targetProfilePhotoURL:  post.userProfilePhotoURL)
             followingIDs.insert(post.userID)
+        }
+    }
+
+    private func toggleSubscribeFromPost(post: FeedPost) async {
+        if subscribedUserIDs.contains(post.userID) {
+            try? await SubscriptionService.shared.unsubscribe(
+                subscriberID: userSettings.userID, targetUserID: post.userID)
+            subscribedUserIDs.remove(post.userID)
+        } else {
+            try? await SubscriptionService.shared.subscribe(
+                subscriberID:          userSettings.userID,
+                subscriberUsername:    userSettings.username,
+                subscriberDisplayName: userSettings.name,
+                targetUserID:          post.userID)
+            subscribedUserIDs.insert(post.userID)
         }
     }
 
@@ -339,12 +407,15 @@ struct FeedPostCard: View {
     var onTap:         (() -> Void)? = nil
     var onAvatarTap:   (() -> Void)? = nil
     var onCommentTap:  (() -> Void)? = nil
-    var showStreak:         Bool          = true
-    var isFollowingAuthor: Bool          = false
-    var onFollowToggle:    (() -> Void)? = nil
-    var onBlockUser:       (() -> Void)? = nil
-    var onReportUser:      (() -> Void)? = nil
-    var onReportPost:      (() -> Void)? = nil
+    var commentCountDelta: Int = 0
+    var showStreak:              Bool          = true
+    var isFollowingAuthor:      Bool          = false
+    var isSubscribedToAuthor:   Bool          = false
+    var onFollowToggle:         (() -> Void)? = nil
+    var onSubscribeToggle:      (() -> Void)? = nil
+    var onBlockUser:            (() -> Void)? = nil
+    var onReportUser:           (() -> Void)? = nil
+    var onReportPost:           (() -> Void)? = nil
 
     @State private var showBlockConfirm      = false
     @State private var showReportUserConfirm = false
@@ -353,6 +424,9 @@ struct FeedPostCard: View {
     @State private var repBurstTrigger       = 0
     @State private var celebrateBurst        = false
     @State private var zapBurst              = false
+    @State private var localZaps: Int?       = nil
+    @State private var localIsZapped: Bool?  = nil
+    @State private var localCommentDelta: Int = 0
     @State private var expandedWorkoutID: String? = nil
     @State private var showPhotoViewer       = false
     @State private var photoViewerIndex      = 0
@@ -365,15 +439,21 @@ struct FeedPostCard: View {
             authorHeader
                 .padding(.horizontal, 14)
                 .padding(.top, 14)
-                .padding(.bottom, 12)
+                .padding(.bottom, 8)
 
-            foodPhoto
-
-            VStack(alignment: .leading, spacing: 10) {
+            // Title + caption above the photo
+            VStack(alignment: .leading, spacing: 6) {
                 titleRow
                 if !post.caption.isEmpty {
                     captionView(post.caption)
                 }
+            }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 10)
+
+            foodPhoto
+
+            VStack(alignment: .leading, spacing: 10) {
                 if !post.fuelLogItems.isEmpty {
                     fuelLogTable
                 } else if !post.workoutItems.isEmpty {
@@ -386,6 +466,17 @@ struct FeedPostCard: View {
                         totalProtein:  post.protein,           goalProtein:  post.goalProtein > 0  ? post.goalProtein  : 150,
                         totalCarbs:    post.carbs,             goalCarbs:    post.goalCarbs   > 0  ? post.goalCarbs    : 200,
                         totalFat:      post.fat,               goalFat:      post.goalFat     > 0  ? post.goalFat      : 65
+                    )
+                } else if post.postLabel == PostLabel.mealInspo.rawValue, post.mealScore > 0 {
+                    MealInspoCard(
+                        mealScore:   post.mealScore,
+                        calories:    post.calories,
+                        protein:     post.protein,
+                        carbs:       post.carbs,
+                        fat:         post.fat,
+                        goalProtein: post.goalProtein,
+                        goalCarbs:   post.goalCarbs,
+                        goalFat:     post.goalFat
                     )
                 }
                 if post.currentWeight > 0, post.goalWeight > 0 {
@@ -524,39 +615,132 @@ struct FeedPostCard: View {
 
     // MARK: Food photo
 
+    @State private var currentPhotoPage: Int = 0
+
     @ViewBuilder
     private var foodPhoto: some View {
         let urls = post.allPhotoURLs
         if !urls.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
+            if urls.count > 1, post.photoLayout == "grid" {
+                gridPhotos(urls: urls)
+            } else {
+                carouselPhotos(urls: urls)
+            }
+        }
+    }
+
+    // MARK: Carousel layout (swipeable, Instagram-style)
+
+    @ViewBuilder
+    private func carouselPhotos(urls: [String]) -> some View {
+        VStack(spacing: 0) {
+            TabView(selection: $currentPhotoPage) {
+                ForEach(Array(urls.enumerated()), id: \.offset) { idx, urlString in
+                    CachedAsyncImage(
+                        url: URL(string: urlString),
+                        content: { image in
+                            image.resizable()
+                                .scaledToFill()
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 350)
+                                .clipped()
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    photoViewerIndex = idx
+                                    showPhotoViewer = true
+                                }
+                        },
+                        placeholder: { photoPlaceholder(loading: true) }
+                    )
+                    .tag(idx)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 350)
+
+            if urls.count > 1 {
+                HStack(spacing: 6) {
+                    ForEach(0..<urls.count, id: \.self) { idx in
+                        Circle()
+                            .fill(idx == currentPhotoPage ? purpleHi : Color.white.opacity(0.25))
+                            .frame(width: 7, height: 7)
+                            .scaleEffect(idx == currentPhotoPage ? 1.15 : 1.0)
+                            .animation(.spring(duration: 0.2), value: currentPhotoPage)
+                    }
+                }
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+            }
+        }
+        .fullScreenCover(isPresented: $showPhotoViewer) {
+            PhotoViewerSheet(urls: urls, initialIndex: photoViewerIndex)
+        }
+    }
+
+    // MARK: Grid layout (side-by-side)
+
+    @ViewBuilder
+    private func gridPhotos(urls: [String]) -> some View {
+        let height: CGFloat = urls.count <= 2 ? 220 : 320
+        VStack(spacing: 2) {
+            if urls.count == 2 {
+                // Two photos side by side
                 HStack(spacing: 2) {
-                    ForEach(Array(urls.enumerated()), id: \.offset) { idx, urlString in
-                        CachedAsyncImage(
-                            url: URL(string: urlString),
-                            content: { image in
-                                image.resizable()
-                                    .scaledToFill()
-                                    .frame(
-                                        width:  urls.count == 1 ? UIScreen.main.bounds.width : 260,
-                                        height: urls.count == 1 ? nil : 260
-                                    )
-                                    .clipped()
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        photoViewerIndex = idx
-                                        showPhotoViewer = true
-                                    }
-                            },
-                            placeholder: { photoPlaceholder(loading: true) }
-                        )
+                    gridCell(url: urls[0], idx: 0, w: nil, h: 220)
+                    gridCell(url: urls[1], idx: 1, w: nil, h: 220)
+                }
+            } else if urls.count == 3 {
+                // Top: one large, bottom: two half
+                gridCell(url: urls[0], idx: 0, w: nil, h: 200)
+                HStack(spacing: 2) {
+                    gridCell(url: urls[1], idx: 1, w: nil, h: 118)
+                    gridCell(url: urls[2], idx: 2, w: nil, h: 118)
+                }
+            } else {
+                // 4 photos: 2×2 grid
+                HStack(spacing: 2) {
+                    gridCell(url: urls[0], idx: 0, w: nil, h: 158)
+                    gridCell(url: urls[1], idx: 1, w: nil, h: 158)
+                }
+                HStack(spacing: 2) {
+                    gridCell(url: urls[2], idx: 2, w: nil, h: 158)
+                    if urls.count > 3 {
+                        gridCell(url: urls[3], idx: 3, w: nil, h: 158)
                     }
                 }
             }
-            .scrollDisabled(urls.count == 1)
-            .fullScreenCover(isPresented: $showPhotoViewer) {
-                PhotoViewerSheet(urls: urls, initialIndex: photoViewerIndex)
-            }
         }
+        .frame(height: height)
+        .clipped()
+        .fullScreenCover(isPresented: $showPhotoViewer) {
+            PhotoViewerSheet(urls: urls, initialIndex: photoViewerIndex)
+        }
+    }
+
+    @ViewBuilder
+    private func gridCell(url: String, idx: Int, w: CGFloat?, h: CGFloat) -> some View {
+        CachedAsyncImage(
+            url: URL(string: url),
+            content: { image in
+                image.resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: h)
+                    .clipped()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        photoViewerIndex = idx
+                        showPhotoViewer = true
+                    }
+            },
+            placeholder: {
+                Rectangle()
+                    .fill(Color.white.opacity(0.05))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: h)
+                    .overlay { ProgressView().tint(.white.opacity(0.30)) }
+            }
+        )
     }
 
     private func photoPlaceholder(loading: Bool) -> some View {
@@ -1073,23 +1257,36 @@ struct FeedPostCard: View {
             }
 
             // ⚡ Zap button
-            let isZapped = post.hasZapped(userID: currentUserID)
+            let isZapped = localIsZapped ?? post.hasZapped(userID: currentUserID)
+            let zapCount = localZaps ?? post.zaps
             let zapYellow = Color(red: 1.0, green: 0.85, blue: 0.05)
             Button {
-                zapBurst = true
+                let wasZapped = isZapped
+                if wasZapped {
+                    localZaps = max(0, zapCount - 1)
+                    localIsZapped = false
+                } else {
+                    zapBurst = true
+                    localZaps = zapCount + 1
+                    localIsZapped = true
+                }
                 onZap?()
             } label: {
-                HStack(spacing: 4) {
+                HStack(spacing: 5) {
                     Text("⚡")
-                        .font(.system(size: 13))
-                    Text("\(post.zaps)")
+                        .font(.system(size: 15))
+                    Text("\(zapCount)")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(isZapped ? zapYellow : .white.opacity(0.45))
-                        .contentTransition(.numericText(increasesOver: true))
-                        .animation(.spring(duration: 0.25), value: post.zaps)
+                        .foregroundStyle(
+                            isZapped
+                                ? zapYellow
+                                : .white.opacity(0.35)
+                        )
                 }
             }
             .buttonStyle(.plain)
+            .scaleEffect(isZapped ? 1.05 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isZapped)
             .overlay(alignment: .top) {
                 if zapBurst {
                     LightningUpView { zapBurst = false }
@@ -1099,16 +1296,22 @@ struct FeedPostCard: View {
             }
 
             // 💬 Comment count (tappable → open detail with comment focused)
+            let commentCount = max(0, post.commentsCount + localCommentDelta)
             Button { onCommentTap?() } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "bubble.left")
                         .font(.system(size: 13))
-                    Text("\(post.commentsCount)")
+                    Text("\(commentCount)")
                         .font(.caption)
+                        .contentTransition(.numericText())
+                        .animation(.spring(duration: 0.25), value: commentCount)
                 }
                 .foregroundStyle(.white.opacity(0.30))
             }
             .buttonStyle(.plain)
+            .onChange(of: commentCountDelta) { _, newValue in
+                localCommentDelta = newValue
+            }
         }
     }
 
@@ -1140,6 +1343,16 @@ struct FeedPostCard: View {
                         isFollowingAuthor ? "Unfollow @\(post.username)" : "Follow @\(post.username)",
                         systemImage: isFollowingAuthor ? "person.badge.minus" : "person.badge.plus"
                     )
+                }
+                if isFollowingAuthor, let onSubscribeToggle {
+                    Button {
+                        onSubscribeToggle()
+                    } label: {
+                        Label(
+                            isSubscribedToAuthor ? "Unsubscribe" : "Subscribe to Posts",
+                            systemImage: isSubscribedToAuthor ? "bell.slash" : "bell.badge"
+                        )
+                    }
                 }
                 Divider()
                 Button(role: .destructive) {
@@ -1805,3 +2018,146 @@ struct PhotoViewerSheet: View {
     }
 }
 
+// MARK: - Meal Inspo Card
+
+/// Displayed on Meal Inspo posts that carry a meal score. Shows the score
+/// badge and a macro ratio comparison table (meal vs. poster's goals).
+struct MealInspoCard: View {
+    let mealScore:   Int
+    let calories:    Int
+    let protein:     Double
+    let carbs:       Double
+    let fat:         Double
+    let goalProtein: Double
+    let goalCarbs:   Double
+    let goalFat:     Double
+
+    private var scoreColor: Color {
+        mealScore >= 75 ? Color(red: 0.25, green: 0.85, blue: 0.50)
+      : mealScore >= 50 ? Color(red: 1.00, green: 0.75, blue: 0.20)
+      :                   Color(red: 1.00, green: 0.35, blue: 0.35)
+    }
+
+    private var mealRatios: (protein: Double, carbs: Double, fat: Double) {
+        let cal = max(protein * 4 + carbs * 4 + fat * 9, 1)
+        return ((protein * 4) / cal, (carbs * 4) / cal, (fat * 9) / cal)
+    }
+
+    private var goalRatios: (protein: Double, carbs: Double, fat: Double) {
+        let pCal  = goalProtein * 4
+        let cCal  = goalCarbs   * 4
+        let fCal  = goalFat     * 9
+        let total = pCal + cCal + fCal
+        guard total > 0 else { return (0.26, 0.49, 0.25) }
+        return (pCal / total, cCal / total, fCal / total)
+    }
+
+    private let proColor  = Color(red: 0.35, green: 0.75, blue: 1.00)
+    private let carbColor = Color(red: 0.40, green: 0.90, blue: 0.72)
+    private let fatColor  = Color(red: 1.00, green: 0.50, blue: 0.72)
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Score + macro pills header
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .stroke(scoreColor.opacity(0.35), lineWidth: 2)
+                        .frame(width: 40, height: 40)
+                    Text("\(mealScore)")
+                        .font(.system(size: 16, weight: .black, design: .rounded))
+                        .foregroundStyle(scoreColor)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Meal Score")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.55))
+                    HStack(spacing: 5) {
+                        miniPill("\(calories) kcal", color: .orange)
+                        miniPill("\(Int(protein))g P", color: proColor)
+                        miniPill("\(Int(carbs))g C", color: carbColor)
+                        miniPill("\(Int(fat))g F", color: fatColor)
+                    }
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+
+            Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
+
+            // Ratio comparison table
+            VStack(spacing: 0) {
+                ratioHeader
+                Divider().background(Color.white.opacity(0.06))
+                ratioRow(label: "Protein", meal: mealRatios.protein, goal: goalRatios.protein, color: proColor)
+                Divider().background(Color.white.opacity(0.06))
+                ratioRow(label: "Carbs",   meal: mealRatios.carbs,   goal: goalRatios.carbs,   color: carbColor)
+                Divider().background(Color.white.opacity(0.06))
+                ratioRow(label: "Fat",     meal: mealRatios.fat,     goal: goalRatios.fat,     color: fatColor)
+            }
+        }
+        .background(Color.cardBg)
+        .cornerRadius(10)
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(scoreColor.opacity(0.20), lineWidth: 1))
+    }
+
+    private func miniPill(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.13))
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+    }
+
+    private var ratioHeader: some View {
+        HStack {
+            Text("Macro")
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text("Meal")
+                .frame(width: 60, alignment: .center)
+            Text("Goal")
+                .frame(width: 60, alignment: .center)
+        }
+        .font(.caption2.weight(.semibold))
+        .foregroundStyle(.white.opacity(0.35))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+    }
+
+    private func ratioRow(label: String, meal: Double, goal: Double, color: Color) -> some View {
+        let diff = meal - goal
+        return HStack {
+            HStack(spacing: 5) {
+                Circle().fill(color).frame(width: 6, height: 6)
+                Text(label)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.white)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text("\(Int((meal * 100).rounded()))%")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 60, alignment: .center)
+
+            HStack(spacing: 3) {
+                Text("\(Int((goal * 100).rounded()))%")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.50))
+                if abs(diff) >= 0.03 {
+                    Image(systemName: diff > 0 ? "arrow.up" : "arrow.down")
+                        .font(.system(size: 7, weight: .bold))
+                        .foregroundStyle(diff > 0 ? Color(red: 1.00, green: 0.35, blue: 0.35)
+                                                   : Color(red: 0.35, green: 0.75, blue: 1.00))
+                }
+            }
+            .frame(width: 60, alignment: .center)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+    }
+}

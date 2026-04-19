@@ -12,6 +12,7 @@ struct FoodConfirmationView: View {
     let image: UIImage
     @Binding var recognitionResult: FoodRecognitionResult
     @Binding var saveMeal: Bool
+    @Binding var createMealInspoPost: Bool
     let onConfirm: (FoodRecognitionResult) -> Void
     let onEscalate: () -> Void
     let onCancel: () -> Void
@@ -34,6 +35,40 @@ struct FoodConfirmationView: View {
     private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
     private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
     private var accent: Color { ThemeStore.shared.accent }
+
+    // MARK: - Meal Score
+
+    /// Goal macro ratios as caloric percentages, derived from UserDefaults goals.
+    private var goalRatios: (protein: Double, carbs: Double, fat: Double) {
+        let ud = UserDefaults.standard
+        func g(_ key: String, fallback: Double) -> Double {
+            ud.object(forKey: key) != nil ? ud.double(forKey: key) : fallback
+        }
+        let pCal  = g("goalProtein", fallback: 150) * 4
+        let cCal  = g("goalCarbs",   fallback: 200) * 4
+        let fCal  = g("goalFat",     fallback:  65) * 9
+        let total = pCal + cCal + fCal
+        guard total > 0 else { return (0.26, 0.49, 0.25) }
+        return (pCal / total, cCal / total, fCal / total)
+    }
+
+    /// 0–100 score: how closely the meal's macro distribution matches the user's goal ratios.
+    private var mealScore: Int {
+        guard scaledCalories >= 300 else { return 0 }
+        let goal = goalRatios
+        let cal  = Double(scaledCalories)
+        let actualP = (scaledProtein * 4) / cal
+        let actualC = (scaledCarbs   * 4) / cal
+        let actualF = (scaledFat     * 9) / cal
+        let dev = abs(actualP - goal.protein) + abs(actualC - goal.carbs) + abs(actualF - goal.fat)
+        return max(0, min(100, Int(((1.0 - dev / 2.0) * 100).rounded())))
+    }
+
+    private var scoreColor: Color {
+        mealScore >= 75 ? Color(red: 0.25, green: 0.85, blue: 0.50)
+      : mealScore >= 50 ? Color(red: 1.00, green: 0.75, blue: 0.20)
+      :                   Color(red: 1.00, green: 0.35, blue: 0.35)
+    }
 
     // Scaled macros based on portion multiplier
     private var scaledCalories: Int {
@@ -94,7 +129,7 @@ struct FoodConfirmationView: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack(spacing: 8) {
                                     Image(systemName: "exclamationmark.triangle.fill")
-                                        .foregroundStyle(.orange)
+                                        .foregroundStyle(Color.premiumGold)
                                     Text("We're not 100% sure about this one — please review")
                                         .font(.caption)
                                         .foregroundStyle(.white.opacity(0.70))
@@ -108,7 +143,7 @@ struct FoodConfirmationView: View {
                                             if isEscalating {
                                                 ProgressView()
                                                     .progressViewStyle(.circular)
-                                                    .tint(.orange)
+                                                    .tint(Color.premiumGold)
                                                     .scaleEffect(0.6)
                                             } else {
                                                 Image(systemName: "arrow.triangle.2.circlepath")
@@ -117,7 +152,7 @@ struct FoodConfirmationView: View {
                                             Text("Try better scan")
                                                 .font(.caption.weight(.semibold))
                                         }
-                                        .foregroundStyle(.orange)
+                                        .foregroundStyle(Color.premiumGold)
                                     }
                                     .buttonStyle(.plain)
                                     .disabled(isEscalating)
@@ -125,7 +160,7 @@ struct FoodConfirmationView: View {
                             }
                             .padding(12)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.orange.opacity(0.10))
+                            .background(Color.premiumGold.opacity(0.10))
                             .cornerRadius(10)
                         }
 
@@ -145,6 +180,11 @@ struct FoodConfirmationView: View {
                         // Macro breakdown card
                         macroCard
 
+                        // Meal score badge (only for meals over 300 kcal)
+                        if scaledCalories >= 300 {
+                            mealScoreBadge
+                        }
+
                         // Portion slider
                         portionSlider
 
@@ -155,6 +195,9 @@ struct FoodConfirmationView: View {
 
                         // Save meal toggle
                         saveMealToggle
+
+                        // Create meal inspo post toggle
+                        createMealInspoToggle
 
                         // Action buttons
                         actionButtons
@@ -482,6 +525,37 @@ struct FoodConfirmationView: View {
         .cornerRadius(14)
     }
 
+    // MARK: - Meal Score Badge
+
+    private var mealScoreBadge: some View {
+        let score = mealScore
+        return HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .stroke(scoreColor.opacity(0.35), lineWidth: 2.5)
+                    .frame(width: 50, height: 50)
+                Text("\(score)")
+                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .foregroundStyle(scoreColor)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Meal Score")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+                Text("How closely this meal matches your macro goals")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .lineLimit(2)
+            }
+
+            Spacer()
+        }
+        .padding(14)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(scoreColor.opacity(0.25), lineWidth: 1))
+    }
+
     // MARK: - Save Meal Toggle
 
     private var saveMealToggle: some View {
@@ -496,6 +570,24 @@ struct FoodConfirmationView: View {
             }
         }
         .tint(accent)
+        .padding(14)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Create Meal Inspo Post Toggle
+
+    private var createMealInspoToggle: some View {
+        Toggle(isOn: $createMealInspoPost) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Create Meal Inspo Post")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text("After logging, a post will open so you can share this meal on your feed")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.40))
+            }
+        }
+        .tint(PostLabel.mealInspo.color)
         .padding(14)
         .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
     }

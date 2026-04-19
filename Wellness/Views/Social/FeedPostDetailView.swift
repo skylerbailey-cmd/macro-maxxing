@@ -55,6 +55,7 @@ struct FeedPostDetailView: View {
     @State private var followedCommentAuthors:    Set<String>  = []
     @State private var followingList:            [FollowEntry] = []
     @State private var mentionQuery:             String        = ""
+    @State private var currentPhotoPage: Int = 0
     @FocusState private var commentFocused: Bool
 
     private let pageBg  = Color(red: 0.05, green: 0.05, blue: 0.07)
@@ -374,24 +375,7 @@ struct FeedPostDetailView: View {
     @ViewBuilder
     private var postContent: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Food photo
-            if !post.foodPhotoURL.isEmpty {
-                CachedAsyncImage(
-                    url: URL(string: post.foodPhotoURL),
-                    content: { img in
-                        img.resizable().scaledToFit().frame(maxWidth: .infinity)
-                    },
-                    placeholder: {
-                        Rectangle()
-                            .fill(Color.white.opacity(0.05))
-                            .frame(maxWidth: .infinity).frame(height: 220)
-                            .overlay { ProgressView().tint(.white.opacity(0.30)) }
-                    }
-                )
-                .cornerRadius(12)
-            }
-
-            // Title
+            // Title + caption above photo
             if !post.title.isEmpty {
                 let parts = post.title.split(separator: ":", maxSplits: 1).map(String.init)
                 let name  = parts.count > 1 ? parts[1].trimmingCharacters(in: .whitespaces) : post.title
@@ -399,12 +383,54 @@ struct FeedPostDetailView: View {
                     .font(.title3.weight(.bold))
                     .foregroundStyle(.white)
             }
-
-            // Caption
             if !post.caption.isEmpty {
                 Text(post.caption)
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.75))
+            }
+
+            // Food photos (carousel for multi-photo)
+            let urls = post.allPhotoURLs
+            if !urls.isEmpty {
+                VStack(spacing: 0) {
+                    TabView(selection: $currentPhotoPage) {
+                        ForEach(Array(urls.enumerated()), id: \.offset) { idx, urlString in
+                            CachedAsyncImage(
+                                url: URL(string: urlString),
+                                content: { img in
+                                    img.resizable()
+                                        .scaledToFill()
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 350)
+                                        .clipped()
+                                },
+                                placeholder: {
+                                    Rectangle()
+                                        .fill(Color.white.opacity(0.05))
+                                        .frame(maxWidth: .infinity).frame(height: 350)
+                                        .overlay { ProgressView().tint(.white.opacity(0.30)) }
+                                }
+                            )
+                            .tag(idx)
+                        }
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .frame(height: 350)
+                    .cornerRadius(12)
+
+                    if urls.count > 1 {
+                        HStack(spacing: 6) {
+                            ForEach(0..<urls.count, id: \.self) { idx in
+                                Circle()
+                                    .fill(idx == currentPhotoPage ? ThemeStore.shared.accent : Color.white.opacity(0.25))
+                                    .frame(width: 7, height: 7)
+                                    .scaleEffect(idx == currentPhotoPage ? 1.15 : 1.0)
+                                    .animation(.spring(duration: 0.2), value: currentPhotoPage)
+                            }
+                        }
+                        .padding(.top, 8)
+                    }
+                }
             }
 
             // Fuel log table
@@ -412,6 +438,17 @@ struct FeedPostDetailView: View {
                 fuelLogTable
             } else if !post.workoutItems.isEmpty {
                 workoutTable
+            } else if post.postLabel == PostLabel.mealInspo.rawValue, post.mealScore > 0 {
+                MealInspoCard(
+                    mealScore:   post.mealScore,
+                    calories:    post.calories,
+                    protein:     post.protein,
+                    carbs:       post.carbs,
+                    fat:         post.fat,
+                    goalProtein: post.goalProtein,
+                    goalCarbs:   post.goalCarbs,
+                    goalFat:     post.goalFat
+                )
             } else if post.goalCalories > 0 {
                 MacroDisciplineCard(
                     totalCalories: Double(post.calories),  goalCalories: Double(post.goalCalories),
@@ -987,13 +1024,23 @@ struct FeedPostDetailView: View {
         let text = commentText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, let ref = commentsRef, let settings = currentUserSettings else { return }
         isSubmitting = true
-        let comment = FeedComment(
+        var comment = FeedComment(
             authorID:          settings.userID,
             authorUsername:    settings.username,
             authorDisplayName: settings.name,
             authorPhotoURL:    settings.profilePhotoURL,
             text:              text
         )
+        comment.createdAt = Timestamp(date: Date())
+
+        // Optimistically show the comment immediately
+        let previousComments = comments
+        comments.append(comment)
+        onCommentCountChanged?(1)
+        commentText    = ""
+        commentFocused = false
+        isSubmitting   = false
+
         do {
             var data = try Firestore.Encoder().encode(comment)
             data["createdAt"] = FieldValue.serverTimestamp()
@@ -1001,10 +1048,6 @@ struct FeedPostDetailView: View {
             if let postID = post.postID {
                 try? await PostService.shared.incrementCommentCount(postID: postID)
             }
-            guard !Task.isCancelled else { return }
-            onCommentCountChanged?(1)
-            commentText    = ""
-            commentFocused = false
 
             // Send mention notifications for any @username in the comment
             let mentionedUsernames = Self.parseMentions(from: text)
@@ -1025,13 +1068,13 @@ struct FeedPostDetailView: View {
                     }
                 }
             }
-
-            await loadComments()
         } catch {
             guard !Task.isCancelled else { return }
+            // Revert optimistic insert on failure
+            comments = previousComments
+            onCommentCountChanged?(-1)
             AppLogger.log("[FeedPostDetailView] Failed to submit comment: \(error)")
         }
-        isSubmitting = false
     }
 
     /// Extracts unique @usernames from comment text. Handles handles with

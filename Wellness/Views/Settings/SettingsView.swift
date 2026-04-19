@@ -156,6 +156,67 @@ struct SettingsView: View {
         )
     }
 
+    private var weighReminderTimeBinding: Binding<Date> {
+        Binding<Date>(
+            get: {
+                var comps = DateComponents()
+                comps.hour   = userSettings.weighReminderHour
+                comps.minute = userSettings.weighReminderMinute
+                return Calendar.current.date(from: comps) ?? Date()
+            },
+            set: { newDate in
+                let comps = Calendar.current.dateComponents([.hour, .minute], from: newDate)
+                userSettings.weighReminderHour   = comps.hour   ?? 7
+                userSettings.weighReminderMinute = comps.minute ?? 0
+            }
+        )
+    }
+
+    /// Day labels for the weigh-in day picker (Calendar weekday numbering: 1=Sun … 7=Sat).
+    private static let weekdayLabels: [(Int, String)] = [
+        (2, "Mon"), (3, "Tue"), (4, "Wed"), (5, "Thu"),
+        (6, "Fri"), (7, "Sat"), (1, "Sun")
+    ]
+
+    private var weighDaysPicker: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                iconBadge("calendar", color: theme.accent)
+                Text("Days")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+
+            HStack(spacing: 6) {
+                ForEach(Self.weekdayLabels, id: \.0) { weekday, label in
+                    let selected = userSettings.weighReminderWeekdays.contains(weekday)
+                    Button {
+                        withAnimation(.spring(duration: 0.2)) {
+                            if selected {
+                                userSettings.weighReminderWeekdays.remove(weekday)
+                            } else {
+                                userSettings.weighReminderWeekdays.insert(weekday)
+                            }
+                        }
+                    } label: {
+                        Text(label)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(selected ? .black : .white.opacity(0.50))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(selected ? theme.accent : Color.white.opacity(0.06),
+                                        in: RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 6)
+        }
+    }
+
     var body: some View {
         settingsScrollContent
             .background(Color.pageBg.ignoresSafeArea())
@@ -247,8 +308,49 @@ struct SettingsView: View {
     private var settingsScrollContent: some View {
         ScrollView {
             VStack(spacing: 14) {
-                settingsTopHalf
-                settingsBottomHalf
+                SettingsHeroCard(userSettings:      userSettings,
+                                 nameText:          nameText,
+                                 usernameText:      usernameText,
+                                 aiSubscription:    aiSubscription,
+                                 theme:             theme,
+                                 showingAIPaywall:  $showingAIPaywall)
+
+                VStack(spacing: 0) {
+                    categoryLink("Identity",         icon: "person.fill",        color: theme.accent)                        { AnyView(self.youCard) }
+                    divider
+                    categoryLink("Body & Nutrition", icon: "dumbbell.fill",      color: .orange)                             { AnyView(self.bodyNutritionPage) }
+                    divider
+                    categoryLink("Notifications",    icon: "bell.fill",          color: Color(red: 1.00, green: 0.55, blue: 0.55)) { AnyView(self.notificationsCard) }
+                    divider
+                    categoryLink("Socials",          icon: "link",               color: .pink)                               { AnyView(self.socialsCard) }
+                    divider
+                    categoryLink("Appearance",       icon: "paintpalette.fill",  color: self.theme.accent)                   { AnyView(self.appearanceCard) }
+                }
+                .background(Color.cardBg, in: RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.06), lineWidth: 1))
+
+                VStack(spacing: 0) {
+                    categoryLink("Subscription",     icon: "crown.fill",                   color: Color(red: 1.0, green: 0.80, blue: 0.20)) {
+                        AnyView(SettingsSubscriptionCard(aiSubscription:            self.aiSubscription,
+                                                         theme:                     self.theme,
+                                                         showingAIPaywall:          self.$showingAIPaywall,
+                                                         subscriptionStatusMessage: self.$subscriptionStatusMessage))
+                    }
+                    divider
+                    categoryLink("Help & Support",   icon: "lifepreserver",                color: self.theme.accent)          { AnyView(self.helpSupportCard) }
+                    divider
+                    categoryLink("Privacy & Data",   icon: "hand.raised.fill",             color: Color(red: 0.35, green: 0.75, blue: 1.00)) { AnyView(self.privacyDataCard) }
+                    divider
+                    categoryLink("Account",          icon: "exclamationmark.triangle.fill", color: .red) {
+                        AnyView(SettingsDangerZoneCard(userSettings:      self.userSettings,
+                                                       session:           self.session,
+                                                       showDeleteAccount: self.$showDeleteAccount,
+                                                       onSave:            { await self.saveProfile() }))
+                    }
+                }
+                .background(Color.cardBg, in: RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.06), lineWidth: 1))
+
                 Text("Macro Maxxing")
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.25))
@@ -260,35 +362,44 @@ struct SettingsView: View {
         }
     }
 
-    private var settingsTopHalf: some View {
-        Group {
-            SettingsHeroCard(userSettings:      userSettings,
-                             nameText:          nameText,
-                             usernameText:      usernameText,
-                             aiSubscription:    aiSubscription,
-                             theme:             theme,
-                             showingAIPaywall:  $showingAIPaywall)
-            youCard
-            bodyNutritionCard
-            notificationsCard
-            socialsCard
+    private func categoryLink(
+        _ title: String, icon: String, color: Color,
+        destination: @escaping () -> AnyView
+    ) -> some View {
+        NavigationLink {
+            ScrollView {
+                VStack(spacing: 14) {
+                    destination()
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+                .padding(.bottom, 40)
+            }
+            .background(Color.pageBg.ignoresSafeArea())
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .preferredColorScheme(.dark)
+        } label: {
+            HStack(spacing: 10) {
+                iconBadge(icon, color: color)
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.30))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
         }
+        .buttonStyle(.plain)
     }
 
-    private var settingsBottomHalf: some View {
-        Group {
-            appearanceCard
-            SettingsSubscriptionCard(aiSubscription:            aiSubscription,
-                                     theme:                     theme,
-                                     showingAIPaywall:          $showingAIPaywall,
-                                     subscriptionStatusMessage: $subscriptionStatusMessage)
-            helpSupportCard
-            privacyDataCard
-            SettingsDangerZoneCard(userSettings:      userSettings,
-                                   session:           session,
-                                   showDeleteAccount: $showDeleteAccount,
-                                   onSave:            { await saveProfile() })
-        }
+    /// Body & Nutrition as a standalone page — uses the split rows directly
+    /// instead of the card wrapper, since the page has its own title.
+    private var bodyNutritionPage: some View {
+        bodyNutritionCard
     }
 
     /// Custom-rendered card (doesn't go through `settingCard`) so we can put
@@ -364,7 +475,11 @@ struct SettingsView: View {
     // MARK: Body & Nutrition
     private var bodyNutritionCard: some View {
         settingCard(title: "Body & Nutrition", icon: "dumbbell.fill", iconColor: .orange) {
-            bodyNutritionRows
+            VStack(spacing: 0) {
+                bodyNutritionRowsA
+                bodyNutritionRowsB
+                bodyNutritionRowsC
+            }
         } footer: {
             "Protein per lb: general fitness 0.7–0.8, strength training 0.8–1.0. Dietary exclusions are applied by the AI meal planner and the photo macro scanner."
         }
@@ -374,7 +489,14 @@ struct SettingsView: View {
     /// generic type collapses to a single opaque `some View`. Keeping
     /// 15+ rows inline produced a deeply nested TupleView that overflowed
     /// the main-thread stack during type-metadata instantiation.
+    @ViewBuilder
     private var bodyNutritionRows: some View {
+        bodyNutritionRowsA
+        bodyNutritionRowsB
+        bodyNutritionRowsC
+    }
+
+    private var bodyNutritionRowsA: some View {
         VStack(spacing: 0) {
             brandedPickerRow(label: "Current Weight",
                              icon: "scalemass.fill",
@@ -389,7 +511,11 @@ struct SettingsView: View {
                              display: heightInchesVal > 0 ? Self.formatHeight(heightInchesVal) : "Not set") { activePicker = .height }
             divider
             sexRow
-            divider
+        }
+    }
+
+    private var bodyNutritionRowsB: some View {
+        VStack(spacing: 0) {
             brandedPickerRow(label: "Protein per lb",
                              icon: "fork.knife",
                              display: String(format: "%.2f g/lb", proteinPerLbVal)) { activePicker = .proteinPerLb }
@@ -409,7 +535,11 @@ struct SettingsView: View {
             toggleRow(label: "Exclude gluten",
                       icon: "leaf.fill",
                       isOn: $userSettings.excludeGluten)
-            divider
+        }
+    }
+
+    private var bodyNutritionRowsC: some View {
+        VStack(spacing: 0) {
             toggleRow(label: "Track intermittent fasting",
                       icon: "moon.stars.fill",
                       isOn: $userSettings.fastingEnabled)
@@ -503,6 +633,27 @@ struct SettingsView: View {
                 toggleRow(label: "Aura XP Popups",
                           icon: "sparkles",
                           isOn: $userSettings.auraPopupsEnabled)
+                divider
+                toggleRow(label: "Weigh-In Reminder",
+                          icon: "scalemass.fill",
+                          isOn: $userSettings.weighReminderEnabled)
+                if userSettings.weighReminderEnabled {
+                    divider
+                    HStack(spacing: 10) {
+                        iconBadge("clock.fill", color: theme.accent)
+                        Text("Reminder Time")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                        Spacer()
+                        DatePicker("", selection: weighReminderTimeBinding, displayedComponents: .hourAndMinute)
+                            .labelsHidden()
+                            .tint(theme.accent)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    divider
+                    weighDaysPicker
+                }
             }
         } footer: { notificationsFooterText }
     }
@@ -860,6 +1011,13 @@ struct SettingsView: View {
                          ? "You'll get a notification 90 minutes before your eating window closes so you can fit in a final meal."
                          : "The 90-minute fasting window reminder is off.")
         }
+        if userSettings.weighReminderEnabled {
+            let dayNames = Self.weekdayLabels
+                .filter { userSettings.weighReminderWeekdays.contains($0.0) }
+                .map(\.1)
+            let dayList = dayNames.isEmpty ? "no days selected" : dayNames.joined(separator: ", ")
+            lines.append("Weigh-in reminder set for \(dayList).")
+        }
         return lines.joined(separator: "\n\n")
     }
 
@@ -933,6 +1091,7 @@ struct SettingsView: View {
         userSettings.goalWeight    = goalWeightVal
         userSettings.heightInches  = heightInchesVal
         userSettings.proteinPerLb  = proteinPerLbVal
+        userSettings.lastLocalSettingsSave = Date()
 
         let fields: [String: Any] = [
             "username": trimmedUsername, "name": trimmedName,
@@ -958,6 +1117,10 @@ struct SettingsView: View {
             "mealReminderHour":           userSettings.mealReminderHour,
             "mealReminderMinute":         userSettings.mealReminderMinute,
             "fastingWindowNotificationEnabled": userSettings.fastingWindowNotificationEnabled,
+            "weighReminderEnabled":       userSettings.weighReminderEnabled,
+            "weighReminderHour":          userSettings.weighReminderHour,
+            "weighReminderMinute":        userSettings.weighReminderMinute,
+            "weighReminderWeekdays":      userSettings.weighReminderWeekdays.sorted().map(String.init).joined(separator: ","),
             "dateOfBirth": dobString,
         ]
         try? await session.updateProfile(fields: fields)

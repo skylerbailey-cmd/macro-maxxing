@@ -56,11 +56,8 @@ struct AISubscriptionPaywallView: View {
 
     private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
     private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
-    // Fixed per-feature colors — each AI tile has its own identity on the
-    // paywall instead of all collapsing onto one accent.
-    //   `gold`  — Meal Planner (also the trial CTA color)
-    //   `accent` — Coach (originally the app's purple)
-    private let accent = Color(red: 0.65, green: 0.45, blue: 1.00)
+    // AI features use a unified gold color.
+    private let accent = Color(red: 1.00, green: 0.80, blue: 0.20)
     private let gold   = Color(red: 1.00, green: 0.80, blue: 0.20)
 
     // Known affiliate pricing — mirrors what's configured in App Store Connect.

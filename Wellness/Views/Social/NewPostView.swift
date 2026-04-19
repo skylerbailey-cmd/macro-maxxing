@@ -88,6 +88,23 @@ struct NewPostView: View {
     /// Called just before dismiss with the selected post scope ("arena", "local", "team")
     /// so the parent can switch to the matching feed tab.
     var onPostScope: ((String) -> Void)? = nil
+
+    // MARK: - Meal Inspo pre-population (set when opened from food confirmation)
+
+    /// Pre-select a label on appearance.
+    var preSelectedLabel: PostLabel? = nil
+    /// Pre-attached photo (e.g. the meal photo from AI scan).
+    var prePopulatedPhoto: UIImage? = nil
+    /// Meal macro data for Meal Inspo posts.
+    var prePopulatedCalories: Int    = 0
+    var prePopulatedProtein:  Double = 0
+    var prePopulatedCarbs:    Double = 0
+    var prePopulatedFat:      Double = 0
+    /// Meal score (0–100) computed at food confirmation time.
+    var prePopulatedMealScore: Int   = 0
+    /// Food name from the AI scan.
+    var prePopulatedFoodName: String = ""
+
     @Environment(LocationManager.self) private var locationManager
 
     @Environment(\.modelContext) private var modelContext
@@ -102,6 +119,7 @@ struct NewPostView: View {
     @State private var mogBoardScope:      String     = "Arena"
     @State private var mogBoardType:       String     = "Weekly Aura"
     @State private var postScope:          String     = "arena"
+    @State private var photoLayout:        String     = "carousel"
     @FocusState private var focus: Field?
 
     // @mention autocomplete
@@ -126,14 +144,15 @@ struct NewPostView: View {
     private var purpl: Color { ThemeStore.shared.accent }
     private var gold: Color { ThemeStore.shared.accent }
 
-    private var statusPrompt: String { dailyStatusPrompts[dailyIndex(for: dailyStatusPrompts)] }
-    private var bodyPrompt:   String { dailyBodyPrompts[dailyIndex(for: dailyBodyPrompts)] }
+    private var statusPrompt: String { "Title" }
+    private var bodyPrompt:   String { "What's on your mind?" }
 
-    /// A post can be submitted if a label is selected, or if a title has been entered.
-    /// Title is only required when no label is selected.
+    /// A post can be submitted if it has any content: title, body, photos, or a label.
     private var hasPostableContent: Bool {
-        if selectedLabel != nil { return true }
-        return !titleText.trimmingCharacters(in: .whitespaces).isEmpty
+        selectedLabel != nil
+        || !titleText.trimmingCharacters(in: .whitespaces).isEmpty
+        || !bodyText.trimmingCharacters(in: .whitespaces).isEmpty
+        || !photos.isEmpty
     }
 
     var body: some View {
@@ -164,6 +183,11 @@ struct NewPostView: View {
                             goalPostPreview
                         }
 
+                        // Meal Inspo preview (when pre-populated from food confirmation)
+                        if selectedLabel == .mealInspo, prePopulatedMealScore > 0 {
+                            mealInspoPreview
+                        }
+
                         // Mog Board sub-options
                         if selectedLabel == .mogBoard {
                             mogBoardOptions
@@ -172,6 +196,11 @@ struct NewPostView: View {
                         // Photo preview (full-width, like the feed)
                         if !photos.isEmpty {
                             photoPreview
+                        }
+
+                        // Photo layout picker (only for multi-photo posts)
+                        if photos.count > 1 {
+                            photoLayoutPicker
                         }
 
                         // Status
@@ -298,6 +327,19 @@ struct NewPostView: View {
                 followingList = (try? await FollowService.shared.fetchFollowing(
                     userID: userSettings.userID)) ?? []
             }
+            .onAppear {
+                // Pre-populate from meal inspo flow
+                if let label = preSelectedLabel {
+                    selectedLabel = label
+                    prefillForLabel(label)
+                }
+                if let img = prePopulatedPhoto {
+                    photos = [PostPhoto(image: img)]
+                }
+                if prePopulatedMealScore > 0, !prePopulatedFoodName.isEmpty {
+                    if titleText.isEmpty { titleText = prePopulatedFoodName }
+                }
+            }
             .onChange(of: selectedLabel) { old, label in
                 // Clear auto-filled title/body when switching away from a label that pre-fills
                 if old == .workout {
@@ -346,6 +388,49 @@ struct NewPostView: View {
         .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
     }
 
+    // MARK: - Photo layout picker
+
+    private var photoLayoutPicker: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "photo.on.rectangle.angled")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.45))
+            Text("Photo Layout")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.45))
+
+            Spacer()
+
+            HStack(spacing: 0) {
+                photoLayoutOption(value: "carousel", icon: "rectangle.stack", label: "Carousel")
+                photoLayoutOption(value: "grid",     icon: "square.grid.2x2", label: "Side by Side")
+            }
+            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 9))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func photoLayoutOption(value: String, icon: String, label: String) -> some View {
+        let selected = photoLayout == value
+        return Button {
+            withAnimation(.spring(duration: 0.2)) { photoLayout = value }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 10, weight: .bold))
+                Text(label)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundStyle(selected ? .white : .white.opacity(0.40))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(selected ? purpl : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Label picker
 
     private var labelPickerSection: some View {
@@ -373,7 +458,8 @@ struct NewPostView: View {
                     }
                     .buttonStyle(.plain)
 
-                    ForEach(PostLabel.allCases, id: \.self) { label in
+                    let sortedLabels = PostLabel.allCases.sorted { a, _ in a == selectedLabel }
+                    ForEach(sortedLabels, id: \.self) { label in
                         let isSelected = selectedLabel == label
                         let color = label.color
                         Button {
@@ -571,6 +657,71 @@ struct NewPostView: View {
         return ud.object(forKey: key) != nil ? ud.double(forKey: key) : fallback
     }
 
+    // MARK: - Meal Inspo preview
+
+    @ViewBuilder
+    private var mealInspoPreview: some View {
+        let score = prePopulatedMealScore
+        let sColor: Color = score >= 75 ? Color(red: 0.25, green: 0.85, blue: 0.50)
+                          : score >= 50 ? Color(red: 1.00, green: 0.75, blue: 0.20)
+                          :               Color(red: 1.00, green: 0.35, blue: 0.35)
+        let mealColor = PostLabel.mealInspo.color
+
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Image(systemName: "fork.knife")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(mealColor)
+                Text("Meal Inspo Preview")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                Spacer()
+            }
+
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .stroke(sColor.opacity(0.35), lineWidth: 2.5)
+                        .frame(width: 46, height: 46)
+                    Text("\(score)")
+                        .font(.system(size: 18, weight: .black, design: .rounded))
+                        .foregroundStyle(sColor)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(prePopulatedFoodName.isEmpty ? "Meal" : prePopulatedFoodName)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        miniMacroPill("\(prePopulatedCalories) kcal", color: .orange)
+                        miniMacroPill("\(Int(prePopulatedProtein))g P", color: Color(red: 0.35, green: 0.75, blue: 1.00))
+                        miniMacroPill("\(Int(prePopulatedCarbs))g C", color: Color(red: 0.40, green: 0.90, blue: 0.72))
+                        miniMacroPill("\(Int(prePopulatedFat))g F", color: Color(red: 1.00, green: 0.50, blue: 0.72))
+                    }
+                }
+                Spacer()
+            }
+        }
+        .padding(12)
+        .background(cardBg)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(mealColor.opacity(0.30), lineWidth: 1)
+        )
+    }
+
+    private func miniMacroPill(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.13))
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+    }
+
     // MARK: - Goal post preview
 
     @ViewBuilder
@@ -764,30 +915,74 @@ struct NewPostView: View {
 
     // MARK: - Photo preview (feed-style)
 
-    private var photoPreview: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
-                ZStack(alignment: .topTrailing) {
-                    Image(uiImage: photo.image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity)
-                        .clipped()
+    @State private var markupPhotoIndex: Int? = nil
 
-                    // Delete button
-                    Button {
-                        photos.removeAll { $0.id == photo.id }
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 22))
-                            .foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.6), radius: 3)
-                            .padding(8)
+    private var photoPreview: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Array(photos.enumerated()), id: \.element.id) { idx, photo in
+                    ZStack(alignment: .topTrailing) {
+                        Image(uiImage: photo.image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 90, height: 90)
+                            .clipped()
+                            .cornerRadius(10)
+
+                        // Delete button
+                        Button {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                photos.removeAll { $0.id == photo.id }
+                            }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 18))
+                                .foregroundStyle(.white)
+                                .shadow(color: .black.opacity(0.5), radius: 2)
+                                .padding(4)
+                        }
+
+                        // Edit / markup button (bottom-right)
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                Button { markupPhotoIndex = idx } label: {
+                                    Image(systemName: "pencil.tip.crop.circle")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundStyle(.white)
+                                        .shadow(color: .black.opacity(0.6), radius: 2)
+                                        .padding(5)
+                                        .background(.ultraThinMaterial, in: Circle())
+                                }
+                            }
+                        }
+                        .frame(width: 90, height: 90)
                     }
                 }
             }
         }
-        .cornerRadius(12)
+        .fullScreenCover(item: Binding(
+            get: { markupPhotoIndex.map { MarkupIndex(index: $0) } },
+            set: { markupPhotoIndex = $0?.index }
+        )) { item in
+            if photos.indices.contains(item.index) {
+                PhotoMarkupView(
+                    image: photos[item.index].image,
+                    onSave: { edited in
+                        photos[item.index] = PostPhoto(image: edited)
+                        markupPhotoIndex = nil
+                    },
+                    onCancel: { markupPhotoIndex = nil }
+                )
+            }
+        }
+    }
+
+    /// Wrapper so an Int can drive `.fullScreenCover(item:)`.
+    private struct MarkupIndex: Identifiable {
+        let index: Int
+        var id: Int { index }
     }
 
     private func prefillForLabel(_ label: PostLabel) {
@@ -800,7 +995,8 @@ struct NewPostView: View {
 
         // 1. Save locally to SwiftData so the Aura Stream tab updates immediately
         let fbPostID = UUID().uuidString   // shared ID for SwiftData ↔ Firestore link
-        let isGoalPost = selectedLabel == .goalPost
+        let isGoalPost   = selectedLabel == .goalPost
+        let isMealInspo  = selectedLabel == .mealInspo && prePopulatedMealScore > 0
         let showWeight = userSettings.showWeightOnPosts
             && (selectedLabel == .goalPost || selectedLabel == .fuelLog || selectedLabel == .workout)
         let post = SocialPost(
@@ -951,18 +1147,24 @@ struct NewPostView: View {
                     mogBoardScope:    selectedLabel == .mogBoard ? mogBoardScope : "",
                     mogBoardType:     selectedLabel == .mogBoard ? mogBoardType  : "",
                     mogBoardSnapshot: snapshotJSON,
-                    calories:      isGoalPost ? Int(goalTotalCalories) : 0,
-                    protein:       isGoalPost ? goalTotalProtein       : 0,
-                    carbs:         isGoalPost ? goalTotalCarbs         : 0,
-                    fat:           isGoalPost ? goalTotalFat           : 0,
-                    goalCalories:  isGoalPost ? Int(ud("goalCalories", fallback: 2000)) : 0,
-                    goalProtein:   isGoalPost ? ud("goalProtein", fallback: 150)        : 0,
-                    goalCarbs:     isGoalPost ? ud("goalCarbs",   fallback: 200)        : 0,
-                    goalFat:       isGoalPost ? ud("goalFat",     fallback: 65)         : 0,
+                    calories:      isGoalPost ? Int(goalTotalCalories)
+                                 : isMealInspo ? prePopulatedCalories : 0,
+                    protein:       isGoalPost ? goalTotalProtein
+                                 : isMealInspo ? prePopulatedProtein  : 0,
+                    carbs:         isGoalPost ? goalTotalCarbs
+                                 : isMealInspo ? prePopulatedCarbs    : 0,
+                    fat:           isGoalPost ? goalTotalFat
+                                 : isMealInspo ? prePopulatedFat      : 0,
+                    goalCalories:  isGoalPost || isMealInspo ? Int(ud("goalCalories", fallback: 2000)) : 0,
+                    goalProtein:   isGoalPost || isMealInspo ? ud("goalProtein", fallback: 150)        : 0,
+                    goalCarbs:     isGoalPost || isMealInspo ? ud("goalCarbs",   fallback: 200)        : 0,
+                    goalFat:       isGoalPost || isMealInspo ? ud("goalFat",     fallback: 65)         : 0,
                     currentWeight: showWeight ? userSettings.currentWeight              : 0,
                     goalWeight:    showWeight ? userSettings.goalWeight                 : 0,
                     fuelLogItems:  feedFuelLogItems,
                     workoutItems:  feedWorkoutItems,
+                    mealScore:     isMealInspo ? prePopulatedMealScore : 0,
+                    photoLayout:   photos.count > 1 ? photoLayout : "carousel",
                     postScope:     postScope,
                     postID:        fbPostID
                 )

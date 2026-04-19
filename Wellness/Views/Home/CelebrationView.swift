@@ -56,55 +56,52 @@ struct CelebrationView: View {
     @State private var cardScale:      CGFloat = 0.2
     @State private var cardOpacity:    Double  = 0
     @State private var bgOpacity:      Double  = 0
-    @State private var showingShare    = false
+    @State private var streakScale:    CGFloat = 0.5
     @State private var showingPostEditor = false
     @State private var postedToFeed    = false
-    @State private var renderedImage:  UIImage?
-    
-    // Random meme selected for this celebration
+
     private let meme = GymMeme.random()
 
     var body: some View {
         ZStack {
-            // Dimmed backdrop (tap outside card does nothing — use X button)
+            // Dimmed backdrop
             Color.black.opacity(bgOpacity * 0.72)
                 .ignoresSafeArea()
 
-            // Confetti
-            ConfettiView()
+            // Fire rising from bottom
+            FireAnimationView()
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
 
-            // Card
-            VStack(spacing: 12) {
-                // Streak badge
-                if userSettings.macroStreak > 0 {
-                    HStack(spacing: 6) {
-                        Text("🔥")
-                            .font(.system(size: 20))
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("\(userSettings.macroStreak)-day streak")
-                                .font(.system(size: 14, weight: .black, design: .rounded))
-                                .foregroundStyle(Color(red: 1.00, green: 0.60, blue: 0.15))
-                            Text("goals met \(userSettings.macroStreak) day\(userSettings.macroStreak == 1 ? "" : "s") in a row")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.45))
-                        }
-                        Spacer()
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color(red: 1.00, green: 0.45, blue: 0.10).opacity(0.15))
-                    .cornerRadius(12)
+            // Streak badge card
+            VStack(spacing: 20) {
+                // Fire emoji + streak count
+                Text("🔥")
+                    .font(.system(size: 64))
+                    .scaleEffect(streakScale)
+
+                VStack(spacing: 6) {
+                    Text("\(userSettings.macroStreak)")
+                        .font(.system(size: 72, weight: .black, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color(red: 1.00, green: 0.80, blue: 0.20),
+                                         Color(red: 1.00, green: 0.45, blue: 0.10)],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        )
+                    Text("DAY STREAK")
+                        .font(.system(size: 16, weight: .black, design: .rounded))
+                        .tracking(3)
+                        .foregroundStyle(.white.opacity(0.70))
                 }
 
-                // Macro met indicators
-                macroRow
-                    .padding(.top, 4)
+                Text("goals met \(userSettings.macroStreak) day\(userSettings.macroStreak == 1 ? "" : "s") in a row")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.45))
 
-                // Buttons row
+                // Buttons
                 VStack(spacing: 10) {
-                    // Post to Feed
                     Button {
                         showingPostEditor = true
                     } label: {
@@ -123,25 +120,8 @@ struct CelebrationView: View {
                         .cornerRadius(14)
                     }
                     .disabled(postedToFeed)
-
-                    // Share image
-                    Button {
-                        showingShare = true
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 14, weight: .semibold))
-                            Text("Share")
-                                .font(.subheadline.weight(.semibold))
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(Color.white.opacity(0.10))
-                        .cornerRadius(14)
-                    }
                 }
-                .padding(.top, 4)
+                .padding(.top, 8)
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 32)
@@ -155,11 +135,11 @@ struct CelebrationView: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .shadow(color: ThemeStore.shared.accent.opacity(0.50), radius: 40)
+                    .shadow(color: Color.orange.opacity(0.40), radius: 40)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 28)
-                    .stroke(ThemeStore.shared.accent.opacity(0.55), lineWidth: 1.5)
+                    .stroke(Color(red: 1.00, green: 0.45, blue: 0.10).opacity(0.55), lineWidth: 1.5)
             )
             // X dismiss button
             .overlay(alignment: .topTrailing) {
@@ -180,12 +160,8 @@ struct CelebrationView: View {
                 cardScale   = 1.0
                 cardOpacity = 1.0
             }
-            Task { await renderShareCard() }
-        }
-        .sheet(isPresented: $showingShare) {
-            if let img = renderedImage {
-                CelebrationShareOptionsSheet(image: img)
-                    .presentationDetents([.medium])
+            withAnimation(.spring(duration: 0.7, bounce: 0.5).delay(0.2)) {
+                streakScale = 1.0
             }
         }
         .sheet(isPresented: $showingPostEditor) {
@@ -199,54 +175,6 @@ struct CelebrationView: View {
         }
         .keyboardDoneToolbar()
     }
-
-    // MARK: - Macro row
-
-    private var macroRow: some View {
-        let items: [(String, Color)] = [
-            ("Cal",  Color(red: 1.00, green: 0.55, blue: 0.15)),
-            ("Pro",  Color(red: 0.35, green: 0.75, blue: 1.00)),
-            ("Carb", Color(red: 0.40, green: 0.90, blue: 0.72)),
-            ("Fat",  Color(red: 1.00, green: 0.50, blue: 0.72)),
-        ]
-        return HStack(spacing: 14) {
-            ForEach(items.indices, id: \.self) { i in
-                let met = i < macroGoalsMet.count ? macroGoalsMet[i] : false
-                VStack(spacing: 4) {
-                    Circle()
-                        .fill(met ? items[i].1 : items[i].1.opacity(0.18))
-                        .frame(width: 32, height: 32)
-                        .overlay {
-                            if met {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundStyle(.white)
-                            }
-                        }
-                        .shadow(color: met ? items[i].1.opacity(0.6) : .clear, radius: 6)
-                    Text(items[i].0)
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.45))
-                }
-            }
-        }
-    }
-
-    // MARK: - Render & dismiss
-
-    @MainActor
-    private func renderShareCard() async {
-        let card = CelebrationShareCard(
-            meme: meme,
-            macroGoalsMet: macroGoalsMet,
-            userName: userName,
-            streak: userSettings.macroStreak
-        )
-        let renderer   = ImageRenderer(content: card)
-        renderer.scale = 3.0
-        renderedImage  = renderer.uiImage
-    }
-
 
     private func animatedDismiss() {
         withAnimation(.easeIn(duration: 0.18)) {
@@ -588,281 +516,414 @@ struct CelebrationPostEditorSheet: View {
     }
 }
 
-// MARK: - Share options sheet
 
-private struct CelebrationShareOptionsSheet: View {
-    let image: UIImage
-    @Environment(\.dismiss) private var dismiss
-    @State private var showingActivitySheet = false
+// MARK: - Fire Overlay (self-contained trigger → show → auto-dismiss)
+//
+// A standalone view that watches a trigger counter. Each time `trigger`
+// increments it shows the fire for 5 seconds then hides. Because it manages
+// its own @State internally, it re-renders independently of the parent's
+// view-builder chain — solving the issue where let-captured views don't
+// re-evaluate on state changes.
 
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                Color(red: 0.05, green: 0.05, blue: 0.07).ignoresSafeArea()
+struct FireOverlayView: View {
+    let trigger: Int
 
-                VStack(spacing: 12) {
-                    shareButton(
-                        title: "Instagram Stories",
-                        subtitle: "Share directly to your story",
-                        icon: "camera.fill",
-                        colors: [Color(red: 0.88, green: 0.19, blue: 0.42),
-                                 Color(red: 0.98, green: 0.35, blue: 0.00)]
-                    ) { shareToInstagram() }
-
-                    shareButton(
-                        title: "Share / Save / More",
-                        subtitle: "Messages, AirDrop, save to Photos…",
-                        icon: "square.and.arrow.up",
-                        colors: [ThemeStore.shared.accent,
-                                 Color(red: 0.40, green: 0.20, blue: 0.85)]
-                    ) { showingActivitySheet = true }
-                }
-                .padding(.horizontal, 20)
-            }
-            .preferredColorScheme(.dark)
-            .navigationTitle("Share")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
-        }
-        .sheet(isPresented: $showingActivitySheet) {
-            ActivitySheet(items: [image])
-        }
-    }
-
-    private func shareButton(title: String, subtitle: String,
-                             icon: String, colors: [Color],
-                             action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(LinearGradient(colors: colors,
-                                             startPoint: .topLeading,
-                                             endPoint: .bottomTrailing))
-                        .frame(width: 44, height: 44)
-                    Image(systemName: icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
-                    Text(subtitle).font(.caption).foregroundStyle(.white.opacity(0.45))
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.30))
-            }
-            .padding(.horizontal, 14).padding(.vertical, 10)
-            .background(Color(red: 0.11, green: 0.11, blue: 0.14))
-            .cornerRadius(14)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func shareToInstagram() {
-        guard let data = image.pngData(),
-              let url  = URL(string: "instagram-stories://share?source_application=com.sbailey.Wellness")
-        else { showingActivitySheet = true; return }
-
-        let items: [String: Any] = [
-            "com.instagram.sharedSticker.backgroundImage": data,
-            "com.instagram.sharedSticker.backgroundTopColor":    "#080215",
-            "com.instagram.sharedSticker.backgroundBottomColor": "#030108"
-        ]
-        UIPasteboard.general.setItems(
-            [items],
-            options: [.expirationDate: Date(timeIntervalSinceNow: 300)]
-        )
-        UIApplication.shared.open(url) { success in
-            if !success { showingActivitySheet = true }
-        }
-    }
-}
-
-// MARK: - Celebration share card (1080 × 1920 @ 3×)
-
-private struct CelebrationShareCard: View {
-    let meme:          GymMeme
-    let macroGoalsMet: [Bool]
-    let userName:      String
-    var streak:        Int = 0
-
-    private var purpl: Color { ThemeStore.shared.accent }
-    private var gold: Color { ThemeStore.shared.accent }
-
-    private let macroItems: [(String, Color)] = [
-        ("Calories", Color(red: 1.00, green: 0.55, blue: 0.15)),
-        ("Protein",  Color(red: 0.35, green: 0.75, blue: 1.00)),
-        ("Carbs",    Color(red: 0.40, green: 0.90, blue: 0.72)),
-        ("Fat",      Color(red: 1.00, green: 0.50, blue: 0.72)),
-    ]
+    @State private var isVisible = false
+    @State private var lastHandledTrigger = 0
 
     var body: some View {
         ZStack {
-            // Background
-            Rectangle()
-                .fill(RadialGradient(
-                    colors: [Color(red: 0.18, green: 0.08, blue: 0.32),
-                             Color(red: 0.04, green: 0.02, blue: 0.10)],
-                    center: .init(x: 0.5, y: 0.35),
-                    startRadius: 0, endRadius: 380
-                ))
-
-            // Sparkle dots
-            ForEach(0..<8, id: \.self) { i in
-                let pos: [(CGFloat, CGFloat, CGFloat, CGFloat)] = [
-                    (0.08,0.08,0.55,4),(0.88,0.12,0.40,3),(0.18,0.88,0.50,5),
-                    (0.92,0.78,0.35,4),(0.50,0.04,0.65,3),(0.12,0.52,0.40,2),
-                    (0.78,0.42,0.50,4),(0.40,0.94,0.40,3)
-                ]
-                Circle().fill(gold.opacity(pos[i].2))
-                    .frame(width: pos[i].3, height: pos[i].3)
-                    .position(x: pos[i].0 * 360, y: pos[i].1 * 640)
-                    .blur(radius: 1)
-            }
-
-            VStack(spacing: 0) {
-                // App branding
-                HStack(spacing: 7) {
-                    ZStack {
-                        Circle().stroke(purpl, lineWidth: 2).frame(width: 26, height: 26)
-                        Image(systemName: "fork.knife")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(purpl)
-                    }
-                    Text("Macromaxxing")
-                        .font(.system(size: 16, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                }
-                .padding(.top, 44)
-
-                Spacer()
-
-                Spacer()
-
-                // Macro circles
-                HStack(spacing: 20) {
-                    ForEach(macroItems.indices, id: \.self) { i in
-                        let met = i < macroGoalsMet.count ? macroGoalsMet[i] : false
-                        VStack(spacing: 6) {
-                            Circle()
-                                .fill(met ? macroItems[i].1 : macroItems[i].1.opacity(0.15))
-                                .frame(width: 44, height: 44)
-                                .overlay {
-                                    if met {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 17, weight: .bold))
-                                            .foregroundStyle(.white)
-                                    }
-                                }
-                                .shadow(color: met ? macroItems[i].1.opacity(0.6) : .clear, radius: 8)
-                            Text(macroItems[i].0)
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(.white.opacity(0.55))
-                        }
-                    }
-                }
-                .padding(.bottom, 8)
-
-                Text("all macros crushed 🔥")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(gold.opacity(0.80))
-
-                if streak > 0 {
-                    Text("🔥 \(streak)-day streak")
-                        .font(.system(size: 12, weight: .black, design: .rounded))
-                        .foregroundStyle(Color(red: 1.00, green: 0.60, blue: 0.15))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 5)
-                        .background(Color(red: 1.00, green: 0.45, blue: 0.10).opacity(0.20))
-                        .cornerRadius(8)
-                }
-
-                Spacer()
-
-                // Footer
-                HStack {
-                    Text("macromaxxing")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(purpl.opacity(0.65))
-                    Spacer()
-                    Text("log the mog.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.22))
-                }
-                .padding(.horizontal, 28)
-                .padding(.bottom, 32)
+            if isVisible {
+                FireAnimationView()
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
             }
         }
-        .frame(width: 360, height: 640)
-        .preferredColorScheme(.dark)
+        .animation(.easeInOut(duration: 0.25), value: isVisible)
+        .onChange(of: trigger) { _, newValue in
+            guard newValue != lastHandledTrigger, newValue > 0 else { return }
+            lastHandledTrigger = newValue
+            isVisible = true
+            Task {
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                isVisible = false
+            }
+        }
     }
 }
 
-// MARK: - Confetti
+// MARK: - Fire Animation
+//
+// Realistic multi-layered fire. On appear the flames burst upward from the
+// center, then settle into an organic, chaotic flicker. Each flame tongue
+// has its own random seed so they never move in sync.
 
-struct ConfettiView: View {
-    private struct Piece {
-        let xFraction: CGFloat
-        let color:     Color
-        let size:      CGFloat
-        let speed:     Double
-        let sway:      Double
-        let swayFreq:  Double
-        let delay:     Double
+struct FireAnimationView: View {
+
+    @State private var startTime: Date = .now
+    @State private var tongues: [FlameTongue] = []
+    @State private var sparks:  [Spark]       = []
+    @State private var embers:  [Ember]       = []
+
+    // MARK: - Data
+
+    /// Each tongue carries its own random seeds so no two move alike.
+    private struct FlameTongue {
+        let xFrac: Double
+        let widthFrac: Double
+        let maxHeightFrac: Double
+        let s1: Double; let s2: Double; let s3: Double
+        let s4: Double; let s5: Double
+        let layer: Int
     }
 
-    @State private var pieces:    [Piece] = []
-    @State private var startTime: Date    = .now
+    /// Bright white/yellow sparks that shoot up quickly and fade.
+    private struct Spark: Identifiable {
+        let id = UUID()
+        let x: CGFloat
+        let speed: Double
+        let size: CGFloat
+        let delay: Double
+        let sway: Double
+        let swayFreq: Double
+        let brightness: Double
+    }
 
-    private static let palette: [Color] = [
-        .orange,
-        ThemeStore.shared.accent,
-        Color(red: 0.35, green: 0.75, blue: 1.00),
-        Color(red: 0.40, green: 0.90, blue: 0.72),
-        Color(red: 1.00, green: 0.50, blue: 0.72),
-        .yellow, .white,
-        Color(red: 1.00, green: 0.75, blue: 0.20),
-    ]
+    /// Glowing orange/red ember chunks that drift upward slowly, tumble, and cool down.
+    private struct Ember: Identifiable {
+        let id = UUID()
+        let x: CGFloat          // 0-1 start position
+        let speed: Double       // slower than sparks
+        let size: CGFloat       // bigger than sparks
+        let delay: Double
+        let sway: Double
+        let swayFreq: Double
+        let rotSpeed: Double    // tumble rotation speed
+        let colorIndex: Int     // 0 = orange, 1 = red-orange, 2 = dark red
+    }
+
+    // Palette
+    private static let white      = Color(red: 1.00, green: 0.97, blue: 0.85)
+    private static let yellow     = Color(red: 1.00, green: 0.85, blue: 0.12)
+    private static let orange     = Color(red: 1.00, green: 0.52, blue: 0.05)
+    private static let deepOrange = Color(red: 1.00, green: 0.28, blue: 0.04)
+    private static let red        = Color(red: 0.88, green: 0.14, blue: 0.03)
+    private static let darkRed    = Color(red: 0.50, green: 0.07, blue: 0.02)
+
+    private static func layerColors(_ layer: Int) -> (base: Color, tip: Color) {
+        switch layer {
+        case 0: return (darkRed,    .clear)
+        case 1: return (red,        darkRed.opacity(0))
+        case 2: return (deepOrange, red.opacity(0))
+        case 3: return (orange,     deepOrange.opacity(0))
+        default: return (yellow,    orange.opacity(0))
+        }
+    }
+
+    private static func layerOpacity(_ layer: Int) -> Double {
+        [0.55, 0.65, 0.70, 0.75, 0.65][min(layer, 4)]
+    }
 
     var body: some View {
+        let screenW = UIScreen.main.bounds.width
+        let screenH = UIScreen.main.bounds.height
+
         TimelineView(.animation) { timeline in
             Canvas { ctx, size in
-                let elapsed = timeline.date.timeIntervalSince(startTime)
-                for p in pieces {
-                    let t     = max(0, elapsed - p.delay)
-                    let yFrac = t * p.speed
-                    guard yFrac < 1.4 else { continue }
-                    let x      = p.xFraction * size.width + sin(t * p.swayFreq * .pi) * p.sway
-                    let y      = yFrac * size.height
-                    let fadeIn = min(1.0, t / 0.2)
-                    let fadeOut = yFrac > 0.75 ? max(0, 1 - (yFrac - 0.75) / 0.6) : 1.0
+                let t = timeline.date.timeIntervalSince(startTime)
+                // Always use full screen dimensions so the fire renders
+                // correctly regardless of how the parent sizes us.
+                let w = max(size.width, screenW)
+                let h = max(size.height, screenH)
+                let fireZone = h * 0.82
+
+                // Initial burst: fire shoots up fast from center in first 0.6s
+                // then settles to full spread by ~1.2s
+                let burstT = min(t / 1.2, 1.0)
+                let burstEase = burstT * burstT * (3.0 - 2.0 * burstT) // smoothstep
+                // During burst, flames concentrate toward center
+                let spreadFactor = 0.15 + 0.85 * burstEase
+                // During burst, height ramps up fast then overshoots slightly
+                let burstHeight: Double
+                if t < 0.5 {
+                    burstHeight = min(1.3, t / 0.5 * 1.3) // shoot up to 130%
+                } else if t < 1.0 {
+                    burstHeight = 1.3 - 0.3 * ((t - 0.5) / 0.5) // settle to 100%
+                } else {
+                    burstHeight = 1.0
+                }
+
+                // Sort tongues by layer so back layers draw first
+                let sorted = tongues.sorted { $0.layer < $1.layer }
+
+                for tongue in sorted {
+                    // Pseudo-random noise from layered sines at incommensurate frequencies
+                    let n1 = sin(t * 2.3  * tongue.s1 + tongue.s2 * 10.0)
+                    let n2 = sin(t * 3.7  * tongue.s2 + tongue.s3 * 7.0)
+                    let n3 = sin(t * 5.1  * tongue.s3 + tongue.s1 * 4.0)
+                    let n4 = sin(t * 1.9  * tongue.s4 + tongue.s5 * 13.0)
+                    let n5 = sin(t * 7.3  * tongue.s5 + tongue.s4 * 3.0)
+
+                    // Height flicker: combine multiple noise channels
+                    let flickerRaw = n1 * 0.3 + n2 * 0.25 + n3 * 0.2 + n4 * 0.15 + n5 * 0.1
+                    let flicker = 0.60 + 0.40 * flickerRaw // range ~0.2 to 1.0
+                    let tongueH = fireZone * tongue.maxHeightFrac * flicker * burstHeight
+
+                    // Horizontal sway: also multi-frequency noise
+                    let swayRaw = n2 * 0.4 + n3 * 0.3 + n5 * 0.3
+                    let maxSway = tongue.widthFrac * w * 0.35
+                    let sway = swayRaw * maxSway
+
+                    // During burst, pull x toward center
+                    let centerX = w * 0.5
+                    let naturalX = CGFloat(tongue.xFrac) * w
+                    let cx = naturalX + (centerX - naturalX) * CGFloat(1.0 - spreadFactor) + CGFloat(sway)
+
+                    let tongueW = CGFloat(tongue.widthFrac) * w
+                    let cy = h - tongueH / 2
+
+                    // Draw the tongue as a pointed path (not an ellipse) for more flame-like shape
+                    let colors = Self.layerColors(tongue.layer)
+                    let alpha  = Self.layerOpacity(tongue.layer)
+
+                    let tipY = cy - tongueH / 2
+                    let halfW = tongueW / 2
+
+                    // Build left and right edge points with noise-driven bulges.
+                    // More segments = more organic, wavy edges.
+                    let segments = 6
+                    var leftPts:  [CGPoint] = []
+                    var rightPts: [CGPoint] = []
+
+                    for seg in 0...segments {
+                        let frac = Double(seg) / Double(segments) // 0 = base, 1 = tip
+
+                        // Taper: wide at base, narrow at tip
+                        let taper = CGFloat(1.0 - pow(frac, 1.4))
+
+                        // Per-segment noise from combining seeds at different phases
+                        let segSeed = Double(seg) * 1.7
+                        let noiseL = sin(t * 2.8 * tongue.s1 + segSeed + tongue.s3 * 5.0) * 0.4
+                                   + sin(t * 4.3 * tongue.s4 + segSeed * 2.3) * 0.3
+                                   + sin(t * 6.1 * tongue.s2 + segSeed * 0.7) * 0.2
+                        let noiseR = sin(t * 3.1 * tongue.s2 + segSeed + tongue.s5 * 6.0) * 0.4
+                                   + sin(t * 4.9 * tongue.s5 + segSeed * 1.9) * 0.3
+                                   + sin(t * 5.7 * tongue.s3 + segSeed * 1.1) * 0.2
+
+                        // Bulge amount scales with taper (bigger bulges in the middle of the flame)
+                        let bulgeScale = halfW * 0.35 * taper
+                        let y = h - CGFloat(frac) * tongueH
+
+                        leftPts.append(CGPoint(
+                            x: cx - halfW * taper + CGFloat(noiseL) * bulgeScale,
+                            y: y
+                        ))
+                        rightPts.append(CGPoint(
+                            x: cx + halfW * taper + CGFloat(noiseR) * bulgeScale,
+                            y: y
+                        ))
+                    }
+
+                    // The tip point — slightly offset by noise so it dances
+                    let tipX = cx + CGFloat(n3 * 3 + n5 * 2)
+
+                    // Build path: up the left side, across the tip, down the right side
+                    var path = Path()
+                    path.move(to: CGPoint(x: cx - halfW, y: h)) // base left
+
+                    // Left edge: use quadratic curves between consecutive points
+                    for i in 1..<leftPts.count {
+                        let prev = leftPts[i - 1]
+                        let curr = leftPts[i]
+                        let cpX = (prev.x + curr.x) / 2 + CGFloat(sin(t * 3.0 * tongue.s4 + Double(i) * 2.1)) * halfW * 0.12
+                        let cpY = (prev.y + curr.y) / 2
+                        path.addQuadCurve(to: curr, control: CGPoint(x: cpX, y: cpY))
+                    }
+
+                    // Rounded tip
+                    path.addQuadCurve(
+                        to: rightPts.last ?? CGPoint(x: tipX, y: tipY),
+                        control: CGPoint(x: tipX, y: tipY - tongueH * 0.04)
+                    )
+
+                    // Right edge: back down (reversed)
+                    for i in stride(from: rightPts.count - 2, through: 0, by: -1) {
+                        let prev = rightPts[i + 1]
+                        let curr = rightPts[i]
+                        let cpX = (prev.x + curr.x) / 2 + CGFloat(sin(t * 2.7 * tongue.s5 + Double(i) * 1.8)) * halfW * 0.12
+                        let cpY = (prev.y + curr.y) / 2
+                        path.addQuadCurve(to: curr, control: CGPoint(x: cpX, y: cpY))
+                    }
+
+                    path.closeSubpath()
+
                     ctx.fill(
-                        Path(ellipseIn: CGRect(x: x - p.size/2, y: y - p.size/2,
-                                               width: p.size, height: p.size)),
-                        with: .color(p.color.opacity(fadeIn * fadeOut * 0.88))
+                        path,
+                        with: .linearGradient(
+                            Gradient(colors: [colors.tip, colors.base.opacity(alpha)]),
+                            startPoint: CGPoint(x: cx, y: tipY),
+                            endPoint:   CGPoint(x: cx, y: h)
+                        )
+                    )
+                }
+
+                // White-hot base glow
+                let baseH = h * 0.06
+                ctx.fill(
+                    Path(CGRect(x: 0, y: h - baseH, width: w, height: baseH)),
+                    with: .linearGradient(
+                        Gradient(colors: [Self.white.opacity(0.85 * min(1, t / 0.3)),
+                                          Self.yellow.opacity(0.5 * min(1, t / 0.3)),
+                                          .clear]),
+                        startPoint: CGPoint(x: w / 2, y: h),
+                        endPoint:   CGPoint(x: w / 2, y: h - baseH)
+                    )
+                )
+
+                // ── Embers: glowing chunks that drift up slowly and tumble ──
+                let emberColors: [Color] = [Self.orange, Self.deepOrange, Self.red]
+                for ember in embers {
+                    let et = max(0, t - ember.delay)
+                    let rise = et * ember.speed
+                    guard rise < 1.5 else { continue }
+
+                    let ex = ember.x * w + CGFloat(sin(et * ember.swayFreq * .pi) * ember.sway)
+                    let ey = h - CGFloat(rise) * fireZone * 0.95
+
+                    let fadeIn  = min(1.0, et / 0.3)
+                    // Embers glow bright at first, then cool down and fade
+                    let cooldown = max(0, 1.0 - rise * 0.7)
+                    let fadeOut  = rise > 0.8 ? max(0, 1.0 - (rise - 0.8) / 0.5) : 1.0
+                    let alpha    = fadeIn * fadeOut * cooldown * 0.9
+
+                    let s = ember.size * CGFloat(max(0.3, 1.0 - rise * 0.5))
+                    let rotation = et * ember.rotSpeed
+
+                    // Draw a small rotated rectangle (chunk shape)
+                    var transform = CGAffineTransform.identity
+                    transform = transform.translatedBy(x: ex, y: ey)
+                    transform = transform.rotated(by: CGFloat(rotation))
+                    let rect = CGRect(x: -s / 2, y: -s / 3, width: s, height: s * 0.65)
+                    var path = Path(roundedRect: rect, cornerRadius: s * 0.15)
+                    path = path.applying(transform)
+
+                    let color = emberColors[ember.colorIndex % emberColors.count]
+
+                    // Outer glow
+                    let glowRect = CGRect(x: -s, y: -s * 0.7, width: s * 2, height: s * 1.4)
+                    var glowPath = Path(ellipseIn: glowRect)
+                    glowPath = glowPath.applying(transform)
+                    ctx.fill(glowPath, with: .color(color.opacity(alpha * 0.25)))
+
+                    // Core
+                    ctx.fill(path, with: .color(color.opacity(alpha)))
+
+                    // Hot center highlight
+                    if cooldown > 0.5 {
+                        let dotSize = s * 0.35
+                        let dotRect = CGRect(x: -dotSize / 2, y: -dotSize / 2, width: dotSize, height: dotSize)
+                        var dotPath = Path(ellipseIn: dotRect)
+                        dotPath = dotPath.applying(transform)
+                        ctx.fill(dotPath, with: .color(Self.yellow.opacity(alpha * (cooldown - 0.5) * 1.5)))
+                    }
+                }
+
+                // ── Sparks: bright hot points that shoot up fast ──
+                for spark in sparks {
+                    let st = max(0, t - spark.delay)
+                    let rise = st * spark.speed
+                    guard rise < 1.4 else { continue }
+
+                    let sx = spark.x * w + CGFloat(sin(st * spark.swayFreq * .pi) * spark.sway)
+                    let sy = h - CGFloat(rise) * fireZone * 1.15
+
+                    let fadeIn  = min(1.0, st / 0.1)
+                    let fadeOut = rise > 0.4 ? max(0, 1.0 - (rise - 0.4) / 0.6) : 1.0
+                    let alpha = fadeIn * fadeOut * spark.brightness * 0.9
+
+                    let s = spark.size * CGFloat(max(0.05, 1.0 - rise * 0.9))
+
+                    // Outer glow
+                    let glowS = s * 3.0
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: sx - glowS/2, y: sy - glowS/2, width: glowS, height: glowS)),
+                        with: .color(Self.orange.opacity(alpha * 0.2))
+                    )
+
+                    // Bright core
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: sx - s/2, y: sy - s/2, width: s, height: s * 1.4)),
+                        with: .color(Self.white.opacity(alpha * 0.9))
+                    )
+                    // Yellow ring
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: sx - s, y: sy - s * 0.7, width: s * 2, height: s * 1.8)),
+                        with: .color(Self.yellow.opacity(alpha * 0.35))
                     )
                 }
             }
         }
-        .onAppear {
-            startTime = .now
-            pieces = (0..<50).map { i in
-                Piece(
-                    xFraction: CGFloat.random(in: 0...1),
-                    color:     Self.palette[i % Self.palette.count],
-                    size:      CGFloat.random(in: 5...13),
-                    speed:     Double.random(in: 0.22...0.50),
-                    sway:      Double.random(in: 12...45),
-                    swayFreq:  Double.random(in: 1.2...3.5),
-                    delay:     Double.random(in: 0...1.8)
-                )
+        .frame(width: screenW, height: screenH)
+        .onAppear { generateFlames() }
+    }
+
+    // MARK: - Generate
+
+    private func generateFlames() {
+        startTime = .now
+
+        // Build tongues across 5 layers with randomized properties
+        var allTongues: [FlameTongue] = []
+        let layerConfigs: [(count: Int, widthRange: ClosedRange<Double>, heightRange: ClosedRange<Double>)] = [
+            (6,  0.35...0.60, 0.80...1.00),  // layer 0: wide, tall background — tallest reach 3/4+
+            (8,  0.22...0.40, 0.65...0.92),  // layer 1: red outer
+            (10, 0.14...0.28, 0.50...0.80),  // layer 2: deep orange
+            (10, 0.10...0.20, 0.35...0.65),  // layer 3: bright orange
+            (7,  0.08...0.16, 0.22...0.45),  // layer 4: yellow core
+        ]
+        for (layer, config) in layerConfigs.enumerated() {
+            for _ in 0..<config.count {
+                allTongues.append(FlameTongue(
+                    xFrac:         Double.random(in: -0.05...1.05),
+                    widthFrac:     Double.random(in: config.widthRange),
+                    maxHeightFrac: Double.random(in: config.heightRange),
+                    s1: Double.random(in: 0.5...2.0),
+                    s2: Double.random(in: 0.5...2.0),
+                    s3: Double.random(in: 0.5...2.0),
+                    s4: Double.random(in: 0.5...2.0),
+                    s5: Double.random(in: 0.5...2.0),
+                    layer: layer
+                ))
             }
+        }
+        tongues = allTongues
+
+        // Bright white-hot sparks that shoot up fast
+        sparks = (0..<70).map { _ in
+            Spark(
+                x:          CGFloat.random(in: 0.05...0.95),
+                speed:      Double.random(in: 0.15...0.45),
+                size:       CGFloat.random(in: 2...8),
+                delay:      Double.random(in: 0.0...4.0),
+                sway:       Double.random(in: 8...30),
+                swayFreq:   Double.random(in: 1.5...5.0),
+                brightness: Double.random(in: 0.6...1.0)
+            )
+        }
+
+        // Glowing ember chunks that drift up slowly and tumble
+        embers = (0..<40).map { _ in
+            Ember(
+                x:          CGFloat.random(in: 0.05...0.95),
+                speed:      Double.random(in: 0.06...0.18),
+                size:       CGFloat.random(in: 5...16),
+                delay:      Double.random(in: 0.2...3.5),
+                sway:       Double.random(in: 10...35),
+                swayFreq:   Double.random(in: 0.8...2.5),
+                rotSpeed:   Double.random(in: 1.5...6.0) * (Bool.random() ? 1 : -1),
+                colorIndex: Int.random(in: 0...2)
+            )
         }
     }
 }
