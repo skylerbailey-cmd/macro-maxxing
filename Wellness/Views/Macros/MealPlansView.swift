@@ -92,6 +92,7 @@ struct MealPlansView: View {
     }
 
     private func reload() async {
+        savedMeals = (try? await FoodEntryService.shared.fetchSavedMeals(userID: userSettings.userID)) ?? []
         plans = await FoodEntryService.shared.fetchMealPlans(userID: userSettings.userID)
     }
 
@@ -208,7 +209,7 @@ struct MealPlansView: View {
 struct MealPlanDetailView: View {
     @State var plan: MealPlan
     let userSettings: UserSettings
-    let savedMeals:   [FoodEntry]
+    @State var savedMeals:   [FoodEntry]
     var onUpdate:     () async -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -433,6 +434,12 @@ struct MealPlanDetailView: View {
             Text("Rename this day — e.g. \"Monday\" or \"Breakfast\"")
         }
         .onAppear { notesText = plan.notes }
+        .task {
+            if let fresh = try? await FoodEntryService.shared.fetchSavedMeals(userID: userSettings.userID),
+               !fresh.isEmpty {
+                savedMeals = fresh
+            }
+        }
     }
 
     // MARK: - Macro summary
@@ -639,6 +646,10 @@ struct MealPlanPublicView: View {
                         .foregroundStyle(Color(red: 1.00, green: 0.55, blue: 0.15))
                     Text("\(Int(meal.protein))g P")
                         .foregroundStyle(Color(red: 0.35, green: 0.75, blue: 1.00))
+                    Text("\(Int(meal.carbs))g C")
+                        .foregroundStyle(Color(red: 0.40, green: 0.90, blue: 0.72))
+                    Text("\(Int(meal.fat))g F")
+                        .foregroundStyle(Color(red: 1.00, green: 0.50, blue: 0.72))
                 }
                 .font(.system(size: 11, weight: .semibold))
             }
@@ -662,10 +673,33 @@ private struct AddMealToPlanSheet: View {
     @State private var allPlans:         [MealPlan]   = []
     @State private var editingMeal:      FoodEntry?   = nil
     @State private var deleteConfirm:    FoodEntry?   = nil
+    @State private var collapsedPlans:   Set<String>  = []
 
     private var accent: Color { ThemeStore.shared.accent }
     private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
     private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+
+    /// Saved meals grouped by the meal plan they belong to, plus ungrouped meals.
+    private var groupedMeals: [(name: String, id: String, meals: [FoodEntry])] {
+        var result: [(name: String, id: String, meals: [FoodEntry])] = []
+        var claimedIDs: Set<String> = []
+
+        for plan in allPlans {
+            let planMealIDs = Set(plan.allMealIDs)
+            let meals = savedMeals.filter { planMealIDs.contains($0.firebaseEntryID) }
+            if !meals.isEmpty {
+                result.append((name: plan.name, id: plan.id, meals: meals))
+                claimedIDs.formUnion(planMealIDs)
+            }
+        }
+
+        let ungrouped = savedMeals.filter { !claimedIDs.contains($0.firebaseEntryID) }
+        if !ungrouped.isEmpty {
+            result.append((name: "Other Saved Meals", id: "_ungrouped", meals: ungrouped))
+        }
+
+        return result
+    }
 
     var body: some View {
         NavigationStack {
@@ -721,70 +755,41 @@ private struct AddMealToPlanSheet: View {
                             .padding(.top, 40)
                         }
 
-                        ForEach(savedMeals, id: \.firebaseEntryID) { meal in
-                            let alreadyAdded = existingIDs.contains(meal.firebaseEntryID)
-                            let isSelected   = selected.contains(meal.firebaseEntryID)
+                        ForEach(groupedMeals, id: \.id) { group in
+                            let isCollapsed = collapsedPlans.contains(group.id)
+
+                            // Section header
                             Button {
-                                if isSelected { selected.remove(meal.firebaseEntryID) }
-                                else          { selected.insert(meal.firebaseEntryID) }
-                            } label: {
-                                HStack(spacing: 12) {
-                                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                        .font(.system(size: 20))
-                                        .foregroundStyle(isSelected ? accent : .white.opacity(0.25))
-
-                                    if !meal.photoURL.isEmpty {
-                                        CachedAsyncImage(
-                                            url: URL(string: meal.photoURL),
-                                            content: { img in
-                                                img.resizable().scaledToFill()
-                                                    .frame(width: 36, height: 36)
-                                                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                                            },
-                                            placeholder: {
-                                                RoundedRectangle(cornerRadius: 6)
-                                                    .fill(Color.white.opacity(0.08))
-                                                    .frame(width: 36, height: 36)
-                                            }
-                                        )
-                                    }
-
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(meal.foodName)
-                                            .font(.system(size: 14, weight: .semibold))
-                                            .foregroundStyle(.white)
-                                            .lineLimit(1)
-                                        HStack(spacing: 6) {
-                                            Text("\(Int(meal.calories)) cal")
-                                            Text("\(Int(meal.protein))g P")
-                                            Text("\(Int(meal.carbs))g C")
-                                            Text("\(Int(meal.fat))g F")
-                                        }
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.white.opacity(0.40))
-                                    }
-                                    Spacer()
-                                    if alreadyAdded {
-                                        Text("Added")
-                                            .font(.system(size: 10, weight: .bold))
-                                            .foregroundStyle(.white.opacity(0.30))
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 3)
-                                            .background(Color.white.opacity(0.08), in: Capsule())
-                                    }
+                                withAnimation(.spring(duration: 0.25)) {
+                                    if isCollapsed { collapsedPlans.remove(group.id) }
+                                    else           { collapsedPlans.insert(group.id) }
                                 }
-                                .padding(12)
-                                .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "fork.knife.circle.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(accent.opacity(0.70))
+                                    Text(group.name)
+                                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.white.opacity(0.70))
+                                    Text("\(group.meals.count)")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundStyle(.white.opacity(0.30))
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundStyle(.white.opacity(0.25))
+                                        .rotationEffect(.degrees(isCollapsed ? 0 : 90))
+                                }
+                                .padding(.horizontal, 4)
+                                .padding(.top, group.id == groupedMeals.first?.id ? 4 : 12)
+                                .padding(.bottom, 4)
                             }
                             .buttonStyle(.plain)
-                            .disabled(alreadyAdded)
-                            .opacity(alreadyAdded ? 0.50 : 1)
-                            .contextMenu {
-                                Button { editingMeal = meal } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                                Button(role: .destructive) { deleteConfirm = meal } label: {
-                                    Label("Delete", systemImage: "trash")
+
+                            if !isCollapsed {
+                                ForEach(group.meals, id: \.firebaseEntryID) { meal in
+                                    mealRow(meal)
                                 }
                             }
                         }
@@ -850,6 +855,76 @@ private struct AddMealToPlanSheet: View {
             }
         }
     }
+
+    // MARK: - Meal Row
+
+    private func mealRow(_ meal: FoodEntry) -> some View {
+        let alreadyAdded = existingIDs.contains(meal.firebaseEntryID)
+        let isSelected   = selected.contains(meal.firebaseEntryID)
+        return Button {
+            if isSelected { selected.remove(meal.firebaseEntryID) }
+            else          { selected.insert(meal.firebaseEntryID) }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(isSelected ? accent : .white.opacity(0.25))
+
+                if !meal.photoURL.isEmpty {
+                    CachedAsyncImage(
+                        url: URL(string: meal.photoURL),
+                        content: { img in
+                            img.resizable().scaledToFill()
+                                .frame(width: 36, height: 36)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                        },
+                        placeholder: {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.white.opacity(0.08))
+                                .frame(width: 36, height: 36)
+                        }
+                    )
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(meal.foodName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text("\(Int(meal.calories)) cal")
+                        Text("\(Int(meal.protein))g P")
+                        Text("\(Int(meal.carbs))g C")
+                        Text("\(Int(meal.fat))g F")
+                    }
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.40))
+                }
+                Spacer()
+                if alreadyAdded {
+                    Text("Added")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.30))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.white.opacity(0.08), in: Capsule())
+                }
+            }
+            .padding(12)
+            .background(cardBg, in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .disabled(alreadyAdded)
+        .opacity(alreadyAdded ? 0.50 : 1)
+        .contextMenu {
+            Button { editingMeal = meal } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            Button(role: .destructive) { deleteConfirm = meal } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
 }
 
 // MARK: - Import Day Sheet
@@ -912,6 +987,7 @@ private struct ImportDaySheet: View {
                                                 .rotationEffect(.degrees(expanded.contains(plan.id) ? 90 : 0))
                                         }
                                         .padding(14)
+                                        .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
 

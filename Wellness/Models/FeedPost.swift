@@ -112,8 +112,9 @@ struct FeedPost: Codable, Identifiable, Hashable {
     var fastingWindowDisplay: String = ""
 
     /// Weight snapshot at time of a Goal post. 0 means not set / not a goal post.
-    var currentWeight: Double = 0
-    var goalWeight:    Double = 0
+    var previousWeight: Double = 0
+    var currentWeight:  Double = 0
+    var goalWeight:     Double = 0
 
     /// Post label (PostLabel.rawValue). Empty string means no label.
     var postLabel: String = ""
@@ -220,6 +221,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
         isPublic:            Bool   = true,
         macroDate:           Date?  = nil,
         fastingWindowDisplay: String = "",
+        previousWeight:      Double = 0,
         currentWeight:       Double = 0,
         goalWeight:          Double = 0,
         postLabel:           String = "",
@@ -260,6 +262,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
         self.isPublic             = isPublic
         self.macroDate            = macroDate
         self.fastingWindowDisplay = fastingWindowDisplay
+        self.previousWeight       = previousWeight
         self.currentWeight        = currentWeight
         self.goalWeight           = goalWeight
         self.postLabel            = postLabel

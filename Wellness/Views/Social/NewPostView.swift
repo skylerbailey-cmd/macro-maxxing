@@ -105,6 +105,15 @@ struct NewPostView: View {
     /// Food name from the AI scan.
     var prePopulatedFoodName: String = ""
 
+    // MARK: - Weigh-in pre-population (set when opened from WeighInView)
+
+    /// Weight before the weigh-in.
+    var prePopulatedPreviousWeight: Double = 0
+    /// Weight after the weigh-in (the value the user just logged).
+    var prePopulatedCurrentWeight:  Double = 0
+    /// Goal weight at time of weigh-in.
+    var prePopulatedGoalWeight:     Double = 0
+
     @Environment(LocationManager.self) private var locationManager
 
     @Environment(\.modelContext) private var modelContext
@@ -726,6 +735,23 @@ struct NewPostView: View {
 
     @ViewBuilder
     private var goalPostPreview: some View {
+        if prePopulatedPreviousWeight > 0 {
+            weighInGoalPreview
+        } else {
+            macroGoalPreview
+        }
+    }
+
+    private var weighInGoalPreview: some View {
+        WeighInProgressCard(
+            previousWeight: prePopulatedPreviousWeight,
+            currentWeight:  prePopulatedCurrentWeight,
+            goalWeight:     prePopulatedGoalWeight
+        )
+    }
+
+    @ViewBuilder
+    private var macroGoalPreview: some View {
         let goalCal  = ud("goalCalories", fallback: 2000)
         let goalPro  = ud("goalProtein",  fallback: 150)
         let goalCarb = ud("goalCarbs",    fallback: 200)
@@ -986,6 +1012,13 @@ struct NewPostView: View {
     }
 
     private func prefillForLabel(_ label: PostLabel) {
+        if label == .goalPost, prePopulatedPreviousWeight > 0 {
+            let delta = prePopulatedCurrentWeight - prePopulatedPreviousWeight
+            let verb  = delta <= 0 ? "Down" : "Up"
+            if titleText.isEmpty {
+                titleText = "\(verb) \(String(format: "%.1f", abs(delta))) lbs"
+            }
+        }
     }
 
     @MainActor
@@ -1159,6 +1192,7 @@ struct NewPostView: View {
                     goalProtein:   isGoalPost || isMealInspo ? ud("goalProtein", fallback: 150)        : 0,
                     goalCarbs:     isGoalPost || isMealInspo ? ud("goalCarbs",   fallback: 200)        : 0,
                     goalFat:       isGoalPost || isMealInspo ? ud("goalFat",     fallback: 65)         : 0,
+                    previousWeight: isGoalPost ? prePopulatedPreviousWeight               : 0,
                     currentWeight: showWeight ? userSettings.currentWeight              : 0,
                     goalWeight:    showWeight ? userSettings.goalWeight                 : 0,
                     fuelLogItems:  feedFuelLogItems,

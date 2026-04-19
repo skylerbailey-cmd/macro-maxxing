@@ -626,16 +626,12 @@ struct FireAnimationView: View {
     }
 
     var body: some View {
-        let screenW = UIScreen.main.bounds.width
-        let screenH = UIScreen.main.bounds.height
-
         TimelineView(.animation) { timeline in
             Canvas { ctx, size in
                 let t = timeline.date.timeIntervalSince(startTime)
-                // Always use full screen dimensions so the fire renders
-                // correctly regardless of how the parent sizes us.
-                let w = max(size.width, screenW)
-                let h = max(size.height, screenH)
+                let w = size.width
+                let h = size.height
+                guard w > 0, h > 0 else { return }
                 let fireZone = h * 0.82
 
                 // Initial burst: fire shoots up fast from center in first 0.6s
@@ -864,7 +860,7 @@ struct FireAnimationView: View {
                 }
             }
         }
-        .frame(width: screenW, height: screenH)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { generateFlames() }
     }
 

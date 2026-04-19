@@ -138,6 +138,9 @@ struct ProfileView: View {
                         headerBanner
                             .tutorialAnchor("profile.header")
 
+                        bioSection
+                            .padding(.top, 4)
+
                         if isLocked {
                             lockedProfileView
                         } else {
@@ -1315,8 +1318,10 @@ struct ProfileView: View {
 
     private func mealPlanRow(_ plan: MealPlan, onEdit: @escaping () -> Void, onView: @escaping () -> Void) -> some View {
         let meals = plan.allMealIDs.compactMap { id in profileSavedMeals.first { $0.firebaseEntryID == id } }
-        let totalCal = meals.reduce(0.0) { $0 + $1.calories }
-        let totalPro = meals.reduce(0.0) { $0 + $1.protein }
+        let totalCal  = meals.reduce(0.0) { $0 + $1.calories }
+        let totalPro  = meals.reduce(0.0) { $0 + $1.protein }
+        let totalCarb = meals.reduce(0.0) { $0 + $1.carbs }
+        let totalFat  = meals.reduce(0.0) { $0 + $1.fat }
 
         return HStack(spacing: 12) {
             ZStack {
@@ -1331,7 +1336,7 @@ struct ProfileView: View {
                 Text(plan.name)
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(.white)
-                Text("\(meals.count) meal\(meals.count == 1 ? "" : "s") \u{00B7} \(Int(totalCal)) cal \u{00B7} \(Int(totalPro))g protein")
+                Text("\(meals.count) meal\(meals.count == 1 ? "" : "s") \u{00B7} \(Int(totalCal)) cal \u{00B7} \(Int(totalPro))g P \u{00B7} \(Int(totalCarb))g C \u{00B7} \(Int(totalFat))g F")
                     .font(.system(size: 11))
                     .foregroundStyle(.white.opacity(0.40))
             }
@@ -1473,7 +1478,7 @@ struct ProfileView: View {
         .task {
             guard !routinesLoaded else { return }
             profileRoutines = await WorkoutService.shared.fetchRoutines(userID: ownUserSettings?.userID ?? "")
-            profileSavedWorkouts = WorkoutService.shared.savedWorkouts
+            profileSavedWorkouts = await WorkoutService.shared.fetchSavedWorkouts(userID: ownUserSettings?.userID ?? "")
             routinesLoaded = true
         }
     }

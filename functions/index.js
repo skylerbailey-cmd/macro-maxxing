@@ -664,6 +664,7 @@ exports.deleteAccount = onCall(
   // 2. Delete all user subcollections
   const subcollections = [
     "foodEntries", "fuelLog", "macroHistory", "workoutEntries",
+    "savedWorkouts", "workoutRoutines",
     "following", "followers", "notifications", "subscribers",
     "balanceScoreHistory", "blockedUsers", "private",
   ];

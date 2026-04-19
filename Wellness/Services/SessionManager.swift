@@ -104,6 +104,7 @@ final class SessionManager {
                     // on a slow network — the UI can render while the profile loads.
                     await FirebaseManager.shared.enableNetwork()
                     await self.fetchAndApplyProfile(uid: user.uid)
+                    WorkoutService.shared.migrateUserDefaultsToFirestore(userID: user.uid)
                 } else {
                     // A nil user here can mean either an explicit logout OR a
                     // transient token refresh failure. We ONLY clear local

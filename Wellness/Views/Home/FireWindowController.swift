@@ -32,23 +32,22 @@ final class FireWindowController {
         w.windowLevel = .statusBar + 100
         w.backgroundColor = .clear
         w.isUserInteractionEnabled = false
-        w.frame = scene.screen.bounds
 
         let vc = UIHostingController(rootView:
             FireAnimationView()
-                .frame(
-                    width:  scene.screen.bounds.width,
-                    height: scene.screen.bounds.height
-                )
-                .ignoresSafeArea()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         )
         vc.view.backgroundColor = .clear
         vc.view.isUserInteractionEnabled = false
-        vc.view.frame = scene.screen.bounds
+        // This is the critical line — .ignoresSafeArea() in SwiftUI does NOT
+        // work inside a UIHostingController. You must disable safe area at the
+        // view controller level using this iOS 16.4+ API.
+        vc.safeAreaRegions = []
+        vc.view.frame = w.bounds
+        vc.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
 
         w.rootViewController = vc
         w.isHidden = false
-        w.alpha = 1
 
         self.window = w
         scheduleDismiss(after: duration)

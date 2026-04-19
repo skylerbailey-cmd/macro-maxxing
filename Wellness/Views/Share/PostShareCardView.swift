@@ -90,6 +90,13 @@ struct PostShareCardView: View {
                 } else if !post.workoutItems.isEmpty {
                     workoutVisual
                         .padding(.horizontal, 22)
+                } else if post.previousWeight > 0 {
+                    WeighInProgressCard(
+                        previousWeight: post.previousWeight,
+                        currentWeight:  post.currentWeight,
+                        goalWeight:     post.goalWeight
+                    )
+                    .padding(.horizontal, 22)
                 } else if post.goalCalories > 0 {
                     goalVisual
                         .padding(.horizontal, 22)

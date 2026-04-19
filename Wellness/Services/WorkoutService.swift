@@ -3,7 +3,7 @@
 //  Wellness
 //
 //  Firestore: users/{userID}/workoutEntries/{workoutID}
-//  Saved workout templates: UserDefaults (device-local)
+//  Saved workout templates: users/{userID}/savedWorkouts/{workoutID}
 //
 
 import Foundation
@@ -18,7 +18,6 @@ final class WorkoutService {
     static let workoutSavedNotification = Notification.Name("com.sbailey.Wellness.workoutSaved")
 
     private var db: Firestore { FirebaseManager.shared.db }
-    private let savedWorkoutsKey = "savedWorkoutTemplates"
 
     // MARK: - Save
 
@@ -183,38 +182,107 @@ final class WorkoutService {
             .delete()
     }
 
-    // MARK: - Saved Workout Templates (UserDefaults)
+    // MARK: - Saved Workout Templates (Firestore)
 
-    var savedWorkouts: [SavedWorkout] {
-        guard let data     = UserDefaults.standard.data(forKey: savedWorkoutsKey),
-              let workouts = try? JSONDecoder().decode([SavedWorkout].self, from: data)
-        else { return [] }
-        return workouts
+    private func savedWorkoutsRef(userID: String) -> CollectionReference {
+        db.collection("users").document(userID).collection("savedWorkouts")
     }
 
-    func addSavedWorkout(_ workout: SavedWorkout) {
-        var list = savedWorkouts
-        list.append(workout)
-        if let data = try? JSONEncoder().encode(list) {
-            UserDefaults.standard.set(data, forKey: savedWorkoutsKey)
-        }
-    }
-
-    func updateSavedWorkout(_ workout: SavedWorkout) {
-        var list = savedWorkouts
-        if let idx = list.firstIndex(where: { $0.id == workout.id }) {
-            list[idx] = workout
-        }
-        if let data = try? JSONEncoder().encode(list) {
-            UserDefaults.standard.set(data, forKey: savedWorkoutsKey)
+    func fetchSavedWorkouts(userID: String) async -> [SavedWorkout] {
+        guard !userID.isEmpty else { return [] }
+        do {
+            let snapshot = try await savedWorkoutsRef(userID: userID)
+                .order(by: "name")
+                .getDocuments()
+            return snapshot.documents.compactMap { decodeSavedWorkout($0) }
+        } catch {
+            AppLogger.log("[WorkoutService] Failed to fetch saved workouts: \(error.localizedDescription)")
+            return []
         }
     }
 
-    func deleteSavedWorkout(id: String) {
-        let list = savedWorkouts.filter { $0.id != id }
-        if let data = try? JSONEncoder().encode(list) {
-            UserDefaults.standard.set(data, forKey: savedWorkoutsKey)
+    func addSavedWorkout(_ workout: SavedWorkout, userID: String) {
+        guard !userID.isEmpty else { return }
+        savedWorkoutsRef(userID: userID).document(workout.id)
+            .setData(encodeSavedWorkout(workout))
+    }
+
+    func updateSavedWorkout(_ workout: SavedWorkout, userID: String) {
+        guard !userID.isEmpty else { return }
+        savedWorkoutsRef(userID: userID).document(workout.id)
+            .setData(encodeSavedWorkout(workout))
+    }
+
+    func deleteSavedWorkout(id: String, userID: String) {
+        guard !id.isEmpty, !userID.isEmpty else { return }
+        savedWorkoutsRef(userID: userID).document(id).delete()
+    }
+
+    private func encodeSavedWorkout(_ w: SavedWorkout) -> [String: Any] {
+        let exerciseDicts: [[String: Any]] = w.exercises.map { ex in
+            let setDicts: [[String: Any]] = ex.sets.map { s in
+                var sd: [String: Any] = ["id": s.id, "reps": s.reps]
+                if let wt = s.weight { sd["weight"] = wt }
+                return sd
+            }
+            return ["id": ex.id, "name": ex.name, "sets": setDicts]
         }
+        return [
+            "id":              w.id,
+            "name":            w.name,
+            "workoutType":     w.workoutType.rawValue,
+            "durationMinutes": w.durationMinutes,
+            "caloriesBurned":  w.caloriesBurned,
+            "exercises":       exerciseDicts
+        ]
+    }
+
+    private func decodeSavedWorkout(_ doc: QueryDocumentSnapshot) -> SavedWorkout? {
+        let d = doc.data()
+        guard let name = d["name"] as? String else { return nil }
+        let id           = (d["id"] as? String) ?? doc.documentID
+        let typeRaw      = (d["workoutType"] as? String) ?? ""
+        let wType        = WorkoutType(rawValue: typeRaw) ?? .other
+        let duration     = (d["durationMinutes"] as? Int) ?? 0
+        let calories     = (d["caloriesBurned"] as? Int) ?? 0
+        let rawEx        = (d["exercises"] as? [[String: Any]]) ?? []
+        let exercises: [Exercise] = rawEx.compactMap { e in
+            guard let exName = e["name"] as? String, !exName.isEmpty else { return nil }
+            let exID = (e["id"] as? String) ?? UUID().uuidString
+            if let setArr = e["sets"] as? [[String: Any]] {
+                let sets: [ExerciseSet] = setArr.map { sd in
+                    let sid  = (sd["id"] as? String) ?? UUID().uuidString
+                    let reps = (sd["reps"] as? Int) ?? (sd["reps"] as? NSNumber)?.intValue ?? 1
+                    let weight: Double? = {
+                        if let w = sd["weight"] as? Double { return w }
+                        if let w = sd["weight"] as? NSNumber { return w.doubleValue }
+                        return nil
+                    }()
+                    return ExerciseSet(id: sid, reps: reps, weight: weight)
+                }
+                return Exercise(id: exID, name: exName, sets: sets)
+            }
+            return Exercise(id: exID, name: exName, sets: [])
+        }
+        return SavedWorkout(id: id, name: name, workoutType: wType,
+                            durationMinutes: duration, caloriesBurned: calories,
+                            exercises: exercises)
+    }
+
+    /// One-time migration: moves saved workout templates from UserDefaults to
+    /// Firestore so they sync across devices. Call once at app launch; it's a
+    /// no-op if UserDefaults is empty or the user is logged out.
+    func migrateUserDefaultsToFirestore(userID: String) {
+        guard !userID.isEmpty else { return }
+        let key = "savedWorkoutTemplates"
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let workouts = try? JSONDecoder().decode([SavedWorkout].self, from: data),
+              !workouts.isEmpty
+        else { return }
+        for w in workouts {
+            addSavedWorkout(w, userID: userID)
+        }
+        UserDefaults.standard.removeObject(forKey: key)
     }
 
     // MARK: - Workout Routines (Firestore)

@@ -124,8 +124,10 @@ final class FoodEntryService {
             .whereField("loggedAt", isLessThan: Timestamp(date: end))
             .getDocuments()
 
-        return snapshot.documents.compactMap { doc in
+        return snapshot.documents.compactMap { doc -> FoodEntry? in
             let data     = doc.data()
+            // Saved-meal copies should not appear in the daily food log.
+            if data["isSavedMeal"] as? Bool == true { return nil }
             guard let foodName = data["foodName"] as? String,
                   let calories = data["calories"] as? Double,
                   let protein  = data["protein"]  as? Double,

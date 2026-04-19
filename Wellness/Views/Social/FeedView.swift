@@ -460,6 +460,12 @@ struct FeedPostCard: View {
                     workoutTable
                 } else if !post.mogBoardSnapshot.isEmpty {
                     mogBoardSnapshotCard
+                } else if post.postLabel == "Goal", post.previousWeight > 0 {
+                    WeighInProgressCard(
+                        previousWeight: post.previousWeight,
+                        currentWeight:  post.currentWeight,
+                        goalWeight:     post.goalWeight
+                    )
                 } else if post.postLabel == "Goal" {
                     MacroDisciplineCard(
                         totalCalories: Double(post.calories),  goalCalories: Double(post.goalCalories > 0 ? post.goalCalories : 2000),

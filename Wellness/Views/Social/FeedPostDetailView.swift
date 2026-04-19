@@ -449,6 +449,12 @@ struct FeedPostDetailView: View {
                     goalCarbs:   post.goalCarbs,
                     goalFat:     post.goalFat
                 )
+            } else if post.previousWeight > 0 {
+                WeighInProgressCard(
+                    previousWeight: post.previousWeight,
+                    currentWeight:  post.currentWeight,
+                    goalWeight:     post.goalWeight
+                )
             } else if post.goalCalories > 0 {
                 MacroDisciplineCard(
                     totalCalories: Double(post.calories),  goalCalories: Double(post.goalCalories),
@@ -459,7 +465,7 @@ struct FeedPostDetailView: View {
             } else if post.calories > 0 {
                 macroRow
             }
-            if post.currentWeight > 0, post.goalWeight > 0 {
+            if post.previousWeight == 0, post.currentWeight > 0, post.goalWeight > 0 {
                 GoalWeightBadge(currentWeight: post.currentWeight, goalWeight: post.goalWeight)
             }
         }

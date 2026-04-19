@@ -26,8 +26,13 @@ struct WeighInView: View {
 
     // MARK: - Result
 
+    /// Snapshot of the weight *before* the user logs a new one.
+    /// Captured when "Log Weight" is tapped so it survives the
+    /// `userSettings.currentWeight` update.
+    @State private var previousWeight: Double = 0
     @State private var editingGoal: Bool = false
     @State private var newGoalText: String = ""
+    @State private var showingNewPost: Bool = false
 
     // MARK: - Design
 
@@ -35,12 +40,12 @@ struct WeighInView: View {
     private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
     private var accent: Color { ThemeStore.shared.accent }
 
-    private var oldWeight: Double { userSettings.currentWeight }
+    private var oldWeight: Double { previousWeight }
     private var goalWeight: Double { userSettings.goalWeight }
 
     private var newWeight: Double { Double(newWeightText) ?? oldWeight }
 
-    /// True if the user's goal is to lose weight (goal < current before weigh-in).
+    /// True if the user's goal is to lose weight (goal < old weight before weigh-in).
     private var isLossGoal: Bool { goalWeight < oldWeight }
 
     /// True if the new weight moved toward the goal (or hit it).
@@ -84,8 +89,9 @@ struct WeighInView: View {
         }
         .preferredColorScheme(.dark)
         .onAppear {
-            newWeightText = "\(Int(oldWeight))"
-            newGoalText   = "\(Int(goalWeight))"
+            previousWeight = userSettings.currentWeight
+            newWeightText  = "\(Int(userSettings.currentWeight))"
+            newGoalText    = "\(Int(goalWeight))"
         }
     }
 
@@ -150,6 +156,7 @@ struct WeighInView: View {
             // Next button
             Button {
                 guard let w = Double(newWeightText), w > 0 else { return }
+                previousWeight = userSettings.currentWeight
                 userSettings.currentWeight = w
                 withAnimation(.spring(duration: 0.35)) { step = .result }
             } label: {
@@ -260,22 +267,63 @@ struct WeighInView: View {
                 }
             }
 
-            // Done button
-            Button {
-                onDismiss()
-            } label: {
-                Text("Done")
+            // Done + Back buttons
+            VStack(spacing: 10) {
+                Button {
+                    showingNewPost = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("Share Progress")
+                    }
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.black)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.15), lineWidth: 1))
+                    .background(accent, in: RoundedRectangle(cornerRadius: 14))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    onDismiss()
+                } label: {
+                    Text("Done")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.50))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    // Restore previous weight so the user can re-enter
+                    userSettings.currentWeight = previousWeight
+                    newWeightText = "\(Int(previousWeight))"
+                    withAnimation(.spring(duration: 0.35)) { step = .input }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 12, weight: .bold))
+                        Text("Back")
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+                    .foregroundStyle(.white.opacity(0.35))
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
             .padding(.horizontal, 40)
         }
         .padding(.horizontal, 24)
+        .sheet(isPresented: $showingNewPost, onDismiss: { onDismiss() }) {
+            NavigationStack {
+                NewPostView(
+                    userSettings: userSettings,
+                    preSelectedLabel: .goalPost,
+                    prePopulatedPreviousWeight: previousWeight,
+                    prePopulatedCurrentWeight:  newWeight,
+                    prePopulatedGoalWeight:     goalWeight
+                )
+            }
+        }
     }
 
     // MARK: - Helpers

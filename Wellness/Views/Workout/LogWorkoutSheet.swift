@@ -177,6 +177,7 @@ struct LogWorkoutSheet: View {
             workoutToDelete: $workoutToDelete,
             savedWorkouts: $savedWorkouts,
             showingPostPrompt: $showingPostPrompt,
+            userID: userID,
             analyzeTranscript: { Task { await analyzeTranscript() } },
             onPostDismiss: { onSaved(); close() },
             postWorkoutView: postPromptSheet
@@ -206,6 +207,7 @@ struct LogWorkoutSheet: View {
                 workoutToDelete: $workoutToDelete,
                 savedWorkouts: $savedWorkouts,
                 showingPostPrompt: $showingPostPrompt,
+                userID: userID,
                 analyzeTranscript: { Task { await analyzeTranscript() } },
                 onPostDismiss: { onSaved(); close() },
                 postWorkoutView: postPromptSheet
@@ -227,8 +229,8 @@ struct LogWorkoutSheet: View {
     }
 
     private func loadOnAppear() {
-        savedWorkouts = WorkoutService.shared.savedWorkouts
         Task {
+            savedWorkouts = await WorkoutService.shared.fetchSavedWorkouts(userID: userID)
             await aiSubscription.loadProduct()
             await aiSubscription.refreshEntitlement()
         }
@@ -1845,7 +1847,8 @@ struct LogWorkoutSheet: View {
                 WorkoutService.shared.addSavedWorkout(
                     SavedWorkout(name: name, workoutType: workoutType,
                                  durationMinutes: duration, caloriesBurned: calories,
-                                 exercises: cleanedExercises)
+                                 exercises: cleanedExercises),
+                    userID: userID
                 )
             }
 
@@ -1890,6 +1893,7 @@ private struct CommonSheetModifiers<PostView: View>: ViewModifier {
     @Binding var workoutToDelete:   SavedWorkout?
     @Binding var savedWorkouts:     [SavedWorkout]
     @Binding var showingPostPrompt: Bool
+    let userID: String
     let analyzeTranscript: () -> Void
     let onPostDismiss:     () -> Void
     let postWorkoutView:   PostView
@@ -1909,8 +1913,8 @@ private struct CommonSheetModifiers<PostView: View>: ViewModifier {
                 Button("Cancel", role: .cancel) { workoutToDelete = nil }
                 Button("Delete", role: .destructive) {
                     if let w = workoutToDelete {
-                        WorkoutService.shared.deleteSavedWorkout(id: w.id)
-                        savedWorkouts = WorkoutService.shared.savedWorkouts
+                        WorkoutService.shared.deleteSavedWorkout(id: w.id, userID: userID)
+                        savedWorkouts.removeAll { $0.id == w.id }
                         workoutToDelete = nil
                     }
                 }
@@ -1929,6 +1933,7 @@ extension View {
         workoutToDelete:   Binding<SavedWorkout?>,
         savedWorkouts:     Binding<[SavedWorkout]>,
         showingPostPrompt: Binding<Bool>,
+        userID:            String,
         analyzeTranscript: @escaping () -> Void,
         onPostDismiss:     @escaping () -> Void,
         postWorkoutView:   PostView
@@ -1938,6 +1943,7 @@ extension View {
             workoutToDelete:   workoutToDelete,
             savedWorkouts:     savedWorkouts,
             showingPostPrompt: showingPostPrompt,
+            userID:            userID,
             analyzeTranscript: analyzeTranscript,
             onPostDismiss:     onPostDismiss,
             postWorkoutView:   postWorkoutView
