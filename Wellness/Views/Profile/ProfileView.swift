@@ -348,7 +348,13 @@ struct ProfileView: View {
                     routine: routine,
                     userID: ownUserSettings?.userID ?? "",
                     userSettings: ownUserSettings ?? UserSettings(),
-                    onUpdate: { Task { profileRoutines = await WorkoutService.shared.fetchRoutines(userID: ownUserSettings?.userID ?? "") } }
+                    onUpdate: {
+                        Task {
+                            let uid = ownUserSettings?.userID ?? ""
+                            profileRoutines = await WorkoutService.shared.fetchRoutines(userID: uid)
+                            profileSavedWorkouts = await WorkoutService.shared.fetchSavedWorkouts(userID: uid)
+                        }
+                    }
                 )
             }
         }
@@ -358,8 +364,9 @@ struct ProfileView: View {
             }
         }
         .sheet(item: $routineToView) { routine in
+            let freshRoutine = profileRoutines.first { $0.id == routine.id } ?? routine
             NavigationStack {
-                RoutinePublicView(routine: routine, savedWorkouts: profileSavedWorkouts)
+                RoutinePublicView(routine: freshRoutine, savedWorkouts: profileSavedWorkouts)
             }
         }
     }
@@ -1492,9 +1499,16 @@ struct ProfileView: View {
         }
         .task {
             guard !routinesLoaded else { return }
-            profileRoutines = await WorkoutService.shared.fetchRoutines(userID: ownUserSettings?.userID ?? "")
-            profileSavedWorkouts = await WorkoutService.shared.fetchSavedWorkouts(userID: ownUserSettings?.userID ?? "")
+            let uid = ownUserSettings?.userID ?? ""
+            profileRoutines = await WorkoutService.shared.fetchRoutines(userID: uid)
+            profileSavedWorkouts = await WorkoutService.shared.fetchSavedWorkouts(userID: uid)
             routinesLoaded = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: WorkoutService.savedWorkoutTemplatesChanged)) { _ in
+            Task {
+                let uid = ownUserSettings?.userID ?? ""
+                profileSavedWorkouts = await WorkoutService.shared.fetchSavedWorkouts(userID: uid)
+            }
         }
     }
 

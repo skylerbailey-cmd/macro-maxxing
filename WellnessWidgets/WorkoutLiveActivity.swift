@@ -171,18 +171,59 @@ private func strengthBody(state: WorkoutActivityAttributes.ContentState,
     let current = WorkoutActivityAttributes.currentExercise(in: state)
     let loggedSets = current?.sets ?? []
     let nextSetNumber = loggedSets.count + 1
-    VStack(spacing: compact ? 6 : 10) {
-        actionRow(isPaused: state.isPaused, compact: compact)
-        // Staged set — the set being configured, not yet logged
-        stagedSetRow(setNumber: nextSetNumber,
-                     reps: state.stagedReps,
-                     weight: state.stagedWeight,
-                     compact: compact)
-        // Already-logged sets (most recent first)
-        if !loggedSets.isEmpty {
-            loggedSetsList(sets: loggedSets, compact: compact)
+    if compact {
+        // Dynamic Island: action buttons + read-only staged set (no steppers)
+        VStack(spacing: 6) {
+            actionRow(isPaused: state.isPaused, compact: true)
+            compactStagedSetDisplay(setNumber: nextSetNumber,
+                                    reps: state.stagedReps,
+                                    weight: state.stagedWeight)
+        }
+    } else {
+        // Lock screen: full stepper UI + logged sets history
+        VStack(spacing: 10) {
+            // Rest timer
+            restTimerLabel(state: state, compact: false)
+            actionRow(isPaused: state.isPaused, compact: false)
+            stagedSetRow(setNumber: nextSetNumber,
+                         reps: state.stagedReps,
+                         weight: state.stagedWeight,
+                         compact: false)
+            if !loggedSets.isEmpty {
+                loggedSetsList(sets: loggedSets, compact: false)
+            }
         }
     }
+}
+
+/// Compact read-only display of the staged set for the Dynamic Island.
+/// No stepper buttons — adjust reps/weight from the lock screen or in-app.
+private func compactStagedSetDisplay(setNumber: Int, reps: Int, weight: Double?) -> some View {
+    HStack(spacing: 10) {
+        Text("Set \(setNumber)")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(.yellow)
+        HStack(spacing: 4) {
+            Text("\(reps)")
+                .font(.system(size: 14, weight: .black, design: .rounded))
+                .monospacedDigit()
+            Text("reps")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.50))
+        }
+        HStack(spacing: 4) {
+            Text(weightString(weight))
+                .font(.system(size: 14, weight: .black, design: .rounded))
+                .monospacedDigit()
+            Text("lbs")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.50))
+        }
+    }
+    .foregroundStyle(.white)
+    .padding(.vertical, 4)
+    .padding(.horizontal, 8)
+    .background(.yellow.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
 }
 
 // MARK: - Cardio body
@@ -606,7 +647,6 @@ private func stagedSetRow(setNumber: Int,
             Button(intent: WorkoutDecrementRepsIntent()) {
                 stepperGlyph("minus", compact: compact, filled: false)
             }
-            .buttonStyle(.plain)
 
             VStack(spacing: 0) {
                 Text("\(reps)")
@@ -624,7 +664,6 @@ private func stagedSetRow(setNumber: Int,
             Button(intent: WorkoutIncrementRepsIntent()) {
                 stepperGlyph("plus", compact: compact, filled: true)
             }
-            .buttonStyle(.plain)
         }
 
         // Weight stepper
@@ -632,7 +671,6 @@ private func stagedSetRow(setNumber: Int,
             Button(intent: WorkoutDecrementWeightIntent()) {
                 stepperGlyph("minus", compact: compact, filled: false)
             }
-            .buttonStyle(.plain)
 
             VStack(spacing: 0) {
                 Text(weightString(weight))
@@ -652,7 +690,6 @@ private func stagedSetRow(setNumber: Int,
             Button(intent: WorkoutIncrementWeightIntent()) {
                 stepperGlyph("plus", compact: compact, filled: true)
             }
-            .buttonStyle(.plain)
         }
     }
     .padding(.vertical, compact ? 4 : 8)
@@ -662,12 +699,13 @@ private func stagedSetRow(setNumber: Int,
 }
 
 private func stepperGlyph(_ systemName: String, compact: Bool, filled: Bool) -> some View {
-    let size: CGFloat = compact ? 24 : 32
+    let size: CGFloat = compact ? 28 : 32
     return Image(systemName: systemName)
-        .font(.system(size: compact ? 11 : 14, weight: .bold))
+        .font(.system(size: compact ? 12 : 14, weight: .bold))
         .foregroundStyle(filled ? .black : .white)
         .frame(width: size, height: size)
         .background(filled ? Color.green : .white.opacity(0.12), in: Circle())
+        .contentShape(Circle())
 }
 
 private func weightString(_ weight: Double?) -> String {

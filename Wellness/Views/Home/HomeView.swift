@@ -31,6 +31,7 @@ struct HomeView: View {
     @State private var showingRestaurantMode   = false
     @State private var showingMealPlanner      = false
     @State private var showingNutritionCoach   = false
+    @State private var showingRoast            = false
     @State private var aiSubscription = AISubscriptionStore.shared
     /// Whether the macros section is showing the full 2×2 grid. When false,
     /// a single summary card stands in with four mini gauges. Tapping the
@@ -240,6 +241,12 @@ struct HomeView: View {
                     goalFat:           Int(viewModel.displayGoalFat)
                 )
             }
+            .navigationDestination(isPresented: $showingRoast) {
+                DailyRoastView(
+                    userSettings: viewModel.userSettings,
+                    selectedDate: viewModel.selectedDate
+                )
+            }
             .sheet(isPresented: $showingAIPaywall) {
                 AISubscriptionPaywallView(
                     onSubscribed: { showingAIPaywall = false },
@@ -265,6 +272,7 @@ struct HomeView: View {
                     DateNavigatorView(selectedDate: $selectedDate)
                     goalsSection
                     macrosSection
+                    roastSection
                     brainstormSection
                         .tutorialAnchor("hub.mealPlanner")
                     nutritionCoachSection
@@ -1633,6 +1641,64 @@ struct HomeView: View {
                         }
                     }
                     Text("Daily debrief on meals, macros & workouts")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.35))
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.25))
+            }
+            .padding(16)
+            .background(Color.cardBg)
+            .cornerRadius(18)
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Color.white.opacity(0.07), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - AI Roast section
+
+    private var roastSection: some View {
+        Button {
+            if !aiSubscription.isSubscribed {
+                showingAIPaywall = true
+            } else if !viewModel.userSettings.aiConsentGiven {
+                showingAIConsent = true
+            } else {
+                showingRoast = true
+            }
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(Color.premiumGold.opacity(0.16))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.premiumGold)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("AI Roast")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                        if !aiSubscription.isSubscribed {
+                            Text("PRO")
+                                .font(.system(size: 9, weight: .black))
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(Color.premiumGold, in: Capsule())
+                        }
+                    }
+                    Text("Get roasted by AI based on today's meals & workouts")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.35))
                 }

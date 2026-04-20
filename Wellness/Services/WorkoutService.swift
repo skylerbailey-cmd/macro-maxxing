@@ -195,9 +195,10 @@ final class WorkoutService {
         guard !userID.isEmpty else { return [] }
         do {
             let snapshot = try await savedWorkoutsRef(userID: userID)
-                .order(by: "name")
-                .getDocuments()
-            return snapshot.documents.compactMap { decodeSavedWorkout($0) }
+                .getDocuments(source: .default)
+            let results = snapshot.documents.compactMap { decodeSavedWorkout($0) }
+            AppLogger.log("[WorkoutService] fetchSavedWorkouts: \(results.count) found for \(userID)")
+            return results
         } catch {
             AppLogger.log("[WorkoutService] Failed to fetch saved workouts: \(error.localizedDescription)")
             return []
@@ -206,8 +207,13 @@ final class WorkoutService {
 
     func addSavedWorkout(_ workout: SavedWorkout, userID: String) async {
         guard !userID.isEmpty else { return }
-        try? await savedWorkoutsRef(userID: userID).document(workout.id)
-            .setData(encodeSavedWorkout(workout))
+        do {
+            try await savedWorkoutsRef(userID: userID).document(workout.id)
+                .setData(encodeSavedWorkout(workout))
+            AppLogger.log("[WorkoutService] addSavedWorkout succeeded: \(workout.name) (\(workout.id))")
+        } catch {
+            AppLogger.log("[WorkoutService] addSavedWorkout FAILED: \(error.localizedDescription)")
+        }
         NotificationCenter.default.post(name: Self.savedWorkoutTemplatesChanged, object: nil)
     }
 
@@ -249,8 +255,8 @@ final class WorkoutService {
         let id           = (d["id"] as? String) ?? doc.documentID
         let typeRaw      = (d["workoutType"] as? String) ?? ""
         let wType        = WorkoutType(rawValue: typeRaw) ?? .other
-        let duration     = (d["durationMinutes"] as? Int) ?? 0
-        let calories     = (d["caloriesBurned"] as? Int) ?? 0
+        let duration     = (d["durationMinutes"] as? Int) ?? (d["durationMinutes"] as? NSNumber)?.intValue ?? 0
+        let calories     = (d["caloriesBurned"] as? Int) ?? (d["caloriesBurned"] as? NSNumber)?.intValue ?? 0
         let rawEx        = (d["exercises"] as? [[String: Any]]) ?? []
         let exercises: [Exercise] = rawEx.compactMap { e in
             guard let exName = e["name"] as? String, !exName.isEmpty else { return nil }
