@@ -392,6 +392,7 @@ struct SettingsView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -568,6 +569,24 @@ struct SettingsView: View {
                 HStack(spacing: 10) {
                     iconBadge("fork.knife.circle", color: .orange)
                     Text("Meal Plans")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.30))
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 11)
+            }
+            .buttonStyle(.plain)
+            divider
+            NavigationLink {
+                SavedMealsManagerView(userSettings: userSettings)
+            } label: {
+                HStack(spacing: 10) {
+                    iconBadge("bookmark.fill", color: .orange)
+                    Text("Saved Meals")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.white)
                     Spacer()
@@ -914,16 +933,23 @@ struct SettingsView: View {
     }
 
     private func toggleRow(label: String, icon: String, isOn: Binding<Bool>) -> some View {
-        HStack(spacing: 10) {
-            iconBadge(icon, color: theme.accent)
-            Text(label)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white)
-            Spacer()
-            Toggle("", isOn: isOn).labelsHidden().tint(theme.accent)
+        Button {
+            isOn.wrappedValue.toggle()
+        } label: {
+            HStack(spacing: 10) {
+                iconBadge(icon, color: theme.accent)
+                Text(label)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                Spacer()
+                Toggle("", isOn: isOn).labelsHidden().tint(theme.accent)
+                    .allowsHitTesting(false) // let the button handle taps
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+        .buttonStyle(.plain)
     }
 
     private func tapRow(title: String,
@@ -958,6 +984,7 @@ struct SettingsView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -997,6 +1024,7 @@ struct SettingsView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -1093,7 +1121,8 @@ struct SettingsView: View {
         userSettings.proteinPerLb  = proteinPerLbVal
         userSettings.lastLocalSettingsSave = Date()
 
-        let fields: [String: Any] = [
+        // Public fields → users/{uid}
+        let publicFields: [String: Any] = [
             "username": trimmedUsername, "name": trimmedName,
             "location": userSettings.location,
             "auraPoints": userSettings.auraPoints,
@@ -1101,15 +1130,8 @@ struct SettingsView: View {
             "instagramHandle": userSettings.instagramHandle,
             "tiktokHandle": userSettings.tiktokHandle,
             "isPrivateAccount": userSettings.isPrivateAccount,
-            "currentWeight": currentWeightVal,
-            "goalWeight": goalWeightVal,
-            "heightInches": heightInchesVal,
-            "proteinPerLb": proteinPerLbVal,
-            "gender":       userSettings.gender,
             "fastingEnabled": userSettings.fastingEnabled,
             "auraPopupsEnabled": userSettings.auraPopupsEnabled,
-            "excludeDairy":      userSettings.excludeDairy,
-            "excludeGluten":     userSettings.excludeGluten,
             "autoAdjustMacrosForWorkout": userSettings.autoAdjustMacrosForWorkout,
             "showWeightOnPosts":          userSettings.showWeightOnPosts,
             "aiConsentGiven":             userSettings.aiConsentGiven,
@@ -1121,9 +1143,23 @@ struct SettingsView: View {
             "weighReminderHour":          userSettings.weighReminderHour,
             "weighReminderMinute":        userSettings.weighReminderMinute,
             "weighReminderWeekdays":      userSettings.weighReminderWeekdays.sorted().map(String.init).joined(separator: ","),
-            "dateOfBirth": dobString,
         ]
-        try? await session.updateProfile(fields: fields)
+        // Private fields → users/{uid}/private/profile
+        // These MUST be written to the private subcollection because
+        // fetchProfile() reads them from there, not the public doc.
+        let privateFields: [String: Any] = [
+            "currentWeight": currentWeightVal,
+            "goalWeight":    goalWeightVal,
+            "heightInches":  heightInchesVal,
+            "proteinPerLb":  proteinPerLbVal,
+            "gender":        userSettings.gender,
+            "excludeDairy":  userSettings.excludeDairy,
+            "excludeGluten": userSettings.excludeGluten,
+            "dateOfBirth":   dobString,
+        ]
+        try? await session.updateProfile(fields: publicFields)
+        try? await UserProfileService.shared.updatePrivateProfile(
+            userID: userSettings.userID, fields: privateFields)
     }
 
     private func scheduleUsernameCheck(_ raw: String) {

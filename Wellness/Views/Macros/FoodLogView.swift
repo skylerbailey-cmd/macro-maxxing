@@ -72,6 +72,7 @@ struct FoodLogView: View {
     @State private var showingWindowPicker = false
     /// 0 = Meals, 1 = Workout
     @State private var logTab: Int = 0
+    @State private var workoutResetTrigger = false
     @Binding var openLogWorkoutTrigger: Bool
 
     // Save today's meals as a meal plan day
@@ -278,9 +279,25 @@ struct FoodLogView: View {
                     .padding(.vertical, 10)
 
                 // Meals | Workout segment picker
-                logTabPicker
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
+                HStack {
+                    logTabPicker
+                    if logTab == 1 {
+                        Button {
+                            workoutResetTrigger = true
+                        } label: {
+                            Image(systemName: "arrow.counterclockwise")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.50))
+                                .padding(8)
+                                .background(Color.white.opacity(0.08), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .transition(.opacity.combined(with: .scale))
+                    }
+                }
+                .animation(.spring(duration: 0.2), value: logTab)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
 
                 if logTab == 0 {
                     ConditionalBannerAd(isEnabled: RemoteConfigService.shared.logTabBannerEnabled)
@@ -296,7 +313,7 @@ struct FoodLogView: View {
 
     private var logTabPicker: some View {
         HStack(spacing: 0) {
-            ForEach([("Meals", 0), ("Workout", 1)], id: \.1) { label, idx in
+            ForEach([("Log", 0), ("Log Workout", 1)], id: \.1) { label, idx in
                 Button {
                     withAnimation(.spring(duration: 0.2)) { logTab = idx }
                 } label: {
@@ -326,7 +343,8 @@ struct FoodLogView: View {
             userSettings:        userSettings,
             onSaved:             { Task { await loadWorkouts() } },
             isEmbedded:          true,
-            onClose:             { withAnimation { logTab = 0 } }
+            onClose:             { withAnimation { logTab = 0 } },
+            resetTrigger:        $workoutResetTrigger
         )
         .environment(locationManager)
     }
@@ -410,7 +428,7 @@ struct FoodLogView: View {
                     workoutEntries.removeAll { $0.workoutID == entry.workoutID }
                     if isToday { MacroAdjustmentEngine.revert() }
                 }
-            })
+            }, userID: userSettings.userID)
         }
     }
 
@@ -1051,15 +1069,19 @@ struct FoodLogView: View {
     @ViewBuilder
     private var eatingWindowCard: some View {
         if userSettings.fastingEnabled {
-            let startFrac = Double(wStartHour) + Double(wStartMin) / 60.0
-            let endFrac   = startFrac + Double(wDuration)
-            let endHour   = Int(endFrac) % 24
-            let endMin    = Int((endFrac - Double(Int(endFrac))) * 60)
             let mealTimes = viewModel.todayEntries.map { e -> Double in
                 let cal = Calendar.current
                 return Double(cal.component(.hour,   from: e.loggedAt))
                      + Double(cal.component(.minute, from: e.loggedAt)) / 60.0
             }
+            // Sync start time with the first meal logged, otherwise use manual setting
+            let defaultStart = Double(wStartHour) + Double(wStartMin) / 60.0
+            let startFrac = mealTimes.min() ?? defaultStart
+            let endFrac   = startFrac + Double(wDuration)
+            let startHourDisplay = Int(startFrac) % 24
+            let startMinDisplay  = Int((startFrac - Double(Int(startFrac))) * 60)
+            let endHour   = Int(endFrac) % 24
+            let endMin    = Int((endFrac - Double(Int(endFrac))) * 60)
 
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
@@ -1076,7 +1098,7 @@ struct FoodLogView: View {
                             Text("Eating Window")
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundStyle(.white)
-                            Text("\(timeString(hour: wStartHour, minute: wStartMin)) – \(timeString(hour: endHour, minute: endMin)) · \(wDuration)h")
+                            Text("\(timeString(hour: startHourDisplay, minute: startMinDisplay)) – \(timeString(hour: endHour, minute: endMin)) · \(wDuration)h")
                                 .font(.caption)
                                 .foregroundStyle(.white.opacity(0.45))
                         }
@@ -1128,6 +1150,7 @@ struct AnalysisSheet: View {
     @State private var skeletonPulse     = false
     @State private var showSaveError     = false
     @State private var createMealInspoPost = false
+    @State private var showingAllSavedMeals = false
 
     // In-sheet image picker source (for the two-square selector)
     @State private var pickerSource: ImageSourceKind? = nil
@@ -1802,9 +1825,18 @@ struct AnalysisSheet: View {
 
     private var savedMealsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Saved Meals")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.45))
+            HStack {
+                Text("Saved Meals")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.45))
+                Spacer()
+                Button { showingAllSavedMeals = true } label: {
+                    Text("View All")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(ThemeStore.shared.accent)
+                }
+                .buttonStyle(.plain)
+            }
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
@@ -1813,6 +1845,21 @@ struct AnalysisSheet: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showingAllSavedMeals) {
+            SavedMealsView(
+                savedMeals: viewModel.sortedSavedMeals,
+                onSelect: { meal in
+                    viewModel.populateFromSavedMeal(meal)
+                    viewModel.analysisState = .result
+                },
+                onDelete: { meal in
+                    viewModel.deleteSavedMeal(meal)
+                },
+                onEdit: { meal, name, cal, pro, carb, fat in
+                    viewModel.updateSavedMeal(meal, name: name, calories: cal, protein: pro, carbs: carb, fat: fat)
+                }
+            )
         }
     }
 

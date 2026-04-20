@@ -369,7 +369,7 @@ extension FeedPost {
             "protein": 0.0, "carbs": 0.0, "fat": 0.0,
             "goalProtein": 0.0, "goalCarbs": 0.0, "goalFat": 0.0,
             "latitude": 0.0, "longitude": 0.0,
-            "currentWeight": 0.0, "goalWeight": 0.0,
+            "previousWeight": 0.0, "currentWeight": 0.0, "goalWeight": 0.0,
         ]
         for (key, value) in doubleDefaults where data[key] == nil {
             data[key] = value

@@ -649,13 +649,26 @@ enum AnalysisTier: Equatable {
         NotificationCenter.default.post(name: FuelLogService.mealChangedNotification, object: nil)
 
         Task {
+            // If the saved meal has local imageData but no photoURL (e.g. the
+            // original upload failed or the meal predates the photo-URL system),
+            // upload the image now so the URL is available for posts and the log.
+            let shouldUploadImage = meal.photoURL.isEmpty && meal.imageData != nil
             if let result = try? await FoodEntryService.shared.save(
                 entry: entry,
-                imageData: nil,
+                imageData: shouldUploadImage ? meal.imageData : nil,
                 existingPhotoURL: meal.photoURL
             ) {
                 entry.firebaseEntryID = result.docID
                 entry.photoURL        = result.photoURL
+                // Back-fill the saved meal template so future quick-logs reuse the URL
+                if shouldUploadImage, !result.photoURL.isEmpty {
+                    meal.photoURL = result.photoURL
+                    try? await FoodEntryService.shared.save(
+                        entry: meal,
+                        imageData: nil,
+                        existingPhotoURL: result.photoURL
+                    )
+                }
             }
         }
     }
@@ -718,6 +731,24 @@ enum AnalysisTier: Equatable {
         let entryID = meal.firebaseEntryID
         let uid     = meal.userID
         Task { await FoodEntryService.shared.delete(entryID: entryID, userID: uid) }
+    }
+
+    func updateSavedMeal(_ meal: FoodEntry, name: String, calories: Double,
+                          protein: Double, carbs: Double, fat: Double) {
+        meal.foodName = name
+        meal.calories = calories
+        meal.protein  = protein
+        meal.carbs    = carbs
+        meal.fat      = fat
+        let entryID = meal.firebaseEntryID
+        let uid     = meal.userID
+        Task {
+            await FoodEntryService.shared.update(
+                entryID: entryID, userID: uid,
+                foodName: name, calories: calories,
+                protein: protein, carbs: carbs, fat: fat
+            )
+        }
     }
 
     func updateEntry(_ entry: FoodEntry,

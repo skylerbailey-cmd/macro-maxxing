@@ -758,18 +758,56 @@ final class ClaudeAnalysisService {
         ]
 
         let callResult = try await Functions.functions().httpsCallable("proxyClaude").call(payload)
-        guard let responseDict = callResult.data as? [String: Any],
-              let contentArr = responseDict["content"] as? [[String: Any]],
-              let text = contentArr.first(where: { $0["type"] as? String == "text" })?["text"] as? String
-        else { throw ClaudeServiceError.noContent }
+
+        // Extract the text from the Anthropic response. Firebase callable
+        // may wrap the response in a "data" key or return it flat depending
+        // on the SDK version, so we try both paths.
+        let responseDict: [String: Any]
+        if let dict = callResult.data as? [String: Any] {
+            responseDict = dict
+        } else {
+            AppLogger.log("[parseWorkout] Unexpected response type: \(type(of: callResult.data))")
+            throw ClaudeServiceError.noContent
+        }
+
+        // Try to find the text content — the Anthropic API returns
+        // {"content": [{"type": "text", "text": "..."}]} but sometimes
+        // the response might be nested under a "result" or "data" key.
+        let text: String
+        if let contentArr = responseDict["content"] as? [[String: Any]],
+           let t = contentArr.first(where: { $0["type"] as? String == "text" })?["text"] as? String {
+            text = t
+        } else if let nested = responseDict["result"] as? [String: Any],
+                  let contentArr = nested["content"] as? [[String: Any]],
+                  let t = contentArr.first(where: { $0["type"] as? String == "text" })?["text"] as? String {
+            text = t
+        } else if let directText = responseDict["text"] as? String {
+            text = directText
+        } else {
+            // Log what we actually got so we can diagnose
+            let keys = Array(responseDict.keys).joined(separator: ", ")
+            AppLogger.log("[parseWorkout] Could not extract text. Keys: \(keys)")
+            if let contentArr = responseDict["content"] {
+                AppLogger.log("[parseWorkout] content type: \(type(of: contentArr)), value: \(contentArr)")
+            }
+            throw ClaudeServiceError.noContent
+        }
 
         let jsonString = stripMarkdownFences(text)
-        guard let jsonData = jsonString.data(using: .utf8),
-              let json     = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-              let name     = json["name"]            as? String,
-              let duration = (json["durationMinutes"] as? Int) ?? (json["durationMinutes"] as? Double).map({ Int($0) }),
-              let calories = (json["caloriesBurned"] as? Int) ?? (json["caloriesBurned"] as? Double).map({ Int($0) })
-        else { throw ClaudeServiceError.noContent }
+        guard let jsonData = jsonString.data(using: .utf8) else {
+            AppLogger.log("[parseWorkout] Could not encode text to UTF-8 data")
+            throw ClaudeServiceError.noContent
+        }
+        guard let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
+            AppLogger.log("[parseWorkout] JSON parse failed. Raw text: \(jsonString.prefix(500))")
+            throw ClaudeServiceError.malformedJSON(String(jsonString.prefix(200)))
+        }
+        guard let name = json["name"] as? String else {
+            AppLogger.log("[parseWorkout] Missing 'name' field. Keys: \(Array(json.keys))")
+            throw ClaudeServiceError.malformedJSON("Missing workout name in response")
+        }
+        let duration = (json["durationMinutes"] as? Int) ?? (json["durationMinutes"] as? Double).map({ Int($0) }) ?? 0
+        let calories = (json["caloriesBurned"] as? Int) ?? (json["caloriesBurned"] as? Double).map({ Int($0) }) ?? 0
 
         let typeRaw     = json["workoutType"] as? String ?? ""
         let workoutType = WorkoutType(rawValue: typeRaw) ?? .other

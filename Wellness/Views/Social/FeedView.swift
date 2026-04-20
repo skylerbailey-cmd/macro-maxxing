@@ -430,6 +430,7 @@ struct FeedPostCard: View {
     @State private var expandedWorkoutID: String? = nil
     @State private var showPhotoViewer       = false
     @State private var photoViewerIndex      = 0
+    @State private var fuelLogPhotoURL: String? = nil
 
     private let cardBg   = Color(red: 0.11, green: 0.11, blue: 0.14)
     private var purpleHi: Color { post.themeColor }
@@ -525,6 +526,17 @@ struct FeedPostCard: View {
         } message: {
             Text("This post will be flagged for review.")
         }
+        .fullScreenCover(item: Binding(
+            get: { fuelLogPhotoURL.map { FuelLogPhotoItem(url: $0) } },
+            set: { fuelLogPhotoURL = $0?.url }
+        )) { item in
+            PhotoViewerSheet(urls: [item.url], initialIndex: 0)
+        }
+    }
+
+    private struct FuelLogPhotoItem: Identifiable {
+        let url: String
+        var id: String { url }
     }
 
     // MARK: Author header
@@ -1044,24 +1056,29 @@ struct FeedPostCard: View {
                 VStack(spacing: 0) {
                     HStack(spacing: 10) {
                         if !item.photoURL.isEmpty, let url = URL(string: item.photoURL) {
-                            CachedAsyncImage(
-                                url: url,
-                                content: { img in
-                                    img.resizable().scaledToFill()
-                                        .frame(width: 40, height: 40)
-                                        .clipped().cornerRadius(8)
-                                },
-                                placeholder: {
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color.white.opacity(0.07))
-                                        .frame(width: 40, height: 40)
-                                        .overlay {
-                                            Image(systemName: "fork.knife")
-                                                .font(.system(size: 14))
-                                                .foregroundStyle(.white.opacity(0.30))
-                                        }
-                                }
-                            )
+                            Button {
+                                fuelLogPhotoURL = item.photoURL
+                            } label: {
+                                CachedAsyncImage(
+                                    url: url,
+                                    content: { img in
+                                        img.resizable().scaledToFill()
+                                            .frame(width: 40, height: 40)
+                                            .clipped().cornerRadius(8)
+                                    },
+                                    placeholder: {
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(Color.white.opacity(0.07))
+                                            .frame(width: 40, height: 40)
+                                            .overlay {
+                                                Image(systemName: "fork.knife")
+                                                    .font(.system(size: 14))
+                                                    .foregroundStyle(.white.opacity(0.30))
+                                            }
+                                    }
+                                )
+                            }
+                            .buttonStyle(.plain)
                         } else {
                             RoundedRectangle(cornerRadius: 8)
                                 .fill(Color.white.opacity(0.07))
@@ -1583,7 +1600,7 @@ struct GoalWeightBadge: View {
 // marks: min, target, max. A colored indicator dot shows current intake.
 // The bar spans 0 → 130% of goal so overshoot is visible but capped.
 
-private struct TargetZoneRow: View {
+struct TargetZoneRow: View {
     let label: String
     let total: Double
     let goal:  Double
@@ -1692,7 +1709,7 @@ private struct TargetZoneRow: View {
 // MARK: - Triangle Indicator Shape
 
 /// Upward-pointing triangle whose tip touches the bar above.
-private struct TriangleIndicator: Shape {
+struct TriangleIndicator: Shape {
     func path(in rect: CGRect) -> Path {
         Path { p in
             p.move(to:    CGPoint(x: rect.midX, y: rect.minY))  // tip (top center)

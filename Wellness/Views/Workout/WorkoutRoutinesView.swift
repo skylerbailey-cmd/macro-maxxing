@@ -347,8 +347,10 @@ struct RoutineDetailView: View {
                 onSaved:             {},
                 saveTemplateMode:    true,
                 onSavedTemplate:     { updated in
-                    WorkoutService.shared.updateSavedWorkout(updated, userID: self.userID)
-                    Task { self.allSaved = await WorkoutService.shared.fetchSavedWorkouts(userID: self.userID) }
+                    Task {
+                        await WorkoutService.shared.updateSavedWorkout(updated, userID: self.userID)
+                        self.allSaved = await WorkoutService.shared.fetchSavedWorkouts(userID: self.userID)
+                    }
                 },
                 savedWorkoutMode:    true
             )
@@ -391,6 +393,9 @@ struct RoutineDetailView: View {
         }
         .onAppear { notesText = routine.notes }
         .task { allSaved = await WorkoutService.shared.fetchSavedWorkouts(userID: userID) }
+        .onReceive(NotificationCenter.default.publisher(for: WorkoutService.savedWorkoutTemplatesChanged)) { _ in
+            Task { allSaved = await WorkoutService.shared.fetchSavedWorkouts(userID: userID) }
+        }
     }
 
     private func workoutRow(_ workout: SavedWorkout) -> some View {
@@ -614,7 +619,7 @@ private struct AddWorkoutToRoutineSheet: View {
             )) {
                 Button("Delete", role: .destructive) {
                     if let w = deleteConfirm {
-                        WorkoutService.shared.deleteSavedWorkout(id: w.id, userID: userID)
+                        Task { await WorkoutService.shared.deleteSavedWorkout(id: w.id, userID: userID) }
                         workouts.removeAll { $0.id == w.id }
                         selected.remove(w.id)
                     }
@@ -739,6 +744,9 @@ private struct AddWorkoutToRoutineSheet: View {
             }
             .preferredColorScheme(.dark)
             .task { workouts = await WorkoutService.shared.fetchSavedWorkouts(userID: userID) }
+            .onReceive(NotificationCenter.default.publisher(for: WorkoutService.savedWorkoutTemplatesChanged)) { _ in
+                Task { workouts = await WorkoutService.shared.fetchSavedWorkouts(userID: userID) }
+            }
         }
     }
 
@@ -752,7 +760,7 @@ private struct AddWorkoutToRoutineSheet: View {
             onSaved:             {},
             saveTemplateMode:    true,
             onSavedTemplate:     { template in
-                WorkoutService.shared.addSavedWorkout(template, userID: userID)
+                Task { await WorkoutService.shared.addSavedWorkout(template, userID: userID) }
                 workouts.append(template)
             }
         )
@@ -776,7 +784,7 @@ private struct AddWorkoutToRoutineSheet: View {
             onSaved:             {},
             saveTemplateMode:    true,
             onSavedTemplate:     { updated in
-                WorkoutService.shared.updateSavedWorkout(updated, userID: userID)
+                Task { await WorkoutService.shared.updateSavedWorkout(updated, userID: userID) }
                 if let idx = workouts.firstIndex(where: { $0.id == updated.id }) {
                     workouts[idx] = updated
                 }

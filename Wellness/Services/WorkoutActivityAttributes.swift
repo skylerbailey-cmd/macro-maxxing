@@ -139,6 +139,22 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         /// resumes, we bump this by `now − pausedAt` and clear `pausedAt`.
         var accumulatedPaused: TimeInterval
 
+        // MARK: Rest timer
+        //
+        // Timestamp of the last "Log Set" or "Next Exercise" action.
+        // The Dynamic Island shows a running rest timer since this date
+        // so the user can track how long they've been resting between sets.
+        // `nil` means no set has been logged yet — no rest timer shown.
+        var lastSetLoggedAt: Date? = nil
+
+        // MARK: Staged set (Dynamic Island "Log Set" flow)
+        //
+        // The staged set is the set being configured on the Dynamic Island
+        // with +/- reps and weight. It is NOT part of the exercise's sets
+        // array until the user taps "Log Set", which commits it.
+        var stagedReps:   Int     = 10
+        var stagedWeight: Double? = nil
+
         init(workoutName:    String,
              workoutTypeRaw: String,
              startedAt:      Date,
@@ -169,7 +185,7 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         private enum CodingKeys: String, CodingKey {
             case workoutName, workoutTypeRaw, startedAt, currentIndex
             case exercises, segments, rounds, poses
-            case isFinished, pausedAt, accumulatedPaused
+            case isFinished, pausedAt, accumulatedPaused, lastSetLoggedAt
             // Legacy fields:
             case currentExercise, sets, exerciseNumber, totalExercises
         }
@@ -187,6 +203,7 @@ struct WorkoutActivityAttributes: ActivityAttributes {
             try c.encode(isFinished,        forKey: .isFinished)
             try c.encodeIfPresent(pausedAt, forKey: .pausedAt)
             try c.encode(accumulatedPaused, forKey: .accumulatedPaused)
+            try c.encodeIfPresent(lastSetLoggedAt, forKey: .lastSetLoggedAt)
         }
 
         init(from decoder: Decoder) throws {
@@ -197,6 +214,7 @@ struct WorkoutActivityAttributes: ActivityAttributes {
             self.isFinished        = (try? c.decode(Bool.self,   forKey: .isFinished)) ?? false
             self.pausedAt          = try? c.decode(Date.self,    forKey: .pausedAt)
             self.accumulatedPaused = (try? c.decode(TimeInterval.self, forKey: .accumulatedPaused)) ?? 0
+            self.lastSetLoggedAt  = try? c.decode(Date.self, forKey: .lastSetLoggedAt)
             self.segments          = (try? c.decode([LiveCardioSegment].self, forKey: .segments)) ?? []
             self.rounds            = (try? c.decode([LiveHIITRound].self,     forKey: .rounds))   ?? []
             self.poses             = (try? c.decode([LivePose].self,          forKey: .poses))    ?? []

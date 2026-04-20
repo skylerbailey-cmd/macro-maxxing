@@ -133,6 +133,32 @@ struct SocialView: View {
         return filtered.filter { $0.postLabel == filter.rawValue }
     }
 
+    private static let minLocalAuthors  = 10
+    private static let minArenaAuthors = 10
+
+    /// Number of unique authors in the arena feed.
+    private var arenaUniqueAuthorCount: Int {
+        Set(arenaViewModel.posts
+            .filter { $0.postScope.isEmpty || $0.postScope == "arena" }
+            .filter { !blockedUserIDs.contains($0.userID) }
+            .map(\.userID)).count
+    }
+
+    /// Number of unique authors in the local feed (before label filter).
+    private var localUniqueAuthorCount: Int {
+        guard let coord = locationManager.coordinate else { return 0 }
+        let userLoc = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
+        let nearbyAuthors = Set(localFirestorePosts.filter { post in
+            if post.postScope == "team" { return false }
+            if post.userID == userSettings.userID { return true }
+            guard post.isPublic else { return false }
+            guard post.latitude != 0 || post.longitude != 0 else { return false }
+            return CLLocation(latitude: post.latitude, longitude: post.longitude)
+                .distance(from: userLoc) <= Self.localRadiusMeters
+        }.map(\.userID))
+        return nearbyAuthors.count
+    }
+
     var body: some View {
         ZStack {
             Color.pageBg.ignoresSafeArea()
@@ -146,7 +172,7 @@ struct SocialView: View {
                                 Text(feed.rawValue)
                                     .font(.system(size: 12, weight: .semibold))
                                     .foregroundStyle(selectedFeed == feed ? .black : .white.opacity(0.55))
-                                    .padding(.horizontal, 10)
+                                    .frame(maxWidth: .infinity)
                                     .padding(.vertical, 7)
                                     .background(
                                         Capsule().fill(selectedFeed == feed
@@ -161,8 +187,6 @@ struct SocialView: View {
                     .padding(3)
                     .background(Capsule().fill(Color.cardBg))
                     .tutorialAnchor("feed.scopePicker")
-
-                    Spacer()
 
                     HStack(spacing: 14) {
                         Button { showingTutorial = true } label: {
@@ -268,6 +292,8 @@ struct SocialView: View {
                         arenaErrorView(err)
                     } else if localDisplayed.isEmpty {
                         emptyFeed
+                    } else if localUniqueAuthorCount < Self.minLocalAuthors {
+                        notEnoughLocalBanner
                     } else {
                         ScrollView {
                             LazyVStack(spacing: 12) {
@@ -415,7 +441,8 @@ struct SocialView: View {
                         ownUserSettings:     post.userID == userSettings.userID ? userSettings : nil,
                         currentUserSettings: post.userID == userSettings.userID ? nil : userSettings,
                         isDismissable:       true,
-                        profileIsPrivate:    !post.isPublic
+                        profileIsPrivate:    !post.isPublic,
+                        initialSubscribed:   subscribedUserIDs.contains(post.userID)
                     )
                 }
             }
@@ -507,6 +534,7 @@ struct SocialView: View {
             currentUserID:     userSettings.userID,
             onRep:             { Task { await arenaViewModel.toggleRep(postID: post.id, currentUserID: userSettings.userID) } },
             onCelebrate:       { Task { await arenaViewModel.toggleCelebrate(postID: post.id, currentUserID: userSettings.userID) } },
+            onZap:             { Task { await arenaViewModel.toggleZap(postID: post.id, currentUserID: userSettings.userID) } },
             onDelete:          isOwn ? { Task { await arenaViewModel.deletePost(post) } } : nil,
             onShare:           isOwn ? { postToShare = post } : nil,
             onTap:             { activeFeedPresentation = .detail(post) },
@@ -714,6 +742,86 @@ struct SocialView: View {
     }
 
     @ViewBuilder
+    // MARK: - Not enough local users banner
+
+    private var notEnoughLocalBanner: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            VStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(Color.purpleHi.opacity(0.10))
+                        .frame(width: 88, height: 88)
+                    Image(systemName: "person.2.badge.plus")
+                        .font(.system(size: 36))
+                        .foregroundStyle(Color.purpleHi.opacity(0.55))
+                }
+
+                VStack(spacing: 6) {
+                    Text("Not enough people nearby")
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.65))
+                    Text("There need to be at least 10 people posting locally in your area before the local feed opens up. Invite friends to join and build your local community!")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.32))
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(2)
+                        .padding(.horizontal, 32)
+                }
+
+                Text("\(localUniqueAuthorCount) of \(Self.minLocalAuthors) people")
+                    .font(.system(size: 13, weight: .black, design: .rounded))
+                    .foregroundStyle(Color.purpleHi)
+
+                // Progress bar
+                GeometryReader { geo in
+                    let pct = min(Double(localUniqueAuthorCount) / Double(Self.minLocalAuthors), 1.0)
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.white.opacity(0.08)).frame(height: 6)
+                        Capsule().fill(Color.purpleHi.opacity(0.80))
+                            .frame(width: max(6, geo.size.width * pct), height: 6)
+                    }
+                }
+                .frame(height: 6)
+                .padding(.horizontal, 60)
+
+                Button(action: presentInviteSheet) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Invite Friends")
+                            .font(.system(size: 15, weight: .bold))
+                    }
+                    .foregroundStyle(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 13)
+                    .background(Color.purpleHi, in: RoundedRectangle(cornerRadius: 14))
+                }
+                .padding(.horizontal, 40)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @MainActor
+    private func presentInviteSheet() {
+        let text = "Hey! 💪 I've been tracking my macros and workouts on Macro Maxxing. Join me so we can see each other's posts on the local feed! Download the app here: https://apps.apple.com/app/macro-maxxing"
+        let av = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        av.excludedActivityTypes = [
+            .postToFacebook, .postToTwitter, .postToWeibo,
+            .postToFlickr, .postToVimeo, .postToTencentWeibo,
+            .saveToCameraRoll, .addToReadingList, .assignToContact,
+            .openInIBooks, .print, .copyToPasteboard, .markupAsPDF
+        ]
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.windows.first?.rootViewController?
+            .present(av, animated: true)
+    }
+
     private var emptyFeed: some View {
         let noLocation = selectedFeed == .local && locationManager.coordinate == nil
         let icon = (selectedFeed == .team || selectedFeed == .following) ? "person.2.fill"
@@ -733,7 +841,7 @@ struct SocialView: View {
             : selectedFeed == .local ? "No one in your area has posted yet. Be the first."
             : "Hit your macro goals and post from the celebration screen, or tap ✏️ to drop a post."
 
-        VStack(spacing: 18) {
+        return VStack(spacing: 18) {
             ZStack {
                 Circle()
                     .fill(Color.purpleHi.opacity(0.10))

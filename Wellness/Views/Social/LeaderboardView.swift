@@ -67,6 +67,8 @@ struct LeaderboardView: View {
     @State private var timeUntilReset:     TimeInterval       = 0
     @State private var countdownBlink:     Bool               = false
     @State private var showingWinnerPopup: Bool               = false
+    @State private var winnerBoardSnapshot: [LeaderboardEntry] = []
+    @State private var showingWinnerPost:  Bool               = false
     @State private var boardUnlocked:      Bool               = false
     @State private var showMakePublicConfirm: Bool            = false
     @State private var isUpdatingPrivacy:    Bool             = false
@@ -98,8 +100,6 @@ struct LeaderboardView: View {
                 HStack(spacing: 10) {
                     scopePicker
                         .tutorialAnchor("board.scopePicker")
-
-                    Spacer()
 
                     HStack(spacing: 14) {
                         Button { showingTutorial = true } label: {
@@ -226,14 +226,26 @@ struct LeaderboardView: View {
             userSettings.pendingWeeklyWinnerXP   = 0
             userSettings.pendingLocalWinnerRank  = nil
             userSettings.pendingLocalWinnerXP    = 0
+            // Open new post with Mog Board label after dismissing congrats
+            Task {
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                showingWinnerPost = true
+            }
         }) {
             WeeklyWinnerPopup(
                 arenaRank:    userSettings.pendingWeeklyWinnerRank,
                 arenaXP:      userSettings.pendingWeeklyWinnerXP,
                 localRank:    userSettings.pendingLocalWinnerRank,
                 localXP:      userSettings.pendingLocalWinnerXP,
-                boardEntries: weeklyAuraDisplayed
+                boardEntries: winnerBoardSnapshot.isEmpty ? weeklyAuraDisplayed : winnerBoardSnapshot
             )
+        }
+        .sheet(isPresented: $showingWinnerPost) {
+            NewPostView(
+                userSettings: userSettings,
+                preSelectedLabel: .mogBoard
+            )
+            .environment(locationManager)
         }
         .alert(infoBoardTitle, isPresented: Binding(
             get: { infoBoard != nil },
@@ -244,11 +256,17 @@ struct LeaderboardView: View {
             Text(infoBoardMessage)
         }
         .onAppear {
+            // Capture board snapshot BEFORE reset zeroes out scores
+            let hasPendingWin = userSettings.pendingWeeklyWinnerRank != nil || userSettings.pendingLocalWinnerRank != nil
+            if hasPendingWin && winnerBoardSnapshot.isEmpty {
+                winnerBoardSnapshot = Array(scopeFiltered(firestoreAura).prefix(10))
+            }
+
             userSettings.checkWeeklyReset()
             if selectedScope == .local { locationManager.requestLocationIfNeeded() }
             timeUntilReset = UserSettings.nextWeekReset().timeIntervalSinceNow
             // Show winner popup if either an arena or local win is pending
-            if userSettings.pendingWeeklyWinnerRank != nil || userSettings.pendingLocalWinnerRank != nil {
+            if hasPendingWin {
                 Task {
                     try? await Task.sleep(nanoseconds: 600_000_000)
                     showingWinnerPopup = true
@@ -681,7 +699,7 @@ struct LeaderboardView: View {
                     Text(scope.rawValue)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(selectedScope == scope ? .black : .white.opacity(0.55))
-                        .padding(.horizontal, 10)
+                        .frame(maxWidth: .infinity)
                         .padding(.vertical, 7)
                         .background(
                             Capsule().fill(selectedScope == scope ? gold : Color.clear)

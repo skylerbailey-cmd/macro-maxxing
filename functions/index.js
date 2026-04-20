@@ -664,7 +664,7 @@ exports.deleteAccount = onCall(
   // 2. Delete all user subcollections
   const subcollections = [
     "foodEntries", "fuelLog", "macroHistory", "workoutEntries",
-    "savedWorkouts", "workoutRoutines",
+    "savedWorkouts", "workoutRoutines", "pushTokens",
     "following", "followers", "notifications", "subscribers",
     "balanceScoreHistory", "blockedUsers", "private",
   ];
@@ -884,6 +884,97 @@ exports.migratePrivateFields = onCall(async (request) => {
   console.log(`[migratePrivateFields] Migrated ${migrated} / ${usersSnap.size} users`);
   return { migrated, total: usersSnap.size };
 });
+
+// ---------------------------------------------------------------------------
+// Push notifications for new-post subscriber alerts
+// ---------------------------------------------------------------------------
+// When the iOS client writes an in-app notification with type "newPost" to
+// users/{userID}/notifications/{notifID}, this trigger reads the recipient's
+// pushTokens subcollection and sends an FCM push to every registered device.
+// This ensures the notification is delivered even when the app is terminated.
+
+const { getMessaging } = require("firebase-admin/messaging");
+
+exports.sendPushOnNewPostNotification = onDocumentCreated(
+  "users/{userID}/notifications/{notifID}",
+  async (event) => {
+    const data = event.data?.data();
+    if (!data) return;
+
+    // Only fire for newPost notifications
+    if (data.type !== "newPost") return;
+
+    const userID = event.params.userID;
+
+    // Fetch all push tokens for the recipient
+    const tokensSnap = await getFirestore()
+      .collection("users").doc(userID)
+      .collection("pushTokens")
+      .get();
+
+    if (tokensSnap.empty) return;
+
+    const tokens = tokensSnap.docs
+      .map((d) => d.data().token)
+      .filter((t) => t && t.length > 0);
+
+    if (tokens.length === 0) return;
+
+    const senderName = data.actorDisplayName || data.actorUsername || "Someone";
+    const title = `${senderName} just posted`;
+    const body  = data.postHeadline
+      ? data.postHeadline
+      : "Check it out on the feed.";
+
+    const message = {
+      notification: { title, body },
+      data: {
+        type:   "newPost",
+        postID: data.postID || "",
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: "default",
+            badge: 1,
+          },
+        },
+      },
+    };
+
+    // Send to each token; remove stale tokens that fail
+    const messaging = getMessaging();
+    const sendResults = await Promise.allSettled(
+      tokens.map((token) =>
+        messaging.send({ ...message, token })
+      )
+    );
+
+    // Clean up invalid/expired tokens
+    const db = getFirestore();
+    for (let i = 0; i < sendResults.length; i++) {
+      if (sendResults[i].status === "rejected") {
+        const err = sendResults[i].reason;
+        const code = err?.code || err?.errorInfo?.code || "";
+        if (
+          code === "messaging/invalid-registration-token" ||
+          code === "messaging/registration-token-not-registered"
+        ) {
+          await db
+            .collection("users").doc(userID)
+            .collection("pushTokens").doc(tokens[i])
+            .delete()
+            .catch(() => {});
+        }
+      }
+    }
+
+    console.log(
+      `[sendPush] Sent newPost push to ${userID}: ${tokens.length} tokens, ` +
+      `${sendResults.filter((r) => r.status === "fulfilled").length} succeeded`
+    );
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Subscription notifications & affiliate commissions

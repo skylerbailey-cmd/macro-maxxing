@@ -42,8 +42,11 @@ struct WorkoutLiveActivityWidget: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
-                    timerLabel(state: state, compact: true)
-                        .padding(.trailing, 4)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        timerLabel(state: state, compact: true)
+                        restTimerLabel(state: state, compact: true)
+                    }
+                    .padding(.trailing, 4)
                 }
 
                 DynamicIslandExpandedRegion(.center) {
@@ -62,8 +65,11 @@ struct WorkoutLiveActivityWidget: Widget {
                 }
 
             } compactLeading: {
-                // Compact timer — freezes when paused.
-                timerLabel(state: state, compact: true)
+                // Compact timer — freezes when paused. Rest timer below.
+                VStack(alignment: .leading, spacing: 1) {
+                    timerLabel(state: state, compact: true)
+                    restTimerLabel(state: state, compact: true)
+                }
 
             } compactTrailing: {
                 Image(systemName: state.isPaused
@@ -163,17 +169,19 @@ private func currentItemName(for state: WorkoutActivityAttributes.ContentState) 
 private func strengthBody(state: WorkoutActivityAttributes.ContentState,
                           compact: Bool) -> some View {
     let current = WorkoutActivityAttributes.currentExercise(in: state)
-    let lastSetIndex = max(0, (current?.sets.count ?? 1) - 1)
+    let loggedSets = current?.sets ?? []
+    let nextSetNumber = loggedSets.count + 1
     VStack(spacing: compact ? 6 : 10) {
         actionRow(isPaused: state.isPaused, compact: compact)
-        if let sets = current?.sets, sets.indices.contains(lastSetIndex) {
-            currentSetRow(setIndex: lastSetIndex,
-                          set:      sets[lastSetIndex],
-                          compact:  compact)
-        }
-        pastSetsList(sets:    current?.sets ?? [],
-                     current: lastSetIndex,
+        // Staged set — the set being configured, not yet logged
+        stagedSetRow(setNumber: nextSetNumber,
+                     reps: state.stagedReps,
+                     weight: state.stagedWeight,
                      compact: compact)
+        // Already-logged sets (most recent first)
+        if !loggedSets.isEmpty {
+            loggedSetsList(sets: loggedSets, compact: compact)
+        }
     }
 }
 
@@ -237,8 +245,14 @@ private func cardioStatsRow(segment: WorkoutActivityAttributes.LiveCardioSegment
 private func cardioSegmentList(state: WorkoutActivityAttributes.ContentState,
                                compact: Bool) -> some View {
     if state.segments.count > 1 {
+        let maxSegs = compact ? 3 : 4
+        let segs = Array(state.segments.enumerated())
+        // Show current + neighbors, capped to maxSegs
+        let startIdx = max(0, min(state.currentIndex - 1, segs.count - maxSegs))
+        let visibleSegs = Array(segs[startIdx..<min(startIdx + maxSegs, segs.count)])
+        let hiddenCount = segs.count - visibleSegs.count
         VStack(spacing: compact ? 3 : 5) {
-            ForEach(Array(state.segments.enumerated()), id: \.element.id) { idx, seg in
+            ForEach(visibleSegs, id: \.element.id) { idx, seg in
                 HStack(spacing: 6) {
                     Text(seg.label.isEmpty ? "Segment \(idx + 1)" : seg.label)
                         .font(.system(size: compact ? 10 : 12,
@@ -262,6 +276,11 @@ private func cardioSegmentList(state: WorkoutActivityAttributes.ContentState,
                             ? Color.green.opacity(0.15)
                             : Color.white.opacity(0.05),
                             in: RoundedRectangle(cornerRadius: 8))
+            }
+            if hiddenCount > 0 {
+                Text("+ \(hiddenCount) more segment\(hiddenCount == 1 ? "" : "s")")
+                    .font(.system(size: compact ? 9 : 10, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.30))
             }
         }
     }
@@ -504,21 +523,43 @@ private func formatted(seconds: Int) -> String {
         : String(format: "%02d:%02d", m, s)
 }
 
-// MARK: - Past sets list
+// MARK: - Rest timer label
 
-/// Read-only list of every set EXCEPT the current one, rendered below the
-/// action row / editable current set. Preserves natural order (Set 1, 2…)
-/// but skips whichever index is flagged as current.
+/// Shows time since last "Log Set" or "Next Exercise". Resets each time
+/// the user logs a set or advances. Only visible when `lastSetLoggedAt` is set.
 @ViewBuilder
-private func pastSetsList(sets:    [WorkoutActivityAttributes.LiveSet],
-                          current: Int,
-                          compact: Bool) -> some View {
-    let past = Array(sets.enumerated()).filter { $0.offset != current }.reversed()
-    if !past.isEmpty {
-        VStack(spacing: compact ? 3 : 5) {
-            ForEach(past, id: \.element.id) { idx, set in
-                historicalSetRow(setIndex: idx, set: set, compact: compact)
-            }
+private func restTimerLabel(state: WorkoutActivityAttributes.ContentState,
+                            compact: Bool) -> some View {
+    if let loggedAt = state.lastSetLoggedAt, !state.isPaused {
+        HStack(spacing: 3) {
+            Image(systemName: "bed.double.fill")
+                .font(.system(size: compact ? 8 : 10, weight: .bold))
+            Text(timerInterval: loggedAt...Date.distantFuture, countsDown: false)
+                .font(.system(size: compact ? 10 : 14, weight: .bold, design: .rounded))
+                .monospacedDigit()
+        }
+        .foregroundStyle(.orange)
+    }
+}
+
+// MARK: - Logged sets list
+
+/// Read-only list of all logged (committed) sets, most recent first.
+@ViewBuilder
+private func loggedSetsList(sets: [WorkoutActivityAttributes.LiveSet],
+                            compact: Bool) -> some View {
+    let maxVisible = compact ? 2 : 3
+    let reversed = Array(sets.enumerated()).reversed()
+    let visible = Array(reversed.prefix(maxVisible))
+    let hidden = sets.count - maxVisible
+    return VStack(spacing: compact ? 3 : 5) {
+        ForEach(visible, id: \.element.id) { idx, set in
+            historicalSetRow(setIndex: idx, set: set, compact: compact)
+        }
+        if hidden > 0 {
+            Text("+ \(hidden) earlier set\(hidden == 1 ? "" : "s")")
+                .font(.system(size: compact ? 9 : 10, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.30))
         }
     }
 }
@@ -547,37 +588,40 @@ private func historicalSetRow(setIndex: Int,
     .background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
 }
 
+/// The staged set row — shows reps/weight that the user is configuring.
+/// Nothing is written to the exercise until "Log Set" is tapped.
 @ViewBuilder
-private func currentSetRow(setIndex: Int,
-                           set: WorkoutActivityAttributes.LiveSet,
-                           compact: Bool) -> some View {
+private func stagedSetRow(setNumber: Int,
+                          reps: Int,
+                          weight: Double?,
+                          compact: Bool) -> some View {
     HStack(spacing: compact ? 6 : 8) {
-        Text("Set \(setIndex + 1)")
+        Text("Set \(setNumber)")
             .font(.system(size: compact ? 10 : 12, weight: .bold))
-            .foregroundStyle(.green)
+            .foregroundStyle(.yellow)
             .frame(width: compact ? 40 : 50, alignment: .leading)
 
         // Reps stepper
         HStack(spacing: compact ? 4 : 6) {
-            Button(intent: WorkoutDecrementRepsIntent(setIndex: setIndex)) {
+            Button(intent: WorkoutDecrementRepsIntent()) {
                 stepperGlyph("minus", compact: compact, filled: false)
             }
             .buttonStyle(.plain)
 
             VStack(spacing: 0) {
-                Text("\(set.reps)")
+                Text("\(reps)")
                     .font(.system(size: compact ? 14 : 18, weight: .black, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(.white)
                     .contentTransition(.numericText())
-                    .transaction { $0.animation = .spring(duration: 0.12) }
+                    .transaction { $0.animation = .linear(duration: 0.05) }
                 Text("reps")
                     .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.40))
             }
             .frame(minWidth: compact ? 30 : 38)
 
-            Button(intent: WorkoutIncrementRepsIntent(setIndex: setIndex)) {
+            Button(intent: WorkoutIncrementRepsIntent()) {
                 stepperGlyph("plus", compact: compact, filled: true)
             }
             .buttonStyle(.plain)
@@ -585,27 +629,27 @@ private func currentSetRow(setIndex: Int,
 
         // Weight stepper
         HStack(spacing: compact ? 4 : 6) {
-            Button(intent: WorkoutDecrementWeightIntent(setIndex: setIndex)) {
+            Button(intent: WorkoutDecrementWeightIntent()) {
                 stepperGlyph("minus", compact: compact, filled: false)
             }
             .buttonStyle(.plain)
 
             VStack(spacing: 0) {
-                Text(weightString(set.weight))
+                Text(weightString(weight))
                     .font(.system(size: compact ? 13 : 17, weight: .black, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(.white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
                     .contentTransition(.numericText())
-                    .transaction { $0.animation = .spring(duration: 0.12) }
+                    .transaction { $0.animation = .linear(duration: 0.05) }
                 Text("weight")
                     .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.40))
             }
             .frame(minWidth: compact ? 40 : 54)
 
-            Button(intent: WorkoutIncrementWeightIntent(setIndex: setIndex)) {
+            Button(intent: WorkoutIncrementWeightIntent()) {
                 stepperGlyph("plus", compact: compact, filled: true)
             }
             .buttonStyle(.plain)
@@ -613,8 +657,8 @@ private func currentSetRow(setIndex: Int,
     }
     .padding(.vertical, compact ? 4 : 8)
     .padding(.horizontal, compact ? 6 : 10)
-    .background(.green.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
-    .overlay(RoundedRectangle(cornerRadius: 10).stroke(.green.opacity(0.35), lineWidth: 1))
+    .background(.yellow.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+    .overlay(RoundedRectangle(cornerRadius: 10).stroke(.yellow.opacity(0.35), lineWidth: 1))
 }
 
 private func stepperGlyph(_ systemName: String, compact: Bool, filled: Bool) -> some View {
@@ -683,7 +727,7 @@ private func actionRow(isPaused: Bool, compact: Bool) -> some View {
         .buttonStyle(.plain)
 
         if compact {
-            compactActionButton(title: "Add Set",
+            compactActionButton(title: "Log Set",
                                 systemImage: "plus",
                                 intent: WorkoutAddSetIntent())
             compactActionButton(title: "Next",
@@ -698,7 +742,7 @@ private func actionRow(isPaused: Bool, compact: Bool) -> some View {
                 HStack(spacing: 6) {
                     Image(systemName: "plus")
                         .font(.system(size: 11, weight: .bold))
-                    Text("Add Set")
+                    Text("Log Set")
                         .font(.system(size: 12, weight: .semibold))
                 }
                 .foregroundStyle(.white)

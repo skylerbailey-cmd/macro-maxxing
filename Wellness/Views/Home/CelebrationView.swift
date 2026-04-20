@@ -625,12 +625,29 @@ struct FireAnimationView: View {
         [0.55, 0.65, 0.70, 0.75, 0.65][min(layer, 4)]
     }
 
+    // Screen dimensions used as a guaranteed fallback so the fire always
+    // renders at full size even if the SwiftUI layout offers something smaller.
+    private static let screenW = UIScreen.main.bounds.width
+    private static let screenH = UIScreen.main.bounds.height
+
     var body: some View {
-        TimelineView(.animation) { timeline in
+        GeometryReader { geo in
+            fireCanvas(geoSize: geo.size)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear { generateFlames() }
+    }
+
+    private func fireCanvas(geoSize: CGSize) -> some View {
+        // Use the largest available size — GeometryReader, screen, or Canvas.
+        let useW = max(geoSize.width,  Self.screenW)
+        let useH = max(geoSize.height, Self.screenH)
+
+        return TimelineView(.animation) { timeline in
             Canvas { ctx, size in
                 let t = timeline.date.timeIntervalSince(startTime)
-                let w = size.width
-                let h = size.height
+                let w = max(size.width,  useW)
+                let h = max(size.height, useH)
                 guard w > 0, h > 0 else { return }
                 let fireZone = h * 0.82
 
@@ -860,8 +877,7 @@ struct FireAnimationView: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear { generateFlames() }
+        .frame(width: useW, height: useH)
     }
 
     // MARK: - Generate

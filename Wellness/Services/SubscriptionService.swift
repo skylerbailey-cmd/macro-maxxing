@@ -35,7 +35,7 @@ final class SubscriptionService {
     }
 
     func isSubscribed(subscriberID: String, targetUserID: String) async throws -> Bool {
-        let doc = try await col(targetUserID).document(subscriberID).getDocument()
+        let doc = try await col(targetUserID).document(subscriberID).getDocument(source: .server)
         return doc.exists
     }
 

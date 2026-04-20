@@ -17,19 +17,59 @@ struct PostShareView: View {
     let post: FeedPost
 
     @Environment(\.dismiss) private var dismiss
-    @State private var foodImage:    UIImage?
+    @State private var foodImages:   [UIImage] = []
     @State private var authorAvatar: UIImage?
     @State private var renderedImage: UIImage?
     @State private var showingActivitySheet = false
     @State private var didFinishLoadingAssets = false
+    @State private var darkMode = true
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Color(red: 0.05, green: 0.05, blue: 0.07).ignoresSafeArea()
 
-                VStack(spacing: 24) {
+                VStack(spacing: 16) {
                     cardPreview
+
+                    // Dark / Light toggle
+                    HStack(spacing: 12) {
+                        Spacer()
+                        Button {
+                            darkMode = true
+                            renderCard()
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: "moon.fill")
+                                    .font(.system(size: 11, weight: .bold))
+                                Text("Dark")
+                                    .font(.system(size: 12, weight: .bold))
+                            }
+                            .foregroundStyle(darkMode ? .black : .white.opacity(0.50))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(darkMode ? ThemeStore.shared.accent : Color.white.opacity(0.08), in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            darkMode = false
+                            renderCard()
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: "sun.max.fill")
+                                    .font(.system(size: 11, weight: .bold))
+                                Text("Light")
+                                    .font(.system(size: 12, weight: .bold))
+                            }
+                            .foregroundStyle(!darkMode ? .black : .white.opacity(0.50))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(!darkMode ? ThemeStore.shared.accent : Color.white.opacity(0.08), in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        Spacer()
+                    }
 
                     VStack(spacing: 10) {
                         shareButton(
@@ -147,11 +187,18 @@ struct PostShareView: View {
     /// includes the actual imagery instead of a placeholder.
     @MainActor
     private func prepareAssetsAndRender() async {
-        async let food   = Self.download(URL(string: post.foodPhotoURL))
-        async let avatar = Self.download(URL(string: post.userProfilePhotoURL))
-        let (f, a) = await (food, avatar)
-        foodImage    = f
-        authorAvatar = a
+        // Collect up to 2 photo URLs
+        let allURLs = post.allPhotoURLs.prefix(2)
+        let photoResults = await withTaskGroup(of: (Int, UIImage?).self) { group in
+            for (idx, urlStr) in allURLs.enumerated() {
+                group.addTask { (idx, await Self.download(URL(string: urlStr))) }
+            }
+            var results: [(Int, UIImage?)] = []
+            for await result in group { results.append(result) }
+            return results.sorted { $0.0 < $1.0 }.compactMap { $0.1 }
+        }
+        foodImages   = photoResults
+        authorAvatar = await Self.download(URL(string: post.userProfilePhotoURL))
         didFinishLoadingAssets = true
         renderCard()
     }
@@ -160,8 +207,9 @@ struct PostShareView: View {
     private func renderCard() {
         let card = PostShareCardView(
             post:         post,
-            foodImage:    foodImage,
-            authorAvatar: authorAvatar
+            foodImages:   foodImages,
+            authorAvatar: authorAvatar,
+            lightMode:    !darkMode
         )
         let renderer   = ImageRenderer(content: card)
         renderer.scale = 3.0                   // 360 × 640 pt  →  1080 × 1920 px

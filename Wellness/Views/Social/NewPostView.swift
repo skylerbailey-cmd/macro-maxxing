@@ -875,7 +875,10 @@ struct NewPostView: View {
                     ForEach(mogBoardScopes, id: \.self) { scope in
                         let isSelected = mogBoardScope == scope
                         Button {
-                            withAnimation(.spring(duration: 0.2)) { mogBoardScope = scope }
+                            withAnimation(.spring(duration: 0.2)) {
+                                mogBoardScope = scope
+                                postScope = scope.lowercased()
+                            }
                         } label: {
                             Text(scope)
                                 .font(.system(size: 13, weight: .semibold))

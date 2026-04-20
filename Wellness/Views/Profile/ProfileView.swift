@@ -33,6 +33,10 @@ struct ProfileView: View {
     /// is not a follower, only the header is shown — posts and stats are hidden.
     var profileIsPrivate: Bool = false
 
+    /// Pre-seed subscribe state from the parent so it reflects instantly
+    /// without waiting for the Firestore round-trip.
+    var initialSubscribed: Bool? = nil
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss)      private var dismiss
 
@@ -83,9 +87,10 @@ struct ProfileView: View {
     @State private var showingConnections:    Bool   = false
     @State private var followErrorMessage:    String?   = nil
 
-    // Subscription state
+    // Subscription state — seeded from initialSubscribed if provided
     @State private var isSubscribed:     Bool = false
     @State private var subscribeLoading: Bool = false
+    @State private var didSeedSubscribed: Bool = false
 
     // Tutorial
     @AppStorage("hasSeenProfileTutorial") private var hasSeenProfileTutorial = false
@@ -242,7 +247,13 @@ struct ProfileView: View {
                 }
             }
         }
-        .task { await loadFollowState() }
+        .task {
+            if let seed = initialSubscribed, !didSeedSubscribed {
+                isSubscribed = seed
+                didSeedSubscribed = true
+            }
+            await loadFollowState()
+        }
         .task { await loadPosts() }
         .task { await loadBalanceScore() }
         .task {
@@ -323,7 +334,11 @@ struct ProfileView: View {
                     plan: plan,
                     userSettings: ownUserSettings ?? UserSettings(),
                     savedMeals: profileSavedMeals,
-                    onUpdate: { Task { profileMealPlans = await FoodEntryService.shared.fetchMealPlans(userID: ownUserSettings?.userID ?? "") } }
+                    onUpdate: {
+                        let uid = ownUserSettings?.userID ?? ""
+                        profileMealPlans = await FoodEntryService.shared.fetchMealPlans(userID: uid)
+                        profileSavedMeals = (try? await FoodEntryService.shared.fetchSavedMeals(userID: uid)) ?? []
+                    }
                 )
             }
         }
@@ -1591,6 +1606,8 @@ struct ProfileView: View {
                             post:              post,
                             currentUserID:     currentUserID,
                             onRep:             { Task { await repPost(post) } },
+                            onCelebrate:       { Task { await celebratePost(post) } },
+                            onZap:             { Task { await zapPost(post) } },
                             onDelete:          post.userID == currentUserID
                                 ? { Task { await deletePost(post) } }
                                 : nil,
@@ -1860,6 +1877,22 @@ struct ProfileView: View {
         guard !currentUserID.isEmpty else { return }
         try? await PostService.shared.toggleRep(postID: postID, currentUserID: currentUserID)
         // Refresh list to reflect updated rep count
+        await loadPosts()
+    }
+
+    private func celebratePost(_ post: FeedPost) async {
+        guard let postID = post.postID, !postID.isEmpty else { return }
+        let currentUserID = ownUserSettings?.userID ?? currentUserSettings?.userID ?? ""
+        guard !currentUserID.isEmpty else { return }
+        try? await PostService.shared.toggleCelebrate(postID: postID, currentUserID: currentUserID)
+        await loadPosts()
+    }
+
+    private func zapPost(_ post: FeedPost) async {
+        guard let postID = post.postID, !postID.isEmpty else { return }
+        let currentUserID = ownUserSettings?.userID ?? currentUserSettings?.userID ?? ""
+        guard !currentUserID.isEmpty else { return }
+        try? await PostService.shared.toggleZap(postID: postID, currentUserID: currentUserID)
         await loadPosts()
     }
 

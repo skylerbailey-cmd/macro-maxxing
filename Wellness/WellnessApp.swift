@@ -11,6 +11,7 @@ import SwiftData
 import FirebaseCore
 import FirebaseAuth
 import FirebaseAppCheck
+import FirebaseMessaging
 import BackgroundTasks
 import UserNotifications
 import GoogleSignIn
@@ -20,7 +21,7 @@ extension Notification.Name {
     static let weighInNotificationTapped = Notification.Name("weighInNotificationTapped")
 }
 
-class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
 
     static let feedRefreshTaskID  = "com.sbailey.Wellness.feedRefresh"
     static let streakResetTaskID  = "com.sbailey.Wellness.streakReset"
@@ -29,6 +30,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         // Set notification delegate so we can handle taps
         UNUserNotificationCenter.current().delegate = self
+
+        // FCM setup
+        Messaging.messaging().delegate = self
+        application.registerForRemoteNotifications()
 
         NotificationService.shared.requestAuthorization()
 
@@ -131,7 +136,19 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         task.setTaskCompleted(success: true)
     }
 
-    // MARK: - UNUserNotificationCenterDelegate
+    // MARK: - APNs token → FCM
+
+    func application(_ application: UIApplication,
+                     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        Messaging.messaging().apnsToken = deviceToken
+    }
+
+    // MARK: - MessagingDelegate
+
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        guard let token = fcmToken else { return }
+        Task { await PushTokenService.shared.save(fcmToken: token) }
+    }
 
     // MARK: - UNUserNotificationCenterDelegate
 

@@ -27,20 +27,25 @@ private enum WorkoutLiveActivitySupport {
     }
 
     /// Mutate the running activity's ContentState in place.
+    /// Uses `.none` alert config to minimize the system transition animation.
     static func mutate(_ transform: (inout WorkoutActivityAttributes.ContentState) -> Void) async {
         guard let activity = activity else { return }
         var state = activity.content.state
         transform(&state)
-        await activity.update(ActivityContent(state: state, staleDate: nil))
+        let content = ActivityContent(state: state, staleDate: nil)
+        await activity.update(
+            content,
+            alertConfiguration: nil  // no alert sound/haptic — just update silently
+        )
     }
 }
 
-// MARK: - Increment reps
+// MARK: - Increment staged reps
 
 @available(iOS 17.0, *)
 struct WorkoutIncrementRepsIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Increase Reps"
-    static var description = IntentDescription("Add one rep to the current set.")
+    static var description = IntentDescription("Add one rep to the staged set.")
 
     @Parameter(title: "Set Index") var setIndex: Int
 
@@ -49,23 +54,18 @@ struct WorkoutIncrementRepsIntent: LiveActivityIntent {
 
     func perform() async throws -> some IntentResult {
         await WorkoutLiveActivitySupport.mutate { state in
-            guard state.exercises.indices.contains(state.currentIndex) else { return }
-            var ex = state.exercises[state.currentIndex]
-            let idx = setIndex >= 0 ? setIndex : ex.sets.count - 1
-            guard ex.sets.indices.contains(idx) else { return }
-            ex.sets[idx].reps = min(999, ex.sets[idx].reps + 1)
-            state.exercises[state.currentIndex] = ex
+            state.stagedReps = min(999, state.stagedReps + 1)
         }
         return .result()
     }
 }
 
-// MARK: - Decrement reps
+// MARK: - Decrement staged reps
 
 @available(iOS 17.0, *)
 struct WorkoutDecrementRepsIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Decrease Reps"
-    static var description = IntentDescription("Remove one rep from the current set.")
+    static var description = IntentDescription("Remove one rep from the staged set.")
 
     @Parameter(title: "Set Index") var setIndex: Int
 
@@ -74,23 +74,18 @@ struct WorkoutDecrementRepsIntent: LiveActivityIntent {
 
     func perform() async throws -> some IntentResult {
         await WorkoutLiveActivitySupport.mutate { state in
-            guard state.exercises.indices.contains(state.currentIndex) else { return }
-            var ex = state.exercises[state.currentIndex]
-            let idx = setIndex >= 0 ? setIndex : ex.sets.count - 1
-            guard ex.sets.indices.contains(idx) else { return }
-            ex.sets[idx].reps = max(1, ex.sets[idx].reps - 1)
-            state.exercises[state.currentIndex] = ex
+            state.stagedReps = max(1, state.stagedReps - 1)
         }
         return .result()
     }
 }
 
-// MARK: - Add set
+// MARK: - Log set (commit staged → exercise)
 
 @available(iOS 17.0, *)
 struct WorkoutAddSetIntent: LiveActivityIntent {
-    static var title: LocalizedStringResource = "Add Set"
-    static var description = IntentDescription("Append a new set to the current exercise, copying the previous set's reps and weight.")
+    static var title: LocalizedStringResource = "Log Set"
+    static var description = IntentDescription("Commit the staged reps and weight as a new set on the current exercise.")
 
     init() {}
 
@@ -98,14 +93,17 @@ struct WorkoutAddSetIntent: LiveActivityIntent {
         await WorkoutLiveActivitySupport.mutate { state in
             guard state.exercises.indices.contains(state.currentIndex) else { return }
             var ex = state.exercises[state.currentIndex]
-            let template = ex.sets.last
             ex.sets.append(
                 WorkoutActivityAttributes.LiveSet(
-                    reps:   template?.reps   ?? 10,
-                    weight: template?.weight
+                    reps:   state.stagedReps,
+                    weight: state.stagedWeight
                 )
             )
             state.exercises[state.currentIndex] = ex
+            // Start rest timer
+            state.lastSetLoggedAt = Date()
+            // Reset staged values for the next set, copying what was just logged
+            // so the user can quickly log identical sets.
         }
         return .result()
     }
@@ -134,6 +132,8 @@ struct WorkoutNextExerciseIntent: LiveActivityIntent {
                 )
             }
             state.currentIndex = min(state.currentIndex + 1, state.exercises.count - 1)
+            // Start rest timer
+            state.lastSetLoggedAt = Date()
         }
         return .result()
     }
@@ -156,12 +156,12 @@ struct WorkoutPreviousExerciseIntent: LiveActivityIntent {
     }
 }
 
-// MARK: - Increment weight (by 5 lb)
+// MARK: - Increment staged weight (by 5 lb)
 
 @available(iOS 17.0, *)
 struct WorkoutIncrementWeightIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Add Weight"
-    static var description = IntentDescription("Add 5 lb to the current set.")
+    static var description = IntentDescription("Add 5 lb to the staged set.")
 
     @Parameter(title: "Set Index") var setIndex: Int
 
@@ -170,24 +170,19 @@ struct WorkoutIncrementWeightIntent: LiveActivityIntent {
 
     func perform() async throws -> some IntentResult {
         await WorkoutLiveActivitySupport.mutate { state in
-            guard state.exercises.indices.contains(state.currentIndex) else { return }
-            var ex = state.exercises[state.currentIndex]
-            let idx = setIndex >= 0 ? setIndex : ex.sets.count - 1
-            guard ex.sets.indices.contains(idx) else { return }
-            let current = ex.sets[idx].weight ?? 0
-            ex.sets[idx].weight = min(9999, current + 5)
-            state.exercises[state.currentIndex] = ex
+            let current = state.stagedWeight ?? 0
+            state.stagedWeight = min(9999, current + 5)
         }
         return .result()
     }
 }
 
-// MARK: - Decrement weight (by 5 lb)
+// MARK: - Decrement staged weight (by 5 lb)
 
 @available(iOS 17.0, *)
 struct WorkoutDecrementWeightIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Remove Weight"
-    static var description = IntentDescription("Subtract 5 lb from the current set. Drops to bodyweight at 0.")
+    static var description = IntentDescription("Subtract 5 lb from the staged set. Drops to bodyweight at 0.")
 
     @Parameter(title: "Set Index") var setIndex: Int
 
@@ -196,15 +191,9 @@ struct WorkoutDecrementWeightIntent: LiveActivityIntent {
 
     func perform() async throws -> some IntentResult {
         await WorkoutLiveActivitySupport.mutate { state in
-            guard state.exercises.indices.contains(state.currentIndex) else { return }
-            var ex = state.exercises[state.currentIndex]
-            let idx = setIndex >= 0 ? setIndex : ex.sets.count - 1
-            guard ex.sets.indices.contains(idx) else { return }
-            let current = ex.sets[idx].weight ?? 0
+            let current = state.stagedWeight ?? 0
             let next = current - 5
-            // 0 drops to nil (= bodyweight); negative is clamped to nil.
-            ex.sets[idx].weight = next <= 0 ? nil : next
-            state.exercises[state.currentIndex] = ex
+            state.stagedWeight = next <= 0 ? nil : next
         }
         return .result()
     }

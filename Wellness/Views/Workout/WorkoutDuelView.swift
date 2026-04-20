@@ -85,7 +85,7 @@ struct WorkoutDuelView: View {
                     entries.removeAll { $0.workoutID == entry.workoutID }
                     if isToday { MacroAdjustmentEngine.revert() }
                 }
-            })
+            }, userID: userID)
         }
         .keyboardDoneToolbar()
     }
@@ -264,6 +264,7 @@ struct EditWorkoutSheet: View {
     let entry:    WorkoutEntry
     let onSave:   (String, WorkoutType, Int, Int, Date, [Exercise]) -> Void
     var onDelete: (() -> Void)? = nil
+    var userID:   String = ""
 
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focus: Field?
@@ -275,15 +276,18 @@ struct EditWorkoutSheet: View {
     @State private var loggedAt:         Date
     @State private var exercises:        [Exercise]
     @State private var showSaveError     = false
+    @State private var showSavedConfirm  = false
 
     private enum Field: Hashable { case name, duration, calories }
 
     init(entry: WorkoutEntry,
          onSave: @escaping (String, WorkoutType, Int, Int, Date, [Exercise]) -> Void,
-         onDelete: (() -> Void)? = nil) {
+         onDelete: (() -> Void)? = nil,
+         userID: String = "") {
         self.entry    = entry
         self.onSave   = onSave
         self.onDelete = onDelete
+        self.userID   = userID
         _name         = State(initialValue: entry.name)
         _workoutType  = State(initialValue: entry.workoutType)
         _durationText = State(initialValue: String(entry.durationMinutes))
@@ -369,6 +373,35 @@ struct EditWorkoutSheet: View {
                             .font(.caption)
                     }
                 }
+                if !userID.isEmpty {
+                    Section {
+                        Button {
+                            let cleaned: [Exercise] = exercises.compactMap { ex in
+                                let trimmed = ex.name.trimmingCharacters(in: .whitespaces)
+                                guard !trimmed.isEmpty else { return nil }
+                                return Exercise(id: ex.id, name: trimmed, sets: ex.sets)
+                            }
+                            let template = SavedWorkout(
+                                name:            name.trimmingCharacters(in: .whitespaces),
+                                workoutType:     workoutType,
+                                durationMinutes: Int(durationText) ?? 0,
+                                caloriesBurned:  Int(caloriesText) ?? 0,
+                                exercises:       cleaned
+                            )
+                            Task {
+                                await WorkoutService.shared.addSavedWorkout(template, userID: userID)
+                                showSavedConfirm = true
+                            }
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Label("Save Workout", systemImage: "bookmark.fill")
+                                Spacer()
+                            }
+                        }
+                        .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
                 if let onDelete {
                     Section {
                         Button(role: .destructive) {
@@ -386,6 +419,11 @@ struct EditWorkoutSheet: View {
             }
             .navigationTitle("Edit Workout")
             .navigationBarTitleDisplayMode(.inline)
+            .alert("Saved!", isPresented: $showSavedConfirm) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("This workout has been saved as a template. You can use it to quickly log the same workout in the future.")
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

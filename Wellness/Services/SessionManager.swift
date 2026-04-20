@@ -14,6 +14,7 @@ import AuthenticationServices
 import FirebaseAuth
 import FirebaseFirestore
 import FirebaseFunctions
+import FirebaseMessaging
 import GoogleSignIn
 
 @Observable @MainActor
@@ -105,6 +106,10 @@ final class SessionManager {
                     await FirebaseManager.shared.enableNetwork()
                     await self.fetchAndApplyProfile(uid: user.uid)
                     WorkoutService.shared.migrateUserDefaultsToFirestore(userID: user.uid)
+                    // Ensure current FCM token is stored for push notifications
+                    if let token = Messaging.messaging().fcmToken {
+                        await PushTokenService.shared.save(fcmToken: token)
+                    }
                 } else {
                     // A nil user here can mean either an explicit logout OR a
                     // transient token refresh failure. We ONLY clear local
@@ -479,6 +484,8 @@ final class SessionManager {
         successMessage = nil
         isBypassSession = false
         GIDSignIn.sharedInstance.signOut()
+        // Remove push token so the device stops receiving notifications
+        Task { await PushTokenService.shared.removeCurrentToken() }
         // Clear local profile state explicitly here — the auth listener no
         // longer wipes UserSettings on nil-user events because those can
         // fire on transient token failures and wipe the cached data.

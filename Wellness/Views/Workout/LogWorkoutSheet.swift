@@ -25,6 +25,8 @@ struct LogWorkoutSheet: View {
     var isEmbedded:          Bool = false
     /// Called instead of dismiss() in embedded mode.
     var onClose:             (() -> Void)? = nil
+    /// Bind to toggle from the parent to reset all form fields.
+    @Binding var resetTrigger: Bool
     /// When true hides date/time, gym, friends, save toggle, and apply-adjustment
     /// toggle — intended for the "Edit Saved Workout" flow from routines.
     var savedWorkoutMode:    Bool = false
@@ -87,6 +89,7 @@ struct LogWorkoutSheet: View {
     /// `activity.contentUpdates` so SwiftUI re-renders the Workout Active
     /// banner when pause/resume fire from the Dynamic Island.
     @State private var liveSnapshot: WorkoutActivityAttributes.ContentState? = nil
+    @State private var showEndWorkoutConfirm = false
 
     // Feedback
     @State private var isSaving   = false
@@ -122,7 +125,8 @@ struct LogWorkoutSheet: View {
          onSavedTemplate: ((SavedWorkout) -> Void)? = nil,
          isEmbedded: Bool = false,
          onClose: (() -> Void)? = nil,
-         savedWorkoutMode: Bool = false) {
+         savedWorkoutMode: Bool = false,
+         resetTrigger: Binding<Bool> = .constant(false)) {
         self.userID              = userID
         self.selectedDate        = selectedDate
         self.bodyWeightLbs       = bodyWeightLbs
@@ -135,6 +139,7 @@ struct LogWorkoutSheet: View {
         self.isEmbedded          = isEmbedded
         self.onClose             = onClose
         self.savedWorkoutMode    = savedWorkoutMode
+        self._resetTrigger       = resetTrigger
         if let e = editingEntry {
             _workoutName     = State(initialValue: e.name)
             _workoutType     = State(initialValue: e.workoutType)
@@ -182,6 +187,48 @@ struct LogWorkoutSheet: View {
             onPostDismiss: { onSaved(); close() },
             postWorkoutView: postPromptSheet
         )
+        .onChange(of: resetTrigger) { _, triggered in
+            guard triggered else { return }
+            resetTrigger = false
+            resetForm()
+        }
+        .alert("End Workout?", isPresented: $showEndWorkoutConfirm) {
+            Button("Cancel", role: .cancel) { }
+            Button("End Workout", role: .destructive) {
+                if let start = workoutStartTime {
+                    let paused = liveSnapshot?.accumulatedPaused ?? 0
+                    let elapsed = max(1, Int((Date().timeIntervalSince(start) - paused) / 60.0))
+                    durationText = "\(elapsed)"
+                    logTime = start
+                    logDate = Calendar.current.startOfDay(for: start)
+                }
+                endLiveActivity()
+                workoutStartTime = nil
+                liveSnapshot = nil
+            }
+        } message: {
+            Text("This will stop the timer and fill in the duration. You can still edit details before saving.")
+        }
+    }
+
+    private func resetForm() {
+        workoutName     = ""
+        workoutType     = .strength
+        durationText    = ""
+        caloriesText    = ""
+        logDate         = selectedDate
+        logTime         = Date()
+        saveAsTemplate  = false
+        applyAdjustment = autoAdjustByDefault
+        exercises       = []
+        cardioSegments  = []
+        hiitRounds      = []
+        yogaPoses       = []
+        selectedGym     = nil
+        taggedFriends   = []
+        caloriesEdited  = false
+        aiState         = .idle
+        editableTranscript = ""
     }
 
     // MARK: - Sheet body (original NavigationStack presentation)
@@ -283,6 +330,9 @@ struct LogWorkoutSheet: View {
         .onChange(of: yogaPoses)      { _, _ in pushFormToLiveActivity() }
         .onChange(of: workoutName)    { _, _ in pushFormToLiveActivity() }
         .onChange(of: workoutType)    { _, _ in pushFormToLiveActivity() }
+        .onReceive(NotificationCenter.default.publisher(for: WorkoutService.savedWorkoutTemplatesChanged)) { _ in
+            Task { savedWorkouts = await WorkoutService.shared.fetchSavedWorkouts(userID: userID) }
+        }
     }
 
     private var postPromptSheet: some View {
@@ -1250,6 +1300,22 @@ struct LogWorkoutSheet: View {
                         }
                     }
                     Spacer()
+                    Button {
+                        endLiveActivity()
+                        resetForm()
+                        let t = Date()
+                        workoutStartTime = t
+                        logTime = t
+                        logDate = Calendar.current.startOfDay(for: t)
+                        startLiveActivity(at: t)
+                    } label: {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.60))
+                            .frame(width: 36, height: 36)
+                            .background(Color.white.opacity(0.10), in: Circle())
+                    }
+                    .buttonStyle(.plain)
                     Button { toggleLivePause() } label: {
                         Image(systemName: isPaused ? "play.fill" : "pause.fill")
                             .font(.system(size: 14, weight: .bold))
@@ -1258,12 +1324,38 @@ struct LogWorkoutSheet: View {
                             .background(accent, in: Circle())
                     }
                     .buttonStyle(.plain)
-                    Text(isPaused ? "PAUSE" : "LIVE")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(accent, in: Capsule())
+                    Button { showEndWorkoutConfirm = true } label: {
+                        Image(systemName: "stop.fill")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(Color.red.opacity(0.85), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    if liveActivity == nil {
+                        Button {
+                            startLiveActivity(at: startTime)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "island.tropical.fill")
+                                    .font(.system(size: 10, weight: .bold))
+                                Text("Restore")
+                                    .font(.system(size: 11, weight: .bold))
+                            }
+                            .foregroundStyle(.black)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(accent, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Text(isPaused ? "PAUSE" : "LIVE")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.black)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(accent, in: Capsule())
+                    }
                 }
                 .padding(14)
                 .background(accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
@@ -1472,6 +1564,16 @@ struct LogWorkoutSheet: View {
                     didConsumeLiveFinish = true
                     consumeLiveActivityFinish(state: content.state)
                     endLiveActivity()
+                    break
+                }
+            }
+        }
+        // Watch for iOS dismissing the activity (user swiped away Dynamic Island)
+        // so we can show a "Restore" button.
+        Task { @MainActor in
+            for await activityState in activity.activityStateUpdates {
+                if activityState == .dismissed || activityState == .ended {
+                    liveActivity = nil
                     break
                 }
             }
@@ -1844,7 +1946,7 @@ struct LogWorkoutSheet: View {
             try await WorkoutService.shared.save(entry: entry, userID: userID)
 
             if saveAsTemplate {
-                WorkoutService.shared.addSavedWorkout(
+                await WorkoutService.shared.addSavedWorkout(
                     SavedWorkout(name: name, workoutType: workoutType,
                                  durationMinutes: duration, caloriesBurned: calories,
                                  exercises: cleanedExercises),
@@ -1913,7 +2015,7 @@ private struct CommonSheetModifiers<PostView: View>: ViewModifier {
                 Button("Cancel", role: .cancel) { workoutToDelete = nil }
                 Button("Delete", role: .destructive) {
                     if let w = workoutToDelete {
-                        WorkoutService.shared.deleteSavedWorkout(id: w.id, userID: userID)
+                        Task { await WorkoutService.shared.deleteSavedWorkout(id: w.id, userID: userID) }
                         savedWorkouts.removeAll { $0.id == w.id }
                         workoutToDelete = nil
                     }

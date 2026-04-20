@@ -477,17 +477,22 @@ struct FeedPostDetailView: View {
 
     // MARK: - Fuel log table
 
+    @State private var fuelLogPhotoURL: String? = nil
+
     private var fuelLogTable: some View {
         let sorted = post.fuelLogItems.sorted { $0.sortOrder < $1.sortOrder }
         return VStack(alignment: .leading, spacing: 0) {
             ForEach(sorted) { item in
                 HStack(spacing: 10) {
                     if !item.photoURL.isEmpty, let url = URL(string: item.photoURL) {
-                        CachedAsyncImage(
-                            url: url,
-                            content: { img in img.resizable().scaledToFill().frame(width: 40, height: 40).clipped().cornerRadius(8) },
-                            placeholder: { foodIcon }
-                        )
+                        Button { fuelLogPhotoURL = item.photoURL } label: {
+                            CachedAsyncImage(
+                                url: url,
+                                content: { img in img.resizable().scaledToFill().frame(width: 40, height: 40).clipped().cornerRadius(8) },
+                                placeholder: { foodIcon }
+                            )
+                        }
+                        .buttonStyle(.plain)
                     } else {
                         foodIcon
                     }
@@ -521,6 +526,17 @@ struct FeedPostDetailView: View {
             }
             .padding(.top, 8)
         }
+        .fullScreenCover(item: Binding(
+            get: { fuelLogPhotoURL.map { FuelLogPhotoItem(url: $0) } },
+            set: { fuelLogPhotoURL = $0?.url }
+        )) { item in
+            PhotoViewerSheet(urls: [item.url], initialIndex: 0)
+        }
+    }
+
+    private struct FuelLogPhotoItem: Identifiable {
+        let url: String
+        var id: String { url }
     }
 
     private var foodIcon: some View {

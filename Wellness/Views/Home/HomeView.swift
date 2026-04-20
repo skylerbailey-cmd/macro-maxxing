@@ -1350,8 +1350,10 @@ struct HomeView: View {
                             .frame(width: 22, height: 22)
                             .overlay(
                                 Circle()
-                                    .stroke(isToday ? Color.white.opacity(0.75) : .clear,
-                                            lineWidth: 1.5)
+                                    .stroke(isSelected ? Color.white
+                                            : isToday ? Color.white.opacity(0.75)
+                                            : .clear,
+                                            lineWidth: isSelected ? 2 : 1.5)
                             )
                             .shadow(color: (hasWorkout || isSelected)
                                     ? ThemeStore.shared.accent.opacity(0.50)
@@ -2299,17 +2301,6 @@ private struct NeonMiniSlider: View {
 // MARK: - Triangle Indicator Shape
 
 /// Upward-pointing triangle whose tip touches the bar above.
-private struct TriangleIndicator: Shape {
-    func path(in rect: CGRect) -> Path {
-        Path { p in
-            p.move(to:    CGPoint(x: rect.midX, y: rect.minY))  // tip (top center)
-            p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))  // bottom-left
-            p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))  // bottom-right
-            p.closeSubpath()
-        }
-    }
-}
-
 // MARK: - Hub Target Zone Row
 //
 // Horizontal target-zone bar for the Hub expanded macros section. Shows:

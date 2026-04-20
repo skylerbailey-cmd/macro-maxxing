@@ -16,6 +16,9 @@ final class WorkoutService {
 
     /// Post this after a successful save so the Duel tab can reload.
     static let workoutSavedNotification = Notification.Name("com.sbailey.Wellness.workoutSaved")
+    /// Post this after a saved workout template is added/updated/deleted so
+    /// other views (LogWorkoutSheet, WorkoutRoutinesView) can refresh.
+    static let savedWorkoutTemplatesChanged = Notification.Name("com.sbailey.Wellness.savedWorkoutTemplatesChanged")
 
     private var db: Firestore { FirebaseManager.shared.db }
 
@@ -201,21 +204,24 @@ final class WorkoutService {
         }
     }
 
-    func addSavedWorkout(_ workout: SavedWorkout, userID: String) {
+    func addSavedWorkout(_ workout: SavedWorkout, userID: String) async {
         guard !userID.isEmpty else { return }
-        savedWorkoutsRef(userID: userID).document(workout.id)
+        try? await savedWorkoutsRef(userID: userID).document(workout.id)
             .setData(encodeSavedWorkout(workout))
+        NotificationCenter.default.post(name: Self.savedWorkoutTemplatesChanged, object: nil)
     }
 
-    func updateSavedWorkout(_ workout: SavedWorkout, userID: String) {
+    func updateSavedWorkout(_ workout: SavedWorkout, userID: String) async {
         guard !userID.isEmpty else { return }
-        savedWorkoutsRef(userID: userID).document(workout.id)
+        try? await savedWorkoutsRef(userID: userID).document(workout.id)
             .setData(encodeSavedWorkout(workout))
+        NotificationCenter.default.post(name: Self.savedWorkoutTemplatesChanged, object: nil)
     }
 
-    func deleteSavedWorkout(id: String, userID: String) {
+    func deleteSavedWorkout(id: String, userID: String) async {
         guard !id.isEmpty, !userID.isEmpty else { return }
-        savedWorkoutsRef(userID: userID).document(id).delete()
+        try? await savedWorkoutsRef(userID: userID).document(id).delete()
+        NotificationCenter.default.post(name: Self.savedWorkoutTemplatesChanged, object: nil)
     }
 
     private func encodeSavedWorkout(_ w: SavedWorkout) -> [String: Any] {
@@ -279,8 +285,10 @@ final class WorkoutService {
               let workouts = try? JSONDecoder().decode([SavedWorkout].self, from: data),
               !workouts.isEmpty
         else { return }
+        // Fire-and-forget migration writes — don't need to await each one
         for w in workouts {
-            addSavedWorkout(w, userID: userID)
+            savedWorkoutsRef(userID: userID).document(w.id)
+                .setData(encodeSavedWorkout(w))
         }
         UserDefaults.standard.removeObject(forKey: key)
     }

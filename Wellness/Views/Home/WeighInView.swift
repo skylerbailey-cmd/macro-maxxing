@@ -158,6 +158,13 @@ struct WeighInView: View {
                 guard let w = Double(newWeightText), w > 0 else { return }
                 previousWeight = userSettings.currentWeight
                 userSettings.currentWeight = w
+                userSettings.lastLocalSettingsSave = Date()
+                // Sync to Firestore so the change survives app restart
+                Task {
+                    try? await UserProfileService.shared.updatePrivateProfile(
+                        userID: userSettings.userID,
+                        fields: ["currentWeight": w])
+                }
                 withAnimation(.spring(duration: 0.35)) { step = .result }
             } label: {
                 Text("Log Weight")
@@ -251,6 +258,12 @@ struct WeighInView: View {
                         Button {
                             if let g = Double(newGoalText), g > 0 {
                                 userSettings.goalWeight = g
+                                userSettings.lastLocalSettingsSave = Date()
+                                Task {
+                                    try? await UserProfileService.shared.updatePrivateProfile(
+                                        userID: userSettings.userID,
+                                        fields: ["goalWeight": g])
+                                }
                             }
                             withAnimation(.spring(duration: 0.2)) { editingGoal = false }
                         } label: {
