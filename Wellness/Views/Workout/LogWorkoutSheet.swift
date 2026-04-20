@@ -1109,6 +1109,32 @@ struct LogWorkoutSheet: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.white.opacity(0.40))
 
+            Button {
+                let current = exercises[exerciseIndex].sets[setIndex].weight ?? 0
+                exercises[exerciseIndex].sets[setIndex].weight = current + 2.5
+            } label: {
+                Text("+2.5")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 5)
+                    .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                let current = exercises[exerciseIndex].sets[setIndex].weight ?? 0
+                exercises[exerciseIndex].sets[setIndex].weight = current + 5
+            } label: {
+                Text("+5")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 5)
+                    .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
+            }
+            .buttonStyle(.plain)
+
             Spacer()
 
             Button {
@@ -1300,22 +1326,6 @@ struct LogWorkoutSheet: View {
                         }
                     }
                     Spacer()
-                    Button {
-                        endLiveActivity()
-                        resetForm()
-                        let t = Date()
-                        workoutStartTime = t
-                        logTime = t
-                        logDate = Calendar.current.startOfDay(for: t)
-                        startLiveActivity(at: t)
-                    } label: {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.60))
-                            .frame(width: 36, height: 36)
-                            .background(Color.white.opacity(0.10), in: Circle())
-                    }
-                    .buttonStyle(.plain)
                     Button { toggleLivePause() } label: {
                         Image(systemName: isPaused ? "play.fill" : "pause.fill")
                             .font(.system(size: 14, weight: .bold))
@@ -1332,30 +1342,12 @@ struct LogWorkoutSheet: View {
                             .background(Color.red.opacity(0.85), in: Circle())
                     }
                     .buttonStyle(.plain)
-                    if liveActivity == nil {
-                        Button {
-                            startLiveActivity(at: startTime)
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "island.tropical.fill")
-                                    .font(.system(size: 10, weight: .bold))
-                                Text("Restore")
-                                    .font(.system(size: 11, weight: .bold))
-                            }
-                            .foregroundStyle(.black)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(accent, in: Capsule())
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        Text(isPaused ? "PAUSE" : "LIVE")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.black)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(accent, in: Capsule())
-                    }
+                    Text(isPaused ? "PAUSE" : "LIVE")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(accent, in: Capsule())
                 }
                 .padding(14)
                 .background(accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
@@ -1459,10 +1451,23 @@ struct LogWorkoutSheet: View {
         else { return }
         var state = currentLiveActivityState(startedAt: snap.startedAt,
                                              isFinished: false)
-        state.currentIndex      = min(max(0, snap.currentIndex),
-                                      max(0, state.exercises.count - 1))
+        // Clamp currentIndex against the correct per-type array.
+        let maxIndex: Int = {
+            switch workoutType {
+            case .cardio:      return max(0, state.segments.count - 1)
+            case .hiit:        return max(0, state.rounds.count - 1)
+            case .flexibility: return max(0, state.poses.count - 1)
+            default:           return max(0, state.exercises.count - 1)
+            }
+        }()
+        state.currentIndex      = min(max(0, snap.currentIndex), maxIndex)
         state.pausedAt          = snap.pausedAt
         state.accumulatedPaused = snap.accumulatedPaused
+        // Preserve DI-specific state so app edits don't clobber the rest
+        // timer or the staged set being configured on the Dynamic Island.
+        state.lastSetLoggedAt   = snap.lastSetLoggedAt
+        state.stagedReps        = snap.stagedReps
+        state.stagedWeight      = snap.stagedWeight
         // Skip when nothing changed — breaks the echo loop between an
         // intent-driven update → mergeLiveActivityState → onChange → here.
         if state == snap { return }
@@ -1635,11 +1640,12 @@ struct LogWorkoutSheet: View {
 
     private var canSave: Bool {
         let name = !workoutName.trimmingCharacters(in: .whitespaces).isEmpty
-        let dur  = (Int(durationText) ?? 0)
-        let cal  = (Int(caloriesText) ?? 0) >= 0
-        // Rest days don't need a duration — everything else does.
-        if workoutType == .restDay { return name && cal }
-        return name && dur > 0 && cal
+        // Duration can be auto-computed from start time, so only require a name.
+        // Rest days just need a name.
+        if workoutType == .restDay { return name }
+        // If no duration text AND no start time, we can't compute duration — but
+        // we still allow tapping the button and show an error instead.
+        return name
     }
 
     private var saveButton: some View {
@@ -1861,10 +1867,28 @@ struct LogWorkoutSheet: View {
     }
 
     private func saveWorkout() async {
-        let name     = workoutName.trimmingCharacters(in: .whitespaces)
-        let duration = Int(durationText) ?? 0
-        let calories = Int(caloriesText) ?? 0
-        guard !name.isEmpty, (duration > 0 || workoutType == .restDay) else { return }
+        let name = workoutName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+
+        // Auto-calculate duration from start time if not manually entered
+        var duration = Int(durationText) ?? 0
+        if duration <= 0 && workoutType != .restDay {
+            if let start = workoutStartTime {
+                let paused = liveSnapshot?.accumulatedPaused ?? 0
+                duration = max(1, Int((Date().timeIntervalSince(start) - paused) / 60.0))
+                durationText = "\(duration)"
+            } else {
+                saveError = "Please enter a duration or start a workout timer."
+                return
+            }
+        }
+
+        // Auto-calculate calories from duration if not manually entered
+        var calories = Int(caloriesText) ?? 0
+        if calories <= 0 && workoutType != .restDay {
+            calories = estimateCalories(type: workoutType, durationMinutes: duration)
+            caloriesText = "\(calories)"
+        }
 
         isSaving  = true
         saveError = nil

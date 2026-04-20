@@ -23,6 +23,17 @@ struct AuraGain: Identifiable, Equatable {
     }
 }
 
+// MARK: - Aura History Entry
+
+struct AuraHistoryEntry: Codable, Identifiable {
+    var id: String { "\(timestamp)-\(points)-\(reason)" }
+    let points: Int
+    let reason: String
+    let timestamp: Double // timeIntervalSince1970
+
+    var date: Date { Date(timeIntervalSince1970: timestamp) }
+}
+
 @MainActor @Observable final class UserSettings {
 
     // MARK: - Identity (in-memory only — populated by SessionManager from Firestore)
@@ -726,6 +737,7 @@ struct AuraGain: Identifiable, Equatable {
         auraPoints += points
         weeklyAuraPoints += points
         pendingAuraGain = AuraGain(pointsEarned: points, reason: reason)
+        Self.logAuraHistory(points: points, reason: reason ?? Self.inferReason(points: points))
         let id     = userID
         let pts    = auraPoints
         let wkPts  = weeklyAuraPoints
@@ -747,6 +759,44 @@ struct AuraGain: Identifiable, Equatable {
                 await MainActor.run { self.firestoreError = "XP sync failed: \(msg)" }
             }
         }
+    }
+
+    // MARK: - Aura History
+
+    private static let auraHistoryKey = "auraHistory"
+    private static let maxHistoryEntries = 50
+
+    private static func inferReason(points: Int) -> String {
+        switch points {
+        case 50:  return "Hit all macro goals"
+        case 25:  return "Posted a workout"
+        case 5:   return "Logged with photo"
+        case 1:   return "Engagement"
+        default:  return "+\(points) XP"
+        }
+    }
+
+    static func logAuraHistory(points: Int, reason: String) {
+        var history = loadAuraHistory()
+        let entry = AuraHistoryEntry(
+            points: points,
+            reason: reason,
+            timestamp: Date().timeIntervalSince1970
+        )
+        history.insert(entry, at: 0)
+        if history.count > maxHistoryEntries {
+            history = Array(history.prefix(maxHistoryEntries))
+        }
+        if let data = try? JSONEncoder().encode(history) {
+            UserDefaults.standard.set(data, forKey: auraHistoryKey)
+        }
+    }
+
+    static func loadAuraHistory() -> [AuraHistoryEntry] {
+        guard let data = UserDefaults.standard.data(forKey: auraHistoryKey),
+              let history = try? JSONDecoder().decode([AuraHistoryEntry].self, from: data)
+        else { return [] }
+        return history
     }
 
     func checkWeeklyReset() {

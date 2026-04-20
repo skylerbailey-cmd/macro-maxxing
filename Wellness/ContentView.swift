@@ -138,6 +138,13 @@ struct ContentView: View {
             .environment(locationManager)
             .environment(notificationState)
             .onPreferenceChange(TutorialAnchorKey.self) { tutorialAnchors = $0 }
+            .onOpenURL { url in
+                guard url.scheme == "wellness" else { return }
+                if url.host == "log" {
+                    selectedTab = 1
+                    fabOpenLogMeal = true
+                }
+            }
             .task { await notificationState.refresh(userID: userSettings.userID) }
             .task {
                 // Lock past fasting windows once at app launch (not every HomeView appear)
@@ -199,9 +206,11 @@ struct ContentView: View {
                     userSettings.firestoreError = nil
                 }
             }
-            .onChange(of: userSettings.pendingStreakCongrats) { _, _ in
-                // Consume silently — streak popup disabled
-                userSettings.pendingStreakCongrats = nil
+            .onChange(of: userSettings.pendingStreakCongrats) { _, count in
+                if let count {
+                    streakCongratsCount = count
+                    userSettings.pendingStreakCongrats = nil
+                }
             }
             .onChange(of: userSettings.pendingStreakBreak) { _, count in
                 if let count {
@@ -235,15 +244,13 @@ struct ContentView: View {
             } message: {
                 Text(firestoreErrorMessage ?? "")
             }
-            .alert("🔥 Streak Extended!", isPresented: Binding(
-                get: { streakCongratsCount != nil },
-                set: { if !$0 { streakCongratsCount = nil } }
-            )) {
-                Button("Let's Go!") { streakCongratsCount = nil }
-            } message: {
-                if let n = streakCongratsCount {
-                    Text("You hit all your macro goals today. That's \(n) day\(n == 1 ? "" : "s") in a row. Keep it up.")
+            // Streak fire burst — shown on top of all tabs
+            if let count = streakCongratsCount {
+                StreakFireBurstView(streak: count) {
+                    withAnimation { streakCongratsCount = nil }
                 }
+                .transition(.opacity)
+                .zIndex(25)
             }
 
             // Celebration popup — shown on top of all tabs

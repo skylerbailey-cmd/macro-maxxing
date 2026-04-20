@@ -222,10 +222,9 @@ enum AnalysisTier: Equatable {
         let firestoreEntries = (try? await FoodEntryService.shared.fetch(userID: userID, date: selectedDate)) ?? []
 
         // Freshly-fetched Firestore entries only have photoURL — they don't carry the
-        // local imageData that was set when the meal was logged. Without this carry-over
-        // the photo would flicker / disappear on the first refetch, before (or if) the
-        // Storage URL becomes reachable. Keyed by UUID id so per-entry bytes stay with
-        // the right row.
+        // local imageData. Carry over any in-memory imageData we already have, and
+        // download from photoURL for any entries still missing it so every view can
+        // render the photo from imageData alone.
         let previousImageData: [UUID: Data] = Dictionary(
             uniqueKeysWithValues: todayEntries.compactMap { entry in
                 guard let data = entry.imageData else { return nil }
@@ -234,6 +233,9 @@ enum AnalysisTier: Equatable {
         )
         for entry in firestoreEntries where entry.imageData == nil {
             if let data = previousImageData[entry.id] {
+                entry.imageData = data
+            } else if !entry.photoURL.isEmpty, let url = URL(string: entry.photoURL),
+                      let (data, _) = try? await URLSession.shared.data(from: url) {
                 entry.imageData = data
             }
         }
@@ -640,8 +642,6 @@ enum AnalysisTier: Equatable {
             fat:      meal.fat,
             imageData: meal.imageData
         )
-        // Carry the saved meal's photo URL through so the new log entry renders
-        // the same thumbnail instead of falling back to the fork.knife placeholder.
         entry.photoURL = meal.photoURL
 
         todayEntries.insert(entry, at: 0)
@@ -649,18 +649,29 @@ enum AnalysisTier: Equatable {
         NotificationCenter.default.post(name: FuelLogService.mealChangedNotification, object: nil)
 
         Task {
-            // If the saved meal has local imageData but no photoURL (e.g. the
-            // original upload failed or the meal predates the photo-URL system),
-            // upload the image now so the URL is available for posts and the log.
-            let shouldUploadImage = meal.photoURL.isEmpty && meal.imageData != nil
+            // If the saved meal has a photoURL but no local imageData (typical
+            // when the meal was fetched from Firestore), download the image once
+            // so every view that checks imageData can render the photo without
+            // needing its own async-image handling.
+            var localImageData = meal.imageData
+            if localImageData == nil, !meal.photoURL.isEmpty,
+               let url = URL(string: meal.photoURL),
+               let (data, _) = try? await URLSession.shared.data(from: url) {
+                localImageData = data
+                entry.imageData = data
+                // Back-fill the saved meal template so future quick-logs skip
+                // this download.
+                meal.imageData = data
+            }
+
+            let shouldUploadImage = meal.photoURL.isEmpty && localImageData != nil
             if let result = try? await FoodEntryService.shared.save(
                 entry: entry,
-                imageData: shouldUploadImage ? meal.imageData : nil,
+                imageData: shouldUploadImage ? localImageData : nil,
                 existingPhotoURL: meal.photoURL
             ) {
                 entry.firebaseEntryID = result.docID
                 entry.photoURL        = result.photoURL
-                // Back-fill the saved meal template so future quick-logs reuse the URL
                 if shouldUploadImage, !result.photoURL.isEmpty {
                     meal.photoURL = result.photoURL
                     try? await FoodEntryService.shared.save(

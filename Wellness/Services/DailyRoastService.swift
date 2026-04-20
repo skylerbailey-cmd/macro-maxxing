@@ -81,7 +81,7 @@ final class DailyRoastService {
         - If they ate the same thing twice, roast the lack of creativity.
         - If a meal has a photo (marked [HAS PHOTO]), you can reference "looking at your meal photo" for extra savagery. Set targetMealIndex to that meal's index number.
         - If no specific meal deserves a callout, set targetMealIndex to -1.
-        - Use gen-z / gym bro language naturally (not forced): "bro", "ngl", "fr", "no cap", "down bad"
+        - Use gen-z / gym bro language naturally (not forced): "bro", "ngl", "fr", "down bad"
         - Be funny, not mean. The user should laugh, not cry.
         - Pick a fitting emoji for the vibe (skull 💀, clown 🤡, etc.)
         - Current macro streak: \(streak) days

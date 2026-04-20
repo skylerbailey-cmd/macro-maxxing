@@ -186,6 +186,7 @@ struct WorkoutActivityAttributes: ActivityAttributes {
             case workoutName, workoutTypeRaw, startedAt, currentIndex
             case exercises, segments, rounds, poses
             case isFinished, pausedAt, accumulatedPaused, lastSetLoggedAt
+            case stagedReps, stagedWeight
             // Legacy fields:
             case currentExercise, sets, exerciseNumber, totalExercises
         }
@@ -204,6 +205,8 @@ struct WorkoutActivityAttributes: ActivityAttributes {
             try c.encodeIfPresent(pausedAt, forKey: .pausedAt)
             try c.encode(accumulatedPaused, forKey: .accumulatedPaused)
             try c.encodeIfPresent(lastSetLoggedAt, forKey: .lastSetLoggedAt)
+            try c.encode(stagedReps, forKey: .stagedReps)
+            try c.encodeIfPresent(stagedWeight, forKey: .stagedWeight)
         }
 
         init(from decoder: Decoder) throws {
@@ -215,6 +218,8 @@ struct WorkoutActivityAttributes: ActivityAttributes {
             self.pausedAt          = try? c.decode(Date.self,    forKey: .pausedAt)
             self.accumulatedPaused = (try? c.decode(TimeInterval.self, forKey: .accumulatedPaused)) ?? 0
             self.lastSetLoggedAt  = try? c.decode(Date.self, forKey: .lastSetLoggedAt)
+            self.stagedReps       = (try? c.decode(Int.self,    forKey: .stagedReps))   ?? 10
+            self.stagedWeight     = try? c.decode(Double.self,  forKey: .stagedWeight)
             self.segments          = (try? c.decode([LiveCardioSegment].self, forKey: .segments)) ?? []
             self.rounds            = (try? c.decode([LiveHIITRound].self,     forKey: .rounds))   ?? []
             self.poses             = (try? c.decode([LivePose].self,          forKey: .poses))    ?? []

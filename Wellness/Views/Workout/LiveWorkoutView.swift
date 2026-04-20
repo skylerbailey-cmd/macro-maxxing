@@ -355,6 +355,32 @@ struct LiveWorkoutView: View {
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.08), lineWidth: 1))
 
             Button {
+                let current = exercises[currentIndex].sets[setIndex].weight ?? 0
+                exercises[currentIndex].sets[setIndex].weight = current + 2.5
+            } label: {
+                Text("+2.5")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 6)
+                    .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 6))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                let current = exercises[currentIndex].sets[setIndex].weight ?? 0
+                exercises[currentIndex].sets[setIndex].weight = current + 5
+            } label: {
+                Text("+5")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 6)
+                    .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 6))
+            }
+            .buttonStyle(.plain)
+
+            Button {
                 guard exercises[currentIndex].sets.count > 1 else { return }
                 exercises[currentIndex].sets.remove(at: setIndex)
             } label: {

@@ -49,6 +49,7 @@ struct AuraLevelInfoSheet: View {
             ScrollView {
                 VStack(spacing: 20) {
                     currentLevelCard
+                    recentXPSection
                     howToEarnSection
                     allLevelsSection
                 }
@@ -126,6 +127,84 @@ struct AuraLevelInfoSheet: View {
         .frame(maxWidth: .infinity)
         .background(cardBg)
         .cornerRadius(16)
+    }
+
+    // MARK: - Recent XP
+
+    private var recentXPSection: some View {
+        let history = UserSettings.loadAuraHistory()
+
+        return Group {
+            if !history.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Recent XP")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.white)
+
+                    VStack(spacing: 0) {
+                        ForEach(Array(history.prefix(15).enumerated()), id: \.element.id) { idx, entry in
+                            HStack(spacing: 12) {
+                                Image(systemName: iconForReason(entry.reason))
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(accent)
+                                    .frame(width: 24)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(entry.reason)
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(.white.opacity(0.80))
+                                        .lineLimit(1)
+                                    Text(relativeTime(entry.date))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.white.opacity(0.35))
+                                }
+
+                                Spacer()
+
+                                Text("+\(entry.points)")
+                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                    .foregroundStyle(accent)
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+
+                            if idx < min(history.count, 15) - 1 {
+                                Divider().background(Color.white.opacity(0.06))
+                                    .padding(.leading, 50)
+                            }
+                        }
+                    }
+                    .background(cardBg)
+                    .cornerRadius(12)
+                }
+            }
+        }
+    }
+
+    private func iconForReason(_ reason: String) -> String {
+        let r = reason.lowercased()
+        if r.contains("streak")    { return "flame.fill" }
+        if r.contains("macro") || r.contains("goal") { return "checkmark.seal.fill" }
+        if r.contains("workout")   { return "figure.run" }
+        if r.contains("post")      { return "square.and.pencil" }
+        if r.contains("photo")     { return "camera.fill" }
+        if r.contains("comment")   { return "bubble.left.fill" }
+        if r.contains("react") || r.contains("rep") || r.contains("engage") { return "hand.thumbsup.fill" }
+        if r.contains("meal") || r.contains("log")  { return "fork.knife" }
+        return "star.fill"
+    }
+
+    private func relativeTime(_ date: Date) -> String {
+        let seconds = Int(Date().timeIntervalSince(date))
+        if seconds < 60    { return "just now" }
+        if seconds < 3600  { return "\(seconds / 60)m ago" }
+        if seconds < 86400 { return "\(seconds / 3600)h ago" }
+        let days = seconds / 86400
+        if days == 1 { return "yesterday" }
+        if days < 7  { return "\(days)d ago" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
     }
 
     // MARK: - How to earn XP

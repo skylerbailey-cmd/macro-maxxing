@@ -28,7 +28,11 @@ struct DailyRoastView: View {
     // Detail / share
     @State private var detailRoast: DailyRoast? = nil
     @State private var shareRoast: DailyRoast? = nil
-    @State private var showShareActions = false
+
+    // Post to feed
+    @State private var showingNewPost = false
+    @State private var postToFeedRoast: DailyRoast? = nil
+    @State private var postToFeedImage: UIImage? = nil
 
     private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
     private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
@@ -76,11 +80,32 @@ struct DailyRoastView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
-        .confirmationDialog("Share Roast", isPresented: $showShareActions, titleVisibility: .visible) {
-            Button("Instagram Story") { shareToInstagram() }
-            Button("Save to Photos") { saveToPhotos() }
-            Button("Post to Feed") { postToFeed() }
-            Button("Cancel", role: .cancel) { shareRoast = nil }
+        .sheet(item: $shareRoast) { roast in
+            RoastShareSheet(
+                roast: roast,
+                userName: userSettings.name,
+                userSettings: userSettings,
+                mealPhotoURL: roast.targetMealIndex >= 0 && roast.targetMealIndex < mealPhotoURLs.count
+                    ? mealPhotoURLs[roast.targetMealIndex] : nil,
+                onPostToFeed: { roast, image in
+                    postToFeedRoast = roast
+                    postToFeedImage = image
+                    // Small delay to let the share sheet dismiss first
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        showingNewPost = true
+                    }
+                }
+            )
+        }
+        .sheet(isPresented: $showingNewPost) {
+            if let roast = postToFeedRoast {
+                NewPostView(
+                    userSettings: userSettings,
+                    prePopulatedTitle: "\(roast.emoji) \(roast.headline)",
+                    prePopulatedBody: roast.roastText,
+                    prePopulatedCardImage: postToFeedImage
+                )
+            }
         }
     }
 
@@ -178,21 +203,26 @@ struct DailyRoastView: View {
                         .background(Color.white.opacity(0.08), in: Circle())
                 }
                 .buttonStyle(.plain)
-                Button { shareRoast = roast; showShareActions = true } label: {
+                Button {
+                    shareRoast = roast
+                } label: {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.white.opacity(0.45))
                         .frame(width: 32, height: 32)
                         .background(Color.white.opacity(0.08), in: Circle())
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
             }
+            .zIndex(1)
 
             // Targeted meal photo
             if roast.targetMealIndex >= 0,
                roast.targetMealIndex < mealPhotoURLs.count,
                !mealPhotoURLs[roast.targetMealIndex].isEmpty {
                 mealPhotoView(url: mealPhotoURLs[roast.targetMealIndex])
+                    .zIndex(0)
             }
 
             Text(roast.roastText)
@@ -220,6 +250,7 @@ struct DailyRoastView: View {
                         .frame(maxWidth: .infinity).frame(height: 180)
                         .clipped()
                         .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .contentShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(RoundedRectangle(cornerRadius: 12)
                             .stroke(Color.premiumGold.opacity(0.30), lineWidth: 1))
                         .overlay(alignment: .topTrailing) {
@@ -239,6 +270,7 @@ struct DailyRoastView: View {
             )
         }
         .buttonStyle(.plain)
+        .contentShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Footer
@@ -330,7 +362,7 @@ struct DailyRoastView: View {
                                 .background(Color.white.opacity(0.08), in: Circle())
                         }
                         .buttonStyle(.plain)
-                        Button { shareRoast = roast; detailRoast = nil; showShareActions = true } label: {
+                        Button { shareRoast = roast; detailRoast = nil } label: {
                             Image(systemName: "square.and.arrow.up")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundStyle(.white.opacity(0.50))
@@ -354,47 +386,7 @@ struct DailyRoastView: View {
         .preferredColorScheme(.dark)
     }
 
-    // MARK: - Share helpers
-
-    private func renderShareCard(_ roast: DailyRoast) -> UIImage {
-        let card = RoastShareCard(roast: roast, userName: userSettings.name)
-        let renderer = ImageRenderer(content: card)
-        renderer.scale = 3.0
-        return renderer.uiImage ?? UIImage()
-    }
-
-    private func shareToInstagram() {
-        guard let roast = shareRoast else { return }
-        let image = renderShareCard(roast)
-        guard let data = image.pngData(),
-              let url  = URL(string: "instagram-stories://share?source_application=com.sbailey.Wellness")
-        else { return }
-
-        UIPasteboard.general.setItems([
-            ["com.instagram.sharedSticker.backgroundImage": data,
-             "com.instagram.sharedSticker.backgroundTopColor": "#080215",
-             "com.instagram.sharedSticker.backgroundBottomColor": "#030108"]
-        ], options: [.expirationDate: Date(timeIntervalSinceNow: 300)])
-
-        UIApplication.shared.open(url) { success in
-            if !success { saveToPhotos() }
-        }
-        shareRoast = nil
-    }
-
-    private func saveToPhotos() {
-        guard let roast = shareRoast else { return }
-        let image = renderShareCard(roast)
-        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-        shareRoast = nil
-    }
-
-    private func postToFeed() {
-        // TODO: Open NewPostView with the roast card image as a pre-attached photo
-        guard let roast = shareRoast else { return }
-        _ = renderShareCard(roast)
-        shareRoast = nil
-    }
+    // Share helpers moved to RoastShareSheet
 
     // MARK: - Generate
 
@@ -496,9 +488,10 @@ struct DailyRoastView: View {
 // MARK: - Share Card (rendered to image)
 
 /// Self-contained renderable roast card for sharing. 360×640 pt → 1080×1920 px @ 3×.
-private struct RoastShareCard: View {
+struct RoastShareCard: View {
     let roast: DailyRoast
     let userName: String
+    var mealPhoto: UIImage? = nil
 
     private let bg1 = Color(red: 0.08, green: 0.04, blue: 0.15)
     private let bg2 = Color(red: 0.03, green: 0.01, blue: 0.08)
@@ -508,20 +501,39 @@ private struct RoastShareCard: View {
             LinearGradient(colors: [bg1, bg2], startPoint: .topLeading, endPoint: .bottomTrailing)
             Circle().fill(Color.premiumGold.opacity(0.20)).frame(width: 300).blur(radius: 80).offset(y: -180)
 
-            VStack(spacing: 24) {
+            VStack(spacing: 20) {
                 Spacer()
 
-                Text(roast.emoji).font(.system(size: 64))
+                Text(roast.emoji).font(.system(size: 56))
 
                 Text(roast.headline.uppercased())
-                    .font(.system(size: 28, weight: .black, design: .rounded))
+                    .font(.system(size: 26, weight: .black, design: .rounded))
                     .foregroundStyle(Color.premiumGold)
                     .multilineTextAlignment(.center)
                     .lineLimit(3)
                     .padding(.horizontal, 30)
 
+                if let photo = mealPhoto {
+                    Image(uiImage: photo)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 300, height: 160)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.premiumGold.opacity(0.30), lineWidth: 1))
+                        .overlay(alignment: .topTrailing) {
+                            Text("EXHIBIT A")
+                                .font(.system(size: 8, weight: .black)).tracking(1)
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 6).padding(.vertical, 3)
+                                .background(Color.premiumGold, in: Capsule())
+                                .padding(6)
+                        }
+                }
+
                 Text(roast.roastText)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(.white.opacity(0.85))
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
@@ -549,5 +561,197 @@ private struct RoastShareCard: View {
         }
         .frame(width: 360, height: 640)
         .preferredColorScheme(.dark)
+    }
+}
+
+// MARK: - Roast Share Sheet
+
+/// Share sheet modeled after PostShareView — preview card with Instagram Stories,
+/// Share/Save/More, and Post to Feed destinations.
+struct RoastShareSheet: View {
+    let roast: DailyRoast
+    let userName: String
+    let userSettings: UserSettings
+    var mealPhotoURL: String? = nil
+    var onPostToFeed: ((DailyRoast, UIImage?) -> Void)? = nil
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var renderedImage: UIImage?
+    @State private var mealPhoto: UIImage?
+    @State private var showingActivitySheet = false
+
+    private let pageBg = Color(red: 0.05, green: 0.05, blue: 0.07)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                pageBg.ignoresSafeArea()
+
+                VStack(spacing: 16) {
+                    cardPreview
+
+                    VStack(spacing: 10) {
+                        shareButton(
+                            title: "Instagram Stories",
+                            subtitle: "Share directly to your story",
+                            icon: "camera.fill",
+                            colors: [Color(red: 0.88, green: 0.19, blue: 0.42),
+                                     Color(red: 0.98, green: 0.35, blue: 0.00)]
+                        ) { shareToInstagram() }
+
+                        shareButton(
+                            title: "Share / Save / More",
+                            subtitle: "Messages, AirDrop, save to Photos…",
+                            icon: "square.and.arrow.up",
+                            colors: [Color.premiumGold,
+                                     Color(red: 0.85, green: 0.65, blue: 0.10)]
+                        ) { showingActivitySheet = true }
+
+                        shareButton(
+                            title: "Post to Feed",
+                            subtitle: "Share your roast with the community",
+                            icon: "bubble.left.and.text.bubble.right.fill",
+                            colors: [Color(red: 0.40, green: 0.20, blue: 0.85),
+                                     Color(red: 0.60, green: 0.30, blue: 1.00)]
+                        ) {
+                            let img = renderedImage
+                            dismiss()
+                            onPostToFeed?(roast, img)
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                .padding(.top, 8)
+            }
+            .preferredColorScheme(.dark)
+            .navigationTitle("Share Roast")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .task { await prepareAndRender() }
+        .sheet(isPresented: $showingActivitySheet) {
+            if let img = renderedImage { ActivitySheet(items: [img]) }
+        }
+    }
+
+    // MARK: - Card preview
+
+    private var cardPreview: some View {
+        Group {
+            if let image = renderedImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                    .shadow(color: Color.premiumGold.opacity(0.30), radius: 24, y: 8)
+                    .frame(maxHeight: 380)
+                    .padding(.horizontal, 40)
+            } else {
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(cardBg)
+                    .frame(height: 320)
+                    .padding(.horizontal, 40)
+                    .overlay {
+                        VStack(spacing: 10) {
+                            ProgressView().tint(Color.premiumGold)
+                            Text("Rendering…")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.40))
+                        }
+                    }
+            }
+        }
+    }
+
+    // MARK: - Share button
+
+    private func shareButton(title: String, subtitle: String,
+                             icon: String, colors: [Color],
+                             action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(
+                            LinearGradient(colors: colors,
+                                           startPoint: .topLeading,
+                                           endPoint: .bottomTrailing)
+                        )
+                        .frame(width: 44, height: 44)
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.30))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(cardBg)
+            .cornerRadius(14)
+        }
+        .buttonStyle(.plain)
+        .disabled(renderedImage == nil)
+    }
+
+    // MARK: - Render
+
+    @MainActor
+    private func prepareAndRender() async {
+        if let urlStr = mealPhotoURL, !urlStr.isEmpty, let url = URL(string: urlStr) {
+            mealPhoto = await Self.download(url)
+        }
+        let card = RoastShareCard(roast: roast, userName: userName, mealPhoto: mealPhoto)
+        let renderer   = ImageRenderer(content: card)
+        renderer.scale = 3.0
+        renderedImage  = renderer.uiImage
+    }
+
+    private static func download(_ url: URL) async -> UIImage? {
+        await withCheckedContinuation { continuation in
+            URLSession.shared.dataTask(with: url) { data, _, _ in
+                continuation.resume(returning: data.flatMap { UIImage(data: $0) })
+            }.resume()
+        }
+    }
+
+    // MARK: - Platform share actions
+
+    private func shareToInstagram() {
+        guard let image = renderedImage,
+              let data  = image.pngData(),
+              let url   = URL(string: "instagram-stories://share?source_application=com.sbailey.Wellness")
+        else { showingActivitySheet = true; return }
+
+        let items: [String: Any] = [
+            "com.instagram.sharedSticker.backgroundImage":       data,
+            "com.instagram.sharedSticker.backgroundTopColor":    "#080215",
+            "com.instagram.sharedSticker.backgroundBottomColor": "#030108"
+        ]
+        UIPasteboard.general.setItems(
+            [items],
+            options: [.expirationDate: Date(timeIntervalSinceNow: 300)]
+        )
+        UIApplication.shared.open(url) { success in
+            if !success { showingActivitySheet = true }
+        }
     }
 }

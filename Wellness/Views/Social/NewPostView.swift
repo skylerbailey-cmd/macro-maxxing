@@ -105,6 +105,15 @@ struct NewPostView: View {
     /// Food name from the AI scan.
     var prePopulatedFoodName: String = ""
 
+    // MARK: - Generic pre-population (e.g. AI Roast → feed post)
+
+    /// Pre-fill the title field.
+    var prePopulatedTitle: String = ""
+    /// Pre-fill the body field.
+    var prePopulatedBody:  String = ""
+    /// Pre-attached rendered card image (e.g. roast share card).
+    var prePopulatedCardImage: UIImage? = nil
+
     // MARK: - Weigh-in pre-population (set when opened from WeighInView)
 
     /// Weight before the weigh-in.
@@ -345,8 +354,17 @@ struct NewPostView: View {
                 if let img = prePopulatedPhoto {
                     photos = [PostPhoto(image: img)]
                 }
+                if let img = prePopulatedCardImage {
+                    photos = [PostPhoto(image: img)]
+                }
                 if prePopulatedMealScore > 0, !prePopulatedFoodName.isEmpty {
                     if titleText.isEmpty { titleText = prePopulatedFoodName }
+                }
+                if !prePopulatedTitle.isEmpty, titleText.isEmpty {
+                    titleText = prePopulatedTitle
+                }
+                if !prePopulatedBody.isEmpty, bodyText.isEmpty {
+                    bodyText = prePopulatedBody
                 }
             }
             .onChange(of: selectedLabel) { old, label in
@@ -532,6 +550,22 @@ struct NewPostView: View {
                                     .resizable().scaledToFill()
                                     .frame(width: 32, height: 32)
                                     .clipped().cornerRadius(6)
+                            } else if !entry.photoURL.isEmpty, let url = URL(string: entry.photoURL) {
+                                CachedAsyncImage(url: url) { img in
+                                    img.resizable().scaledToFill()
+                                        .frame(width: 32, height: 32)
+                                        .clipped().cornerRadius(6)
+                                } placeholder: {
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.white.opacity(0.07))
+                                        .frame(width: 32, height: 32)
+                                        .overlay {
+                                            Image(systemName: "fork.knife")
+                                                .font(.system(size: 12))
+                                                .foregroundStyle(.white.opacity(0.30))
+                                        }
+                                }
+                                .id(entry.photoURL)
                             } else {
                                 RoundedRectangle(cornerRadius: 6)
                                     .fill(Color.white.opacity(0.07))
@@ -809,6 +843,14 @@ struct NewPostView: View {
         isLoadingFood = true
         let entries = (try? await FoodEntryService.shared.fetch(
             userID: userSettings.userID, date: Date())) ?? []
+        // Entries from Firestore don't carry local imageData. Download once
+        // from photoURL so every preview/post view can render the photo.
+        for entry in entries where entry.imageData == nil && !entry.photoURL.isEmpty {
+            if let url = URL(string: entry.photoURL),
+               let (data, _) = try? await URLSession.shared.data(from: url) {
+                entry.imageData = data
+            }
+        }
         todayFoodEntries = entries.sorted { $0.loggedAt < $1.loggedAt }
         isLoadingFood = false
     }

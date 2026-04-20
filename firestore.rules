@@ -127,7 +127,7 @@ service cloud.firestore {
       allow update: if request.auth != null
                     && (resource.data.userID == request.auth.uid
                         || (request.resource.data.diff(resource.data).affectedKeys()
-                            .hasOnly(['reps', 'reppedBy', 'celebrates', 'celebratedBy', 'reportCount', 'reportedBy', 'commentsCount'])
+                            .hasOnly(['reps', 'reppedBy', 'celebrates', 'celebratedBy', 'zaps', 'zappedBy', 'reportCount', 'reportedBy', 'commentsCount'])
                             && (!('reportedBy' in request.resource.data) || request.resource.data.reportedBy.size() <= 200)));
       allow delete: if request.auth != null
                     && resource.data.userID == request.auth.uid;

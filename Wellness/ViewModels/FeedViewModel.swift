@@ -116,7 +116,6 @@ import FirebaseFirestore
             if let revertIdx = posts.firstIndex(where: { $0.id == postID }) {
                 posts[revertIdx] = original
             }
-            errorMessage = error.localizedDescription
         }
     }
 
@@ -142,7 +141,6 @@ import FirebaseFirestore
             if let revertIdx = posts.firstIndex(where: { $0.id == postID }) {
                 posts[revertIdx] = original
             }
-            errorMessage = error.localizedDescription
         }
     }
 
@@ -168,7 +166,6 @@ import FirebaseFirestore
             if let revertIdx = posts.firstIndex(where: { $0.id == postID }) {
                 posts[revertIdx] = original
             }
-            errorMessage = error.localizedDescription
         }
     }
 

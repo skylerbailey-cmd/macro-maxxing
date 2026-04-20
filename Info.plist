@@ -17,6 +17,14 @@
 				<string>com.googleusercontent.apps.799606183223-ouaihbcnk1ue5t2f9g1q3ucl77uohu11</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>wellness</string>
+			</array>
+		</dict>
 	</array>
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<false/>

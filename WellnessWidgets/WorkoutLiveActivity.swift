@@ -169,61 +169,19 @@ private func currentItemName(for state: WorkoutActivityAttributes.ContentState) 
 private func strengthBody(state: WorkoutActivityAttributes.ContentState,
                           compact: Bool) -> some View {
     let current = WorkoutActivityAttributes.currentExercise(in: state)
-    let loggedSets = current?.sets ?? []
-    let nextSetNumber = loggedSets.count + 1
-    if compact {
-        // Dynamic Island: action buttons + read-only staged set (no steppers)
-        VStack(spacing: 6) {
-            actionRow(isPaused: state.isPaused, compact: true)
-            compactStagedSetDisplay(setNumber: nextSetNumber,
-                                    reps: state.stagedReps,
-                                    weight: state.stagedWeight)
+    let lastSetIndex = max(0, (current?.sets.count ?? 1) - 1)
+    VStack(spacing: compact ? 6 : 10) {
+        restTimerLabel(state: state, compact: compact)
+        actionRow(isPaused: state.isPaused, compact: compact)
+        if let sets = current?.sets, sets.indices.contains(lastSetIndex) {
+            currentSetRow(setIndex: lastSetIndex,
+                          set:      sets[lastSetIndex],
+                          compact:  compact)
         }
-    } else {
-        // Lock screen: full stepper UI + logged sets history
-        VStack(spacing: 10) {
-            // Rest timer
-            restTimerLabel(state: state, compact: false)
-            actionRow(isPaused: state.isPaused, compact: false)
-            stagedSetRow(setNumber: nextSetNumber,
-                         reps: state.stagedReps,
-                         weight: state.stagedWeight,
-                         compact: false)
-            if !loggedSets.isEmpty {
-                loggedSetsList(sets: loggedSets, compact: false)
-            }
-        }
+        pastSetsList(sets:    current?.sets ?? [],
+                     current: lastSetIndex,
+                     compact: compact)
     }
-}
-
-/// Compact read-only display of the staged set for the Dynamic Island.
-/// No stepper buttons — adjust reps/weight from the lock screen or in-app.
-private func compactStagedSetDisplay(setNumber: Int, reps: Int, weight: Double?) -> some View {
-    HStack(spacing: 10) {
-        Text("Set \(setNumber)")
-            .font(.system(size: 10, weight: .bold))
-            .foregroundStyle(.yellow)
-        HStack(spacing: 4) {
-            Text("\(reps)")
-                .font(.system(size: 14, weight: .black, design: .rounded))
-                .monospacedDigit()
-            Text("reps")
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.50))
-        }
-        HStack(spacing: 4) {
-            Text(weightString(weight))
-                .font(.system(size: 14, weight: .black, design: .rounded))
-                .monospacedDigit()
-            Text("lbs")
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.50))
-        }
-    }
-    .foregroundStyle(.white)
-    .padding(.vertical, 4)
-    .padding(.horizontal, 8)
-    .background(.yellow.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
 }
 
 // MARK: - Cardio body
@@ -286,14 +244,8 @@ private func cardioStatsRow(segment: WorkoutActivityAttributes.LiveCardioSegment
 private func cardioSegmentList(state: WorkoutActivityAttributes.ContentState,
                                compact: Bool) -> some View {
     if state.segments.count > 1 {
-        let maxSegs = compact ? 3 : 4
-        let segs = Array(state.segments.enumerated())
-        // Show current + neighbors, capped to maxSegs
-        let startIdx = max(0, min(state.currentIndex - 1, segs.count - maxSegs))
-        let visibleSegs = Array(segs[startIdx..<min(startIdx + maxSegs, segs.count)])
-        let hiddenCount = segs.count - visibleSegs.count
         VStack(spacing: compact ? 3 : 5) {
-            ForEach(visibleSegs, id: \.element.id) { idx, seg in
+            ForEach(Array(state.segments.enumerated()), id: \.element.id) { idx, seg in
                 HStack(spacing: 6) {
                     Text(seg.label.isEmpty ? "Segment \(idx + 1)" : seg.label)
                         .font(.system(size: compact ? 10 : 12,
@@ -317,11 +269,6 @@ private func cardioSegmentList(state: WorkoutActivityAttributes.ContentState,
                             ? Color.green.opacity(0.15)
                             : Color.white.opacity(0.05),
                             in: RoundedRectangle(cornerRadius: 8))
-            }
-            if hiddenCount > 0 {
-                Text("+ \(hiddenCount) more segment\(hiddenCount == 1 ? "" : "s")")
-                    .font(.system(size: compact ? 9 : 10, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.30))
             }
         }
     }
@@ -566,8 +513,8 @@ private func formatted(seconds: Int) -> String {
 
 // MARK: - Rest timer label
 
-/// Shows time since last "Log Set" or "Next Exercise". Resets each time
-/// the user logs a set or advances. Only visible when `lastSetLoggedAt` is set.
+/// Shows time since last "Add Set" or "Next Exercise". Resets each time
+/// the user adds a set or advances. Only visible when `lastSetLoggedAt` is set.
 @ViewBuilder
 private func restTimerLabel(state: WorkoutActivityAttributes.ContentState,
                             compact: Bool) -> some View {
@@ -583,24 +530,21 @@ private func restTimerLabel(state: WorkoutActivityAttributes.ContentState,
     }
 }
 
-// MARK: - Logged sets list
+// MARK: - Past sets list
 
-/// Read-only list of all logged (committed) sets, most recent first.
+/// Read-only list of every set EXCEPT the current one, rendered below the
+/// action row / editable current set. Preserves natural order (Set 1, 2…)
+/// but skips whichever index is flagged as current.
 @ViewBuilder
-private func loggedSetsList(sets: [WorkoutActivityAttributes.LiveSet],
-                            compact: Bool) -> some View {
-    let maxVisible = compact ? 2 : 3
-    let reversed = Array(sets.enumerated()).reversed()
-    let visible = Array(reversed.prefix(maxVisible))
-    let hidden = sets.count - maxVisible
-    return VStack(spacing: compact ? 3 : 5) {
-        ForEach(visible, id: \.element.id) { idx, set in
-            historicalSetRow(setIndex: idx, set: set, compact: compact)
-        }
-        if hidden > 0 {
-            Text("+ \(hidden) earlier set\(hidden == 1 ? "" : "s")")
-                .font(.system(size: compact ? 9 : 10, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.30))
+private func pastSetsList(sets:    [WorkoutActivityAttributes.LiveSet],
+                          current: Int,
+                          compact: Bool) -> some View {
+    let past = Array(sets.enumerated()).filter { $0.offset != current }.reversed()
+    if !past.isEmpty {
+        VStack(spacing: compact ? 3 : 5) {
+            ForEach(past, id: \.element.id) { idx, set in
+                historicalSetRow(setIndex: idx, set: set, compact: compact)
+            }
         }
     }
 }
@@ -629,83 +573,81 @@ private func historicalSetRow(setIndex: Int,
     .background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
 }
 
-/// The staged set row — shows reps/weight that the user is configuring.
-/// Nothing is written to the exercise until "Log Set" is tapped.
 @ViewBuilder
-private func stagedSetRow(setNumber: Int,
-                          reps: Int,
-                          weight: Double?,
-                          compact: Bool) -> some View {
+private func currentSetRow(setIndex: Int,
+                           set: WorkoutActivityAttributes.LiveSet,
+                           compact: Bool) -> some View {
     HStack(spacing: compact ? 6 : 8) {
-        Text("Set \(setNumber)")
+        Text("Set \(setIndex + 1)")
             .font(.system(size: compact ? 10 : 12, weight: .bold))
-            .foregroundStyle(.yellow)
+            .foregroundStyle(.green)
             .frame(width: compact ? 40 : 50, alignment: .leading)
 
         // Reps stepper
         HStack(spacing: compact ? 4 : 6) {
-            Button(intent: WorkoutDecrementRepsIntent()) {
+            Button(intent: WorkoutDecrementRepsIntent(setIndex: setIndex)) {
                 stepperGlyph("minus", compact: compact, filled: false)
             }
+            .buttonStyle(.plain)
 
             VStack(spacing: 0) {
-                Text("\(reps)")
+                Text("\(set.reps)")
                     .font(.system(size: compact ? 14 : 18, weight: .black, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(.white)
-                    .contentTransition(.numericText())
-                    .transaction { $0.animation = .linear(duration: 0.05) }
+                    .contentTransition(.identity)
                 Text("reps")
                     .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.40))
             }
             .frame(minWidth: compact ? 30 : 38)
 
-            Button(intent: WorkoutIncrementRepsIntent()) {
+            Button(intent: WorkoutIncrementRepsIntent(setIndex: setIndex)) {
                 stepperGlyph("plus", compact: compact, filled: true)
             }
+            .buttonStyle(.plain)
         }
 
         // Weight stepper
         HStack(spacing: compact ? 4 : 6) {
-            Button(intent: WorkoutDecrementWeightIntent()) {
+            Button(intent: WorkoutDecrementWeightIntent(setIndex: setIndex)) {
                 stepperGlyph("minus", compact: compact, filled: false)
             }
+            .buttonStyle(.plain)
 
             VStack(spacing: 0) {
-                Text(weightString(weight))
+                Text(weightString(set.weight))
                     .font(.system(size: compact ? 13 : 17, weight: .black, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(.white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
-                    .contentTransition(.numericText())
-                    .transaction { $0.animation = .linear(duration: 0.05) }
+                    .contentTransition(.identity)
                 Text("weight")
                     .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.40))
             }
             .frame(minWidth: compact ? 40 : 54)
 
-            Button(intent: WorkoutIncrementWeightIntent()) {
+            Button(intent: WorkoutIncrementWeightIntent(setIndex: setIndex)) {
                 stepperGlyph("plus", compact: compact, filled: true)
             }
+            .buttonStyle(.plain)
         }
     }
     .padding(.vertical, compact ? 4 : 8)
     .padding(.horizontal, compact ? 6 : 10)
-    .background(.yellow.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
-    .overlay(RoundedRectangle(cornerRadius: 10).stroke(.yellow.opacity(0.35), lineWidth: 1))
+    .background(.green.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
+    .overlay(RoundedRectangle(cornerRadius: 10).stroke(.green.opacity(0.35), lineWidth: 1))
 }
 
 private func stepperGlyph(_ systemName: String, compact: Bool, filled: Bool) -> some View {
-    let size: CGFloat = compact ? 28 : 32
+    let size: CGFloat = compact ? 24 : 32
     return Image(systemName: systemName)
-        .font(.system(size: compact ? 12 : 14, weight: .bold))
+        .font(.system(size: compact ? 11 : 14, weight: .bold))
         .foregroundStyle(filled ? .black : .white)
         .frame(width: size, height: size)
         .background(filled ? Color.green : .white.opacity(0.12), in: Circle())
-        .contentShape(Circle())
 }
 
 private func weightString(_ weight: Double?) -> String {
@@ -765,7 +707,7 @@ private func actionRow(isPaused: Bool, compact: Bool) -> some View {
         .buttonStyle(.plain)
 
         if compact {
-            compactActionButton(title: "Log Set",
+            compactActionButton(title: "Add Set",
                                 systemImage: "plus",
                                 intent: WorkoutAddSetIntent())
             compactActionButton(title: "Next",
@@ -780,7 +722,7 @@ private func actionRow(isPaused: Bool, compact: Bool) -> some View {
                 HStack(spacing: 6) {
                     Image(systemName: "plus")
                         .font(.system(size: 11, weight: .bold))
-                    Text("Log Set")
+                    Text("Add Set")
                         .font(.system(size: 12, weight: .semibold))
                 }
                 .foregroundStyle(.white)
@@ -899,5 +841,6 @@ private struct LockScreenView: View {
 struct WellnessWidgetsBundle: WidgetBundle {
     var body: some Widget {
         WorkoutLiveActivityWidget()
+        LogMealWidget()
     }
 }
