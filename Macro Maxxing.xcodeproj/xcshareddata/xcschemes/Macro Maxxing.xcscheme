@@ -50,19 +50,6 @@
             ReferencedContainer = "container:Macro Maxxing.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <CommandLineArguments>
-         <CommandLineArgument
-            argument = "-FIRAAppCheckDebugToken REDACTED "
-            isEnabled = "NO">
-         </CommandLineArgument>
-      </CommandLineArguments>
-      <EnvironmentVariables>
-         <EnvironmentVariable
-            key = "FIRAAppCheckDebugToken"
-            value = "REDACTED"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-      </EnvironmentVariables>
       <StoreKitConfigurationFileReference
          identifier = "../../Wellness/Wellness.storekit">
       </StoreKitConfigurationFileReference>
